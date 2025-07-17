@@ -5,6 +5,7 @@ import 'forgot_password.dart';
 
 import '../role_views/customer_view.dart';
 import 'register_customer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginCustomer extends StatefulWidget {
   const LoginCustomer({super.key});
@@ -75,6 +76,11 @@ class _CustomerLoginFormState extends State<CustomerLoginForm> {
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       if (data['user_type'] == 'customer') {
+        // Save session in SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('is_logged_in', true);
+        await prefs.setString('role', data['user_type']);
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const CustomerView()),
