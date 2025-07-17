@@ -10,6 +10,14 @@ from rest_framework import status
 from .serializers import CustomerSerializer, StaffSerializer, SupplierSerializer
 from .models import Customer, Staff, Supplier
 
+from .models import Medicine
+from .serializers import MedicineSerializer
+
+from rest_framework.decorators import parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser
+
+
+
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
 
@@ -264,4 +272,44 @@ def change_staff_password(request, staff_id):
     staff.password = make_password(new_password)
     staff.save()
     return Response({'message': 'Password changed successfully'}, status=status.HTTP_200_OK)
+
+# ─────────── MEDICINE MANAGEMENT ───────────
+
+@api_view(['GET', 'POST'])
+@parser_classes([MultiPartParser, FormParser])
+def medicine_list(request):
+    if request.method == 'GET':
+        medicines = Medicine.objects.all()
+        serializer = MedicineSerializer(medicines, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = MedicineSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def medicine_detail(request, pk):
+    try:
+        medicine = Medicine.objects.get(pk=pk)
+    except Medicine.DoesNotExist:
+        return Response({'error': 'Medicine not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = MedicineSerializer(medicine)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        serializer = MedicineSerializer(medicine, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        medicine.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
