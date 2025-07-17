@@ -4,10 +4,10 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../role_views/admin_view.dart';
-import '../role_views/manager_view.dart';
+import '../role_views/manager_view.dart'; // Make sure this is the updated ManagerView
 import '../role_views/cashier_view.dart';
 import '../role_views/staff_view.dart';
-import 'forgot_password.dart'; // <- Make sure this file exists and is correctly linked
+import 'forgot_password.dart'; // Make sure this file exists and is correctly linked
 
 class LoginStaff extends StatefulWidget {
   const LoginStaff({super.key});
@@ -41,7 +41,7 @@ class _LoginStaffState extends State<LoginStaff> {
 
       if (data['user_type'] == 'staff') {
         final role = data['role'];
-        final int staffId = data['id'];
+        final int staffId = data['id']; // This is correct, you're getting the ID
 
         // Save session in SharedPreferences
         final prefs = await SharedPreferences.getInstance();
@@ -53,21 +53,20 @@ class _LoginStaffState extends State<LoginStaff> {
 
         print("Saved email: ${data['email']}");
 
-
-
         Widget destination;
         switch (role) {
           case 'admin':
             destination = AdminView(staffId: staffId);
             break;
           case 'manager':
-            destination = const ManagerView(); // you can add staffId later
+            // --- FIX IS HERE ---
+            destination = ManagerView(staffId: staffId); // Pass staffId to ManagerView
             break;
           case 'cashier':
-            destination = const CashierView();
+            destination = const CashierView(); // Assuming CashierView doesn't need staffId yet
             break;
           case 'staff':
-            destination = const StaffView();
+            destination = const StaffView(); // Assuming StaffView doesn't need staffId yet
             break;
           default:
             setState(() {
