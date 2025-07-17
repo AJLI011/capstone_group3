@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from .views import medicine_list 
 
 urlpatterns = [
     # Authentication
@@ -8,6 +9,7 @@ urlpatterns = [
     path('forgot-password/', views.forgot_password),
     path('reset-password/<str:token>/', views.reset_password, name='reset-password'),
 
+    #-------------admin features--------------
     # Customers
     path('customers/', views.get_all_customers),
     path('customers/<int:customer_id>/', views.customer_detail),
@@ -24,5 +26,9 @@ urlpatterns = [
     path('staff/<int:staff_id>/profile/', views.get_staff_profile, name='get_staff_profile'),
     path('staff/<int:staff_id>/update-profile/', views.update_staff_profile, name='update_staff_profile'),
     path('staff/<int:staff_id>/change-password/', views.change_staff_password, name='change_staff_password'),
+    
+    #----------------manager features----------------
+    #medicines list
+    path('medicines/', medicine_list, name='medicine-list'),
 
 ]
