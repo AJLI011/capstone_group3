@@ -4,12 +4,20 @@ from django.contrib.auth.hashers import make_password
 
 @admin.register(Staff)
 class StaffAdmin(admin.ModelAdmin):
-    list_display = ('name', 'email', 'role')  # Show these fields in the admin list view
+    list_display = ('name', 'email', 'role', 'contact_num')  # Show in list view
+    search_fields = ('name', 'email', 'role', 'contact_num')  # Enable search
 
     def save_model(self, request, obj, form, change):
-        # If the password was changed or set, hash it before saving
         if form.cleaned_data.get('password'):
             obj.password = make_password(form.cleaned_data['password'])
         super().save_model(request, obj, form, change)
 
-admin.site.register(Customer)
+@admin.register(Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ('name', 'email', 'contact_num')  # Show in list view
+    search_fields = ('name', 'email', 'contact_num')  # Enable search
+
+    def save_model(self, request, obj, form, change):
+        if form.cleaned_data.get('password'):
+            obj.password = make_password(form.cleaned_data['password'])
+        super().save_model(request, obj, form, change)

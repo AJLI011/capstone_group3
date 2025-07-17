@@ -21,7 +21,8 @@ from accounts.views import reset_password
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('accounts.urls')),
-    path('reset-password/<str:token>/', reset_password, name='reset_password'),  # <- this line must be here
+    path('reset-password/<str:token>/', reset_password, name='reset_password'),  # needed for email reset
+    path('api/', include('accounts.urls')), 
 ]
 
 

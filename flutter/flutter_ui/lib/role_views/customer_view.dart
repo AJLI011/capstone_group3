@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import '../main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CustomerView extends StatelessWidget {
   const CustomerView({super.key});
 
-  void logout(BuildContext context) {
+  void logout(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('is_logged_in');
+    await prefs.remove('role');
+    
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const ToggleLoginScreen()),

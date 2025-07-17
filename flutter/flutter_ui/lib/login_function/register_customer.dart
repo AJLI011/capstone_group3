@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-
 class RegisterCustomer extends StatefulWidget {
   const RegisterCustomer({super.key});
 
@@ -11,41 +10,47 @@ class RegisterCustomer extends StatefulWidget {
 }
 
 class _RegisterCustomerState extends State<RegisterCustomer> {
-  final emailController = TextEditingController();
+  final nameController     = TextEditingController();
+  final emailController    = TextEditingController();
   final passwordController = TextEditingController();
-  final nameController = TextEditingController();
-  String errorMsg = '';
+  final contactController  = TextEditingController();
+
+  String errorMsg   = '';
   String successMsg = '';
-  bool isLoading = false;
+  bool   isLoading  = false;
 
   Future<void> registerCustomer() async {
     setState(() {
-      isLoading = true;
-      errorMsg = '';
+      isLoading  = true;
+      errorMsg   = '';
       successMsg = '';
     });
 
     final url = Uri.parse('http://10.0.2.2:8000/api/register/');
-    final response = await http.post(url, body: {
-      'email': emailController.text.trim(),
-      'password': passwordController.text.trim(),
-      'name': nameController.text.trim(),
-    });
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'name'        : nameController.text.trim(),
+        'email'       : emailController.text.trim(),
+        'password'    : passwordController.text.trim(),
+        'contact_num' : contactController.text.trim(),   // ← new field
+      }),
+    );
 
     setState(() => isLoading = false);
 
     if (response.statusCode == 201) {
       setState(() {
         successMsg = 'Registered successfully! You may now log in.';
+        nameController.clear();
         emailController.clear();
         passwordController.clear();
-        nameController.clear();
+        contactController.clear();
       });
     } else {
       final data = json.decode(response.body);
-      setState(() {
-        errorMsg = data.toString();
-      });
+      setState(() => errorMsg = data.toString());
     }
   }
 
@@ -68,7 +73,11 @@ class _RegisterCustomerState extends State<RegisterCustomer> {
             obscureText: true,
             decoration: const InputDecoration(labelText: 'Password'),
           ),
-          const SizedBox(height: 10),
+          TextField(
+            controller: contactController,
+            decoration: const InputDecoration(labelText: 'Contact Number'),
+          ),
+          const SizedBox(height: 12),
           ElevatedButton(
             onPressed: isLoading ? null : registerCustomer,
             child: isLoading
@@ -78,14 +87,12 @@ class _RegisterCustomerState extends State<RegisterCustomer> {
           if (successMsg.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Text(successMsg,
-                  style: const TextStyle(color: Colors.green)),
+              child: Text(successMsg, style: const TextStyle(color: Colors.green)),
             ),
           if (errorMsg.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child:
-                  Text(errorMsg, style: const TextStyle(color: Colors.red)),
+              child: Text(errorMsg, style: const TextStyle(color: Colors.red)),
             ),
         ],
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../role_views/admin_view.dart';
 import '../role_views/manager_view.dart';
@@ -37,16 +38,30 @@ class _LoginStaffState extends State<LoginStaff> {
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
+
       if (data['user_type'] == 'staff') {
         final role = data['role'];
-        Widget destination;
+        final int staffId = data['id'];
 
+        // Save session in SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('is_logged_in', true);
+        await prefs.setString('role', role);
+        await prefs.setInt('staff_id', staffId);
+        await prefs.setString('name', data['name'] ?? '');
+        await prefs.setString('email', data['email'] ?? '');
+
+        print("Saved email: ${data['email']}");
+
+
+
+        Widget destination;
         switch (role) {
           case 'admin':
-            destination = const AdminView();
+            destination = AdminView(staffId: staffId);
             break;
           case 'manager':
-            destination = const ManagerView();
+            destination = const ManagerView(); // you can add staffId later
             break;
           case 'cashier':
             destination = const CashierView();

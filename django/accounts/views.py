@@ -7,13 +7,14 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
-from .serializers import CustomerSerializer, StaffSerializer
-from .models import Customer, Staff
+from .serializers import CustomerSerializer, StaffSerializer, SupplierSerializer
+from .models import Customer, Staff, Supplier
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
 
-# Register Customer
+# ─────────── REGISTRATION ───────────
+
 @api_view(['POST'])
 def register_customer(request):
     serializer = CustomerSerializer(data=request.data)
@@ -22,7 +23,8 @@ def register_customer(request):
         return Response({'message': 'Customer registered successfully'}, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# Login (Customer or Staff)
+# ─────────── LOGIN ───────────
+
 @api_view(['POST'])
 def login_user(request):
     email = request.data.get('email')
@@ -42,14 +44,18 @@ def login_user(request):
                 'message': 'Login successful',
                 'user_type': 'staff',
                 'role': staff.role,
-                'view': f'{staff.role}_view'
+                'view': f'{staff.role}_view',
+                'id': staff.id,
+                'name': staff.name,   # <-- ADD THIS LINE
+                'email': staff.email  # <-- ADD THIS LINE
             })
     except Staff.DoesNotExist:
         pass
 
     return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
-# Forgot Password (sends reset link)
+# ─────────── PASSWORD RESET ───────────
+
 @api_view(['POST'])
 def forgot_password(request):
     email = request.data.get('email')
@@ -78,7 +84,6 @@ def forgot_password(request):
 
     return Response({'message': 'Reset link sent to email'}, status=status.HTTP_200_OK)
 
-# Reset Password (HTML page)
 @api_view(['GET', 'POST'])
 def reset_password(request, token):
     print('Received token:', token)
@@ -108,3 +113,155 @@ def reset_password(request, token):
         return render(request, 'reset_credentials/reset_password.html', {'success': 'Password reset successful'})
 
     return render(request, 'reset_credentials/reset_password.html')
+
+# ─────────── CUSTOMER MANAGEMENT ───────────
+
+@api_view(['GET'])
+def get_all_customers(request):
+    customers = Customer.objects.all()
+    serializer = CustomerSerializer(customers, many=True)
+    return Response(serializer.data)
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def customer_detail(request, customer_id):
+    try:
+        customer = Customer.objects.get(id=customer_id)
+    except Customer.DoesNotExist:
+        return Response({'error': 'Customer not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = CustomerSerializer(customer)
+        return Response(serializer.data)
+
+    if request.method == 'PUT':
+        serializer = CustomerSerializer(customer, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    customer.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+# ─────────── SUPPLIER MANAGEMENT ───────────
+
+@api_view(['GET', 'POST'])
+def supplier_list(request):
+    if request.method == 'GET':
+        suppliers = Supplier.objects.all()
+        serializer = SupplierSerializer(suppliers, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = SupplierSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def supplier_detail(request, pk):
+    try:
+        supplier = Supplier.objects.get(pk=pk)
+    except Supplier.DoesNotExist:
+        return Response({'error': 'Supplier not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = SupplierSerializer(supplier)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        serializer = SupplierSerializer(supplier, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        supplier.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+# ─────────── STAFF (EMPLOYEE) MANAGEMENT ───────────
+
+@api_view(['GET', 'POST'])
+def get_all_staff(request):
+    if request.method == 'GET':
+        staff_members = Staff.objects.all()
+        serializer = StaffSerializer(staff_members, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = StaffSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def staff_detail(request, staff_id):
+    try:
+        staff = Staff.objects.get(id=staff_id)
+    except Staff.DoesNotExist:
+        return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = StaffSerializer(staff)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        serializer = StaffSerializer(staff, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        staff.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+# ─────────── STAFF PROFILE ───────────
+
+@api_view(['PUT'])
+def update_staff_profile(request, staff_id):
+    try:
+        staff = Staff.objects.get(id=staff_id)
+    except Staff.DoesNotExist:
+        return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = StaffSerializer(staff, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({'message': 'Profile updated', 'staff': serializer.data})
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+def get_staff_profile(request, staff_id):
+    try:
+        staff = Staff.objects.get(id=staff_id)
+    except Staff.DoesNotExist:
+        return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = StaffSerializer(staff)
+    return Response(serializer.data)
+
+
+@api_view(['PUT'])
+def change_staff_password(request, staff_id):
+    try:
+        staff = Staff.objects.get(id=staff_id)
+    except Staff.DoesNotExist:
+        return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    current_password = request.data.get('current_password')
+    new_password = request.data.get('new_password')
+
+    if not current_password or not new_password:
+        return Response({'error': 'Both current and new password are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not check_password(current_password, staff.password):
+        return Response({'error': 'Current password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    staff.password = make_password(new_password)
+    staff.save()
+    return Response({'message': 'Password changed successfully'}, status=status.HTTP_200_OK)
+

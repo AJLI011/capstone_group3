@@ -1,26 +1,67 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'login_function/login_customer.dart';
 import 'login_function/login_staff.dart';
 
-void main() {
-  runApp(const MyApp());
+import 'role_views/admin_view.dart';
+import 'role_views/manager_view.dart';
+import 'role_views/cashier_view.dart';
+import 'role_views/staff_view.dart';
+import 'role_views/customer_view.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final startScreen = await _getStartScreen();
+  runApp(MyApp(startScreen));
+}
+
+Future<Widget> _getStartScreen() async {
+  final prefs = await SharedPreferences.getInstance();
+  final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
+  final role = prefs.getString('role');
+  final staffId = prefs.getInt('staff_id');
+  
+  print('SharedPref: is_logged_in=$isLoggedIn, role=$role, staff_id=$staffId');
+
+
+  if (isLoggedIn && role != null) {
+    switch (role) {
+      case 'admin':
+        if (staffId != null) return AdminView(staffId: staffId);
+        break;
+      case 'manager':
+        return const ManagerView();
+      case 'cashier':
+        return const CashierView();
+      case 'staff':
+        return const StaffView();
+      case 'customer':
+        return const CustomerView();
+    }
+  }
+
+  return const ToggleLoginScreen();
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final Widget startScreen;
+  const MyApp(this.startScreen, {super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Capstone App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: const ToggleLoginScreen(),
+      home: startScreen,
     );
   }
 }
 
 class ToggleLoginScreen extends StatefulWidget {
   const ToggleLoginScreen({super.key});
+
   @override
   State<ToggleLoginScreen> createState() => _ToggleLoginScreenState();
 }
@@ -48,11 +89,8 @@ class _ToggleLoginScreenState extends State<ToggleLoginScreen> {
             ],
           ),
           Expanded(
-          // child: showCustomerLogin ?  LoginCustomer() :  LoginStaff(),
-          child: showCustomerLogin
-            ? LoginCustomer()
-            : LoginStaff(),
-          )
+            child: showCustomerLogin ? LoginCustomer() : LoginStaff(),
+          ),
         ],
       ),
     );
