@@ -5,7 +5,7 @@ import 'login_function/login_customer.dart';
 import 'login_function/login_staff.dart';
 
 import 'role_views/admin_view.dart';
-import 'role_views/manager_view.dart';
+import 'role_views/manager_view.dart'; // Make sure this is the updated ManagerView
 import 'role_views/cashier_view.dart';
 import 'role_views/staff_view.dart';
 import 'role_views/customer_view.dart';
@@ -20,10 +20,9 @@ Future<Widget> _getStartScreen() async {
   final prefs = await SharedPreferences.getInstance();
   final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
   final role = prefs.getString('role');
-  final staffId = prefs.getInt('staff_id');
-  
-  print('SharedPref: is_logged_in=$isLoggedIn, role=$role, staff_id=$staffId');
+  final staffId = prefs.getInt('staff_id'); // Correctly retrieving staffId
 
+  print('SharedPref: is_logged_in=$isLoggedIn, role=$role, staff_id=$staffId');
 
   if (isLoggedIn && role != null) {
     switch (role) {
@@ -31,7 +30,11 @@ Future<Widget> _getStartScreen() async {
         if (staffId != null) return AdminView(staffId: staffId);
         break;
       case 'manager':
-        return const ManagerView();
+        // --- FIX IS HERE ---
+        if (staffId != null) { // Ensure staffId is not null before passing
+          return ManagerView(staffId: staffId);
+        }
+        break;
       case 'cashier':
         return const CashierView();
       case 'staff':
@@ -41,6 +44,7 @@ Future<Widget> _getStartScreen() async {
     }
   }
 
+  // If not logged in, or if staffId is missing for admin/manager, go to login
   return const ToggleLoginScreen();
 }
 
