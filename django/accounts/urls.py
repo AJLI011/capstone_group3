@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from .views import medicine_list 
+from .views import medicine_list, medicine_detail 
 
 urlpatterns = [
     # Authentication
@@ -30,5 +31,5 @@ urlpatterns = [
     #----------------manager features----------------
     #medicines list
     path('medicines/', medicine_list, name='medicine-list'),
-
+    path('medicines/<int:pk>/', medicine_detail, name='medicine-detail'),  # ✅ Add this line!
 ]
