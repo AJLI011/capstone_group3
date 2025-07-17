@@ -2,6 +2,8 @@ from rest_framework import serializers
 from .models import Customer, Staff, Supplier
 from django.contrib.auth.hashers import make_password
 
+from .models import Medicine
+
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
@@ -39,4 +41,32 @@ class StaffSerializer(serializers.ModelSerializer):
 class SupplierSerializer(serializers.ModelSerializer):
     class Meta:
         model = Supplier
+        fields = '__all__'
+
+class MedicineSerializer(serializers.ModelSerializer):
+    supplier_name = serializers.StringRelatedField(source='supplier', read_only=True)  # Optional: show supplier name
+
+    class Meta:
+        model = Medicine
+        fields = [
+            'id',
+            'name',
+            'generic_name',
+            'barcode',
+            'category',
+            'dosage_form',
+            'supplier',
+            'supplier_name',         # Just for display, not required
+            'restock_quantity',
+            'price',
+            'requires_prescription',
+            'image',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+class MedicineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Medicine
         fields = '__all__'
