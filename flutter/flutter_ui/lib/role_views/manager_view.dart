@@ -3,9 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart'; // ToggleLoginScreen
 
 // You'll need to create these placeholder pages for ManagerView features later
-// import 'manager_features/feature1_page.dart';
-// import 'manager_features/feature2_page.dart';
-// ... etc.
+import 'manager_features/medicines_list/medicine_view-edit-del_view.dart';
 
 class ManagerView extends StatefulWidget {
   final int staffId; // Manager also needs staffId, similar to Admin
@@ -181,7 +179,8 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                                         _drawerItem(Icons.trending_up, 'Online Sales Report', () {}),
                                         _drawerItem(Icons.insights, 'Demand Forecast', () {}),
                                         _drawerItem(Icons.shopping_cart, 'Purchase Request', () {}),
-                                        _drawerItem(Icons.list_alt, 'Medicine List', () {}),
+                                        _drawerItem(Icons.list_alt, 'Medicine List', 
+                                          () => _open(const MedicineListView())),
                                         _drawerItem(Icons.history, 'Inventory Logs', () {}),
                                         _drawerItem(Icons.receipt_long, 'Order Logs', () {}),
                                         _drawerItem(Icons.person_outline, 'Edit Profile', () {}),
