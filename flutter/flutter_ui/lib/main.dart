@@ -24,7 +24,6 @@ Future<Widget> _getStartScreen() async {
   
   print('SharedPref: is_logged_in=$isLoggedIn, role=$role, staff_id=$staffId');
 
-
   if (isLoggedIn && role != null) {
     switch (role) {
       case 'admin':
