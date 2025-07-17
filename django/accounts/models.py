@@ -37,3 +37,46 @@ class Supplier(models.Model):
 
     def __str__(self):
         return self.name
+    
+class Medicine(models.Model):
+    
+    class Meta:
+        db_table = 'medicines_list'
+    DOSAGE_CHOICES = [
+        ('tablet', 'Tablet'),
+        ('syrup', 'Syrup'),
+        ('capsule', 'Capsule'),
+    ]
+
+    CATEGORY_CHOICES = [
+        ('analgesics', 'Analgesics'),
+        ('antibiotics', 'Antibiotics'),
+        ('antivirals', 'Antivirals'),
+        ('antihypertensives', 'Antihypertensives'),
+        ('antidiabetics', 'Antidiabetics'),
+        ('gastrointestinal_medicines', 'Gastrointestinal Medicines'),
+        ('antihistamines', 'Antihistamines'),
+        ('cough_and_cold_medicines', 'Cough and Cold Medicines'),
+        ('vitamins_and_supplements', 'Vitamins and Supplements'),
+        ('cardiovascular_medicines', 'Cardiovascular Medicines'),
+        ('anti_asthma_and_respiratory_medicines', 'Anti-asthma and Respiratory Medicines'),
+        ('antimalarials', 'Antimalarials'),
+        ('antiparasitics', 'Antiparasitics'),
+    ]
+
+    name = models.CharField(max_length=100)
+    generic_name = models.CharField(max_length=100, blank=True)
+    barcode = models.CharField(max_length=50, unique=True)
+    category = models.CharField(max_length=100, choices=CATEGORY_CHOICES)
+    dosage_form = models.CharField(max_length=50, choices=DOSAGE_CHOICES)
+    supplier = models.ForeignKey('Supplier', on_delete=models.SET_NULL, null=True, blank=True)
+    restock_quantity = models.PositiveIntegerField(default=0)
+    price = models.DecimalField(max_digits=8, decimal_places=2)
+    requires_prescription = models.BooleanField(default=False)
+    image = models.ImageField(upload_to='medicine_images/', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+
+    def __str__(self):
+        return self.name
