@@ -1,8 +1,7 @@
 from rest_framework import serializers
-from .models import Customer, Staff, Supplier
+from .models import Customer, Staff, Supplier, Medicine
 from django.contrib.auth.hashers import make_password
 
-from .models import Medicine
 
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -21,6 +20,7 @@ class CustomerSerializer(serializers.ModelSerializer):
             validated_data.pop('password', None)
         return super().update(instance, validated_data)
 
+
 class StaffSerializer(serializers.ModelSerializer):
     class Meta:
         model = Staff
@@ -38,13 +38,15 @@ class StaffSerializer(serializers.ModelSerializer):
             validated_data.pop('password', None)
         return super().update(instance, validated_data)
 
+
 class SupplierSerializer(serializers.ModelSerializer):
     class Meta:
         model = Supplier
         fields = '__all__'
 
+
 class MedicineSerializer(serializers.ModelSerializer):
-    supplier_name = serializers.StringRelatedField(source='supplier', read_only=True)  # Optional: show supplier name
+    supplier_name = serializers.StringRelatedField(source='supplier', read_only=True)
 
     class Meta:
         model = Medicine
@@ -55,8 +57,8 @@ class MedicineSerializer(serializers.ModelSerializer):
             'barcode',
             'category',
             'dosage_form',
-            'supplier',
-            'supplier_name',         # Just for display, not required
+            'supplier',         # This is the supplier ID (for dropdowns/forms)
+            'supplier_name',    # This is the supplier name (for display)
             'restock_quantity',
             'price',
             'requires_prescription',
@@ -65,8 +67,3 @@ class MedicineSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
-
-class MedicineSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Medicine
-        fields = '__all__'
