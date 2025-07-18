@@ -8,9 +8,12 @@ class Medicine {
   final String? name;
   final String? genericName;
   final String? category;
+  final String? dosageForm;
+  final String? supplier;         // ID
+  final String? supplierName;     // Display name
+  final bool? prescriptionRequired;
   final int? quantity;
   final double? price;
-
   final String? image;
 
   Medicine({
@@ -19,20 +22,33 @@ class Medicine {
     this.name,
     this.genericName,
     this.category,
+    this.dosageForm,
+    this.supplier,
+    this.supplierName,
+    this.prescriptionRequired,
     this.quantity,
     this.price,
-    this.image, // ADD THIS
+    this.image,
   });
 
   factory Medicine.fromJson(Map<String, dynamic> json) {
     return Medicine(
       id: json['id'],
-      barcode: json['barcode'],
-      name: json['name'],
-      genericName: json['generic_name'],
-      category: json['category'],
-      quantity: json['quantity'] != null ? int.tryParse(json['quantity'].toString()) : 0,
-      price: json['price'] != null ? double.tryParse(json['price'].toString()) : 0.0,
+      barcode: json['barcode']?.toString(),
+      name: json['name']?.toString(),
+      genericName: json['generic_name']?.toString(),
+      category: json['category']?.toString(),
+      dosageForm: json['dosage_form']?.toString(),
+      supplier: json['supplier']?.toString(),
+      supplierName: json['supplier_name']?.toString(),
+      prescriptionRequired: json['requires_prescription'],
+      quantity: json['restock_quantity'] != null
+          ? int.tryParse(json['restock_quantity'].toString())
+          : 0,
+      price: json['price'] != null
+          ? double.tryParse(json['price'].toString())
+          : 0.0,
+      image: json['image']?.toString(),
     );
   }
 }
@@ -67,7 +83,6 @@ class _MedicineListViewState extends State<MedicineListView> {
   }
 
   void _editMedicine(Medicine medicine) {
-    // Placeholder for editing logic
     print('Editing medicine: ${medicine.name}');
     // TODO: Navigate to edit form screen
   }
@@ -155,11 +170,20 @@ class _MedicineListViewState extends State<MedicineListView> {
                 margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 child: ListTile(
                   title: Text(med.name ?? 'Unnamed'),
-                  subtitle: Text(
-                    'Barcode: ${med.barcode ?? '-'}\n'
-                    'Category: ${med.category ?? '-'}\n'
-                    'Qty: ${med.quantity ?? 0} | Price: ₱${(med.price ?? 0.0).toStringAsFixed(2)}',
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Barcode No: ${med.barcode ?? "-"}'),
+                      Text('Generic Name: ${med.genericName ?? "-"}'),
+                      Text('Category: ${med.category ?? "-"}'),
+                      Text('Dosage Form: ${med.dosageForm ?? "-"}'),
+                      Text('Supplier: ${med.supplierName ?? "-"}'),
+                      Text('Prescription Required: ${med.prescriptionRequired == true ? "Yes" : "No"}'),
+                      Text('Quantity: ${med.quantity ?? 0}'),
+                      Text('Price: ₱${(med.price ?? 0.0).toStringAsFixed(2)}'),
+                    ],
                   ),
+                  isThreeLine: true,
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
