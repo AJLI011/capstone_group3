@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart'; // ToggleLoginScreen
 
 // You'll need to create these placeholder pages for ManagerView features later
-import 'manager_features/medicines_list/medicine_view-edit-del_view.dart';
+import 'manager_features/medicines_list/medicines_list_view.dart';
 
 class ManagerView extends StatefulWidget {
   final int staffId; // Manager also needs staffId, similar to Admin

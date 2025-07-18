@@ -14,6 +14,8 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+# backend/urls.py
+
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
@@ -26,8 +28,7 @@ urlpatterns = [
     path('reset-password/<str:token>/', reset_password, name='reset_password'),  # needed for email reset
 ]
 
-# Serve uploaded media files during development
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-
-
+# Serve uploaded media files ONLY during development (when DEBUG is True)
+if settings.DEBUG: # This is line 30
+    # This line MUST be indented, typically by 4 spaces
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

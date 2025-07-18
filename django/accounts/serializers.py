@@ -57,8 +57,8 @@ class MedicineSerializer(serializers.ModelSerializer):
             'barcode',
             'category',
             'dosage_form',
-            'supplier',         # This is the supplier ID (for dropdowns/forms)
-            'supplier_name',    # This is the supplier name (for display)
+            'supplier',
+            'supplier_name',
             'restock_quantity',
             'price',
             'requires_prescription',
@@ -67,3 +67,12 @@ class MedicineSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
+
+    # Add this method to handle updates for unique fields like barcode
+    def update(self, instance, validated_data):
+        # Remove barcode from validated_data if it's the same as the instance's barcode
+        # This prevents the unique constraint error when the barcode hasn't changed
+        if 'barcode' in validated_data and validated_data['barcode'] == instance.barcode:
+            validated_data.pop('barcode')
+
+        return super().update(instance, validated_data)

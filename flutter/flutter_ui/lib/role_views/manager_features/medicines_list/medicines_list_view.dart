@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+import 'edit_medicines_list.dart';
+
 class Medicine {
   final int? id;
   final String? barcode;
@@ -9,8 +11,8 @@ class Medicine {
   final String? genericName;
   final String? category;
   final String? dosageForm;
-  final String? supplier;         // ID
-  final String? supplierName;     // Display name
+  final String? supplier; // supplier ID
+  final String? supplierName; // supplier name
   final bool? prescriptionRequired;
   final int? quantity;
   final double? price;
@@ -51,6 +53,24 @@ class Medicine {
       image: json['image']?.toString(),
     );
   }
+
+  // Add this method to convert Medicine object to a Map
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'barcode': barcode,
+      'name': name,
+      'generic_name': genericName,
+      'category': category,
+      'dosage_form': dosageForm,
+      'supplier': supplier, // This should be the supplier ID if your backend expects it for updates
+      'supplier_name': supplierName, // This is usually for display, not for sending back to API
+      'requires_prescription': prescriptionRequired,
+      'restock_quantity': quantity,
+      'price': price,
+      'image': image,
+    };
+  }
 }
 
 class MedicineListView extends StatefulWidget {
@@ -83,8 +103,17 @@ class _MedicineListViewState extends State<MedicineListView> {
   }
 
   void _editMedicine(Medicine medicine) {
-    print('Editing medicine: ${medicine.name}');
-    // TODO: Navigate to edit form screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditMedicinePage(medicine: medicine.toJson()), // Changed here
+      ),
+    ).then((_) {
+      // Refresh list after editing
+      setState(() {
+        futureMedicines = fetchMedicines();
+      });
+    });
   }
 
   void _deleteMedicine(int? id) async {

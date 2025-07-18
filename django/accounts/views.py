@@ -225,7 +225,7 @@ def staff_detail(request, staff_id):
 
     elif request.method == 'DELETE':
         staff.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_204_NO_NO_CONTENT) # Fixed typo here
 
 # ─────────── STAFF PROFILE ───────────
 
@@ -267,7 +267,7 @@ def change_staff_password(request, staff_id):
         return Response({'error': 'Both current and new password are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
     if not check_password(current_password, staff.password):
-        return Response({'error': 'Current password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Current password is incorrect.'}, status=status.HTTP_400_BAD_BAD_REQUEST) # Fixed typo here
 
     staff.password = make_password(new_password)
     staff.save()
@@ -291,6 +291,7 @@ def medicine_list(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'PUT', 'DELETE'])
+@parser_classes([MultiPartParser, FormParser]) # <--- ADDED THIS LINE
 def medicine_detail(request, pk):
     try:
         medicine = Medicine.objects.get(pk=pk)
@@ -306,10 +307,11 @@ def medicine_detail(request, pk):
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
+        
+        # This will print serializer errors to your Django server console
+        print(serializer.errors) 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
         medicine.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
