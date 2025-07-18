@@ -4,6 +4,8 @@ import 'dart:convert';
  
 import 'edit_medicines_list.dart';
 
+
+import 'add_medicines_list.dart';
 class Medicine {
   final int? id;
   final String? barcode;
@@ -158,19 +160,18 @@ class _MedicineListViewState extends State<MedicineListView> {
   }
 
   void _onAddMedicine() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Add Medicine'),
-        content: const Text('Add medicine form goes here.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AddMedicineScreen(),
       ),
-    );
+    ).then((_) {
+      // This 'then' block will execute when AddMedicineScreen is popped (closed).
+      // It allows you to refresh the list of medicines after a new one might have been added.
+      setState(() {
+        futureMedicines = fetchMedicines(); // Refresh the list
+      });
+    });
   }
 
   @override
