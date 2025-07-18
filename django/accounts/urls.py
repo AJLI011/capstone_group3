@@ -31,5 +31,5 @@ urlpatterns = [
     #----------------manager features----------------
     #medicines list
     path('medicines/', medicine_list, name='medicine-list'),
-    path('medicines/<int:pk>/', medicine_detail, name='medicine-detail'),  # ✅ Add this line!
+    path('medicines/<int:pk>/', medicine_detail, name='medicine-detail'), 
 ]
