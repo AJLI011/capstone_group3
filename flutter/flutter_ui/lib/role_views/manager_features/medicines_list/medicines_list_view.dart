@@ -74,7 +74,7 @@ class Medicine {
 }
 
 class MedicineListView extends StatefulWidget {
-  const MedicineListView({Key? key}) : super(key: key);
+  const MedicineListView({super.key});
 
   @override
   State<MedicineListView> createState() => _MedicineListViewState();
@@ -234,8 +234,8 @@ class _MedicineListViewState extends State<MedicineListView> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _onAddMedicine,
-        child: const Icon(Icons.add),
         tooltip: 'Add Medicine',
+        child: const Icon(Icons.add),
       ),
     );
   }

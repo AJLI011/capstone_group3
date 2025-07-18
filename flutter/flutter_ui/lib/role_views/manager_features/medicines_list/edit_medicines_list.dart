@@ -7,7 +7,7 @@ import 'package:image_picker/image_picker.dart';
 class EditMedicinePage extends StatefulWidget {
   final Map<String, dynamic> medicine;
 
-  const EditMedicinePage({Key? key, required this.medicine}) : super(key: key);
+  const EditMedicinePage({super.key, required this.medicine});
 
   @override
   State<EditMedicinePage> createState() => _EditMedicinePageState();
