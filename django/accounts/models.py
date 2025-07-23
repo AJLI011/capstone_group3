@@ -82,3 +82,15 @@ class Medicine(models.Model):
         return self.name
 
 
+class ExpirationList(models.Model):
+    class Meta:
+        db_table = 'expiration_list'
+
+    medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE, related_name='expiration_entries')
+    batch_num = models.CharField(max_length=100)
+    exp_date = models.DateField()
+    date_received = models.DateField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.medicine.name} - Batch {self.batch_num}"
+

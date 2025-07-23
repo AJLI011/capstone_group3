@@ -3,7 +3,6 @@ env/
 *.pyc
 __pycache__/
 db.sqlite3
-settings.py
 
 # Flutter
 build/
