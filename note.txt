@@ -1,0 +1,17 @@
+settings.py will be secluded when git commited and pushed to avoid our ip addresses and workbench credentials to be changed and viewd
+(medyo annoying kasi since we have to change it to our credentials all the time and yung ip natin is sensitive information)
+
+-----settings.py will now be secluded-------
+removing steps (pano di ma-include itong file sa pag puch/commit):
+
+0: include it in .gitignore file
+1: git rm --cached django/backend/settings.py
+2: git commit -m "Stop tracking settings.py and added to .gitignore"
+3: git push
+
+including steps (you can include the file again IF may need idagdag/changes na need gawin sa file na 'to, so feel free ^_^)
+
+0: remove it in .gitignore file
+1: git add django/backend/settings.py
+2: git commit -m "Track settings.py again"
+3: git push
