@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
+import 'barcodeScan_medicines_list.dart';
+
 // Extension to format strings for display in dropdowns
 extension StringCasingExtension on String {
   String toTitleCase() => this.length > 0
@@ -127,7 +129,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
     }
 
     // IMPORTANT: Replace with your computer's actual local IP address!
-    final url = Uri.parse('http://10.0.2.2:8000/api/medicines/');
+    final url = Uri.parse('http://192.168.0.103:8000/api/medicines/');
     final request = http.MultipartRequest('POST', url);
 
     // Add text fields
@@ -256,39 +258,50 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              // Barcode field with Scan button
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _barcodeController,
-                      decoration: const InputDecoration(
-                        labelText: 'Barcode',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8), // Space between text field and button
-                  SizedBox(
-                    height: 56, // Match the height of the TextFormField
-                    child: ElevatedButton(
-                      onPressed: () {
-                        // TODO: Implement barcode scanning logic here
-                        print('Scan Barcode button pressed');
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue, // Blue button for scan
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text('Scan'),
-                    ),
-                  ),
-                ],
+
+              // Barcode text field (NOT inside an extra Row)
+              TextFormField(
+                controller: _barcodeController,
+                decoration: const InputDecoration(
+                  labelText: 'Barcode',
+                  border: OutlineInputBorder(), // Add border for consistent look if others have it
+                ),
+                // Optional: Make it read-only if you primarily want scanning
+                // readOnly: true,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 16), // Add some spacing
+
+              // Scan Barcode Button (NOT inside an extra Row)
+              ElevatedButton.icon(
+                onPressed: () async {
+                  // Navigate to the barcode scanner screen and wait for a result
+                  final String? scannedBarcode = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const BarcodeScannerScreen(),
+                    ),
+                  );
+
+                  // If a barcode was scanned and returned, set it to the controller
+                  if (scannedBarcode != null && scannedBarcode.isNotEmpty) {
+                    setState(() {
+                      _barcodeController.text = scannedBarcode;
+                    });
+                  }
+                },
+                icon: const Icon(Icons.qr_code_scanner), // You can still use the QR icon on the button
+                label: const Text('Scan Barcode'), // The text for the button
+                style: ElevatedButton.styleFrom(
+                  // You can customize the button style here if needed
+                  backgroundColor: Colors.blue, // Example: blue background
+                  foregroundColor: Colors.white, // Example: white text
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24), // Add spacing after the button
 
               // Dropdowns with overflow fix
               DropdownButtonFormField<String>(
