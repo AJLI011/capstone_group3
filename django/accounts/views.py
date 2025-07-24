@@ -16,6 +16,11 @@ from .serializers import MedicineSerializer
 from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 
+from rest_framework.views import APIView
+from .models import ExpirationList
+from .serializers import ExpirationListCreateSerializer, ExpirationListSerializer
+
+
 
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
@@ -315,3 +320,28 @@ def medicine_detail(request, pk):
     elif request.method == 'DELETE':
         medicine.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+# =================== RESTOCK--------------------
+class ExpirationListCreateView(APIView):
+    def post(self, request, *args, **kwargs):
+        serializer = ExpirationListCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            expiration = serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+def get_expiration_list(request):
+    expirations = ExpirationList.objects.select_related('medicine').all()
+    serializer = ExpirationListSerializer(expirations, many=True)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+def get_medicine_by_barcode(request, barcode):
+    try:
+        medicine = Medicine.objects.get(barcode=barcode)
+    except Medicine.DoesNotExist:
+        return Response({'error': 'Medicine not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = MedicineSerializer(medicine)
+    return Response(serializer.data)

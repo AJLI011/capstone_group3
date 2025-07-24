@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from .models import Customer, Staff, Supplier, Medicine
+from .models import Customer, Staff, Supplier, Medicine, ExpirationList # Import ExpirationList
 from django.contrib.auth.hashers import make_password
-
+from .models import ExpirationList
 
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -68,11 +68,20 @@ class MedicineSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at']
 
-    # Add this method to handle updates for unique fields like barcode
     def update(self, instance, validated_data):
-        # Remove barcode from validated_data if it's the same as the instance's barcode
-        # This prevents the unique constraint error when the barcode hasn't changed
         if 'barcode' in validated_data and validated_data['barcode'] == instance.barcode:
             validated_data.pop('barcode')
 
         return super().update(instance, validated_data)
+
+# New Serializer for ExpirationList
+class ExpirationListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExpirationList
+        fields = ['id', 'medicine', 'batch_num', 'exp_date', 'date_received']
+        read_only_fields = ['date_received'] # date_received is auto_now_add
+
+class ExpirationListCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExpirationList
+        fields = ['medicine', 'batch_num', 'exp_date']

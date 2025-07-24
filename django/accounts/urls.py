@@ -1,7 +1,8 @@
 from django.urls import path
 from . import views
-from .views import medicine_list 
-from .views import medicine_list, medicine_detail 
+from .views import medicine_list, medicine_detail
+# Import only the CreateView for adding new expiration entries
+from .views import ExpirationListCreateView 
 
 urlpatterns = [
     # Authentication
@@ -32,4 +33,9 @@ urlpatterns = [
     #medicines list
     path('medicines/', medicine_list, name='medicine-list'),
     path('medicines/<int:pk>/', medicine_detail, name='medicine-detail'), 
+
+    # ─────────── EXPIRATION LIST / RESTOCKING API ───────────
+    path('expiration-list/add/', ExpirationListCreateView.as_view(), name='expiration-list-add'),
+    path('expiration-list/', views.get_expiration_list, name='expiration-list'),  # <== ADD THIS
+    path('medicines/barcode/<str:barcode>/', views.get_medicine_by_barcode, name='get-medicine-by-barcode'),
 ]
