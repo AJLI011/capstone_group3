@@ -17,10 +17,8 @@ from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from rest_framework.views import APIView
-from .models import ExpirationList
-from .serializers import ExpirationListCreateSerializer, ExpirationListSerializer
-
-
+from .models import Inventory # Corrected import from ExpirationList to Inventory
+from .serializers import InventoryCreateSerializer, InventorySerializer # Corrected serializer imports
 
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
@@ -59,8 +57,8 @@ def login_user(request):
                 'role': staff.role,
                 'view': f'{staff.role}_view',
                 'id': staff.id,
-                'name': staff.name,   # <-- ADD THIS LINE
-                'email': staff.email  # <-- ADD THIS LINE
+                'name': staff.name,
+                'email': staff.email
             })
     except Staff.DoesNotExist:
         pass
@@ -230,7 +228,7 @@ def staff_detail(request, staff_id):
 
     elif request.method == 'DELETE':
         staff.delete()
-        return Response(status=status.HTTP_204_NO_NO_CONTENT) # Fixed typo here
+        return Response(status=status.HTTP_204_NO_CONTENT) # Fixed typo: NO_NO_CONTENT to NO_CONTENT
 
 # ─────────── STAFF PROFILE ───────────
 
@@ -272,7 +270,7 @@ def change_staff_password(request, staff_id):
         return Response({'error': 'Both current and new password are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
     if not check_password(current_password, staff.password):
-        return Response({'error': 'Current password is incorrect.'}, status=status.HTTP_400_BAD_BAD_REQUEST) # Fixed typo here
+        return Response({'error': 'Current password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST) # Fixed typo: BAD_BAD_REQUEST to BAD_REQUEST
 
     staff.password = make_password(new_password)
     staff.save()
@@ -296,7 +294,7 @@ def medicine_list(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'PUT', 'DELETE'])
-@parser_classes([MultiPartParser, FormParser]) # <--- ADDED THIS LINE
+@parser_classes([MultiPartParser, FormParser])
 def medicine_detail(request, pk):
     try:
         medicine = Medicine.objects.get(pk=pk)
@@ -314,26 +312,26 @@ def medicine_detail(request, pk):
             return Response(serializer.data)
         
         # This will print serializer errors to your Django server console
-        print(serializer.errors) 
+        print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
         medicine.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
-# =================== RESTOCK--------------------
-class ExpirationListCreateView(APIView):
+# =================== INVENTORY MANAGEMENT -------------------- # Renamed comment for clarity
+class InventoryCreateView(APIView): # Renamed class from ExpirationListCreateView
     def post(self, request, *args, **kwargs):
-        serializer = ExpirationListCreateSerializer(data=request.data)
+        serializer = InventoryCreateSerializer(data=request.data) # Changed serializer
         if serializer.is_valid():
-            expiration = serializer.save()
+            inventory_item = serializer.save() # Renamed variable
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
-def get_expiration_list(request):
-    expirations = ExpirationList.objects.select_related('medicine').all()
-    serializer = ExpirationListSerializer(expirations, many=True)
+def get_inventory_list(request): # Renamed function from get_expiration_list
+    inventory_items = Inventory.objects.select_related('medicine').all() # Changed model and variable
+    serializer = InventorySerializer(inventory_items, many=True) # Changed serializer and variable
     return Response(serializer.data)
 
 @api_view(['GET'])

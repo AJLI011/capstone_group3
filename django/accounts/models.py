@@ -82,11 +82,11 @@ class Medicine(models.Model):
         return self.name
 
 
-class ExpirationList(models.Model):
+class Inventory(models.Model):  # Renamed from ExpirationList
     class Meta:
         db_table = 'inventory_tbl'
 
-    medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE, related_name='expiration_entries')
+    medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE, related_name='inventory_entries') # Changed related_name
     batch_num = models.CharField(max_length=100)
     exp_date = models.DateField()
     date_received = models.DateField(auto_now_add=True)
@@ -94,4 +94,3 @@ class ExpirationList(models.Model):
 
     def __str__(self):
         return f"{self.medicine.name} - Batch {self.batch_num}"
-

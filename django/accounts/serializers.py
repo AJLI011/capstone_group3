@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from .models import Customer, Staff, Supplier, Medicine, ExpirationList # Import ExpirationList
+from .models import Customer, Staff, Supplier, Medicine, Inventory # Import Inventory
+
 from django.contrib.auth.hashers import make_password
-from .models import ExpirationList
 
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -74,14 +74,14 @@ class MedicineSerializer(serializers.ModelSerializer):
 
         return super().update(instance, validated_data)
 
-# New Serializer for ExpirationList
-class ExpirationListSerializer(serializers.ModelSerializer):
+# New Serializer for Inventory
+class InventorySerializer(serializers.ModelSerializer): # Renamed class
     class Meta:
-        model = ExpirationList
-        fields = ['id', 'medicine', 'batch_num', 'exp_date', 'date_received']
-        read_only_fields = ['date_received'] # date_received is auto_now_add
+        model = Inventory # Changed from ExpirationList
+        fields = ['id', 'medicine', 'batch_num', 'exp_date', 'date_received', 'quantity'] # Added quantity since it's in the model
+        read_only_fields = ['date_received']
 
-class ExpirationListCreateSerializer(serializers.ModelSerializer):
+class InventoryCreateSerializer(serializers.ModelSerializer): # Renamed class
     class Meta:
-        model = ExpirationList
-        fields = ['medicine', 'batch_num', 'exp_date']
+        model = Inventory # Changed from ExpirationList
+        fields = ['medicine', 'batch_num', 'exp_date', 'quantity'] # Added quantity
