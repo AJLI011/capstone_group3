@@ -20,6 +20,10 @@ from rest_framework.views import APIView
 from .models import Inventory # Corrected import from ExpirationList to Inventory
 from .serializers import InventoryCreateSerializer, InventorySerializer # Corrected serializer imports
 
+from .serializers import InventoryDashboardSerializer
+from rest_framework import generics
+from datetime import date, timedelta
+
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
@@ -343,3 +347,31 @@ def get_medicine_by_barcode(request, barcode):
 
     serializer = MedicineSerializer(medicine)
     return Response(serializer.data)
+
+
+# =================== Expiration Dashboard -------------------- # 
+# ✅ Good Stocks: Expiry date is more than 30 days from today
+class GoodStockView(generics.ListAPIView):
+    serializer_class = InventoryDashboardSerializer
+
+    def get_queryset(self):
+        today = date.today()
+        threshold_date = today + timedelta(days=30)
+        return Inventory.objects.filter(exp_date__gt=threshold_date)
+
+# ⚠️ Expiring Soon: Expiry date is within the next 30 days
+class ExpiringSoonView(generics.ListAPIView):
+    serializer_class = InventoryDashboardSerializer
+
+    def get_queryset(self):
+        today = date.today()
+        threshold_date = today + timedelta(days=30)
+        return Inventory.objects.filter(exp_date__gt=today, exp_date__lte=threshold_date)
+
+# ❌ Expired: Expiry date is before today
+class ExpiredView(generics.ListAPIView):
+    serializer_class = InventoryDashboardSerializer
+
+    def get_queryset(self):
+        today = date.today()
+        return Inventory.objects.filter(exp_date__lt=today)

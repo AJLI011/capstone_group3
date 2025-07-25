@@ -85,6 +85,7 @@ class Medicine(models.Model):
 class Inventory(models.Model):  # Renamed from ExpirationList
     class Meta:
         db_table = 'inventory_tbl'
+        unique_together = ('medicine', 'batch_num')
 
     medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE, related_name='inventory_entries') # Changed related_name
     batch_num = models.CharField(max_length=100)
