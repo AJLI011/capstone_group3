@@ -13,6 +13,11 @@ from .models import Customer, Staff, Supplier
 from .models import Medicine
 from .serializers import MedicineSerializer
 
+from rest_framework.views import APIView
+from datetime import date, timedelta
+from .models import Expiration
+from .serializers import ExpirationSerializer
+
 from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 
@@ -315,3 +320,36 @@ def medicine_detail(request, pk):
     elif request.method == 'DELETE':
         medicine.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+# ─────────── Expiration MANAGEMENT ───────────
+
+class GoodStockView(APIView):
+    def get(self, request):
+        today = date.today()
+        threshold = today + timedelta(days=30)
+        expirations = Expiration.objects.filter(expiration_date__gt=threshold)
+        serializer = ExpirationSerializer(expirations, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class ExpiringSoonView(APIView):
+    def get(self, request):
+        today = date.today()
+        threshold = today + timedelta(days=30)
+        expirations = Expiration.objects.filter(expiration_date__gt=today, expiration_date__lte=threshold)
+        serializer = ExpirationSerializer(expirations, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class ExpiredView(APIView):
+    def get(self, request):
+        today = date.today()
+        expirations = Expiration.objects.filter(expiration_date__lte=today)
+        serializer = ExpirationSerializer(expirations, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class CreateExpirationView(APIView):
+    def post(self, request):
+        serializer = ExpirationSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

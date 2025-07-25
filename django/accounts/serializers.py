@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Customer, Staff, Supplier, Medicine
+from .models import Customer, Staff, Supplier, Medicine, Expiration
 from django.contrib.auth.hashers import make_password
 
 
@@ -76,3 +76,17 @@ class MedicineSerializer(serializers.ModelSerializer):
             validated_data.pop('barcode')
 
         return super().update(instance, validated_data)
+    
+
+# For expiration    
+class ExpirationSerializer(serializers.ModelSerializer):
+    medicine_name = serializers.CharField(source='medicine.name', read_only=True)
+
+    class Meta:
+        model = Expiration
+        fields = ['id', 'medicine', 'medicine_name', 'expiration_date', 'quantity']
+
+class ExpirationListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Expiration
+        fields = '__all__'

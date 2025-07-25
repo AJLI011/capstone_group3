@@ -2,6 +2,8 @@ from django.urls import path
 from . import views
 from .views import medicine_list 
 from .views import medicine_list, medicine_detail 
+from .views import GoodStockView, ExpiringSoonView, ExpiredView, CreateExpirationView
+
 
 urlpatterns = [
     # Authentication
@@ -32,4 +34,10 @@ urlpatterns = [
     #medicines list
     path('medicines/', medicine_list, name='medicine-list'),
     path('medicines/<int:pk>/', medicine_detail, name='medicine-detail'), 
+
+    # Expiration tracking
+    path('medicines/good-stock/', GoodStockView.as_view(), name='good-stock'),
+    path('medicines/expiring-soon/', ExpiringSoonView.as_view(), name='expiring-soon'),
+    path('medicines/expired/', ExpiredView.as_view(), name='expired-medicines'),
+    path('medicines/expirations/', CreateExpirationView.as_view(), name='create-expiration'),
 ]

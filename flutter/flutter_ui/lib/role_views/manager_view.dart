@@ -4,6 +4,8 @@ import '../main.dart'; // ToggleLoginScreen
 
 // You'll need to create these placeholder pages for ManagerView features later
 import 'manager_features/medicines_list/medicines_list_view.dart';
+// Ecpiration pages placeholder
+import 'manager_features/expiration dashboard/expiry_dashboard_view.dart';
 
 class ManagerView extends StatefulWidget {
   final int staffId; // Manager also needs staffId, similar to Admin
@@ -173,6 +175,8 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                                         _drawerItem(Icons.shelves, 'Restock', () {}),
                                         _drawerItem(Icons.store, 'In Store Sales Transaction', () {}),
                                         _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction', () {}),
+                                        _drawerItem(Icons.priority_high, 'Expiry', 
+                                          () => _open(const ExpiryDashboardView())),
                                         _drawerItem(Icons.assignment_return, 'Return Medicines', () {}),
                                         _drawerItem(Icons.local_offer, 'Promo Medicines', () {}),
                                         _drawerItem(Icons.point_of_sale, 'In Store Sales Report', () {}),

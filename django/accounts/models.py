@@ -80,3 +80,16 @@ class Medicine(models.Model):
 
     def __str__(self):
         return self.name
+
+# For expiration list
+class Expiration(models.Model):
+    medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE, related_name='expirations')
+    expiration_date = models.DateField()
+    quantity = models.PositiveIntegerField(default=0)  # Optional: batch-based tracking
+
+    class Meta:
+        db_table = 'expiration_list'
+        ordering = ['expiration_date']
+
+    def __str__(self):
+        return f"{self.medicine.name} - Expires on {self.expiration_date}"
