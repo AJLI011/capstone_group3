@@ -1,9 +1,9 @@
-// flutter_ui/lib/role_views/manager_features/restock/restock_barcode.dart
-
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-// IMPORTANT: No import for restock_medicine_details.dart here!
+import 'restock_details.dart';
 
 class RestockBarcodeScreen extends StatefulWidget {
   const RestockBarcodeScreen({super.key});
@@ -20,11 +20,11 @@ class _RestockBarcodeScreenState extends State<RestockBarcodeScreen> {
 
   bool _isTorchOn = false;
   CameraFacing _currentCameraFacing = CameraFacing.back;
+  bool _isScanning = false;
 
   @override
   void initState() {
     super.initState();
-    // Start the camera and update local state for torch and camera facing
     cameraController.start().then((_) {
       if (mounted) {
         setState(() {
@@ -33,13 +33,11 @@ class _RestockBarcodeScreenState extends State<RestockBarcodeScreen> {
         });
       }
     }).catchError((error) {
-      print("Failed to start camera: $error");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to start camera: $error')),
         );
-        // Optionally pop immediately if camera fails to start, or show a retry button
-        Navigator.of(context).pop(); // Go back if camera fails to initialize
+        Navigator.of(context).pop();
       }
     });
   }
@@ -50,20 +48,56 @@ class _RestockBarcodeScreenState extends State<RestockBarcodeScreen> {
     super.dispose();
   }
 
+  Future<void> _onBarcodeDetected(String barcode) async {
+    if (_isScanning) return;
+    _isScanning = true;
+    cameraController.stop();
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://10.0.2.2:8000/api/medicines/barcode/$barcode/'),
+      );
+
+      if (response.statusCode == 200) {
+        final medicineData = json.decode(response.body);
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => RestockDetailsPage(medicine: medicineData),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Medicine not found')),
+          );
+          Navigator.of(context).pop();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+        Navigator.of(context).pop();
+      }
+    } finally {
+      _isScanning = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scan Barcode (Test Mode)'), // Changed title for clarity
-        elevation: 0,
+        title: const Text('Scan Barcode'),
         actions: [
           IconButton(
-            color: Colors.white,
             icon: Icon(
               _isTorchOn ? Icons.flash_on : Icons.flash_off,
               color: _isTorchOn ? Colors.yellow : Colors.grey,
             ),
-            iconSize: 32.0,
             onPressed: () async {
               await cameraController.toggleTorch();
               setState(() {
@@ -72,13 +106,11 @@ class _RestockBarcodeScreenState extends State<RestockBarcodeScreen> {
             },
           ),
           IconButton(
-            color: Colors.white,
             icon: Icon(
               _currentCameraFacing == CameraFacing.front
                   ? Icons.camera_front
                   : Icons.camera_rear,
             ),
-            iconSize: 32.0,
             onPressed: () async {
               await cameraController.switchCamera();
               setState(() {
@@ -94,22 +126,8 @@ class _RestockBarcodeScreenState extends State<RestockBarcodeScreen> {
           final List<Barcode> barcodes = capture.barcodes;
           if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
             final String code = barcodes.first.rawValue!;
-            print('Barcode detected for testing: $code');
-            cameraController.stop(); // Stop scanning
-
-            // *** IMPORTANT: We are now just popping the barcode back for isolated testing ***
-            if (mounted) {
-              // Show a temporary snackbar to confirm scan before popping
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Barcode Scanned: $code (Returning to previous screen)')),
-              );
-              // Adding a small delay to allow snackbar to show, then pop
-              Future.delayed(const Duration(milliseconds: 1500), () {
-                if (mounted) {
-                  Navigator.of(context).pop(code); // Pop the scanned code back
-                }
-              });
-            }
+            print('Barcode detected: $code');
+            _onBarcodeDetected(code);
           }
         },
       ),

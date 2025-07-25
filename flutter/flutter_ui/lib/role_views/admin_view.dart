@@ -163,18 +163,25 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
                                   style: const TextStyle(color: Colors.grey),
                                 ),
                                 const Divider(height: 40),
-                                _drawerItem(Icons.group, 'Employees',
-                                    () => _open(const EmployeesManagementPage())),
-                                _drawerItem(Icons.person, 'Customers',
-                                    () => _open(const CustomerManagementScreen())),
-                                _drawerItem(Icons.local_shipping, 'Suppliers',
-                                    () => _open(const SupplierListPage())),
-                                _drawerItem(Icons.edit, 'Edit Profile',
-                                    () => _open(EditAdminProfilePage(staffId: widget.staffId))),
-                                _drawerItem(Icons.lock, 'Change Password',
-                                    () => _open(ChangeAdminPasswordPage(staffId: widget.staffId))),
-                                _drawerItem(Icons.list_alt, 'Employees Logs', () {}),
-                                const Spacer(),
+                                Expanded(
+                                  child: SingleChildScrollView(
+                                    child: Column(
+                                      children: [
+                                        _drawerItem(Icons.group, 'Employees',
+                                            () => _open(const EmployeesManagementPage())),
+                                        _drawerItem(Icons.person, 'Customers',
+                                            () => _open(const CustomerManagementScreen())),
+                                        _drawerItem(Icons.local_shipping, 'Suppliers',
+                                            () => _open(const SupplierListPage())),
+                                        _drawerItem(Icons.edit, 'Edit Profile',
+                                            () => _open(EditAdminProfilePage(staffId: widget.staffId))),
+                                        _drawerItem(Icons.lock, 'Change Password',
+                                            () => _open(ChangeAdminPasswordPage(staffId: widget.staffId))),
+                                        _drawerItem(Icons.list_alt, 'Employees Logs', () {}),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                                 Padding(
                                   padding: const EdgeInsets.all(16),
                                   child: ElevatedButton(

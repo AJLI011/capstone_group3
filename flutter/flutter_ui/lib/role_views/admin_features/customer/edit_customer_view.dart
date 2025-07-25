@@ -44,7 +44,7 @@ class _EditCustomerViewState extends State<EditCustomerView> {
     final url  = Uri.parse('http://10.0.2.2:8000/api/customers/${widget.id}/');
     final body = {
       'name'        : nameCtrl.text.trim(),
-      'email'       : emailCtrl.text.trim(),
+      'email'       : emailCtrl.text.trim(), // Even though it's uneditable, still send it in the payload
       'contact_num' : contactCtrl.text.trim(),
     };
 
@@ -116,6 +116,7 @@ class _EditCustomerViewState extends State<EditCustomerView> {
               TextFormField(
                 controller: emailCtrl,
                 decoration: const InputDecoration(labelText: 'Email'),
+                readOnly: true, // <-- Make the email field uneditable
                 validator: (v) => v!.isEmpty ? 'Enter an email' : null,
               ),
               const SizedBox(height: 30),
