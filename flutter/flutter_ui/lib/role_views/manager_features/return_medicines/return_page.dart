@@ -1,11 +1,13 @@
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 
 class ReturnMedicinePage extends StatefulWidget {
   const ReturnMedicinePage({super.key});
@@ -25,7 +27,6 @@ class _ReturnMedicinePageState extends State<ReturnMedicinePage> {
 
   Future<void> fetchExpiredMedicines() async {
     const String url = 'http://10.0.2.2:8000/api/medicines/expired/';
-
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
@@ -84,88 +85,58 @@ class _ReturnMedicinePageState extends State<ReturnMedicinePage> {
     }
   }
 
-Future<void> generatePdf() async {
-  if (expiredMedicines.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('No expired medicines to generate PDF.')),
-    );
-    return;
-  }
-
+Future<void> generateAndSavePdf(List<Map<String, dynamic>> returnedMedicines) async {
   final pdf = pw.Document();
-  final now = DateFormat('MM/dd/yy').format(DateTime.now());
 
   pdf.addPage(
     pw.Page(
-      pageFormat: PdfPageFormat.a4,
-      build: (context) {
+      build: (pw.Context context) {
         return pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
+            pw.Text('Returned Medicines Report', style: pw.TextStyle(fontSize: 24)),
             pw.SizedBox(height: 20),
-            pw.Center(
-              child: pw.Text(
-                'RETURN EXPIRED MEDICINES',
-                style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
-              ),
-            ),
-            pw.SizedBox(height: 20),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('PHARMACY NAME', style: pw.TextStyle(fontSize: 12)),
-                pw.Text('DATE: $now', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-              ],
-            ),
-            pw.SizedBox(height: 10),
-            pw.Divider(thickness: 1),
-            pw.Table.fromTextArray(
-              headers: [
-                'No.',
-                'Medicine',
-                'Batch No.',
-                'Expiration Date',
-                'Expired Qty to\nbe returned',
-                'Supplier'
-              ],
-              data: List.generate(expiredMedicines.length, (index) {
-                final med = expiredMedicines[index];
-                return [
-                  (index + 1).toString(),
-                  med['medicine_name'] ?? '',
-                  med['batch_num'] ?? '',
-                  med['exp_date'] ?? '',
-                  med['quantity'].toString(),
-                  med['supplier_name'] ?? '',
-                ];
-              }),
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-              headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-              cellAlignment: pw.Alignment.centerLeft,
-              cellHeight: 30,
-              columnWidths: {
-                0: const pw.FixedColumnWidth(30),
-                1: const pw.FlexColumnWidth(3),
-                2: const pw.FlexColumnWidth(2),
-                3: const pw.FlexColumnWidth(2),
-                4: const pw.FlexColumnWidth(2),
-                5: const pw.FlexColumnWidth(2),
-              },
-              border: pw.TableBorder.all(color: PdfColors.black),
-            ),
+            ...returnedMedicines.map((medicine) {
+              return pw.Text(
+                'Name: ${medicine['medicine_name'] ?? 'N/A'} | Qty: ${medicine['quantity']}',
+                style: pw.TextStyle(fontSize: 14),
+              );
+            }).toList(),
           ],
         );
       },
     ),
   );
 
-  await Printing.layoutPdf(onLayout: (format) async => pdf.save());
+  try {
+    String filePath;
 
-  // ✅ Show a snackbar message after generating
-  if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Return Medicine File Downloaded!')),
-    );
+    if (Platform.isAndroid) {
+      // ✅ App-specific external storage – no permission needed
+      final dir = await getExternalStorageDirectory();
+      filePath = path.join(dir!.path, 'returned_medicines_report.pdf');
+    } else {
+      final dir = await getApplicationDocumentsDirectory();
+      filePath = path.join(dir.path, 'returned_medicines_report.pdf');
+    }
+
+    final file = File(filePath);
+    await file.writeAsBytes(await pdf.save());
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('PDF saved at: $filePath')),
+      );
+    }
+
+    print('PDF saved at: $filePath');
+  } catch (e) {
+    print('Error saving PDF: $e');
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to save PDF.')),
+      );
+    }
   }
 }
 
@@ -248,7 +219,7 @@ Future<void> generatePdf() async {
               },
             ),
       floatingActionButton: FloatingActionButton(
-        onPressed: generatePdf,
+        onPressed: () => generateAndSavePdf(expiredMedicines.cast<Map<String, dynamic>>()),
         backgroundColor: const Color.fromARGB(255, 212, 86, 86),
         foregroundColor: Colors.black,
         child: const Icon(Icons.picture_as_pdf),
