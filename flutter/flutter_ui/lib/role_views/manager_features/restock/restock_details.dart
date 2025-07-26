@@ -15,45 +15,58 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _batchNumberController = TextEditingController();
   final TextEditingController _expirationDateController = TextEditingController();
+  final TextEditingController _quantityController = TextEditingController();
 
-Future<void> _submitRestock() async {
-  if (_batchNumberController.text.isEmpty || _expirationDateController.text.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please fill out all fields')),
-    );
-    return;
+  @override
+  void initState() {
+    super.initState();
+    // Initialize quantity controller with restock_quantity from the passed medicine data
+    if (widget.medicine['restock_quantity'] != null) {
+      _quantityController.text = widget.medicine['restock_quantity'].toString();
+    }
   }
 
-  if (!_formKey.currentState!.validate()) return;
+  Future<void> _submitRestock() async {
+    if (_batchNumberController.text.isEmpty ||
+        _expirationDateController.text.isEmpty ||
+        _quantityController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill out all fields')),
+      );
+      return;
+    }
 
-  final restockData = {
-    'medicine': widget.medicine['id'],
-    'batch_num': _batchNumberController.text, // changed key
-    'exp_date': _expirationDateController.text, // changed key
-  };
+    if (!_formKey.currentState!.validate()) return;
 
-  print('Submitting restock data: $restockData'); // <-- Added print statement
+    final restockData = {
+      'medicine': widget.medicine['id'],
+      'batch_num': _batchNumberController.text,
+      'exp_date': _expirationDateController.text,
+      'quantity': int.parse(_quantityController.text),
+    };
 
-  final url = Uri.parse('http://10.0.2.2:8000/api/expiration-list/add/');
-  
-  final response = await http.post(
-    url,
-    headers: {'Content-Type': 'application/json'},
-    body: jsonEncode(restockData),
-  );
+    print('Submitting restock data: $restockData');
 
-  if (response.statusCode == 201 || response.statusCode == 200) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Restock info submitted')),
+    final url = Uri.parse('http://10.0.2.2:8000/api/inventory/add/'); 
+    
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(restockData),
     );
-    Navigator.pop(context);
-  } else {
-    print('Error submitting restock: ${response.body}');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error: ${response.statusCode}')),
-    );
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Restock info submitted')),
+      );
+      Navigator.pop(context);
+    } else {
+      print('Error submitting restock: ${response.body}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${response.statusCode}')),
+      );
+    }
   }
-}
 
 
   Future<void> _selectDate(BuildContext context) async {
@@ -108,7 +121,8 @@ Future<void> _submitRestock() async {
               _infoRow('Category', widget.medicine['category']),
               _infoRow('Dosage Form', widget.medicine['dosage_form']),
               _infoRow('Price', '₱${widget.medicine['price']}'),
-              _infoRow('Quantity', '${widget.medicine['restock_quantity']}'),
+              // You can keep or remove this display row, as the TextFormField below now handles the actual value
+              // _infoRow('Quantity', '${widget.medicine['restock_quantity'] ?? 'N/A'}'), 
 
               const Divider(height: 32),
 
@@ -119,6 +133,24 @@ Future<void> _submitRestock() async {
                     value!.isEmpty ? 'Please enter a batch number' : null,
               ),
               const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _quantityController,
+                  readOnly: true,
+                  decoration: const InputDecoration(labelText: 'Quantity'),
+                  keyboardType: TextInputType.number,
+                  // The validator might still be useful for initial display if the value is not set
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Quantity cannot be empty'; // Changed message as it's not user input
+                    }
+                    if (int.tryParse(value) == null || int.parse(value)! <= 0) {
+                      return 'Invalid quantity value'; // Changed message
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
 
               TextFormField(
                 controller: _expirationDateController,
@@ -155,5 +187,13 @@ Future<void> _submitRestock() async {
         style: const TextStyle(fontSize: 16),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _batchNumberController.dispose();
+    _expirationDateController.dispose();
+    _quantityController.dispose();
+    super.dispose();
   }
 }
