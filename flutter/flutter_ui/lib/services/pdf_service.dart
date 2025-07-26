@@ -1,28 +1,30 @@
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 import 'package:pdf/widgets.dart' as pw;
+import 'package:permission_handler/permission_handler.dart';
 
-class PDFService {
-  static Future<void> createAndSavePDF() async {
-    final pdf = pw.Document();
-    pdf.addPage(
-      pw.Page(
-        build: (context) => pw.Center(
-          child: pw.Text("Sample PDF from Return Page!"),
-        ),
-      ),
-    );
+Future<void> savePdfToDownloads(pw.Document pdf) async {
+  // Ask permission first
+  final status = await Permission.manageExternalStorage.request();
+  if (!status.isGranted) {
+    print('Permission denied');
+    return;
+  }
 
-    try {
-      // ✅ Save to app directory — NO PERMISSION NEEDED
-      final directory = await getApplicationDocumentsDirectory();
-      final filePath = '${directory.path}/return_medicine.pdf';
-      final file = File(filePath);
-      await file.writeAsBytes(await pdf.save());
+  // Define the Downloads directory manually
+  final downloadsDir = Directory('/storage/emulated/0/Download');
+  if (!await downloadsDir.exists()) {
+    print('Downloads folder not found');
+    return;
+  }
 
-      print('PDF saved at: $filePath');
-    } catch (e) {
-      print('Error saving PDF: $e');
-    }
+  final filePath = path.join(downloadsDir.path, 'returned_medicines_report.pdf');
+  final file = File(filePath);
+
+  try {
+    await file.writeAsBytes(await pdf.save());
+    print('✅ PDF saved at: $filePath');
+  } catch (e) {
+    print('❌ Error saving PDF: $e');
   }
 }
