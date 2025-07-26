@@ -40,15 +40,54 @@ class _ExpiringSoonPageState extends State<ExpiringSoonPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Expiring Soon')),
       body: expiringSoonStocks.isEmpty
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: Text('No medicines expiring soon'))
           : ListView.builder(
               itemCount: expiringSoonStocks.length,
               itemBuilder: (context, index) {
                 final stock = expiringSoonStocks[index];
-                return ListTile(
-                  title: Text(stock['medicine_name']),
-                  subtitle: Text('Batch: ${stock['batch_num']} | Qty: ${stock['quantity']}'),
-                  trailing: Text('Expires: ${stock['exp_date']}'),
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              stock['medicine_name'] ?? 'No Name',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text('Generic: ${stock['generic_name'] ?? 'N/A'}'),
+                            Text('Batch: ${stock['batch_num'] ?? 'N/A'}'),
+                            Text('Quantity: ${stock['quantity'] ?? '0'}'),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Expires: ${stock['exp_date'] ?? 'N/A'}',
+                            style: const TextStyle(color: Colors.orange),
+                          ),
+                          Text('Supplier: ${stock['supplier_name'] ?? 'N/A'}'),
+                        ],
+                      ),
+                    ],
+                  ),
                 );
               },
             ),
