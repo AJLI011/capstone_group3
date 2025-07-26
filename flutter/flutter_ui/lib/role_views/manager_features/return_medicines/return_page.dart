@@ -8,6 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+import 'package:intl/intl.dart';
 
 class ReturnMedicinePage extends StatefulWidget {
   const ReturnMedicinePage({super.key});
@@ -85,23 +86,57 @@ class _ReturnMedicinePageState extends State<ReturnMedicinePage> {
     }
   }
 
-Future<void> generateAndSavePdf(List<Map<String, dynamic>> returnedMedicines) async {
+Future<void> generateAndSavePdf(List<Map<String, dynamic>> medicines) async {
   final pdf = pw.Document();
 
   pdf.addPage(
     pw.Page(
-      build: (pw.Context context) {
+      build: (context) {
+        final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
         return pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text('Returned Medicines Report', style: pw.TextStyle(fontSize: 24)),
             pw.SizedBox(height: 20),
-            ...returnedMedicines.map((medicine) {
-              return pw.Text(
-                'Name: ${medicine['medicine_name'] ?? 'N/A'} | Qty: ${medicine['quantity']}',
-                style: pw.TextStyle(fontSize: 14),
-              );
-            }).toList(),
+            pw.Center(
+              child: pw.Text(
+                'RETURN EXPIRED MEDICINES',
+                style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+              ),
+            ),
+            pw.SizedBox(height: 20),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('PHARMACY NAME', style: pw.TextStyle(fontSize: 12)),
+                pw.Text('DATE: $now', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              ],
+            ),
+            pw.SizedBox(height: 20),
+            pw.Table.fromTextArray(
+              border: pw.TableBorder.all(width: 1),
+              cellAlignment: pw.Alignment.center,
+              headerStyle: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+              headers: [
+                'No.',
+                'Medicine',
+                'Batch No.',
+                'Expiration Date',
+                'Expired Quantity',
+                'Supplier',
+              ],
+              data: List<List<String>>.generate(
+                medicines.length,
+                (index) => [
+                  '${index + 1}',
+                  medicines[index]['medicine_name'] ?? 'N/A',
+                  medicines[index]['batch_num'] ?? 'N/A',
+                  medicines[index]['exp_date'] ?? 'N/A',
+                  medicines[index]['quantity'].toString(),
+                  medicines[index]['supplier_name'] ?? 'N/A',
+                ],
+              ),
+            ),
           ],
         );
       },
@@ -109,32 +144,48 @@ Future<void> generateAndSavePdf(List<Map<String, dynamic>> returnedMedicines) as
   );
 
   try {
-    String filePath;
+    final bytes = await pdf.save();
 
+    Directory? downloadsDir;
     if (Platform.isAndroid) {
-      // ✅ App-specific external storage – no permission needed
-      final dir = await getExternalStorageDirectory();
-      filePath = path.join(dir!.path, 'returned_medicines_report.pdf');
+      downloadsDir = await getExternalStorageDirectory();
+      if (downloadsDir != null) {
+        // Adjust to real Downloads directory
+        String newPath = "";
+        List<String> paths = downloadsDir.path.split("/");
+        for (int i = 1; i < paths.length; i++) {
+          String folder = paths[i];
+          if (folder == "Android") break;
+          newPath += "/$folder";
+        }
+        newPath += "/Download";
+        downloadsDir = Directory(newPath);
+      }
     } else {
-      final dir = await getApplicationDocumentsDirectory();
-      filePath = path.join(dir.path, 'returned_medicines_report.pdf');
+      downloadsDir = await getApplicationDocumentsDirectory();
     }
 
-    final file = File(filePath);
+    if (downloadsDir == null) {
+      throw Exception("Downloads folder not found.");
+    }
+
+    final now = DateTime.now();
+    final formattedDate = DateFormat('yyyyMMdd_HHmmss').format(now);
+    final file = File('${downloadsDir.path}/returned_medicines_report_$formattedDate.pdf');
     await file.writeAsBytes(await pdf.save());
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('PDF saved at: $filePath')),
+        SnackBar(content: Text('✅ PDF saved at: ${file.path}')),
       );
     }
 
-    print('PDF saved at: $filePath');
+    print('✅ PDF saved at: ${file.path}');
   } catch (e) {
-    print('Error saving PDF: $e');
+    print('❌ Error saving PDF: $e');
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to save PDF.')),
+        const SnackBar(content: Text('❌ Failed to save PDF.')),
       );
     }
   }
