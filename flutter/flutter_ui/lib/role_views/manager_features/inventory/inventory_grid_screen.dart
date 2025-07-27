@@ -14,6 +14,8 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
   List<TotalQuantity> _items = [];
   String _selectedCategory = '';
   bool _sortAZ = true;
+  bool _showSearch = false;
+  String _searchQuery = '';
 
   final List<Map<String, String>> _categoryChoices = [
     {'value': '', 'label': 'Categories'},
@@ -49,7 +51,11 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
 
   List<TotalQuantity> get _filteredItems {
     final filtered = _items.where((item) {
-      return _selectedCategory.isEmpty || item.category == _selectedCategory;
+      final matchesCategory = _selectedCategory.isEmpty || item.category == _selectedCategory;
+      final matchesSearch = _searchQuery.isEmpty ||
+          item.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          item.genericName.toLowerCase().contains(_searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
     }).toList();
 
     filtered.sort((a, b) =>
@@ -72,10 +78,33 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
               });
             },
           ),
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              setState(() {
+                _showSearch = !_showSearch;
+                _searchQuery = '';
+              });
+            },
+          ),
         ],
       ),
       body: Column(
         children: [
+          if (_showSearch)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              color: Colors.white,
+              child: TextField(
+                onChanged: (value) => setState(() => _searchQuery = value),
+                decoration: const InputDecoration(
+                  hintText: 'Search...',
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
           Container(
             padding: const EdgeInsets.all(12),
             color: Colors.white,
