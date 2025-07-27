@@ -26,65 +26,63 @@ class _ReturnMedicinePageState extends State<ReturnMedicinePage> {
     fetchExpiredMedicines();
   }
 
-  Future<void> fetchExpiredMedicines() async {
-    const String url = 'http://10.0.2.2:8000/api/medicines/expired/';
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        setState(() {
-          expiredMedicines = json.decode(response.body);
-        });
-      } else {
-        print('Failed to load expired medicines. Status code: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error fetching expired medicines: $e');
-    }
+void fetchExpiredMedicines() async {
+  final response = await http.get(Uri.parse('http://10.0.2.2:8000/api/medicines/expired/'));
+  if (response.statusCode == 200) {
+    setState(() {
+      expiredMedicines = jsonDecode(response.body);
+    });
+    
+    // 🔍 Print to debug the data structure
+    print(jsonEncode(expiredMedicines)); // 👈 Put it here
+  } else {
+    print('Failed to fetch expired medicines: ${response.statusCode}');
   }
+}
 
-  Future<void> markAsReturned(int medicineId, int index) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Confirm Return'),
-        content: const Text('Mark this medicine as returned?'),
-        actions: [
-          TextButton(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.pop(context, false),
-          ),
-          TextButton(
-            child: const Text('Yes'),
-            onPressed: () => Navigator.pop(context, true),
-          ),
-        ],
-      ),
-    );
+Future<void> markAsReturned(int inventoryId, int index) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text('Confirm Return'),
+      content: const Text('Mark as returned?'),
+      actions: [
+        TextButton(
+          child: const Text('Cancel'),
+          onPressed: () => Navigator.pop(context, false),
+        ),
+        TextButton(
+          child: const Text('Yes'),
+          onPressed: () => Navigator.pop(context, true),
+        ),
+      ],
+    ),
+  );
 
-    if (confirmed != true) return;
+  if (confirmed != true) return;
 
-    final String deleteUrl = 'http://10.0.2.2:8000/api/medicines/return/$medicineId/';
+  final String deleteUrl = 'http://10.0.2.2:8000/api/medicines/delete/$inventoryId/';
 
-    try {
-      final response = await http.delete(Uri.parse(deleteUrl));
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        setState(() {
-          expiredMedicines.removeAt(index);
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Medicine marked as returned.')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to return the medicine.')),
-        );
-      }
-    } catch (e) {
+  try {
+    final response = await http.delete(Uri.parse(deleteUrl));
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      setState(() {
+        expiredMedicines.removeAt(index);
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('An error occurred.')),
+        const SnackBar(content: Text('Medicine marked as returned.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to return the medicine.')),
       );
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('An error occurred.')),
+    );
   }
+}
 
 Future<void> generateAndSavePdf(List<Map<String, dynamic>> medicines) async {
   final pdf = pw.Document();
@@ -108,7 +106,7 @@ Future<void> generateAndSavePdf(List<Map<String, dynamic>> medicines) async {
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text('PHARMACY NAME', style: pw.TextStyle(fontSize: 12)),
+                pw.Text('BlueWhite Generic Pharmacy', style: pw.TextStyle(fontSize: 12)),
                 pw.Text('DATE: $now', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
               ],
             ),
@@ -200,7 +198,8 @@ Future<void> generateAndSavePdf(List<Map<String, dynamic>> medicines) async {
           : ListView.builder(
               itemCount: expiredMedicines.length,
               itemBuilder: (context, index) {
-                final medicine = expiredMedicines[index];
+              final medicine = expiredMedicines[index];
+              final inventoryId = medicine['id']; // ✅ This should be the Inventory.id
                 return Container(
                   margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   padding: const EdgeInsets.all(12),
@@ -226,9 +225,9 @@ Future<void> generateAndSavePdf(List<Map<String, dynamic>> medicines) async {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Text('Generic: ${medicine['generic_name'] ?? 'N/A'}'),
-                            Text('Batch: ${medicine['batch_num'] ?? 'N/A'}'),
-                            Text('Supplier: ${medicine['supplier_name'] ?? 'N/A'}'),
+                            Text('${medicine['generic_name'] ?? 'N/A'}'),
+                            Text('${medicine['batch_num'] ?? 'N/A'}'),
+                            Text('${medicine['supplier_name'] ?? 'N/A'}'),
                           ],
                         ),
                       ),
@@ -241,7 +240,7 @@ Future<void> generateAndSavePdf(List<Map<String, dynamic>> medicines) async {
                             medicine['quantity']?.toString() ?? '0',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 18,
+                              fontSize: 20,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -251,7 +250,7 @@ Future<void> generateAndSavePdf(List<Map<String, dynamic>> medicines) async {
                           ),
                           const SizedBox(height: 8),
                           ElevatedButton(
-                            onPressed: () => markAsReturned(medicine['id'], index),
+                            onPressed: () => markAsReturned(expiredMedicines[index]['id'], index),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color.fromARGB(255, 224, 93, 93),
                               foregroundColor: Colors.black,
