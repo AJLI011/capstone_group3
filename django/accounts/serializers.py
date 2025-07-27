@@ -86,8 +86,6 @@ class InventoryCreateSerializer(serializers.ModelSerializer): # Renamed class
         model = Inventory # Changed from ExpirationList
         fields = ['medicine', 'batch_num', 'exp_date', 'quantity'] # Added quantity
 
-from .models import TotalQuantity
-
 
 # Serializer for main inventory screen (with total quantity)
 class InventoryListSerializer(serializers.ModelSerializer):
@@ -105,9 +103,23 @@ class InventoryListSerializer(serializers.ModelSerializer):
 
 # Serializer for batch-level details (for selected medicine)
 class InventoryBatchDetailSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='medicine.name', read_only=True)
+    generic_name = serializers.CharField(source='medicine.generic_name', read_only=True)
+    price = serializers.DecimalField(source='medicine.price', max_digits=8, decimal_places=2, read_only=True)
+
     class Meta:
         model = Inventory
-        fields = ['id', 'batch_num', 'exp_date', 'quantity', 'date_received']
+        fields = [
+            'id',
+            'batch_num',
+            'exp_date',
+            'quantity',
+            'date_received',
+            'name',
+            'generic_name',
+            'price',
+        ]
+
 
 # Total Quantity
 class TotalQuantitySerializer(serializers.ModelSerializer):

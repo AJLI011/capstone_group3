@@ -5,8 +5,10 @@ import '../main.dart'; // ToggleLoginScreen
 // You'll need to create these placeholder pages for ManagerView features later
 import 'manager_features/medicines_list/medicines_list_view.dart';
 import 'manager_features/restock/restock_barcode.dart';
-import 'manager_features/change_password/change_manager_password.dart';
-import 'manager_features/edit_profile/edit_manager_profile.dart'; 
+import 'manager_features/change_password/change_manager_password.dart'; // change pw
+import 'manager_features/edit_profile/edit_manager_profile.dart'; // edit profile
+import 'manager_features/inventory/inventory_grid_screen.dart'; // inventory
+
 
 class ManagerView extends StatefulWidget {
   final int staffId;
@@ -163,7 +165,7 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                                   child: SingleChildScrollView(
                                     child: Column(
                                       children: [
-                                        _drawerItem(Icons.inventory_outlined, 'Inventory', () {}),
+                                        _drawerItem(Icons.inventory_outlined, 'Inventory', () => _open(const InventoryGridScreen())),
                                         _drawerItem(Icons.shelves, 'Restock', () => _open(const RestockBarcodeScreen())),
                                         _drawerItem(Icons.store, 'In Store Sales Transaction', () {}),
                                         _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction', () {}),

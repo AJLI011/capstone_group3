@@ -17,12 +17,12 @@ class Medicine {
 
   factory Medicine.fromJson(Map<String, dynamic> json) {
     return Medicine(
-      id: json['id'],
+      id: json['medicine_id'],
       name: json['name'],
       genericName: json['generic_name'],
       category: json['category'],
-      price: (json['price'] as num).toDouble(),
-      image: json['image'],
+      price: (json['price'] ?? 0).toDouble(),
+      image: json['image'] ?? '',
     );
   }
 }
