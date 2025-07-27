@@ -17,8 +17,8 @@ from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from rest_framework.views import APIView
-from .models import Inventory # Corrected import from ExpirationList to Inventory
-from .serializers import InventoryCreateSerializer, InventorySerializer # Corrected serializer imports
+from .models import Inventory, TotalQuantity # Added total qty table
+from .serializers import InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, InventoryBatchDetailSerializer, TotalQuantitySerializer
 
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
@@ -325,6 +325,10 @@ class InventoryCreateView(APIView): # Renamed class from ExpirationListCreateVie
         serializer = InventoryCreateSerializer(data=request.data) # Changed serializer
         if serializer.is_valid():
             inventory_item = serializer.save() # Renamed variable
+
+            medicine = inventory_item.medicine
+            qty_to_add = inventory_item.quantity
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -343,3 +347,31 @@ def get_medicine_by_barcode(request, barcode):
 
     serializer = MedicineSerializer(medicine)
     return Response(serializer.data)
+
+# FOR INVENTORY 
+# main inventory screen - with total qty
+@api_view(['GET'])
+def get_all_inventory_medicines(request):
+    inventory_list = TotalQuantity.objects.select_related('medicine').all()
+    serializer = InventoryListSerializer(inventory_list, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# 2. batch level details for a selected medicine
+@api_view(['GET'])
+def get_batch_details(request, medicine_id):
+    batches = Inventory.objects.filter(medicine__id=medicine_id)
+    if not batches.exists():
+        return Response({'message': 'No batches found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = InventoryBatchDetailSerializer(batches, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+# for total quantity
+@api_view(['GET'])
+def get_total_quantities(request):
+    total_quantities = TotalQuantity.objects.select_related('medicine').all()
+    serializer = TotalQuantitySerializer(total_quantities, many=True)
+    return Response(serializer.data)
+
+

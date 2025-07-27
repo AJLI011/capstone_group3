@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Customer, Staff, Supplier, Medicine, Inventory # Import Inventory
+from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity
 
 from django.contrib.auth.hashers import make_password
 
@@ -85,3 +85,37 @@ class InventoryCreateSerializer(serializers.ModelSerializer): # Renamed class
     class Meta:
         model = Inventory # Changed from ExpirationList
         fields = ['medicine', 'batch_num', 'exp_date', 'quantity'] # Added quantity
+
+from .models import TotalQuantity
+
+
+# Serializer for main inventory screen (with total quantity)
+class InventoryListSerializer(serializers.ModelSerializer):
+    medicine_id = serializers.IntegerField(source='medicine.id')
+    name = serializers.CharField(source='medicine.name')
+    generic_name = serializers.CharField(source='medicine.generic_name')
+    category = serializers.CharField(source='medicine.category')
+    price = serializers.DecimalField(source='medicine.price', max_digits=8, decimal_places=2)
+    image = serializers.ImageField(source='medicine.image')
+
+    class Meta:
+        model = TotalQuantity
+        fields = ['medicine_id', 'name', 'generic_name', 'category', 'price', 'image', 'total_quantity']
+
+
+# Serializer for batch-level details (for selected medicine)
+class InventoryBatchDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Inventory
+        fields = ['id', 'batch_num', 'exp_date', 'quantity', 'date_received']
+
+# Total Quantity
+class TotalQuantitySerializer(serializers.ModelSerializer):
+    medicine_name = serializers.CharField(source='medicine.name', read_only=True)
+    generic_name = serializers.CharField(source='medicine.generic_name', read_only=True)
+    image = serializers.ImageField(source='medicine.image', read_only=True)
+    category = serializers.CharField(source='medicine.category', read_only=True)
+
+    class Meta:
+        model = TotalQuantity
+        fields = ['medicine', 'medicine_name', 'generic_name', 'category', 'image', 'total_quantity']

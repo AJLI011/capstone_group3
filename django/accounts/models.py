@@ -37,11 +37,12 @@ class Supplier(models.Model):
 
     def __str__(self):
         return self.name
-    
+
+
 class Medicine(models.Model):
-    
     class Meta:
         db_table = 'medicines_list'
+
     DOSAGE_CHOICES = [
         ('tablet', 'Tablet'),
         ('syrup', 'Syrup'),
@@ -76,17 +77,16 @@ class Medicine(models.Model):
     image = models.ImageField(upload_to='medicine_images/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
 
     def __str__(self):
         return self.name
 
 
-class Inventory(models.Model):  # Renamed from ExpirationList
+class Inventory(models.Model):
     class Meta:
         db_table = 'inventory_tbl'
 
-    medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE, related_name='inventory_entries') # Changed related_name
+    medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE, related_name='inventory_entries')
     batch_num = models.CharField(max_length=100)
     exp_date = models.DateField()
     date_received = models.DateField(auto_now_add=True)
@@ -94,3 +94,14 @@ class Inventory(models.Model):  # Renamed from ExpirationList
 
     def __str__(self):
         return f"{self.medicine.name} - Batch {self.batch_num}"
+
+
+class TotalQuantity(models.Model):
+    class Meta:
+        db_table = 'total_quantity_tbl'
+
+    medicine = models.OneToOneField('Medicine', on_delete=models.CASCADE, primary_key=True)
+    total_quantity = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.medicine.name} - Total Qty: {self.total_quantity}"

@@ -5,9 +5,11 @@ import '../main.dart'; // ToggleLoginScreen
 // You'll need to create these placeholder pages for ManagerView features later
 import 'manager_features/medicines_list/medicines_list_view.dart';
 import 'manager_features/restock/restock_barcode.dart';
+import 'manager_features/change_password/change_manager_password.dart';
+import 'manager_features/edit_profile/edit_manager_profile.dart'; 
 
 class ManagerView extends StatefulWidget {
-  final int staffId; // Manager also needs staffId, similar to Admin
+  final int staffId;
 
   const ManagerView({super.key, required this.staffId});
 
@@ -35,8 +37,8 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
   Future<void> _loadStaffInfo() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      staffName = prefs.getString('name') ?? 'Manager User'; // Default for manager
-      staffEmail = prefs.getString('email') ?? 'manager.email@example.com'; // Default for manager
+      staffName = prefs.getString('name') ?? 'Manager User';
+      staffEmail = prefs.getString('email') ?? 'manager.email@example.com';
       isLoading = false;
     });
   }
@@ -54,7 +56,7 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
 
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear(); // Clears all stored data
+    await prefs.clear();
 
     Navigator.pushAndRemoveUntil(
       context,
@@ -87,13 +89,10 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
     }
   }
 
-  // This method will be used to open new pages.
-  // Currently, it navigates to empty placeholder pages using `Container()`.
-  // You'll replace `Container()` with your actual feature pages later.
   void _open(Widget page) async {
     _toggleMenu();
-    // No need to await result or reload staff info for simple placeholders
     await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    _loadStaffInfo();
   }
 
   @override
@@ -104,17 +103,16 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
       onWillPop: () async {
         if (_isMenuOpen) {
           _toggleMenu();
-          return false; // Prevent back button from closing app if menu is open
+          return false;
         }
-        return false; // Prevent back button from closing app normally
+        return false;
       },
       child: Scaffold(
         body: Stack(
           children: [
-            // Main content of the Manager View
             Scaffold(
               appBar: AppBar(
-                title: const Text(''), // You can put 'Manager Dashboard' or similar here
+                title: const Text(''),
                 actions: [
                   IconButton(
                     icon: const Icon(Icons.menu),
@@ -124,8 +122,6 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
               ),
               body: const Center(child: Text('Welcome, Manager')),
             ),
-
-            // Sliding side panel (Drawer)
             AnimatedBuilder(
               animation: _ctrl,
               builder: (_, __) {
@@ -143,7 +139,6 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                           : Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                // User Info Section
                                 const SizedBox(height: 60),
                                 const CircleAvatar(
                                   radius: 40,
@@ -151,7 +146,7 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  staffName ?? 'Manager Name', // Display manager name
+                                  staffName ?? 'Manager Name',
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
                                     fontSize: 20,
@@ -159,13 +154,11 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                                   ),
                                 ),
                                 Text(
-                                  staffEmail ?? 'manager.email@example.com', // Display manager email
+                                  staffEmail ?? 'manager.email@example.com',
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(color: Colors.grey),
                                 ),
                                 const Divider(height: 40),
-
-                                // Scrollable List of Manager Features
                                 Expanded(
                                   child: SingleChildScrollView(
                                     child: Column(
@@ -174,25 +167,22 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                                         _drawerItem(Icons.shelves, 'Restock', () => _open(const RestockBarcodeScreen())),
                                         _drawerItem(Icons.store, 'In Store Sales Transaction', () {}),
                                         _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction', () {}),
+                                        _drawerItem(Icons.priority_high, 'Expiry', () {}),
                                         _drawerItem(Icons.assignment_return, 'Return Medicines', () {}),
                                         _drawerItem(Icons.local_offer, 'Promo Medicines', () {}),
                                         _drawerItem(Icons.point_of_sale, 'In Store Sales Report', () {}),
                                         _drawerItem(Icons.trending_up, 'Online Sales Report', () {}),
                                         _drawerItem(Icons.insights, 'Demand Forecast', () {}),
                                         _drawerItem(Icons.shopping_cart, 'Purchase Request', () {}),
-                                        _drawerItem(Icons.list_alt, 'Medicine List', 
-                                          () => _open(const MedicineListView())),
+                                        _drawerItem(Icons.list_alt, 'Medicine List', () => _open(const MedicineListView())),
                                         _drawerItem(Icons.history, 'Inventory Logs', () {}),
                                         _drawerItem(Icons.receipt_long, 'Order Logs', () {}),
-                                        _drawerItem(Icons.person_outline, 'Edit Profile', () {}),
-                                        _drawerItem(Icons.vpn_key, 'Change Password', () {}),
-
+                                        _drawerItem(Icons.person_outline, 'Edit Profile', () => _open(EditManagerProfilePage(staffId: widget.staffId))), 
+                                        _drawerItem(Icons.vpn_key, 'Change Password', () => _open(ChangeManagerPasswordPage(staffId: widget.staffId))),
                                       ],
                                     ),
                                   ),
                                 ),
-
-                                // Logout Button
                                 const SizedBox(height: 20),
                                 Padding(
                                   padding: const EdgeInsets.all(16),
@@ -220,7 +210,6 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
     );
   }
 
-  // Reused _drawerItem widget
   Widget _drawerItem(IconData icon, String title, VoidCallback onTap) {
     return ListTile(
       leading: Icon(icon),
@@ -231,7 +220,6 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
   }
 }
 
-// A simple placeholder page for demonstration
 class PlaceholderPage extends StatelessWidget {
   final String title;
 
