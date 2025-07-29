@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_ui/role_views/manager_features/expiration_dashboard/expiry_dashboard_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart'; // ToggleLoginScreen
 
@@ -174,6 +175,8 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                                         _drawerItem(Icons.shelves, 'Restock', () => _open(const RestockBarcodeScreen())),
                                         _drawerItem(Icons.store, 'In Store Sales Transaction', () {}),
                                         _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction', () {}),
+                                        _drawerItem(Icons.priority_high, 'Expiry',
+                                          () => _open(const ExpiryDashboardView())),
                                         _drawerItem(Icons.assignment_return, 'Return Medicines', () {}),
                                         _drawerItem(Icons.local_offer, 'Promo Medicines', () {}),
                                         _drawerItem(Icons.point_of_sale, 'In Store Sales Report', () {}),

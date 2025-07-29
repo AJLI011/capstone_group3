@@ -20,6 +20,11 @@ from rest_framework.views import APIView
 from .models import Inventory # Corrected import from ExpirationList to Inventory
 from .serializers import InventoryCreateSerializer, InventorySerializer # Corrected serializer imports
 
+from .serializers import InventoryDashboardSerializer
+from rest_framework import generics
+from datetime import date, timedelta
+from django.db.models import Q
+
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
@@ -343,3 +348,46 @@ def get_medicine_by_barcode(request, barcode):
 
     serializer = MedicineSerializer(medicine)
     return Response(serializer.data)
+
+
+# =================== Expiration Dashboard -------------------- # 
+# =================== Expiration Dashboard -------------------- #
+# ✅ Good Stocks:
+# Medicines that either:
+# - Expire more than 15 days from today, OR
+# - Were received today (even if expiring soon)
+class GoodStockView(generics.ListAPIView):
+    serializer_class = InventoryDashboardSerializer
+
+    def get_queryset(self):
+        today = date.today()
+        threshold_date = today + timedelta(days=15)
+
+        return Inventory.objects.filter(
+            Q(exp_date__gt=threshold_date) |
+            Q(date_received=today)  # ← included as still considered fresh stock
+        )
+
+
+# ⚠️ Expiring Soon:
+# Medicines that will expire within the next 15 days (but not yet expired),
+# and were not received today
+class ExpiringSoonView(generics.ListAPIView):
+    serializer_class = InventoryDashboardSerializer
+
+    def get_queryset(self):
+        today = date.today()
+        return Inventory.objects.filter(
+            exp_date__gt=today,
+            exp_date__lte=today + timedelta(days=15)
+        )
+
+
+# ❌ Expired:
+# Medicines that are already expired (today or earlier)
+class ExpiredView(generics.ListAPIView):
+    serializer_class = InventoryDashboardSerializer
+
+    def get_queryset(self):
+        today = date.today()
+        return Inventory.objects.filter(exp_date__lte=today)

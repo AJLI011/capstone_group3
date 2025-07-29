@@ -5,6 +5,8 @@ from .views import medicine_list, medicine_detail
 from .views import InventoryCreateView # Changed from ExpirationListCreateView
 from .views import get_inventory_list # Added explicit import for get_inventory_list
 
+from .views import GoodStockView, ExpiringSoonView, ExpiredView
+
 urlpatterns = [
     # Authentication
     path('register/', views.register_customer),
@@ -39,4 +41,9 @@ urlpatterns = [
     path('inventory/add/', InventoryCreateView.as_view(), name='inventory-add'), # Changed URL path and view class
     path('inventory/', get_inventory_list, name='inventory-list'), # Changed URL path and view function
     path('medicines/barcode/<str:barcode>/', views.get_medicine_by_barcode, name='get-medicine-by-barcode'),
+
+    # Expiration tracking
+    path('medicines/good-stock/', GoodStockView.as_view(), name='good-stock'),
+    path('medicines/expiring-soon/', ExpiringSoonView.as_view(), name='expiring-soon'),
+    path('medicines/expired/', ExpiredView.as_view(), name='expired-medicines'),
 ]
