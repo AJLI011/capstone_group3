@@ -85,26 +85,3 @@ class InventoryCreateSerializer(serializers.ModelSerializer): # Renamed class
     class Meta:
         model = Inventory # Changed from ExpirationList
         fields = ['medicine', 'batch_num', 'exp_date', 'quantity'] # Added quantity
-
-
-# For Expiration Dashboard
-class InventoryDashboardSerializer(serializers.ModelSerializer):
-    medicine_name = serializers.CharField(source='medicine.name')
-    generic_name = serializers.CharField(source='medicine.generic_name')
-    dosage_form = serializers.CharField(source='medicine.dosage_form')
-    supplier_name = serializers.CharField(source='medicine.supplier.name', default=None)  # Adjust if needed
-    barcode = serializers.CharField(source='medicine.barcode')
-
-    class Meta:
-        model = Inventory
-        fields = [
-            'id',
-            'batch_num',
-            'exp_date',
-            'quantity',
-            'medicine_name',
-            'generic_name',
-            'dosage_form',
-            'supplier_name',
-            'barcode',
-        ]
