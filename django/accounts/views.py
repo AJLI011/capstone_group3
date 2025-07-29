@@ -360,22 +360,28 @@ class GoodStockView(generics.ListAPIView):
         threshold_date = today + timedelta(days=30)
         return Inventory.objects.filter(exp_date__gt=threshold_date)
 
-# ⚠️ Expiring Soon: Expiry date is within the next 30 days
+# ⚠️ Expiring Soon:
+# Medicines that will expire within the next 15 days (but not yet expired),
+# and were not received today
 class ExpiringSoonView(generics.ListAPIView):
     serializer_class = InventoryDashboardSerializer
 
     def get_queryset(self):
         today = date.today()
-        threshold_date = today + timedelta(days=30)
-        return Inventory.objects.filter(exp_date__gt=today, exp_date__lte=threshold_date)
+        return Inventory.objects.filter(
+            exp_date__gt=today,
+            exp_date__lte=today + timedelta(days=15)
+        )
 
-# ❌ Expired: Expiry date is before today
+
+# ❌ Expired:
+# Medicines that are already expired (today or earlier)
 class ExpiredView(generics.ListAPIView):
     serializer_class = InventoryDashboardSerializer
 
     def get_queryset(self):
         today = date.today()
-        return Inventory.objects.filter(exp_date__lt=today)
+        return Inventory.objects.filter(exp_date__lte=today)
 
 @api_view(['DELETE'])
 def delete_expired_batch(request, pk):
