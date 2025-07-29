@@ -351,13 +351,18 @@ def get_medicine_by_barcode(request, barcode):
 
 
 # =================== Expiration Dashboard -------------------- # 
+# ✅ Good Stocks:
+# Medicines that either:
+# - Expire more than 15 days from today, OR
+# - Were received today (even if expiring soon)
+# =================== Expiration Dashboard -------------------- # 
 # ✅ Good Stocks: Expiry date is more than 30 days from today
 class GoodStockView(generics.ListAPIView):
     serializer_class = InventoryDashboardSerializer
 
     def get_queryset(self):
         today = date.today()
-        threshold_date = today + timedelta(days=30)
+        threshold_date = today + timedelta(days=15)
         return Inventory.objects.filter(exp_date__gt=threshold_date)
 
 # ⚠️ Expiring Soon:
