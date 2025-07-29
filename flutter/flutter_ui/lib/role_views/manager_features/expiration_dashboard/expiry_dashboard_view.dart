@@ -36,26 +36,25 @@ class _ExpiryDashboardViewState extends State<ExpiryDashboardView> {
   }
 
   Future<void> fetchCount(String url, Function(int) setCount) async {
-  try {
-    final response = await http.get(Uri.parse(url));
-    if (response.statusCode == 200) {
-      final List<dynamic> data = json.decode(response.body);
-      setState(() {
-        setCount(data.length);
-      });
-    } else {
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          setCount(data.length);
+        });
+      } else {
+        setState(() {
+          setCount(0);
+        });
+      }
+    } catch (e) {
+      print("Error fetching from $url: $e");
       setState(() {
         setCount(0);
       });
     }
-  } catch (e) {
-    print("Error fetching from $url: $e");
-    setState(() {
-      setCount(0);
-    });
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -71,40 +70,46 @@ class _ExpiryDashboardViewState extends State<ExpiryDashboardView> {
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
-            _buildStatusButton(
-              context,
-              label: 'GOOD STOCKS',
-              count: goodStockCount,
-              color: Colors.greenAccent,
-              icon: Icons.check_box,
-              onTap: () {
-                Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const GoodStockPage()));
-              },
+            Expanded( // <--- Wrap each status button with Expanded
+              child: _buildStatusButton(
+                context,
+                label: 'GOOD STOCKS',
+                count: goodStockCount,
+                color: Colors.greenAccent,
+                icon: Icons.check_box,
+                onTap: () {
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (context) => const GoodStockPage()));
+                },
+              ),
             ),
             const SizedBox(height: 20),
-            _buildStatusButton(
-              context,
-              label: 'EXPIRING SOON',
-              count: expiringSoonCount,
-              color: Colors.yellowAccent,
-              icon: Icons.warning_amber_rounded,
-              onTap: () {
-                Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const ExpiringSoonPage()));
-              },
+            Expanded( // <--- Wrap each status button with Expanded
+              child: _buildStatusButton(
+                context,
+                label: 'EXPIRING SOON',
+                count: expiringSoonCount,
+                color: Colors.yellowAccent,
+                icon: Icons.warning_amber_rounded,
+                onTap: () {
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (context) => const ExpiringSoonPage()));
+                },
+              ),
             ),
             const SizedBox(height: 20),
-            _buildStatusButton(
-              context,
-              label: 'EXPIRED STOCKS',
-              count: expiredCount,
-              color: Colors.redAccent,
-              icon: Icons.cancel,
-              onTap: () {
-                Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const ExpiredStockPage()));
-              },
+            Expanded( // <--- Wrap each status button with Expanded
+              child: _buildStatusButton(
+                context,
+                label: 'EXPIRED STOCKS',
+                count: expiredCount,
+                color: Colors.redAccent,
+                icon: Icons.cancel,
+                onTap: () {
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (context) => const ExpiredStockPage()));
+                },
+              ),
             ),
           ],
         ),
@@ -113,23 +118,26 @@ class _ExpiryDashboardViewState extends State<ExpiryDashboardView> {
   }
 
   Widget _buildStatusButton(
-    BuildContext context, {
-    required String label,
-    required int count,
-    required Color color,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
+      BuildContext context, {
+        required String label,
+        required int count,
+        required Color color,
+        required IconData icon,
+        required VoidCallback onTap,
+      }) {
     return InkWell(
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 25),
+        // Remove fixed vertical padding here if it causes overflow, or reduce it.
+        // It's better to let Expanded handle the vertical sizing.
+        padding: const EdgeInsets.symmetric(vertical: 0), // Adjust or remove this if needed
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(15),
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center, // Center content vertically within the expanded area
           children: [
             Icon(icon, size: 50),
             const SizedBox(height: 10),
