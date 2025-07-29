@@ -25,7 +25,6 @@ from rest_framework import generics
 from datetime import date, timedelta
 from django.db.models import Q
 
-from django.http import JsonResponse, HttpResponseNotFound
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
