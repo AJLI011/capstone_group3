@@ -7,6 +7,8 @@ from .views import get_inventory_list # Added explicit import for get_inventory_
 
 from .views import GoodStockView, ExpiringSoonView, ExpiredView
 
+from .views import delete_expired_batch
+
 urlpatterns = [
     # Authentication
     path('register/', views.register_customer),
@@ -46,4 +48,7 @@ urlpatterns = [
     path('medicines/good-stock/', GoodStockView.as_view(), name='good-stock'),
     path('medicines/expiring-soon/', ExpiringSoonView.as_view(), name='expiring-soon'),
     path('medicines/expired/', ExpiredView.as_view(), name='expired-medicines'),
+
+    path('medicines/delete/<int:pk>/', delete_expired_batch, name='delete-expired-batch'),
 ]
+

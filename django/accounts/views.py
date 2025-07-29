@@ -25,6 +25,7 @@ from rest_framework import generics
 from datetime import date, timedelta
 from django.db.models import Q
 
+from django.http import JsonResponse, HttpResponseNotFound
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
@@ -390,4 +391,17 @@ class ExpiredView(generics.ListAPIView):
 
     def get_queryset(self):
         today = date.today()
+<<<<<<< HEAD
         return Inventory.objects.filter(exp_date__lte=today)
+=======
+        return Inventory.objects.filter(exp_date__lt=today)
+
+@api_view(['DELETE'])
+def delete_expired_batch(request, pk):
+    try:
+        inventory_item = Inventory.objects.get(pk=pk)
+        inventory_item.delete()
+        return Response({"message": "Deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+    except Inventory.DoesNotExist:
+        return Response({"error": "Inventory item not found"}, status=status.HTTP_404_NOT_FOUND)
+>>>>>>> origin/expiration-jermagne
