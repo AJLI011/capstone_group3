@@ -1,7 +1,28 @@
 import 'package:flutter/material.dart';
-import 'models/total_quantity.dart';
-import 'models/inventory_api_service.dart';
 import 'inventory_detail_screen.dart';
+import 'total_quantity.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+class InventoryApiService {
+  static const String inventoryUrl =
+    'http://10.0.2.2:8000/api/inventory/';
+
+  static Future<List<TotalQuantity>> fetchInventoryItems() async {
+    try {
+      final response = await http.get(Uri.parse(inventoryUrl));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((json) => TotalQuantity.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to load inventory data: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching inventory: $e');
+    }
+  }
+}
 
 class InventoryGridScreen extends StatefulWidget {
   const InventoryGridScreen({super.key});
@@ -51,7 +72,8 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
 
   List<TotalQuantity> get _filteredItems {
     final filtered = _items.where((item) {
-      final matchesCategory = _selectedCategory.isEmpty || item.category == _selectedCategory;
+      final matchesCategory =
+          _selectedCategory.isEmpty || item.category == _selectedCategory;
       final matchesSearch = _searchQuery.isEmpty ||
           item.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           item.genericName.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -100,7 +122,8 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
                 decoration: const InputDecoration(
                   hintText: 'Search...',
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -133,13 +156,12 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
                 ),
                 const SizedBox(width: 10),
                 ElevatedButton(
-                  onPressed: () {
-                    // TODO: Navigate to promo screen
-                  },
+                  onPressed: () {},
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF396AAB),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
                   ),
                   child: const Text('Promo'),
                 ),
@@ -152,7 +174,8 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : GridView.builder(
                     padding: const EdgeInsets.all(12),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
@@ -172,7 +195,8 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => InventoryDetailScreen(item: item),
+                                builder: (_) =>
+                                    InventoryDetailScreen(item: item),
                               ),
                             );
                           },
@@ -206,12 +230,14 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
                                 const SizedBox(height: 4),
                                 Text(
                                   item.name,
-                                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                                  style: const TextStyle(
+                                      fontSize: 14, color: Colors.grey),
                                 ),
                                 const Spacer(),
                                 Text(
                                   "Qty: ${item.totalQuantity}",
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  style:
+                                      const TextStyle(fontWeight: FontWeight.bold),
                                 ),
                               ],
                             ),

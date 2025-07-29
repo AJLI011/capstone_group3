@@ -1,8 +1,60 @@
 import 'package:flutter/material.dart';
-import 'models/total_quantity.dart';
-import 'models/batch_detail.dart';
-import 'models/inventory_api_service.dart';
+import 'dart:convert';
+import 'total_quantity.dart';
+import 'package:http/http.dart' as http;
 
+// ===================== MODEL: BatchDetail =====================
+class BatchDetail {
+  final String batchNumber;
+  final String expirationDate;
+  final int quantity;
+  final double price;
+  final String name;
+  final String genericName;
+
+  BatchDetail({
+    required this.batchNumber,
+    required this.expirationDate,
+    required this.quantity,
+    required this.price,
+    required this.name,
+    required this.genericName,
+  });
+
+  factory BatchDetail.fromJson(Map<String, dynamic> json) {
+    return BatchDetail(
+      batchNumber: json['batch_num'] ?? '',
+      expirationDate: json['exp_date'] ?? '',
+      quantity: json['quantity'] ?? 0,
+      price: double.tryParse(json['price'].toString()) ?? 0.0,
+      name: json['name'] ?? '',
+      genericName: json['generic_name'] ?? '',
+    );
+  }
+}
+
+// ===================== SERVICE: Fetch Batch Details =====================
+class InventoryApiService {
+  static Future<List<BatchDetail>> fetchBatchDetails(int medicineId) async {
+    final String batchDetailsUrl =
+        'http://10.0.2.2:8000/api/inventory/batches/$medicineId/';
+
+    try {
+      final response = await http.get(Uri.parse(batchDetailsUrl));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((json) => BatchDetail.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to load batch details: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching batch details: $e');
+    }
+  }
+}
+
+// ===================== UI: Inventory Detail Screen =====================
 class InventoryDetailScreen extends StatefulWidget {
   final TotalQuantity item;
 
@@ -18,8 +70,7 @@ class _InventoryDetailScreenState extends State<InventoryDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _batchDetails =
-        InventoryApiService.fetchBatchDetails(widget.item.medicineId);
+    _batchDetails = InventoryApiService.fetchBatchDetails(widget.item.medicineId);
   }
 
   @override
@@ -59,7 +110,6 @@ class _InventoryDetailScreenState extends State<InventoryDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Row: Generic (Brand) and Qty
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -82,8 +132,6 @@ class _InventoryDetailScreenState extends State<InventoryDetailScreen> {
                         ],
                       ),
                       const SizedBox(height: 6),
-
-                      // Row: Batch No and Price
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -102,8 +150,6 @@ class _InventoryDetailScreenState extends State<InventoryDetailScreen> {
                         ],
                       ),
                       const SizedBox(height: 6),
-
-                      // Expiration Date
                       Text(
                         'Expiration Date: ${batch.expirationDate}',
                         style: const TextStyle(fontSize: 14),

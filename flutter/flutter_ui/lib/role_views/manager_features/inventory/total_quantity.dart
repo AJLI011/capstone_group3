@@ -17,7 +17,7 @@ class TotalQuantity {
 
   factory TotalQuantity.fromJson(Map<String, dynamic> json) {
     return TotalQuantity(
-      medicineId: json['medicine_id'], // 👈 This maps the ID from your JSON
+      medicineId: json['medicine_id'], // 
       name: json['name'],
       genericName: json['generic_name'],
       image: json['image'] ?? '',

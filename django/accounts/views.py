@@ -21,6 +21,7 @@ from .models import Inventory, TotalQuantity # Added total qty table
 from .serializers import InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, InventoryBatchDetailSerializer, TotalQuantitySerializer
 
 
+
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
 
@@ -320,22 +321,36 @@ def medicine_detail(request, pk):
         return Response(status=status.HTTP_204_NO_CONTENT)
     
 # =================== INVENTORY MANAGEMENT -------------------- # Renamed comment for clarity
-class InventoryCreateView(APIView): # Renamed class from ExpirationListCreateView
+class InventoryCreateView(APIView):
     def post(self, request, *args, **kwargs):
-        serializer = InventoryCreateSerializer(data=request.data) # Changed serializer
+        serializer = InventoryCreateSerializer(data=request.data)
         if serializer.is_valid():
-            inventory_item = serializer.save() # Renamed variable
+            inventory_item = serializer.save()
 
             medicine = inventory_item.medicine
             qty_to_add = inventory_item.quantity
 
+            # ✅ Update or create TotalQuantity for the medicine
+            total_obj, created = TotalQuantity.objects.get_or_create(
+                medicine=medicine,
+                defaults={'total_quantity': qty_to_add}
+            )
+            if not created:
+                total_obj.total_quantity = F('total_quantity') + qty_to_add
+                total_obj.save()
+
+                # Refresh from database to reflect updated value
+                total_obj.refresh_from_db()
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['GET'])
-def get_inventory_list(request): # Renamed function from get_expiration_list
-    inventory_items = Inventory.objects.select_related('medicine').all() # Changed model and variable
-    serializer = InventorySerializer(inventory_items, many=True) # Changed serializer and variable
+def get_inventory_list(request):
+    queryset = TotalQuantity.objects.select_related('medicine').all()
+    serializer = InventoryListSerializer(queryset, many=True, context={'request': request})
     return Response(serializer.data)
 
 @api_view(['GET'])
@@ -350,11 +365,6 @@ def get_medicine_by_barcode(request, barcode):
 
 # FOR INVENTORY 
 # main inventory screen - with total qty
-@api_view(['GET'])
-def get_all_inventory_medicines(request):
-    inventory_list = TotalQuantity.objects.select_related('medicine').all()
-    serializer = InventoryListSerializer(inventory_list, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # 2. batch level details for a selected medicine
@@ -369,9 +379,20 @@ def get_batch_details(request, medicine_id):
 
 # for total quantity
 @api_view(['GET'])
-def get_total_quantities(request):
-    total_quantities = TotalQuantity.objects.select_related('medicine').all()
-    serializer = TotalQuantitySerializer(total_quantities, many=True)
-    return Response(serializer.data)
+def total_quantities(request):
+    inventory_items = Inventory.objects.select_related('medicine_id').all()
 
+    results = []
 
+    for item in inventory_items:
+        medicine = item.medicine_id  # thanks to ForeignKey
+        results.append({
+            "medicine_id": medicine.id,
+            "name": medicine.name,
+            "generic_name": medicine.generic_name,
+            "image": medicine.image.url if medicine.image else "",
+            "category": medicine.category,
+            "total_quantity": item.total_quantity,
+        })
+
+    return Response(results)

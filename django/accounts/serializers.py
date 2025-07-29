@@ -94,11 +94,19 @@ class InventoryListSerializer(serializers.ModelSerializer):
     generic_name = serializers.CharField(source='medicine.generic_name')
     category = serializers.CharField(source='medicine.category')
     price = serializers.DecimalField(source='medicine.price', max_digits=8, decimal_places=2)
-    image = serializers.ImageField(source='medicine.image')
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = TotalQuantity
         fields = ['medicine_id', 'name', 'generic_name', 'category', 'price', 'image', 'total_quantity']
+
+    def get_image(self, obj):
+        request = self.context.get('request')
+        image = obj.medicine.image
+        if image and hasattr(image, 'url'):
+            return request.build_absolute_uri(image.url)
+        return None
+
 
 
 # Serializer for batch-level details (for selected medicine)
