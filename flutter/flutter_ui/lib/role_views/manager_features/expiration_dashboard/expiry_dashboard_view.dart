@@ -23,7 +23,9 @@ class _ExpiryDashboardViewState extends State<ExpiryDashboardView> {
   @override
   void initState() {
     super.initState();
-    fetchAllCounts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      fetchAllCounts();
+    });
   }
 
   Future<void> fetchAllCounts() async {
@@ -32,30 +34,36 @@ class _ExpiryDashboardViewState extends State<ExpiryDashboardView> {
       fetchCount('$baseUrl/expiring-soon/', (count) => expiringSoonCount = count),
       fetchCount('$baseUrl/expired/', (count) => expiredCount = count),
     ]);
-    setState(() {}); // Refresh UI after all fetches complete
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> fetchCount(String url, Function(int) setCount) async {
-  try {
-    final response = await http.get(Uri.parse(url));
-    if (response.statusCode == 200) {
-      final List<dynamic> data = json.decode(response.body);
-      setState(() {
-        setCount(data.length);
-      });
-    } else {
-      setState(() {
-        setCount(0);
-      });
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        if (mounted) {
+          setState(() {
+            setCount(data.length);
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            setCount(0);
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          setCount(0);
+        });
+      }
     }
-  } catch (e) {
-    print("Error fetching from $url: $e");
-    setState(() {
-      setCount(0);
-    });
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -71,40 +79,52 @@ class _ExpiryDashboardViewState extends State<ExpiryDashboardView> {
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
-            _buildStatusButton(
-              context,
-              label: 'GOOD STOCKS',
-              count: goodStockCount,
-              color: Colors.greenAccent,
-              icon: Icons.check_box,
-              onTap: () {
-                Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const GoodStockPage()));
-              },
+            Expanded(
+              child: _buildStatusButton(
+                context,
+                label: 'GOOD STOCKS',
+                count: goodStockCount,
+                color: Colors.greenAccent,
+                icon: Icons.check_box,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const GoodStockPage()),
+                  );
+                },
+              ),
             ),
             const SizedBox(height: 20),
-            _buildStatusButton(
-              context,
-              label: 'EXPIRING SOON',
-              count: expiringSoonCount,
-              color: Colors.yellowAccent,
-              icon: Icons.warning_amber_rounded,
-              onTap: () {
-                Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const ExpiringSoonPage()));
-              },
+            Expanded(
+              child: _buildStatusButton(
+                context,
+                label: 'EXPIRING SOON',
+                count: expiringSoonCount,
+                color: Colors.yellowAccent,
+                icon: Icons.warning_amber_rounded,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ExpiringSoonPage()),
+                  );
+                },
+              ),
             ),
             const SizedBox(height: 20),
-            _buildStatusButton(
-              context,
-              label: 'EXPIRED STOCKS',
-              count: expiredCount,
-              color: Colors.redAccent,
-              icon: Icons.cancel,
-              onTap: () {
-                Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const ExpiredStockPage()));
-              },
+            Expanded(
+              child: _buildStatusButton(
+                context,
+                label: 'EXPIRED STOCKS',
+                count: expiredCount,
+                color: Colors.redAccent,
+                icon: Icons.cancel,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ExpiredStockPage()),
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -124,23 +144,24 @@ class _ExpiryDashboardViewState extends State<ExpiryDashboardView> {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 25),
+        padding: const EdgeInsets.all(16.0),
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(15),
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 50),
-            const SizedBox(height: 10),
+            Icon(icon, size: 40),
+            const SizedBox(height: 8),
             Text(
               count.toString(),
-              style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 4),
             Text(
               label,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
             ),
           ],
         ),
