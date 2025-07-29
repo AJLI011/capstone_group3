@@ -8,8 +8,8 @@ import 'barcodeScan_medicines_list.dart';
 
 // Extension to format strings for display in dropdowns
 extension StringCasingExtension on String {
-  String toTitleCase() => this.length > 0
-      ? '${this[0].toUpperCase()}${this.substring(1).toLowerCase()}'
+  String toTitleCase() => this.isNotEmpty
+      ? '${this[0].toUpperCase()}${substring(1).toLowerCase()}'
       : '';
 }
 
