@@ -131,10 +131,9 @@ class Promo(models.Model):
     class Meta:
         db_table = 'promo_tbl'
 
-    inventory = models.OneToOneField('Inventory', on_delete=models.CASCADE, db_column='inventory_id')
-    get_free_quantity = models.PositiveIntegerField(default=0)
+    inventory_id = models.ForeignKey('Inventory', on_delete=models.CASCADE)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
-
+    
     def __str__(self):
-        return f"Promo for {self.inventory.medicine.name}"
+        return f"Promo for {self.inventory_id.medicine.name}"
