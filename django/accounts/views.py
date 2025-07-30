@@ -378,7 +378,6 @@ class ExpiringSoonView(generics.ListAPIView):
             exp_date__lte=today + timedelta(days=15)
         )
 
-
 # ❌ Expired:
 # Medicines that are already expired (today or earlier)
 class ExpiredView(generics.ListAPIView):
