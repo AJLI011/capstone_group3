@@ -82,30 +82,59 @@ class Medicine(models.Model):
         return self.name
 
 
-class Inventory(models.Model):  # Renamed from ExpirationList
+class Inventory(models.Model): 
     class Meta:
         db_table = 'inventory_tbl'
         unique_together = ('medicine', 'batch_num')
 
-    medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE, related_name='inventory_entries') # Changed related_name
+    medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE, related_name='inventory_entries') 
     batch_num = models.CharField(max_length=100)
     exp_date = models.DateField()
     date_received = models.DateField(auto_now_add=True)
     quantity = models.PositiveIntegerField(default=0)
+    is_promo = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.medicine.name} - Batch {self.batch_num}"
-    
-class PromoProduct(models.Model):
-    
+
+
+# Models for In-store Sales and Orders
+class InStoreOrder(models.Model):
     class Meta:
-        db_table = 'promoProduct_tbl'
-        
-    medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE, related_name='promo_entries')
-    inventory = models.ForeignKey(Inventory, on_delete=models.CASCADE, related_name='promo_entries', null=True, blank=True)
-    start_date = models.DateField()
-    end_date = models.DateField()
-    is_active = models.BooleanField(default=True)
+        db_table = 'in_store_orders_tbl'
+
+    staff = models.ForeignKey('Staff', on_delete=models.CASCADE)
+    date_created = models.DateTimeField(auto_now_add=True)
+    is_completed = models.BooleanField(default=True)
+    is_pwd = models.BooleanField(default=False)
+    total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_amount_after_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     def __str__(self):
-        return f"Promo for {self.medicine.name} ({self.start_date} to {self.end_date})"
+        return f"In-Store Order #{self.id} by {self.staff.email}"
+
+class InStoreOrderItem(models.Model):
+    class Meta:
+        db_table = 'in_store_order_items_tbl'
+    
+    order = models.ForeignKey('InStoreOrder', on_delete=models.CASCADE, related_name='items')
+    inventory_id = models.ForeignKey('Inventory', on_delete=models.CASCADE)
+    quantity_sold = models.PositiveIntegerField(default=1)
+    free_quantity_given = models.PositiveIntegerField(default=0)
+    price_at_sale = models.DecimalField(max_digits=8, decimal_places=2) 
+
+    def __str__(self):
+        return f"{self.inventory_id.medicine.name} - {self.quantity_sold} sold"
+        
+# Model for Promotions
+class Promo(models.Model):
+    class Meta:
+        db_table = 'promo_tbl'
+
+    inventory_id = models.ForeignKey('Inventory', on_delete=models.CASCADE)
+    get_free_quantity = models.PositiveIntegerField(default=0)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    
+    def __str__(self):
+        return f"Promo for {self.inventory_id.medicine.name}"

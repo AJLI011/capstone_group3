@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Customer, Staff, Supplier, Medicine, Inventory # Import Inventory
+from .models import Customer, Staff, Supplier, Medicine, Inventory, InStoreOrder, InStoreOrderItem, Promo
 
 from django.contrib.auth.hashers import make_password
 
@@ -108,3 +108,74 @@ class InventoryDashboardSerializer(serializers.ModelSerializer):
             'supplier_name',
             'barcode',
         ]
+
+# serializer to get medicine details for promo
+class PromoMedicineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Medicine
+        fields = ['id', 'name', 'generic_name', 'barcode', 'price']
+
+
+# Serializer for Promotions
+class PromoSerializer(serializers.ModelSerializer):
+    medicine = PromoMedicineSerializer(source='inventory_id.medicine', read_only=True)
+
+    class Meta:
+        model = Promo
+        fields = ['id', 'inventory_id', 'get_free_quantity', 'start_date', 'end_date', 'medicine']
+
+# A serializer for In-store Order Items
+class InStoreOrderItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InStoreOrderItem
+        fields = ['inventory_id', 'quantity_sold', 'free_quantity_given', 'price_at_sale']
+
+# A serializer for In-store Orders that includes nested items
+class InStoreOrderSerializer(serializers.ModelSerializer):
+    items = InStoreOrderItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = InStoreOrder
+        fields = [
+            'id', 
+            'staff', 
+            'date_created', 
+            'is_completed', 
+            'is_pwd',
+            'total_amount_before_discount',
+            'total_amount_after_discount',
+            'items'
+        ]
+        read_only_fields = ['id', 'date_created']
+
+    def create(self, validated_data):
+        items_data = self.context.get('request').data.get('items')
+        
+        order = InStoreOrder.objects.create(
+            staff=validated_data['staff'],
+            is_pwd=validated_data.get('is_pwd', False),
+            total_amount_before_discount=validated_data.get('total_amount_before_discount', 0),
+            total_amount_after_discount=validated_data.get('total_amount_after_discount', 0)
+        )
+        
+        for item_data in items_data:
+            inventory_id = item_data.get('inventory_id')
+            quantity_sold = item_data.get('quantity_sold')
+            free_quantity_given = item_data.get('free_quantity_given')
+            price_at_sale = item_data.get('price_at_sale')
+            
+            # Create OrderItem entry
+            InStoreOrderItem.objects.create(
+                order=order,
+                inventory_id_id=inventory_id,
+                quantity_sold=quantity_sold,
+                free_quantity_given=free_quantity_given,
+                price_at_sale=price_at_sale
+            )
+
+            # Update inventory quantity
+            inventory_item = Inventory.objects.get(pk=inventory_id)
+            inventory_item.quantity -= (quantity_sold + free_quantity_given)
+            inventory_item.save()
+
+        return order

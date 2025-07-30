@@ -3,27 +3,35 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.shortcuts import render
 from django.contrib.auth.hashers import check_password, make_password
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
-
-from .serializers import CustomerSerializer, StaffSerializer, SupplierSerializer
-from .models import Customer, Staff, Supplier
-
-from .models import Medicine
-from .serializers import MedicineSerializer
-
-from rest_framework.decorators import parser_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
-
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status, generics
 from rest_framework.views import APIView
-from .models import Inventory # Corrected import from ExpirationList to Inventory
-from .serializers import InventoryCreateSerializer, InventorySerializer # Corrected serializer imports
-
-from .serializers import InventoryDashboardSerializer
-from rest_framework import generics
 from datetime import date, timedelta
 
+from .serializers import (
+    CustomerSerializer,
+    StaffSerializer,
+    SupplierSerializer,
+    MedicineSerializer,
+    InventoryCreateSerializer,
+    InventorySerializer,
+    InventoryDashboardSerializer,
+    InStoreOrderSerializer,
+    PromoSerializer
+)
+from .models import (
+    Customer,
+    Staff,
+    Supplier,
+    Medicine,
+    Inventory,
+    InStoreOrder,
+    InStoreOrderItem,
+    Promo
+)
 from django.http import JsonResponse, HttpResponseNotFound
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
@@ -233,7 +241,7 @@ def staff_detail(request, staff_id):
 
     elif request.method == 'DELETE':
         staff.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT) # Fixed typo: NO_NO_CONTENT to NO_CONTENT
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 # ─────────── STAFF PROFILE ───────────
 
@@ -275,7 +283,7 @@ def change_staff_password(request, staff_id):
         return Response({'error': 'Both current and new password are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
     if not check_password(current_password, staff.password):
-        return Response({'error': 'Current password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST) # Fixed typo: BAD_BAD_REQUEST to BAD_REQUEST
+        return Response({'error': 'Current password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
 
     staff.password = make_password(new_password)
     staff.save()
@@ -316,7 +324,6 @@ def medicine_detail(request, pk):
             serializer.save()
             return Response(serializer.data)
         
-        # This will print serializer errors to your Django server console
         print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -324,19 +331,20 @@ def medicine_detail(request, pk):
         medicine.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
-# =================== INVENTORY MANAGEMENT -------------------- # Renamed comment for clarity
-class InventoryCreateView(APIView): # Renamed class from ExpirationListCreateView
+# ─────────── INVENTORY MANAGEMENT ───────────
+
+class InventoryCreateView(APIView):
     def post(self, request, *args, **kwargs):
-        serializer = InventoryCreateSerializer(data=request.data) # Changed serializer
+        serializer = InventoryCreateSerializer(data=request.data)
         if serializer.is_valid():
-            inventory_item = serializer.save() # Renamed variable
+            inventory_item = serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
-def get_inventory_list(request): # Renamed function from get_expiration_list
-    inventory_items = Inventory.objects.select_related('medicine').all() # Changed model and variable
-    serializer = InventorySerializer(inventory_items, many=True) # Changed serializer and variable
+def get_inventory_list(request):
+    inventory_items = Inventory.objects.select_related('medicine').all()
+    serializer = InventorySerializer(inventory_items, many=True)
     return Response(serializer.data)
 
 @api_view(['GET'])
@@ -350,13 +358,7 @@ def get_medicine_by_barcode(request, barcode):
     return Response(serializer.data)
 
 
-# =================== Expiration Dashboard -------------------- # 
-# ✅ Good Stocks:
-# Medicines that either:
-# - Expire more than 15 days from today, OR
-# - Were received today (even if expiring soon)
-# =================== Expiration Dashboard -------------------- # 
-# ✅ Good Stocks: Expiry date is more than 30 days from today
+# ─────────── Expiration Dashboard ───────────
 class GoodStockView(generics.ListAPIView):
     serializer_class = InventoryDashboardSerializer
 
@@ -365,9 +367,6 @@ class GoodStockView(generics.ListAPIView):
         threshold_date = today + timedelta(days=15)
         return Inventory.objects.filter(exp_date__gt=threshold_date)
 
-# ⚠️ Expiring Soon:
-# Medicines that will expire within the next 15 days (but not yet expired),
-# and were not received today
 class ExpiringSoonView(generics.ListAPIView):
     serializer_class = InventoryDashboardSerializer
 
@@ -378,9 +377,6 @@ class ExpiringSoonView(generics.ListAPIView):
             exp_date__lte=today + timedelta(days=15)
         )
 
-
-# ❌ Expired:
-# Medicines that are already expired (today or earlier)
 class ExpiredView(generics.ListAPIView):
     serializer_class = InventoryDashboardSerializer
 
@@ -396,3 +392,63 @@ def delete_expired_batch(request, pk):
         return Response({"message": "Deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
     except Inventory.DoesNotExist:
         return Response({"error": "Inventory item not found"}, status=status.HTTP_404_NOT_FOUND)
+
+# ─────────── SALES MANAGEMENT ───────────
+
+@api_view(['GET'])
+def get_inventory_item_details_by_barcode(request, barcode):
+    # Use filter() instead of get() to handle multiple batches of the same medicine
+    inventory_items = Inventory.objects.filter(
+        medicine__barcode=barcode,
+        quantity__gt=0
+    ).select_related('medicine').prefetch_related('promo_set')
+
+    if not inventory_items:
+        return Response({'error': 'Inventory item not found or out of stock'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Prepare a list of all matching inventory items
+    response_data = []
+    for item in inventory_items:
+        item_data = {
+            'id': item.id,
+            'batch_num': item.batch_num,
+            'exp_date': item.exp_date,
+            'quantity': item.quantity,
+            'medicine_details': {
+                'id': item.medicine.id,
+                'name': item.medicine.name,
+                'price': item.medicine.price,
+                'generic_name': item.medicine.generic_name,
+                'dosage_form': item.medicine.dosage_form,
+                'requires_prescription': item.medicine.requires_prescription,
+                'category': item.medicine.category,
+                'barcode': item.medicine.barcode,
+            },
+            'promo': None
+        }
+
+        # Check for promo
+        promo = item.promo_set.first()
+        if promo:
+            promo_serializer = PromoSerializer(promo)
+            item_data['promo'] = promo_serializer.data
+        
+        response_data.append(item_data)
+        
+    return Response(response_data)
+
+
+@api_view(['POST'])
+# @permission_classes([IsAuthenticated])  # Temporarily commented out for testing
+def create_in_store_order(request):
+    try:
+        staff_id = request.data.get('staff')
+        staff_instance = Staff.objects.get(pk=staff_id)
+    except Staff.DoesNotExist:
+        return Response({'error': 'Staff member not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = InStoreOrderSerializer(data=request.data, context={'request': request})
+    if serializer.is_valid():
+        serializer.save(staff=staff_instance)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
