@@ -122,7 +122,7 @@ class PromoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Promo
-        fields = ['id', 'inventory_id', 'get_free_quantity', 'start_date', 'end_date', 'medicine']
+        fields = ['id', 'inventory_id', 'start_date', 'end_date', 'medicine']
 
 # A serializer for In-store Order Items
 class InStoreOrderItemSerializer(serializers.ModelSerializer):
