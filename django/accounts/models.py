@@ -95,3 +95,17 @@ class Inventory(models.Model):  # Renamed from ExpirationList
 
     def __str__(self):
         return f"{self.medicine.name} - Batch {self.batch_num}"
+    
+class PromoProduct(models.Model):
+    
+    class Meta:
+        db_table = 'promoProduct_tbl'
+        
+    medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE, related_name='promo_entries')
+    inventory = models.ForeignKey(Inventory, on_delete=models.CASCADE, related_name='promo_entries', null=True, blank=True)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"Promo for {self.medicine.name} ({self.start_date} to {self.end_date})"
