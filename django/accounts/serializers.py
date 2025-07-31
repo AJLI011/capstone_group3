@@ -87,6 +87,7 @@ class InventoryCreateSerializer(serializers.ModelSerializer): # Renamed class
         fields = ['medicine', 'batch_num', 'exp_date', 'quantity'] # Added quantity
 
 
+<<<<<<< HEAD
 # Serializer for main inventory screen (with total quantity)
 class InventoryListSerializer(serializers.ModelSerializer):
     medicine_id = serializers.IntegerField(source='medicine.id')
@@ -114,6 +115,15 @@ class InventoryBatchDetailSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source='medicine.name', read_only=True)
     generic_name = serializers.CharField(source='medicine.generic_name', read_only=True)
     price = serializers.DecimalField(source='medicine.price', max_digits=8, decimal_places=2, read_only=True)
+=======
+# For Expiration Dashboard
+class InventoryDashboardSerializer(serializers.ModelSerializer):
+    medicine_name = serializers.CharField(source='medicine.name')
+    generic_name = serializers.CharField(source='medicine.generic_name')
+    dosage_form = serializers.CharField(source='medicine.dosage_form')
+    supplier_name = serializers.CharField(source='medicine.supplier.name', default=None)  # Adjust if needed
+    barcode = serializers.CharField(source='medicine.barcode')
+>>>>>>> origin/expiration-jermagne
 
     class Meta:
         model = Inventory
@@ -122,6 +132,7 @@ class InventoryBatchDetailSerializer(serializers.ModelSerializer):
             'batch_num',
             'exp_date',
             'quantity',
+<<<<<<< HEAD
             'date_received',
             'name',
             'generic_name',
@@ -139,3 +150,11 @@ class TotalQuantitySerializer(serializers.ModelSerializer):
     class Meta:
         model = TotalQuantity
         fields = ['medicine', 'medicine_name', 'generic_name', 'category', 'image', 'total_quantity']
+=======
+            'medicine_name',
+            'generic_name',
+            'dosage_form',
+            'supplier_name',
+            'barcode',
+        ]
+>>>>>>> origin/expiration-jermagne

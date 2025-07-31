@@ -21,6 +21,11 @@ from .models import Inventory, TotalQuantity # Added total qty table
 from .serializers import InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, InventoryBatchDetailSerializer, TotalQuantitySerializer
 
 
+from .serializers import InventoryDashboardSerializer
+from rest_framework import generics
+from datetime import date, timedelta
+
+from django.http import JsonResponse, HttpResponseNotFound
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
@@ -363,6 +368,7 @@ def get_medicine_by_barcode(request, barcode):
     serializer = MedicineSerializer(medicine)
     return Response(serializer.data)
 
+<<<<<<< HEAD
 # FOR INVENTORY 
 # main inventory screen - with total qty
 
@@ -396,3 +402,51 @@ def total_quantities(request):
         })
 
     return Response(results)
+=======
+
+# =================== Expiration Dashboard -------------------- # 
+# ✅ Good Stocks:
+# Medicines that either:
+# - Expire more than 15 days from today, OR
+# - Were received today (even if expiring soon)
+# =================== Expiration Dashboard -------------------- # 
+# ✅ Good Stocks: Expiry date is more than 30 days from today
+class GoodStockView(generics.ListAPIView):
+    serializer_class = InventoryDashboardSerializer
+
+    def get_queryset(self):
+        today = date.today()
+        threshold_date = today + timedelta(days=15)
+        return Inventory.objects.filter(exp_date__gt=threshold_date)
+
+# ⚠️ Expiring Soon:
+# Medicines that will expire within the next 15 days (but not yet expired),
+# and were not received today
+class ExpiringSoonView(generics.ListAPIView):
+    serializer_class = InventoryDashboardSerializer
+
+    def get_queryset(self):
+        today = date.today()
+        return Inventory.objects.filter(
+            exp_date__gt=today,
+            exp_date__lte=today + timedelta(days=15)
+        )
+
+# ❌ Expired:
+# Medicines that are already expired (today or earlier)
+class ExpiredView(generics.ListAPIView):
+    serializer_class = InventoryDashboardSerializer
+
+    def get_queryset(self):
+        today = date.today()
+        return Inventory.objects.filter(exp_date__lte=today)
+
+@api_view(['DELETE'])
+def delete_expired_batch(request, pk):
+    try:
+        inventory_item = Inventory.objects.get(pk=pk)
+        inventory_item.delete()
+        return Response({"message": "Deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+    except Inventory.DoesNotExist:
+        return Response({"error": "Inventory item not found"}, status=status.HTTP_404_NOT_FOUND)
+>>>>>>> origin/expiration-jermagne

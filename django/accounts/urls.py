@@ -5,6 +5,10 @@ from .views import medicine_list, medicine_detail
 from .views import InventoryCreateView # Changed from ExpirationListCreateView
 from .views import get_inventory_list # Added explicit import for get_inventory_list
 
+from .views import GoodStockView, ExpiringSoonView, ExpiredView
+
+from .views import delete_expired_batch
+
 urlpatterns = [
     # Authentication
     path('register/', views.register_customer),
@@ -39,7 +43,19 @@ urlpatterns = [
     path('inventory/add/', InventoryCreateView.as_view(), name='inventory-add'), # Changed URL path and view class
     path('inventory/', get_inventory_list, name='inventory-list'), # Changed URL path and view function
     path('medicines/barcode/<str:barcode>/', views.get_medicine_by_barcode, name='get-medicine-by-barcode'),
+<<<<<<< HEAD
     path('api/inventory/total-quantities/', views.total_quantities, name='total_quantities'),
     path('inventory/batches/<int:medicine_id>/', views.get_batch_details, name='inventory-batch-details'),
 
 ]
+=======
+
+    # Expiration tracking
+    path('medicines/good-stock/', GoodStockView.as_view(), name='good-stock'),
+    path('medicines/expiring-soon/', ExpiringSoonView.as_view(), name='expiring-soon'),
+    path('medicines/expired/', ExpiredView.as_view(), name='expired-medicines'),
+
+    path('medicines/delete/<int:pk>/', delete_expired_batch, name='delete-expired-batch'),
+]
+
+>>>>>>> origin/expiration-jermagne

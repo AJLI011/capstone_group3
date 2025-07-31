@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_ui/role_views/manager_features/expiration_dashboard/expiry_dashboard_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart'; // ToggleLoginScreen
 
 // You'll need to create these placeholder pages for ManagerView features later
 import 'manager_features/medicines_list/medicines_list_view.dart';
 import 'manager_features/restock/restock_barcode.dart';
+<<<<<<< HEAD
 import 'manager_features/change_password/change_manager_password.dart'; // change pw
 import 'manager_features/edit_profile/edit_manager_profile.dart'; // edit profile
 import 'manager_features/inventory/inventory_grid_screen.dart'; // inventory
 
+=======
+import 'manager_features/return_medicines/return_page.dart';
+import 'manager_features/promo_medicines/promo_page.dart';
+>>>>>>> origin/expiration-jermagne
 
 class ManagerView extends StatefulWidget {
   final int staffId;
@@ -169,9 +175,18 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                                         _drawerItem(Icons.shelves, 'Restock', () => _open(const RestockBarcodeScreen())),
                                         _drawerItem(Icons.store, 'In Store Sales Transaction', () {}),
                                         _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction', () {}),
+<<<<<<< HEAD
                                         _drawerItem(Icons.priority_high, 'Expiry', () {}),
                                         _drawerItem(Icons.assignment_return, 'Return Medicines', () {}),
                                         _drawerItem(Icons.local_offer, 'Promo Medicines', () {}),
+=======
+                                        _drawerItem(Icons.priority_high, 'Expiry',
+                                          () => _open(const ExpiryDashboardView())),
+                                        _drawerItem(Icons.assignment_return, 'Return Medicines', 
+                                          () => _open(const ReturnMedicinePage())),
+                                        _drawerItem(Icons.local_offer, 'Promo Medicines', 
+                                        () => _open(const PromoMedicinePage())),
+>>>>>>> origin/expiration-jermagne
                                         _drawerItem(Icons.point_of_sale, 'In Store Sales Report', () {}),
                                         _drawerItem(Icons.trending_up, 'Online Sales Report', () {}),
                                         _drawerItem(Icons.insights, 'Demand Forecast', () {}),
