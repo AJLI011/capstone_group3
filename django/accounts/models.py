@@ -37,11 +37,12 @@ class Supplier(models.Model):
 
     def __str__(self):
         return self.name
-    
+
+
 class Medicine(models.Model):
-    
     class Meta:
         db_table = 'medicines_list'
+
     DOSAGE_CHOICES = [
         ('tablet', 'Tablet'),
         ('syrup', 'Syrup'),
@@ -76,22 +77,32 @@ class Medicine(models.Model):
     image = models.ImageField(upload_to='medicine_images/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
 
     def __str__(self):
         return self.name
 
 
-class Inventory(models.Model):  # Renamed from ExpirationList
+class Inventory(models.Model): 
     class Meta:
         db_table = 'inventory_tbl'
         unique_together = ('medicine', 'batch_num')
 
-    medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE, related_name='inventory_entries') # Changed related_name
+    medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE, related_name='inventory_entries') 
     batch_num = models.CharField(max_length=100)
     exp_date = models.DateField()
     date_received = models.DateField(auto_now_add=True)
     quantity = models.PositiveIntegerField(default=0)
+    is_promo = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.medicine.name} - Batch {self.batch_num}"
+
+# Model for Promotions
+class Promo(models.Model):
+    class Meta:
+        db_table = 'promo_tbl'
+
+    inventory_id = models.ForeignKey('Inventory', on_delete=models.CASCADE)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    

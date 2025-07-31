@@ -35,34 +35,67 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
   }
 
   Future<void> markAsPromo(int inventoryId, int index) async {
+    DateTime? startDate;
+    DateTime? endDate;
+
+    // Show start date picker
+    startDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2100),
+    );
+
+    if (startDate == null) return;
+
+    // Show end date picker
+    endDate = await showDatePicker(
+      context: context,
+      initialDate: startDate.add(Duration(days: 1)),
+      firstDate: startDate,
+      lastDate: DateTime(2100),
+    );
+
+    if (endDate == null) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        content: const Text('Mark as a promo?'),
+        content: const Text('Set this medicine as promo?'),
         actions: [
-          TextButton(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.pop(context, false),
-          ),
-          TextButton(
-            child: const Text('Yes'),
-            onPressed: () => Navigator.pop(context, true),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes')),
         ],
       ),
     );
 
     if (confirmed != true) return;
 
-    // Add your promo marking logic here, e.g., API call if needed
-    // For now, just remove it visually and show success
-    setState(() {
-      promoMedicines.removeAt(index);
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✅ Transferred Successfully.')),
+    // Send POST API request to mark as promo
+    final url = 'http://10.0.2.2:8000/api/inventory/$inventoryId/set-promo/';
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'start_promo_date': startDate.toIso8601String().split('T').first,
+        'end_promo_date': endDate.toIso8601String().split('T').first,
+      }),
     );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        promoMedicines.removeAt(index);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Promo set successfully.')),
+      );
+    } else {
+      print('Failed to set promo: ${response.body}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('❌ Failed to set promo.')),
+      );
+    }
   }
 
   @override
