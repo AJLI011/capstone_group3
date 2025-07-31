@@ -368,7 +368,6 @@ def get_medicine_by_barcode(request, barcode):
     serializer = MedicineSerializer(medicine)
     return Response(serializer.data)
 
-<<<<<<< HEAD
 # FOR INVENTORY 
 # main inventory screen - with total qty
 
@@ -402,7 +401,6 @@ def total_quantities(request):
         })
 
     return Response(results)
-=======
 
 # =================== Expiration Dashboard -------------------- # 
 # ✅ Good Stocks:
@@ -449,4 +447,3 @@ def delete_expired_batch(request, pk):
         return Response({"message": "Deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
     except Inventory.DoesNotExist:
         return Response({"error": "Inventory item not found"}, status=status.HTTP_404_NOT_FOUND)
->>>>>>> origin/expiration-jermagne

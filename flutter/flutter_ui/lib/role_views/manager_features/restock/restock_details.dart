@@ -144,11 +144,7 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
                     if (value == null || value.isEmpty) {
                       return 'Quantity cannot be empty'; // Changed message as it's not user input
                     }
-<<<<<<< HEAD
-                    if (int.tryParse(value) == null || int.parse(value) <= 0) {
-=======
                     if (int.tryParse(value) == null || int.parse(value)! <= 0) {
->>>>>>> origin/expiration-jermagne
                       return 'Invalid quantity value'; // Changed message
                     }
                     return null;
