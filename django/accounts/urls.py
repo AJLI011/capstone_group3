@@ -3,7 +3,7 @@ from . import views
 from .views import medicine_list, medicine_detail
 # Import only the CreateView for adding new inventory entries
 from .views import InventoryCreateView # Changed from ExpirationListCreateView
-from .views import get_inventory_list, get_inventory_item_details_by_barcode, create_in_store_order
+from .views import get_inventory_list, get_inventory_item_details_by_barcode, create_in_store_order, get_all_sales
 
 from .views import GoodStockView, ExpiringSoonView, ExpiredView
 
@@ -53,6 +53,7 @@ urlpatterns = [
     
     # ─────────── SALES APIs ───────────
     path('sales/scan/<str:barcode>/', views.get_inventory_item_details_by_barcode, name='get-inventory-item-details-by-barcode'),
-    path('sales/process/', views.create_in_store_order, name='create-in-store-order'),
+    path('sales/process/', views.create_in_store_order, name='create-in-store-order'), #
+    path('sales/all/', views.get_all_sales, name='get-all-sales'),  # views all the sales  records done
 ]
 

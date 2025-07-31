@@ -452,3 +452,39 @@ def create_in_store_order(request):
         serializer.save(staff=staff_instance)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def get_all_sales(request):
+    orders = InStoreOrder.objects.all().order_by('-date_created')
+    data = []
+
+    for order in orders:
+        items = InStoreOrderItem.objects.select_related('inventory_id__medicine').filter(order=order)
+        item_data = []
+
+        for item in items:
+            medicine = item.inventory_id.medicine if item.inventory_id and item.inventory_id.medicine else None
+            if not medicine:
+                continue
+
+            item_data.append({
+                'medicine_name': medicine.name,
+                'quantity_sold': item.quantity_sold,
+                'free_quantity': item.free_quantity_given,
+                'price_each': item.price_at_sale,
+                'total_price': float(item.quantity_sold) * float(item.price_at_sale),
+            })
+
+        data.append({
+            'order_id': order.id,
+            'staff_id': order.staff.id,
+            'date_created': order.date_created,
+            'total_amount_before_discount': order.total_amount_before_discount,
+            'total_amount_after_discount': order.total_amount_after_discount,
+            'items': item_data,
+        })
+
+    return Response(data)
+
+
