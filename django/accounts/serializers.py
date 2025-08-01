@@ -112,8 +112,22 @@ class InventoryListSerializer(serializers.ModelSerializer):
 # Serializer for batch-level details (for selected medicine)
 class InventoryBatchDetailSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source='medicine.name', read_only=True)
-    generic_name = serializers.CharField(source='medicine.generic_name', read_only=True)
+    generic_name = serializers.CharField(source='medicine.generic_name.name', read_only=True, default="N/A")
     price = serializers.DecimalField(source='medicine.price', max_digits=8, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = Inventory
+        fields = [
+            'id',
+            'batch_num',
+            'exp_date',
+            'quantity',
+            'date_received',
+            'name',
+            'generic_name',
+            'price',
+        ]
+
 # For Expiration Dashboard
 class InventoryDashboardSerializer(serializers.ModelSerializer):
     medicine_name = serializers.CharField(source='medicine.name')

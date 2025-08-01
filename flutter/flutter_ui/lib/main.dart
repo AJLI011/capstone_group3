@@ -38,7 +38,8 @@ Future<Widget> _getStartScreen() async {
       case 'cashier':
         return const CashierView();
       case 'staff':
-        return const StaffView();
+        if (staffId != null) return StaffView(staffId: staffId);
+        break;
       case 'customer':
         return const CustomerView();
     }
