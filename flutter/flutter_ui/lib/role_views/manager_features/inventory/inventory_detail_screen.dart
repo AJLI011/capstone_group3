@@ -11,6 +11,7 @@ class BatchDetail {
   final double price;
   final String name;
   final String genericName;
+  final bool isPromo; 
 
   BatchDetail({
     required this.batchNumber,
@@ -19,6 +20,7 @@ class BatchDetail {
     required this.price,
     required this.name,
     required this.genericName,
+    required this.isPromo, 
   });
 
   factory BatchDetail.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class BatchDetail {
       price: double.tryParse(json['price'].toString()) ?? 0.0,
       name: json['name'] ?? '',
       genericName: json['generic_name'] ?? '',
+      isPromo: json['is_promo'] ?? false,
     );
   }
 }
@@ -99,6 +102,8 @@ class _InventoryDetailScreenState extends State<InventoryDetailScreen> {
             itemBuilder: (context, index) {
               final batch = batches[index];
 
+            final isPromo = batch.isPromo;
+
               return Card(
                 elevation: 3,
                 shape: RoundedRectangleBorder(
@@ -115,7 +120,7 @@ class _InventoryDetailScreenState extends State<InventoryDetailScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              '${widget.item.genericName} (${widget.item.name})',
+                              '${widget.item.genericName} (${widget.item.name}) ${isPromo ? "⭐️" : ""}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,

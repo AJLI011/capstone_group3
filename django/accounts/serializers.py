@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity
+from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo
 
 from django.contrib.auth.hashers import make_password
 
@@ -126,7 +126,10 @@ class InventoryBatchDetailSerializer(serializers.ModelSerializer):
             'name',
             'generic_name',
             'price',
+            'is_promo',
         ]
+    def get_is_promo(self, obj):
+        return Promo.objects.filter(inventory=obj).exists()
 
 # For Expiration Dashboard
 class InventoryDashboardSerializer(serializers.ModelSerializer):
@@ -150,8 +153,6 @@ class InventoryDashboardSerializer(serializers.ModelSerializer):
             'barcode',
         ]
         
-
-
 # Total Quantity
 class TotalQuantitySerializer(serializers.ModelSerializer):
     medicine_name = serializers.CharField(source='medicine.name', read_only=True)
@@ -162,4 +163,9 @@ class TotalQuantitySerializer(serializers.ModelSerializer):
     class Meta:
         model = TotalQuantity
         fields = ['medicine', 'medicine_name', 'generic_name', 'category', 'image', 'total_quantity']
-       
+
+# Serializer for Promo
+class PromoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Promo
+        fields = '__all__'

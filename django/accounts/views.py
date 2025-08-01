@@ -7,22 +7,16 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
-from .serializers import CustomerSerializer, StaffSerializer, SupplierSerializer
-from .models import Customer, Staff, Supplier
-
-from .models import Medicine
-from .serializers import MedicineSerializer
+from .serializers import CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer, InventoryDashboardSerializer
+from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo
+from .serializers import MedicineSerializer, InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, InventoryBatchDetailSerializer, TotalQuantitySerializer
 
 from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import F
 
 from rest_framework.views import APIView
-from .models import Inventory, TotalQuantity # Added total qty table
-from .serializers import InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, InventoryBatchDetailSerializer, TotalQuantitySerializer
 
-
-from .serializers import InventoryDashboardSerializer
 from rest_framework import generics
 from datetime import date, timedelta
 
@@ -440,6 +434,7 @@ class ExpiredView(generics.ListAPIView):
         today = date.today()
         return Inventory.objects.filter(exp_date__lte=today)
 
+#Return Medicine
 @api_view(['DELETE'])
 def delete_expired_batch(request, pk):
     try:
@@ -448,3 +443,31 @@ def delete_expired_batch(request, pk):
         return Response({"message": "Deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
     except Inventory.DoesNotExist:
         return Response({"error": "Inventory item not found"}, status=status.HTTP_404_NOT_FOUND)
+
+# Promo Medicine
+@api_view(['POST'])
+def set_promo(request, inventory_id):
+    try:
+        inventory_item = Inventory.objects.get(pk=inventory_id)
+    except Inventory.DoesNotExist:
+        return Response({'error': 'Inventory item not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+    start_date = request.data.get('start_date')
+    end_date = request.data.get('end_date')
+
+    if not start_date or not end_date:
+        return Response({'error': 'Start and end date required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Save promo entry
+    promo = Promo.objects.create(
+        inventory_id=inventory_item,
+        start_date=start_date,
+        end_date=end_date
+    )
+
+    # Mark inventory as promo
+    inventory_item.is_promo = True
+    inventory_item.save()
+
+    return Response({'message': 'Promo set successfully'}, status=status.HTTP_200_OK)

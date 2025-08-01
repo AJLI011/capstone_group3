@@ -46,12 +46,15 @@ urlpatterns = [
     path('api/inventory/total-quantities/', views.total_quantities, name='total_quantities'),
     path('inventory/batches/<int:medicine_id>/', views.get_batch_details, name='inventory-batch-details'),
 
-
     # Expiration tracking
     path('medicines/good-stock/', GoodStockView.as_view(), name='good-stock'),
     path('medicines/expiring-soon/', ExpiringSoonView.as_view(), name='expiring-soon'),
     path('medicines/expired/', ExpiredView.as_view(), name='expired-medicines'),
 
+    # Return Medicine
     path('medicines/delete/<int:pk>/', delete_expired_batch, name='delete-expired-batch'),
+
+    # Promo Medicine
+    path('inventory/<int:inventory_id>/set-promo/', views.set_promo, name='set_promo'),
 ]
 
