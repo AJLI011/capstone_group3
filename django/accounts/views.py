@@ -15,6 +15,7 @@ from .serializers import MedicineSerializer
 
 from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
+from django.db.models import F
 
 from rest_framework.views import APIView
 from .models import Inventory, TotalQuantity # Added total qty table
