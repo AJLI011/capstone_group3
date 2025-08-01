@@ -37,12 +37,11 @@ class Supplier(models.Model):
 
     def __str__(self):
         return self.name
-
-
+    
 class Medicine(models.Model):
+    
     class Meta:
         db_table = 'medicines_list'
-
     DOSAGE_CHOICES = [
         ('tablet', 'Tablet'),
         ('syrup', 'Syrup'),
@@ -77,11 +76,11 @@ class Medicine(models.Model):
     image = models.ImageField(upload_to='medicine_images/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
 
     def __str__(self):
         return self.name
-
-
+        
 class Inventory(models.Model): 
     class Meta:
         db_table = 'inventory_tbl'
@@ -105,4 +104,7 @@ class Promo(models.Model):
     inventory_id = models.ForeignKey('Inventory', on_delete=models.CASCADE)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
+    
+    def __str__(self):
+        return f"Promo for {self.inventory_id.medicine.name}"
     

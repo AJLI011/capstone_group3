@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Customer, Staff, Supplier, Medicine, Inventory # Import Inventory
+from .models import Customer, Staff, Supplier, Medicine, Inventory, Promo # Import Inventory
 
 from django.contrib.auth.hashers import make_password
 
@@ -107,3 +107,8 @@ class InventoryDashboardSerializer(serializers.ModelSerializer):
             'supplier_name',
             'barcode',
         ]
+
+class PromoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Promo
+        fields = '__all__'

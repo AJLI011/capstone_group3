@@ -17,11 +17,13 @@ from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from rest_framework.views import APIView
-from .models import Inventory, Promo
-from .serializers import InventoryCreateSerializer, InventorySerializer
+from .models import Inventory # Corrected import from ExpirationList to Inventory
+from .models import Promo # Added import for Promo model
 
-
+from .serializers import InventoryCreateSerializer, InventorySerializer # Corrected serializer imports
+from .serializers import PromoSerializer
 from .serializers import InventoryDashboardSerializer
+
 from rest_framework import generics
 from datetime import date, timedelta
 
@@ -326,36 +328,18 @@ def medicine_detail(request, pk):
         return Response(status=status.HTTP_204_NO_CONTENT)
     
 # =================== INVENTORY MANAGEMENT -------------------- # Renamed comment for clarity
-class InventoryCreateView(APIView):
+class InventoryCreateView(APIView): # Renamed class from ExpirationListCreateView
     def post(self, request, *args, **kwargs):
-        serializer = InventoryCreateSerializer(data=request.data)
+        serializer = InventoryCreateSerializer(data=request.data) # Changed serializer
         if serializer.is_valid():
-            inventory_item = serializer.save()
-
-            medicine = inventory_item.medicine
-            qty_to_add = inventory_item.quantity
-
-            # ✅ Update or create TotalQuantity for the medicine
-            total_obj, created = TotalQuantity.objects.get_or_create(
-                medicine=medicine,
-                defaults={'total_quantity': qty_to_add}
-            )
-            if not created:
-                total_obj.total_quantity = F('total_quantity') + qty_to_add
-                total_obj.save()
-
-                # Refresh from database to reflect updated value
-                total_obj.refresh_from_db()
-
+            inventory_item = serializer.save() # Renamed variable
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 @api_view(['GET'])
-def get_inventory_list(request):
-    queryset = TotalQuantity.objects.select_related('medicine').all()
-    serializer = InventoryListSerializer(queryset, many=True, context={'request': request})
+def get_inventory_list(request): # Renamed function from get_expiration_list
+    inventory_items = Inventory.objects.select_related('medicine').all() # Changed model and variable
+    serializer = InventorySerializer(inventory_items, many=True) # Changed serializer and variable
     return Response(serializer.data)
 
 @api_view(['GET'])
@@ -368,39 +352,6 @@ def get_medicine_by_barcode(request, barcode):
     serializer = MedicineSerializer(medicine)
     return Response(serializer.data)
 
-# FOR INVENTORY 
-# main inventory screen - with total qty
-
-
-# 2. batch level details for a selected medicine
-@api_view(['GET'])
-def get_batch_details(request, medicine_id):
-    batches = Inventory.objects.filter(medicine__id=medicine_id)
-    if not batches.exists():
-        return Response({'message': 'No batches found.'}, status=status.HTTP_404_NOT_FOUND)
-
-    serializer = InventoryBatchDetailSerializer(batches, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
-
-# for total quantity
-@api_view(['GET'])
-def total_quantities(request):
-    inventory_items = Inventory.objects.select_related('medicine_id').all()
-
-    results = []
-
-    for item in inventory_items:
-        medicine = item.medicine_id  # thanks to ForeignKey
-        results.append({
-            "medicine_id": medicine.id,
-            "name": medicine.name,
-            "generic_name": medicine.generic_name,
-            "image": medicine.image.url if medicine.image else "",
-            "category": medicine.category,
-            "total_quantity": item.total_quantity,
-        })
-
-    return Response(results)
 
 # =================== Expiration Dashboard -------------------- # 
 # ✅ Good Stocks:
@@ -447,3 +398,29 @@ def delete_expired_batch(request, pk):
         return Response({"message": "Deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
     except Inventory.DoesNotExist:
         return Response({"error": "Inventory item not found"}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['POST'])
+def set_promo(request, inventory_id):
+    try:
+        inventory_item = Inventory.objects.get(pk=inventory_id)
+    except Inventory.DoesNotExist:
+        return Response({'error': 'Inventory item not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    start_date = request.data.get('start_date')
+    end_date = request.data.get('end_date')
+
+    if not start_date or not end_date:
+        return Response({'error': 'Start and end date required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Save promo entry
+    promo = Promo.objects.create(
+        inventory_id=inventory_item,
+        start_date=start_date,
+        end_date=end_date
+    )
+
+    # Mark inventory as promo
+    inventory_item.is_promo = True
+    inventory_item.save()
+
+    return Response({'message': 'Promo set successfully'}, status=status.HTTP_200_OK)

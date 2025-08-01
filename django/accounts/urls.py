@@ -50,5 +50,6 @@ urlpatterns = [
     path('medicines/expired/', ExpiredView.as_view(), name='expired-medicines'),
 
     path('medicines/delete/<int:pk>/', delete_expired_batch, name='delete-expired-batch'),
+    path('inventory/<int:inventory_id>/set-promo/', views.set_promo, name='set_promo'),
 ]
 
