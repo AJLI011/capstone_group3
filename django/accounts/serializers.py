@@ -156,6 +156,9 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
         items_data = validated_data.pop('items')
         is_pwd = validated_data.get('is_pwd', False)
         
+        if validated_data['staff'].role != 'staff':
+            raise serializers.ValidationError("Only staff users can create in-store sales.")
+        
         total_amount_before_discount = Decimal('0.00')
         total_amount_after_discount = Decimal('0.00')
 

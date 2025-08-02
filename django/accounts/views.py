@@ -414,6 +414,7 @@ def get_inventory_item_details_by_barcode(request, barcode):
             'batch_num': item.batch_num,
             'exp_date': item.exp_date,
             'quantity': item.quantity,
+            'is_promo': item.is_promo,  # ✅ Include is_promo status
             'medicine_details': {
                 'id': item.medicine.id,
                 'name': item.medicine.name,
@@ -423,6 +424,7 @@ def get_inventory_item_details_by_barcode(request, barcode):
                 'requires_prescription': item.medicine.requires_prescription,
                 'category': item.medicine.category,
                 'barcode': item.medicine.barcode,
+                'image': item.medicine.image.url if item.medicine.image else None  # Include image URL
             },
             'promo': None
         }
@@ -486,5 +488,3 @@ def get_all_sales(request):
         })
 
     return Response(data)
-
-

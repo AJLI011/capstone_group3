@@ -1,38 +1,204 @@
 import 'package:flutter/material.dart';
-import '../main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../main.dart';
 
-class StaffView extends StatelessWidget {
+import 'staff_features/sales/sales_barcode.dart';
+
+class StaffView extends StatefulWidget {
   const StaffView({super.key});
 
-  void logout(BuildContext context) async {
+  @override
+  State<StaffView> createState() => _StaffViewState();
+}
+
+class _StaffViewState extends State<StaffView> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  bool _isMenuOpen = false;
+  String? staffName;
+  String? staffEmail;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _loadStaffInfo();
+  }
+
+  Future<void> _loadStaffInfo() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('is_logged_in');
-    await prefs.remove('role');
-    
+    setState(() {
+      staffName = prefs.getString('name') ?? 'Staff User';
+      staffEmail = prefs.getString('email') ?? 'no.email@example.com';
+      isLoading = false;
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _toggleMenu() {
+    setState(() => _isMenuOpen = !_isMenuOpen);
+    _isMenuOpen ? _ctrl.forward() : _ctrl.reverse();
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => const ToggleLoginScreen()),
-      (route) => false,
+      MaterialPageRoute(builder: (_) => const ToggleLoginScreen()),
+      (_) => false,
+    );
+  }
+
+  Future<void> _confirmLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Confirm Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      _logout();
+    }
+  }
+
+  void _open(Widget page) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => page),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Staff View'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => logout(context),
-            tooltip: 'Logout',
-          ),
-        ],
+    final screenW = MediaQuery.of(context).size.width;
+
+    return WillPopScope(
+      onWillPop: () async {
+        if (_isMenuOpen) {
+          _toggleMenu();
+          return false;
+        }
+        return false;
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Scaffold(
+              appBar: AppBar(
+                title: const Text(''),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.menu),
+                    onPressed: _toggleMenu,
+                  ),
+                ],
+              ),
+              body: const Center(child: Text('Welcome, Staff')),
+            ),
+            AnimatedBuilder(
+              animation: _ctrl,
+              builder: (_, __) {
+                final dx = (-screenW) + (_ctrl.value * screenW);
+                return Transform.translate(
+                  offset: Offset(dx, 0),
+                  child: SizedBox(
+                    width: screenW,
+                    height: double.infinity,
+                    child: Material(
+                      color: Colors.white,
+                      elevation: 16,
+                      child: isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const SizedBox(height: 60),
+                                const CircleAvatar(
+                                  radius: 40,
+                                  child: Icon(Icons.person, size: 50),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  staffName ?? 'User Name',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  staffEmail ?? 'user.email@example.com',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.grey),
+                                ),
+                                const Divider(height: 40),
+                                Expanded(
+                                  child: SingleChildScrollView(
+                                    child: Column(
+                                      children: [
+                                        _drawerItem(Icons.inventory, 'Inventory', () {}),
+                                        _drawerItem(Icons.qr_code_scanner, 'Sale', () => _open(const SalesBarcodeScreen())),
+                                        _drawerItem(Icons.shopping_cart, 'Online Orders', () {}),
+                                        _drawerItem(Icons.timer_outlined, 'Expiry', () {}),
+                                        _drawerItem(Icons.edit, 'Edit Profile', () {}),
+                                        _drawerItem(Icons.lock, 'Change Password', () {}),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blue.shade700,
+                                    ),
+                                    onPressed: _confirmLogout,
+                                    child: const Text(
+                                      'Logout',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
-      body: const Center(
-        child: Text('This is the staff view'),
-      ),
+    );
+  }
+
+  Widget _drawerItem(IconData icon, String title, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      onTap: onTap,
+      hoverColor: Colors.blue.shade50,
     );
   }
 }
