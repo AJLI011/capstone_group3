@@ -85,26 +85,76 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
           }
         } else {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No medicine found for this barcode')),
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Not Found'),
+                content: const Text('No medicine found for this barcode.'),
+                actions: [
+                  TextButton(
+                    onPressed: () async {
+                      Navigator.of(context).pop();
+                      await cameraController.start();
+                    },
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
             );
-            await cameraController.start();
           }
         }
       } else {
+        // Handle the different error scenarios based on the response body
+        final errorData = json.decode(response.body);
+        final errorMessage = errorData['error'] ?? 'Unexpected error occurred';
+        print("Error from backend: $errorMessage");
+
+        String dialogTitle = 'Error';
+        if (errorMessage.contains('does not exist')) {
+          dialogTitle = 'Not Found';
+        } else if (errorMessage.contains('expired')) {
+          dialogTitle = 'Expired Item';
+        } else if (errorMessage.contains('out of stock')) {
+          dialogTitle = 'Out of Stock';
+        }
+
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Medicine not found')),
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text(dialogTitle),
+              content: Text(errorMessage),
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    await cameraController.start();
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
           );
-          await cameraController.start();
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Exception'),
+            content: Text('Error: $e'),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  await cameraController.start();
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
         );
-        await cameraController.start();
       }
     } finally {
       _isScanning = false;

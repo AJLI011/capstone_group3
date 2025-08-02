@@ -393,52 +393,75 @@ def delete_expired_batch(request, pk):
     except Inventory.DoesNotExist:
         return Response({"error": "Inventory item not found"}, status=status.HTTP_404_NOT_FOUND)
 
-# ─────────── SALES MANAGEMENT ───────────
 
+# ─────────── SALES MANAGEMENT ───────────
+# Handles barcode scanning for sales
+# Returns 404 if barcode doesn't exist
+# Returns 400 if expired or out of stock
+# Returns inventory + medicine + promo if valid
 @api_view(['GET'])
 def get_inventory_item_details_by_barcode(request, barcode):
-    # Use filter() instead of get() to handle multiple batches of the same medicine
-    inventory_items = Inventory.objects.filter(
+    from datetime import date
+    today = date.today()
+
+    # First check if any medicine exists for the barcode
+    try:
+        medicine = Medicine.objects.get(barcode=barcode)
+    except Medicine.DoesNotExist:
+        return Response({'error': 'Medicine with this barcode does not exist.'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Now check for valid inventory (not expired, has stock)
+    valid_inventory_items = Inventory.objects.filter(
         medicine__barcode=barcode,
-        quantity__gt=0
+        quantity__gt=0,
+        exp_date__gt=today
     ).select_related('medicine').prefetch_related('promo_set')
 
-    if not inventory_items:
-        return Response({'error': 'Inventory item not found or out of stock'}, status=status.HTTP_404_NOT_FOUND)
+    if valid_inventory_items:
+        # Prepare a list of all valid inventory items
+        response_data = []
+        for item in valid_inventory_items:
+            item_data = {
+                'id': item.id,
+                'batch_num': item.batch_num,
+                'exp_date': item.exp_date,
+                'quantity': item.quantity,
+                'is_promo': item.is_promo,
+                'medicine_details': {
+                    'id': item.medicine.id,
+                    'name': item.medicine.name,
+                    'price': item.medicine.price,
+                    'generic_name': item.medicine.generic_name,
+                    'dosage_form': item.medicine.dosage_form,
+                    'requires_prescription': item.medicine.requires_prescription,
+                    'category': item.medicine.category,
+                    'barcode': item.medicine.barcode,
+                    'image': item.medicine.image.url if item.medicine.image else None,
+                },
+                'promo': None,
+            }
 
-    # Prepare a list of all matching inventory items
-    response_data = []
-    for item in inventory_items:
-        item_data = {
-            'id': item.id,
-            'batch_num': item.batch_num,
-            'exp_date': item.exp_date,
-            'quantity': item.quantity,
-            'is_promo': item.is_promo,  # ✅ Include is_promo status
-            'medicine_details': {
-                'id': item.medicine.id,
-                'name': item.medicine.name,
-                'price': item.medicine.price,
-                'generic_name': item.medicine.generic_name,
-                'dosage_form': item.medicine.dosage_form,
-                'requires_prescription': item.medicine.requires_prescription,
-                'category': item.medicine.category,
-                'barcode': item.medicine.barcode,
-                'image': item.medicine.image.url if item.medicine.image else None  # Include image URL
-            },
-            'promo': None
-        }
+            # Attach promo if exists
+            promo = item.promo_set.first()
+            if promo:
+                promo_serializer = PromoSerializer(promo)
+                item_data['promo'] = promo_serializer.data
 
-        # Check for promo
-        promo = item.promo_set.first()
-        if promo:
-            promo_serializer = PromoSerializer(promo)
-            item_data['promo'] = promo_serializer.data
+            response_data.append(item_data)
+
+        return Response(response_data)
+    
+    # Check for expired items specifically, even if out of stock
+    expired_inventory_items = Inventory.objects.filter(
+        medicine__barcode=barcode,
+        exp_date__lte=today  # Using less than or equal to for expired
+    )
+    
+    if expired_inventory_items:
+        return Response({'error': 'This item has expired and cannot be sold.'}, status=status.HTTP_400_BAD_REQUEST)
         
-        response_data.append(item_data)
-        
-    return Response(response_data)
-
+    # If not valid and not expired, it must be out of stock
+    return Response({'error': 'This item is currently out of stock.'}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 # @permission_classes([IsAuthenticated])  # Temporarily commented out for testing
