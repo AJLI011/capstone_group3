@@ -54,12 +54,14 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
     }
 
     // Create the new item to be added to the cart
+    // UPDATED: Changed key names to match what OrderSummaryPage expects
     final Map<String, dynamic> newItem = {
       'id': medicineDetails['id'],
       'name': medicineDetails['name'],
       'price': medicineDetails['price'],
-      'quantity': quantitySold,
-      'promoQuantity': freeQuantity,
+      'quantity_sold': quantitySold, // Corrected key name
+      'free_quantity_given': freeQuantity, // Corrected key name
+      'inventory_id': inventory['id'], // Added inventory_id for processSale
     };
 
     // Create a new list with the old items and the new item

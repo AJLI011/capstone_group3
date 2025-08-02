@@ -34,10 +34,10 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
   double getSubtotal() {
     return items.fold(
       0.0,
-      // Use 'quantity_sold' from the updated item structure
+      // UPDATED: Used null-aware operator for safety
       (sum, item) => sum +
           (double.tryParse(item['price']?.toString() ?? '0.0') ?? 0.0) *
-              (item['quantity_sold'] as int),
+              (item['quantity_sold'] as int? ?? 0),
     );
   }
 
@@ -203,8 +203,9 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
-                    final int quantitySold = item['quantity_sold'] as int;
-                    final int freeQuantity = item['free_quantity_given'] as int;
+                    // UPDATED: Used null-aware operator for safety
+                    final int quantitySold = item['quantity_sold'] as int? ?? 0;
+                    final int freeQuantity = item['free_quantity_given'] as int? ?? 0;
                     final double price = double.tryParse(item['price']?.toString() ?? '0.0') ?? 0.0;
                     final double amount = price * quantitySold;
                     
