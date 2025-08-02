@@ -56,5 +56,5 @@ urlpatterns = [
 
     # Promo Medicine
     path('inventory/<int:inventory_id>/set-promo/', views.set_promo, name='set_promo'),
+    path('inventory/remove-promo/', views.remove_promo, name='remove_promo'),
 ]
-

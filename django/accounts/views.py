@@ -325,30 +325,15 @@ class InventoryCreateView(APIView):
     def post(self, request, *args, **kwargs):
         serializer = InventoryCreateSerializer(data=request.data)
         if serializer.is_valid():
-            inventory_item = serializer.save()
-
-            medicine = inventory_item.medicine
-            qty_to_add = inventory_item.quantity
-
-            # ✅ Update or create TotalQuantity for the medicine
-            total_obj, created = TotalQuantity.objects.get_or_create(
-                medicine=medicine,
-                defaults={'total_quantity': qty_to_add}
-            )
-            if not created:
-                total_obj.total_quantity = F('total_quantity') + qty_to_add
-                total_obj.save()
-
-                # Refresh from database to reflect updated value
-                total_obj.refresh_from_db()
+            serializer.save()  # This triggers post_save signal which updates TotalQuantity correctly
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
 def get_inventory_list(request):
+    clean_expired_promos()
     queryset = TotalQuantity.objects.select_related('medicine').all()
     serializer = InventoryListSerializer(queryset, many=True, context={'request': request})
     return Response(serializer.data)
@@ -399,11 +384,6 @@ def total_quantities(request):
 
 # =================== Expiration Dashboard -------------------- # 
 # ✅ Good Stocks:
-# Medicines that either:
-# - Expire more than 15 days from today, OR
-# - Were received today (even if expiring soon)
-# =================== Expiration Dashboard -------------------- # 
-# ✅ Good Stocks: Expiry date is more than 30 days from today
 class GoodStockView(generics.ListAPIView):
     serializer_class = InventoryDashboardSerializer
 
@@ -447,6 +427,7 @@ def delete_expired_batch(request, pk):
 # Promo Medicine
 @api_view(['POST'])
 def set_promo(request, inventory_id):
+    clean_expired_promos()
     try:
         inventory_item = Inventory.objects.get(pk=inventory_id)
     except Inventory.DoesNotExist:
@@ -471,3 +452,40 @@ def set_promo(request, inventory_id):
     inventory_item.save()
 
     return Response({'message': 'Promo set successfully'}, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+def remove_promo(request):
+    try:
+        inventory_id = request.data.get('inventory_id')
+        inventory = Inventory.objects.get(id=inventory_id)
+
+        # Reset is_promo flag
+        inventory.is_promo = False
+        inventory.save()
+
+        # ✅ Fix this line:
+        Promo.objects.filter(inventory_id=inventory).delete()
+
+        return JsonResponse({'message': 'Promo removed successfully'})
+    except Inventory.DoesNotExist:
+        return JsonResponse({'error': 'Inventory not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+def clean_expired_promos():
+    today = date.today()
+    
+    # Get expired promos (based on end date)
+    expired_promos = Promo.objects.filter(end_date__lt=today)
+
+    # Get promos linked to expired inventory (based on inventory.exp_date)
+    medicine_expired_promos = Promo.objects.filter(inventory_id__exp_date__lte=today)
+
+    # Union both QuerySets
+    all_to_clean = expired_promos.union(medicine_expired_promos)
+
+    for promo in all_to_clean:
+        inventory_item = promo.inventory_id
+        inventory_item.is_promo = False
+        inventory_item.save()
+        promo.delete()

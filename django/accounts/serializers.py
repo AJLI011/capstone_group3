@@ -3,6 +3,8 @@ from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantit
 
 from django.contrib.auth.hashers import make_password
 
+from datetime import date  # make sure this is imported at the top
+
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
@@ -78,14 +80,13 @@ class MedicineSerializer(serializers.ModelSerializer):
 class InventorySerializer(serializers.ModelSerializer): # Renamed class
     class Meta:
         model = Inventory # Changed from ExpirationList
-        fields = ['id', 'medicine', 'batch_num', 'exp_date', 'date_received', 'quantity'] # Added quantity since it's in the model
-        read_only_fields = ['date_received']
+        fields = ['id', 'medicine', 'batch_num', 'exp_date', 'date_received', 'quantity', 'is_promo', 'promo_start_date'] # Added quantity since it's in the model
+        read_only_fields = ['date_received', 'is_promo']
 
-class InventoryCreateSerializer(serializers.ModelSerializer): # Renamed class
+class InventoryCreateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Inventory # Changed from ExpirationList
-        fields = ['medicine', 'batch_num', 'exp_date', 'quantity'] # Added quantity
-
+        model = Inventory
+        fields = ['medicine', 'batch_num', 'exp_date', 'quantity']
 
 # Serializer for main inventory screen (with total quantity)
 class InventoryListSerializer(serializers.ModelSerializer):
@@ -107,13 +108,14 @@ class InventoryListSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(image.url)
         return None
 
-
-
 # Serializer for batch-level details (for selected medicine)
 class InventoryBatchDetailSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source='medicine.name', read_only=True)
     generic_name = serializers.CharField(source='medicine.generic_name.name', read_only=True, default="N/A")
     price = serializers.DecimalField(source='medicine.price', max_digits=8, decimal_places=2, read_only=True)
+    is_promo = serializers.SerializerMethodField()
+    promo_start_date = serializers.SerializerMethodField()
+    promo_end_date = serializers.SerializerMethodField()
 
     class Meta:
         model = Inventory
@@ -127,9 +129,27 @@ class InventoryBatchDetailSerializer(serializers.ModelSerializer):
             'generic_name',
             'price',
             'is_promo',
+            'promo_start_date',
+            'promo_end_date',
         ]
+
     def get_is_promo(self, obj):
-        return Promo.objects.filter(inventory=obj).exists()
+        promo = Promo.objects.filter(inventory_id=obj.id).first()
+        today = date.today()
+        return (
+            promo is not None and 
+            promo.start_date is not None and
+            promo.start_date <= today and
+            (promo.end_date is None or promo.end_date >= today)
+        )
+        
+    def get_promo_start_date(self, obj):
+        promo = Promo.objects.filter(inventory_id=obj.id).first()
+        return promo.start_date if promo else None
+
+    def get_promo_end_date(self, obj):
+            promo = Promo.objects.filter(inventory_id=obj.id).first()
+            return promo.end_date if promo else None
 
 # For Expiration Dashboard
 class InventoryDashboardSerializer(serializers.ModelSerializer):
@@ -151,6 +171,7 @@ class InventoryDashboardSerializer(serializers.ModelSerializer):
             'dosage_form',
             'supplier_name',
             'barcode',
+            'is_promo',
         ]
         
 # Total Quantity
