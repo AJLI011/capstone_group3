@@ -94,7 +94,12 @@ class _InventoryDetailScreenState extends State<InventoryDetailScreen> {
             return const Center(child: Text('No batch details available.'));
           }
 
-          final batches = snapshot.data!;
+          final now = DateTime.now();
+          final batches = snapshot.data!.where((batch) {
+            final expDate = DateTime.tryParse(batch.expirationDate);
+            if (expDate == null) return false;
+            return expDate.isAfter(now) || expDate.isAtSameMomentAs(now);
+          }).toList();
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
