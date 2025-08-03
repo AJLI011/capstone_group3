@@ -97,6 +97,7 @@ class Inventory(models.Model):
     def __str__(self):
         return f"{self.medicine.name} - Batch {self.batch_num}"
 
+
 class TotalQuantity(models.Model):
     class Meta:
         db_table = 'total_quantity_tbl'
@@ -107,6 +108,7 @@ class TotalQuantity(models.Model):
     def __str__(self):
         return f"{self.medicine.name} - Total Qty: {self.total_quantity}"
 
+
 # Model for Promotions
 class Promo(models.Model):
     class Meta:
@@ -115,10 +117,10 @@ class Promo(models.Model):
     inventory_id = models.ForeignKey('Inventory', on_delete=models.CASCADE)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
-    
+
     def __str__(self):
         return f"Promo for {self.inventory_id.medicine.name}"
-    
+
 
 # Model for Inventory Logs
 class InventoryLog(models.Model):
@@ -145,3 +147,32 @@ class InventoryLog(models.Model):
     def __str__(self):
         return f"{self.user} - {self.action_type} - {self.medicine.name}"
 
+
+# Models for In-store Sales and Orders
+class InStoreOrder(models.Model):
+    class Meta:
+        db_table = 'in_store_orders_tbl'
+
+    staff = models.ForeignKey('Staff', on_delete=models.CASCADE)
+    date_created = models.DateTimeField(auto_now_add=True)
+    is_completed = models.BooleanField(default=True)
+    is_pwd = models.BooleanField(default=False)
+    total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_amount_after_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    def __str__(self):
+        return f"In-Store Order #{self.id} by {self.staff.email}"
+
+
+class InStoreOrderItem(models.Model):
+    class Meta:
+        db_table = 'in_store_order_items_tbl'
+
+    order = models.ForeignKey('InStoreOrder', on_delete=models.CASCADE, related_name='items')
+    inventory_id = models.ForeignKey('Inventory', on_delete=models.CASCADE)
+    quantity_sold = models.PositiveIntegerField(default=1)
+    free_quantity_given = models.PositiveIntegerField(default=0)
+    price_at_sale = models.DecimalField(max_digits=8, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.inventory_id.medicine.name} - {self.quantity_sold} sold"
