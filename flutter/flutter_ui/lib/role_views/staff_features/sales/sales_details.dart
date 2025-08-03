@@ -6,7 +6,6 @@ import 'order_summary.dart';
 
 class SalesDetailsPage extends StatefulWidget {
   final Map<String, dynamic> barcodeData;
-  // Add a parameter to hold existing cart items
   final List<Map<String, dynamic>> cartItems;
 
   const SalesDetailsPage({
@@ -22,56 +21,151 @@ class SalesDetailsPage extends StatefulWidget {
 class _SalesDetailsPageState extends State<SalesDetailsPage> {
   late Map<String, dynamic> inventory;
   late Map<String, dynamic> medicineDetails;
-  late TextEditingController quantitySoldController;
-  late TextEditingController freeQuantityController;
+  int _quantitySold = 0;
+  int _freeQuantity = 0;
+  bool isPromo = false;
 
   @override
   void initState() {
     super.initState();
     inventory = widget.barcodeData;
-    medicineDetails = inventory['medicine_details'] as Map<String, dynamic>? ?? {}; 
-    quantitySoldController = TextEditingController();
-    freeQuantityController = TextEditingController();
-  }
+    
+    print('Inventory data received: $inventory');
 
-  @override
-  void dispose() {
-    quantitySoldController.dispose();
-    freeQuantityController.dispose();
-    super.dispose();
+    medicineDetails = inventory['medicine_details'] as Map<String, dynamic>? ?? {};
+
+    // Check for promo flag to enable the promo logic
+    final dynamic promoFlag = inventory['is_promo'];
+    isPromo = promoFlag != null && (promoFlag == true || promoFlag.toString().toLowerCase() == 'true' || promoFlag.toString() == '1');
+    
+    print('isPromo is set to: $isPromo');
   }
 
   void _proceedToCheckout() {
-    final int quantitySold = int.tryParse(quantitySoldController.text) ?? 0;
-    final int freeQuantity = int.tryParse(freeQuantityController.text) ?? 0;
-
-    // Basic validation
-    if (quantitySold <= 0) {
+    final int availableQuantity = inventory['quantity'] as int? ?? 0;
+    
+    if (_quantitySold <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid quantity to sell.')),
       );
       return;
     }
+    
+    // This is the primary validation, and with 1:1 promo, it's sufficient
+    if (_quantitySold > availableQuantity) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cannot sell $_quantitySold items. Only $availableQuantity available.')),
+      );
+      return;
+    }
+    
+    // The previous promo limit validation is now redundant and can be removed
+    // since _freeQuantity == _quantitySold.
 
-    // Create the new item to be added to the cart
-    // UPDATED: Changed key names to match what OrderSummaryPage expects
     final Map<String, dynamic> newItem = {
       'id': medicineDetails['id'],
       'name': medicineDetails['name'],
       'price': medicineDetails['price'],
-      'quantity_sold': quantitySold, // Corrected key name
-      'free_quantity_given': freeQuantity, // Corrected key name
-      'inventory_id': inventory['id'], // Added inventory_id for processSale
+      'quantity_sold': _quantitySold,
+      'free_quantity_given': _freeQuantity,
+      'inventory_id': inventory['id'],
     };
 
-    // Create a new list with the old items and the new item
     final updatedCart = List<Map<String, dynamic>>.from(widget.cartItems)
       ..add(newItem);
 
-    // Navigate to the OrderSummaryPage with the updated cart
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (context) => OrderSummaryPage(cartItems: updatedCart),
+      ),
+    );
+  }
+
+  // A new widget for the read-only quantity field
+  Widget _buildReadonlyQuantityField(String label, int value, {bool enabled = false}) {
+    final Color textColor = enabled ? Colors.black87 : Colors.grey.shade600;
+    final Color borderColor = enabled ? Colors.grey : Colors.grey.shade300;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: textColor,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              border: Border.all(color: borderColor),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  value.toString(),
+                  style: TextStyle(fontSize: 18, color: textColor),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Existing widget for the interactive quantity field
+  Widget _buildQuantityControl(String label, int value, ValueChanged<int> onChanged,
+      {bool enabled = true, required int limit}) {
+    final Color buttonColor = enabled ? Colors.blue : Colors.grey.shade400;
+    final Color textColor = enabled ? Colors.black87 : Colors.grey.shade600;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: textColor,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              border: Border.all(color: enabled ? Colors.grey : Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.remove, color: buttonColor),
+                  onPressed: enabled && value > 0 ? () => onChanged(value - 1) : null,
+                ),
+                Text(
+                  value.toString(),
+                  style: TextStyle(fontSize: 18, color: textColor),
+                ),
+                IconButton(
+                  icon: Icon(Icons.add, color: buttonColor),
+                  onPressed: enabled && value < limit ? () => onChanged(value + 1) : null,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -91,12 +185,9 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
       );
     }
 
-    // Construct image URL from medicine.image
     final String imagePath = medicineDetails['image']?.toString() ?? '';
     final String imageUrl = imagePath.isNotEmpty ? 'http://10.0.2.2:8000$imagePath' : '';
-
-    // Check if item is a promo
-    final bool isPromo = inventory['is_promo'] == true;
+    final int availableQuantity = inventory['quantity'] as int? ?? 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -107,7 +198,6 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Medicine Image
             if (imageUrl.isNotEmpty)
               Center(
                 child: Image.network(
@@ -119,25 +209,31 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
                 ),
               ),
             const SizedBox(height: 24),
-
-            // Non-editable fields
             _readonlyField('Medicine Name', medicineDetails['name']?.toString() ?? 'N/A'),
             _readonlyField('Generic Name', medicineDetails['generic_name']?.toString() ?? 'N/A'),
             _readonlyField('Price', '₱${medicineDetails['price']?.toString() ?? 'N/A'}'),
-            _readonlyField('Available Quantity', inventory['quantity']?.toString() ?? 'N/A'),
+            _readonlyField('Available Quantity', availableQuantity.toString()),
             _readonlyField('Batch Number', inventory['batch_num']?.toString() ?? 'N/A'),
-
             const SizedBox(height: 30),
-
-            // Editable fields
-            _inputField('Quantity Sold', quantitySoldController, TextInputType.number),
-            _inputField(
-              'Promo / Free Quantity',
-              freeQuantityController,
-              TextInputType.number,
-              enabled: isPromo,
+            _buildQuantityControl(
+              'Quantity Sold',
+              _quantitySold,
+              (newValue) {
+                setState(() {
+                  _quantitySold = newValue;
+                  if (isPromo) {
+                    _freeQuantity = newValue;
+                  } else {
+                    _freeQuantity = 0;
+                  }
+                });
+              },
+              limit: availableQuantity,
             ),
-
+            if (isPromo)
+              _buildReadonlyQuantityField('Promo Quantity', _freeQuantity, enabled: true)
+            else
+              _buildReadonlyQuantityField('Promo Quantity', 0, enabled: false),
             const SizedBox(height: 30),
             ElevatedButton(
               onPressed: _proceedToCheckout,
@@ -168,21 +264,6 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
           Text(value, style: const TextStyle(fontSize: 16, color: Colors.black54)),
           const Divider(height: 24),
         ],
-      ),
-    );
-  }
-
-  Widget _inputField(String label, TextEditingController controller, TextInputType type, {bool enabled = true}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: TextField(
-        controller: controller,
-        keyboardType: type,
-        enabled: enabled,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
       ),
     );
   }

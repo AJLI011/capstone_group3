@@ -151,7 +151,6 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'date_created']
         
-
     def create(self, validated_data):
         items_data = validated_data.pop('items')
         is_pwd = validated_data.get('is_pwd', False)
@@ -174,6 +173,9 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
             for item_data in items_data:
                 inventory_id = item_data.get('inventory_id')
                 quantity_sold = item_data.get('quantity_sold')
+                
+                # --- CORRECTED: Use the free_quantity_given from the client ---
+                free_quantity_from_client = item_data.get('free_quantity_given', 0)
 
                 try:
                     inventory_item = Inventory.objects.select_related('medicine').get(pk=inventory_id)
@@ -182,18 +184,22 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
                 except Inventory.DoesNotExist:
                     raise serializers.ValidationError(f"Inventory item with ID {inventory_id} does not exist.")
 
-                # --- Check if this item is on promo ---
-                is_promo = Promo.objects.filter(
+                # --- CORRECTED: Backend now validates, not overrides ---
+                # Check the database for the active promo status
+                is_promo_db = Promo.objects.filter(
                     inventory_id=inventory_id,
                     start_date__lte=timezone.now().date(),
                     end_date__gte=timezone.now().date()
                 ).exists()
 
-                # Apply 1:1 promo logic if active
-                free_quantity = quantity_sold if is_promo else 0
-
+                # Validate that the client's free quantity matches the backend's promo status
+                if not is_promo_db and free_quantity_from_client > 0:
+                    raise serializers.ValidationError(
+                        f"Promo quantity must be 0 for a non-promo item (Inventory ID: {inventory_id})."
+                    )
+                
                 # Check inventory sufficiency
-                total_required_quantity = quantity_sold + free_quantity
+                total_required_quantity = quantity_sold + free_quantity_from_client
                 if inventory_item.quantity < total_required_quantity:
                     raise serializers.ValidationError(
                         f"Not enough stock for inventory ID {inventory_id}. Required: {total_required_quantity}, Available: {inventory_item.quantity}"
@@ -203,16 +209,16 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
                 item_total = Decimal(quantity_sold) * price_at_sale
                 total_amount_before_discount += item_total
 
-                # Create the item record
+                # Create the item record using the values from the client
                 InStoreOrderItem.objects.create(
                     order=order,
                     inventory_id_id=inventory_id,
                     quantity_sold=quantity_sold,
-                    free_quantity_given=free_quantity,
+                    free_quantity_given=free_quantity_from_client, # Use the client's value
                     price_at_sale=price_at_sale
                 )
 
-                # Deduct from inventory
+                # Deduct from inventory using the correct total
                 inventory_item.quantity -= total_required_quantity
                 inventory_item.save()
 
