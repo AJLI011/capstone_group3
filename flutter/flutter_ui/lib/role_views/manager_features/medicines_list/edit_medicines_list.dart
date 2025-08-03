@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class EditMedicinePage extends StatefulWidget {
   final Map<String, dynamic> medicine;
@@ -106,6 +107,20 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
     request.fields['category'] = _categoryController.text;
     request.fields['dosage_form'] = _dosageFormController.text;
     request.fields['requires_prescription'] = _requiresPrescription.toString();
+
+    // ✅ Add staff_id from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final staffId = prefs.getInt('staff_id');
+    if (staffId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Staff ID not found.')),
+        );
+      }
+      return;
+    }
+    request.fields['staff_id'] = staffId.toString(); // ✅ Send to backend
+
 
     if (_selectedSupplier != null) {
       final supplier = _supplierList.firstWhere(

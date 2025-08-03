@@ -4,8 +4,10 @@ import 'dart:convert';
  
 import 'edit_medicines_list.dart';
 
-
 import 'add_medicines_list.dart';
+
+import 'package:shared_preferences/shared_preferences.dart';
+
 class Medicine {
   final int? id;
   final String? barcode;
@@ -140,6 +142,13 @@ class _MedicineListViewState extends State<MedicineListView> {
     );
 
     if (confirm != true) return;
+
+    // ✅ Get staff ID from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final staffId = prefs.getInt('staff_id'); // assumes it's saved during login
+
+    // ✅ Attach staff_id as query parameter
+    final uri = Uri.parse('http://10.0.2.2:8000/api/medicines/$id/?staff_id=$staffId');
 
     final response = await http.delete(
       Uri.parse('http://10.0.2.2:8000/api/medicines/$id/'),

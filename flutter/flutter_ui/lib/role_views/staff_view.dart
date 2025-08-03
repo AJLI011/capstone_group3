@@ -5,6 +5,7 @@ import '../main.dart'; // ToggleLoginScreen
 import 'staff_features/edit_profile/edit_staff_profile.dart';
 import 'staff_features/change_password/change_staff_password.dart';
 import 'manager_features/inventory/inventory_grid_screen.dart';
+import 'staff_features/expiration_dashboard/expiry_dashboard_staff_view.dart';
 
 class StaffView extends StatefulWidget {
   final int staffId;
@@ -161,12 +162,16 @@ class _StaffViewState extends State<StaffView> with SingleTickerProviderStateMix
                                   child: SingleChildScrollView(
                                     child: Column(
                                       children: [
-                                        _drawerItem(Icons.inventory_outlined, 'Inventory', () => _open(const InventoryGridScreen())),
+                                        _drawerItem(Icons.inventory_outlined, 'Inventory', 
+                                         () => _open(const InventoryGridScreen())),
                                         _drawerItem(Icons.sell, 'Sale', () {}),
                                         _drawerItem(Icons.mobile_friendly, 'Online Orders', () {}),
-                                        _drawerItem(Icons.priority_high, 'Expiry', () {}),
-                                        _drawerItem(Icons.person_outline, 'Edit Profile', () => _open(EditStaffProfilePage(staffId: widget.staffId))), 
-                                        _drawerItem(Icons.vpn_key, 'Change Password', () => _open(ChangeStaffPasswordPage(staffId: widget.staffId))),
+                                        _drawerItem(Icons.priority_high, 'Expiry', 
+                                         () => _open(const ExpiryDashboardStaffView())),
+                                        _drawerItem(Icons.person_outline, 'Edit Profile', 
+                                         () => _open(EditStaffProfilePage(staffId: widget.staffId))), 
+                                        _drawerItem(Icons.vpn_key, 'Change Password', 
+                                         () => _open(ChangeStaffPasswordPage(staffId: widget.staffId))),
                                       ],
                                     ),
                                   ),

@@ -5,10 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:pdf/widgets.dart' as pw;
-import 'package:permission_handler/permission_handler.dart';
+// import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as path;
+// import 'package:path/path.dart' as path;
 import 'package:intl/intl.dart';
+
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class ReturnMedicinePage extends StatefulWidget {
   const ReturnMedicinePage({super.key});
@@ -64,6 +67,21 @@ Future<void> markAsReturned(int inventoryId, int index) async {
   final String deleteUrl = 'http://10.0.2.2:8000/api/medicines/delete/$inventoryId/';
 
   try {
+    // ✅ Get staff_id from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final staffId = prefs.getInt('staff_id');
+
+    if (staffId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Staff ID not found. Please log in again.')),
+      );
+      return;
+    }
+
+    // ✅ Include staff_id as query param in the DELETE request
+    final String deleteUrl =
+        'http://10.0.2.2:8000/api/medicines/delete/$inventoryId/?staff_id=$staffId';
+
     final response = await http.delete(Uri.parse(deleteUrl));
     if (response.statusCode == 200 || response.statusCode == 204) {
       setState(() {

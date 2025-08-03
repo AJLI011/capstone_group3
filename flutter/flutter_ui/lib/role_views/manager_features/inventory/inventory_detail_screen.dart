@@ -11,7 +11,9 @@ class BatchDetail {
   final double price;
   final String name;
   final String genericName;
-  final bool isPromo; 
+  final bool isPromo;
+  final String? promoStartDate;
+  final String? promoEndDate;
 
   BatchDetail({
     required this.batchNumber,
@@ -20,7 +22,9 @@ class BatchDetail {
     required this.price,
     required this.name,
     required this.genericName,
-    required this.isPromo, 
+    required this.isPromo,
+    required this.promoStartDate,
+    required this.promoEndDate,
   });
 
   factory BatchDetail.fromJson(Map<String, dynamic> json) {
@@ -32,6 +36,8 @@ class BatchDetail {
       name: json['name'] ?? '',
       genericName: json['generic_name'] ?? '',
       isPromo: json['is_promo'] ?? false,
+      promoStartDate: json['promo_start_date'],
+      promoEndDate: json['promo_end_date'],
     );
   }
 }
@@ -76,6 +82,18 @@ class _InventoryDetailScreenState extends State<InventoryDetailScreen> {
     _batchDetails = InventoryApiService.fetchBatchDetails(widget.item.medicineId);
   }
 
+  bool shouldShowPromoStar(BatchDetail batch) {
+    if (!batch.isPromo || batch.promoStartDate == null) return false;
+
+    try {
+      final startDate = DateTime.parse(batch.promoStartDate!);
+      final now = DateTime.now();
+      return !now.isBefore(startDate); // Show star if today >= promoStartDate
+    } catch (_) {
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -94,15 +112,19 @@ class _InventoryDetailScreenState extends State<InventoryDetailScreen> {
             return const Center(child: Text('No batch details available.'));
           }
 
-          final batches = snapshot.data!;
+          final now = DateTime.now();
+          final batches = snapshot.data!.where((batch) {
+            final expDate = DateTime.tryParse(batch.expirationDate);
+            if (expDate == null) return false;
+            return expDate.isAfter(now) || expDate.isAtSameMomentAs(now);
+          }).toList();
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: batches.length,
             itemBuilder: (context, index) {
               final batch = batches[index];
-
-            final isPromo = batch.isPromo;
+              final showPromo = shouldShowPromoStar(batch);
 
               return Card(
                 elevation: 3,
@@ -115,12 +137,13 @@ class _InventoryDetailScreenState extends State<InventoryDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Header row with name and quantity
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Expanded(
                             child: Text(
-                              '${widget.item.genericName} (${widget.item.name}) ${isPromo ? "⭐️" : ""}',
+                              '${widget.item.genericName} (${widget.item.name}) ${showPromo ? "⭐️" : ""}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -137,6 +160,8 @@ class _InventoryDetailScreenState extends State<InventoryDetailScreen> {
                         ],
                       ),
                       const SizedBox(height: 6),
+
+                      // Batch No and Price
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -155,11 +180,44 @@ class _InventoryDetailScreenState extends State<InventoryDetailScreen> {
                         ],
                       ),
                       const SizedBox(height: 6),
+
+                      // Expiration Date
                       Text(
                         'Expiration Date: ${batch.expirationDate}',
                         style: const TextStyle(fontSize: 14),
                       ),
-                    ],
+
+                      // Promo Start and End Dates (side by side)
+                      if (batch.isPromo &&
+                          batch.promoStartDate != null &&
+                          batch.promoEndDate != null) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Start: ${batch.promoStartDate}',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                'End: ${batch.promoEndDate}',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      ],
                   ),
                 ),
               );

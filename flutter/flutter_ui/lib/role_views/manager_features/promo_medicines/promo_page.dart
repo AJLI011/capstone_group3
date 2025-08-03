@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PromoMedicinePage extends StatefulWidget {
   const PromoMedicinePage({Key? key}) : super(key: key);
@@ -35,44 +36,83 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
   }
 
   Future<void> setPromo(int inventoryId, String startDate, String endDate) async {
-    final url = Uri.parse('http://10.0.2.2:8000/api/inventory/$inventoryId/set-promo/');
+  final prefs = await SharedPreferences.getInstance();
+  final staffId = prefs.getInt('staff_id');
+
+  if (staffId == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Staff ID not found. Please log in again.')),
+    );
+    return;
+  }
+
+  final url = Uri.parse('http://10.0.2.2:8000/api/inventory/$inventoryId/set-promo/');
+  final response = await http.post(
+    url,
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({
+      'start_date': startDate,
+      'end_date': endDate,
+      'staff_id': staffId,
+    }),
+  );
+
+  if (response.statusCode == 200 || response.statusCode == 201) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Promo set!')),
+    );
+    fetchExpiringSoonMedicines(); // Refresh list
+  } else {
+    print('Failed to set promo: ${response.body}');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Error setting promo')),
+    );
+  }
+}
+
+
+Future<void> removePromo(int inventoryId) async {
+  final prefs = await SharedPreferences.getInstance();
+  final staffId = prefs.getInt('staff_id');
+
+  if (staffId == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Staff ID not found. Please log in again.')),
+    );
+    return;
+  }
+
+  final url = Uri.parse('http://10.0.2.2:8000/api/inventory/remove-promo/');
+  try {
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'start_date': startDate, 'end_date': endDate}),
+      body: jsonEncode({
+        'inventory_id': inventoryId,
+        'staff_id': staffId,
+      }),
     );
 
     if (response.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Promo set!')),
+        const SnackBar(content: Text('Promo removed successfully')),
       );
-      fetchExpiringSoonMedicines();
+      fetchExpiringSoonMedicines(); // Refresh list
     } else {
-      print('Failed to set promo: ${response.body}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error setting promo')),
-      );
+      throw Exception('Failed to remove promo: ${response.body}');
     }
+  } catch (e) {
+    print('Error removing promo: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Failed to remove promo')),
+    );
   }
+}
 
-  Future<void> removePromo(int inventoryId) async {
-    final url = Uri.parse('http://10.0.2.2:8000/api/inventory/$inventoryId/remove-promo/');
-    final response = await http.delete(url);
 
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Promo removed')),
-      );
-      fetchExpiringSoonMedicines();
-    } else {
-      print('Failed to remove promo: ${response.body}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error removing promo')),
-      );
-    }
-  }
+  void showPromoDialog(int inventoryId, bool isPromoAlready) {
+    if (isPromoAlready) return; // Safety check — prevent dialog from opening
 
-  void showPromoDialog(int inventoryId) {
     DateTime? selectedStartDate;
     DateTime? selectedEndDate;
 
@@ -194,8 +234,8 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
                             ),
                             const SizedBox(height: 4),
                             Text('${item['generic_name'] ?? 'N/A'}'),
-                            Text('Batch: ${item['batch_num'] ?? 'N/A'}'),
-                            Text('Supplier: ${item['supplier_name'] ?? 'N/A'}'),
+                            Text('${item['batch_num'] ?? 'N/A'}'),
+                            Text('${item['supplier_name'] ?? 'N/A'}'),
                           ],
                         ),
                       ),
@@ -213,41 +253,35 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Exp: ${item['exp_date'] ?? 'N/A'}',
+                            '${item['exp_date'] ?? 'N/A'}',
                             style: const TextStyle(color: Colors.orange),
                           ),
                           const SizedBox(height: 8),
-                            ElevatedButton(
-                              onPressed: isPromo
-                              ? null
-                              : () {
-                                  if (!isPromo) showPromoDialog(item['id']);
-                                },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: isPromo ? Colors.grey : Colors.yellow[700],
-                                foregroundColor: isPromo ? Colors.black45 : Colors.black,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                              ),
-                              child: Text(isPromo ? 'Promo Set' : 'Promo'),
-                            ),
-                            if (isPromo)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4.0),
-                                child: ElevatedButton(
-                                  onPressed: () => removePromo(item['id']),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
+                            if (!isPromo)
+                              ElevatedButton(
+                                onPressed: () => showPromoDialog(item['id'], isPromo),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.yellow[700],
+                                  foregroundColor: Colors.black,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
                                   ),
-                                  child: const Text('Remove Promo'),
                                 ),
+                                child: const Text('Promo'),
+                              )
+                            else
+                              ElevatedButton(
+                                onPressed: () => removePromo(item['id']),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                                child: const Text('Remove Promo'),
                               ),
                         ],
                       ),

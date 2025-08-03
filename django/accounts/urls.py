@@ -7,7 +7,9 @@ from .views import get_inventory_list # Added explicit import for get_inventory_
 
 from .views import GoodStockView, ExpiringSoonView, ExpiredView
 
-from .views import delete_expired_batch
+from .views import delete_expired_batch, remove_promo
+
+from .views import inventory_logs
 
 urlpatterns = [
     # Authentication
@@ -56,5 +58,10 @@ urlpatterns = [
 
     # Promo Medicine
     path('inventory/<int:inventory_id>/set-promo/', views.set_promo, name='set_promo'),
+    path('inventory/remove-promo/', views.remove_promo, name='remove_promo'),
+
+
+    #Inventory Logs
+    path('inventory-logs/', inventory_logs, name='inventory_logs'),
 ]
 

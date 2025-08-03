@@ -118,3 +118,30 @@ class Promo(models.Model):
     
     def __str__(self):
         return f"Promo for {self.inventory_id.medicine.name}"
+    
+
+# Model for Inventory Logs
+class InventoryLog(models.Model):
+    ACTION_CHOICES = [
+        ('Add', 'Add'),
+        ('Sold', 'Sold'),
+        ('Restock', 'Restock'),
+        ('Return', 'Return'),
+        ('Delete', 'Delete'),
+        ('Update', 'Update'),
+        ('Promo', 'Promo'),
+    ]
+
+    user = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True)
+    medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE)
+    action_type = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    description = models.TextField()
+
+    class Meta:
+        db_table = 'inventory_logs'
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.user} - {self.action_type} - {self.medicine.name}"
+

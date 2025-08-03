@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 import 'barcodeScan_medicines_list.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Extension to format strings for display in dropdowns
 extension StringCasingExtension on String {
@@ -153,6 +154,21 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
 
       if (supplier != null) {
         request.fields['supplier'] = supplier['id'].toString(); // Send the ID as string
+        // ✅ Add staff_id from SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        final staffId = prefs.getInt('staff_id');
+
+        if (staffId == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Error: Staff ID not found.')),
+            );
+          }
+          return;
+        }
+
+        request.fields['staff_id'] = staffId.toString();
+
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

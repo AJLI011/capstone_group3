@@ -22,6 +22,8 @@ from datetime import date, timedelta
 
 from django.http import JsonResponse, HttpResponseNotFound
 
+from .models import InventoryLog
+
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
 
@@ -290,9 +292,25 @@ def medicine_list(request):
     elif request.method == 'POST':
         serializer = MedicineSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            medicine = serializer.save()
+
+            # Log the 'Add' action
+            staff_id = request.data.get('staff_id')  # You must send this from Flutter
+            if staff_id:
+                try:
+                    staff_user = Staff.objects.get(id=staff_id)
+                    InventoryLog.objects.create(
+                        user=staff_user,
+                        medicine=medicine,
+                        action_type='Add',
+                        description=f"Added new medicine: {medicine.name}"
+                    )
+                except Staff.DoesNotExist:
+                    print(f"Staff ID {staff_id} not found while logging action.")
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['GET', 'PUT', 'DELETE'])
 @parser_classes([MultiPartParser, FormParser])
@@ -307,48 +325,126 @@ def medicine_detail(request, pk):
         return Response(serializer.data)
 
     elif request.method == 'PUT':
+        # ✅ Store old values before updating
+        old_data = {
+            'price': str(medicine.price),
+            'restock_quantity': str(medicine.restock_quantity),
+            'category': medicine.category,
+            'dosage_form': medicine.dosage_form,
+            'supplier_id': medicine.supplier.id if medicine.supplier else None,
+            'supplier_name': medicine.supplier.name if medicine.supplier else "None",
+        }
+
         serializer = MedicineSerializer(medicine, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
-        
-        # This will print serializer errors to your Django server console
-        print(serializer.errors)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            staff_id = request.data.get('staff_id')
+            if staff_id:
+                try:
+                    staff_user = Staff.objects.get(id=staff_id)
+
+                    # ✅ Get updated instance from DB (with new values)
+                    updated_medicine = Medicine.objects.get(pk=pk)
+
+                    new_data = {
+                        'price': str(updated_medicine.price),
+                        'restock_quantity': str(updated_medicine.restock_quantity),
+                        'category': updated_medicine.category,
+                        'dosage_form': updated_medicine.dosage_form,
+                        'supplier_id': updated_medicine.supplier.id if updated_medicine.supplier else None,
+                        'supplier_name': updated_medicine.supplier.name if updated_medicine.supplier else "None",
+                    }
+
+                    updated_fields = []
+
+                    if old_data['price'] != new_data['price']:
+                        updated_fields.append(f"Price changed from {old_data['price']} to {new_data['price']}")
+
+                    if old_data['restock_quantity'] != new_data['restock_quantity']:
+                        updated_fields.append(f"Restock Quantity changed from {old_data['restock_quantity']} to {new_data['restock_quantity']}")
+
+                    if old_data['category'] != new_data['category']:
+                        updated_fields.append(f"Category changed from '{old_data['category']}' to '{new_data['category']}'")
+
+                    if old_data['dosage_form'] != new_data['dosage_form']:
+                        updated_fields.append(f"Dosage Form changed from '{old_data['dosage_form']}' to '{new_data['dosage_form']}'")
+
+                    if old_data['supplier_id'] != new_data['supplier_id']:
+                        updated_fields.append(f"Supplier changed from '{old_data['supplier_name']}' to '{new_data['supplier_name']}'")
+
+                    if updated_fields:
+                        description = "Updated medicine: " + "; ".join(updated_fields)
+                        InventoryLog.objects.create(
+                            user=staff_user,
+                            medicine=updated_medicine,
+                            action_type='Update',
+                            description=description
+                        )
+
+                except Staff.DoesNotExist:
+                    print(f"Staff ID {staff_id} not found while logging action.")
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'DELETE':
+        staff_id = request.GET.get('staff_id')
+        medicine_name = medicine.name
         medicine.delete()
+
+        if staff_id:
+            try:
+                staff_user = Staff.objects.get(id=staff_id)
+                InventoryLog.objects.create(
+                    user=staff_user,
+                    medicine=None,
+                    action_type='Delete',
+                    description=f"Deleted medicine: {medicine_name}"
+                )
+            except Staff.DoesNotExist:
+                print(f"Staff ID {staff_id} not found while logging delete.")
+
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
+
+
     
 # =================== INVENTORY MANAGEMENT -------------------- # Renamed comment for clarity
 class InventoryCreateView(APIView):
     def post(self, request, *args, **kwargs):
         serializer = InventoryCreateSerializer(data=request.data)
         if serializer.is_valid():
-            inventory_item = serializer.save()
+            inventory_item = serializer.save()  # Save and get the created Inventory instance
 
-            medicine = inventory_item.medicine
-            qty_to_add = inventory_item.quantity
+            # ✅ Restock logging
+            staff_id = request.data.get('staff_id')
+            if staff_id:
+                try:
+                    staff_user = Staff.objects.get(id=staff_id)
+                    medicine = inventory_item.medicine
+                    batch = inventory_item.batch_num
+                    qty_to_add = inventory_item.quantity
 
-            # ✅ Update or create TotalQuantity for the medicine
-            total_obj, created = TotalQuantity.objects.get_or_create(
-                medicine=medicine,
-                defaults={'total_quantity': qty_to_add}
-            )
-            if not created:
-                total_obj.total_quantity = F('total_quantity') + qty_to_add
-                total_obj.save()
-
-                # Refresh from database to reflect updated value
-                total_obj.refresh_from_db()
+                    InventoryLog.objects.create(
+                        user=staff_user,
+                        medicine=medicine,
+                        action_type='Restock',
+                        description=f"Restocked {qty_to_add} units (Batch: {batch})"
+                    )
+                except Staff.DoesNotExist:
+                    print(f"Staff ID {staff_id} not found while logging restock action.")
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 @api_view(['GET'])
 def get_inventory_list(request):
+    clean_expired_promos()
     queryset = TotalQuantity.objects.select_related('medicine').all()
     serializer = InventoryListSerializer(queryset, many=True, context={'request': request})
     return Response(serializer.data)
@@ -400,10 +496,7 @@ def total_quantities(request):
 # =================== Expiration Dashboard -------------------- # 
 # ✅ Good Stocks:
 # Medicines that either:
-# - Expire more than 15 days from today, OR
-# - Were received today (even if expiring soon)
-# =================== Expiration Dashboard -------------------- # 
-# ✅ Good Stocks: Expiry date is more than 30 days from today
+# - Expire more than 15 days from today
 class GoodStockView(generics.ListAPIView):
     serializer_class = InventoryDashboardSerializer
 
@@ -439,22 +532,46 @@ class ExpiredView(generics.ListAPIView):
 def delete_expired_batch(request, pk):
     try:
         inventory_item = Inventory.objects.get(pk=pk)
+
+        # Capture info before deletion
+        medicine = inventory_item.medicine
+        quantity = inventory_item.quantity
+        batch = inventory_item.batch_num
+
         inventory_item.delete()
+
+        # 🔐 Get staff from query param (Flutter: ?staff_id=123)
+        staff_id = request.query_params.get('staff_id')
+        if staff_id:
+            try:
+                staff_user = Staff.objects.get(id=staff_id)
+                InventoryLog.objects.create(
+                    user=staff_user,
+                    medicine=medicine,
+                    action_type='Return',
+                    description=f"Returned {quantity} units of {medicine.name} (Batch: {batch}) due to expiration"
+                )
+            except Staff.DoesNotExist:
+                print(f"Staff ID {staff_id} not found while logging action.")
+
         return Response({"message": "Deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
     except Inventory.DoesNotExist:
         return Response({"error": "Inventory item not found"}, status=status.HTTP_404_NOT_FOUND)
+
 
 # Promo Medicine
 @api_view(['POST'])
 def set_promo(request, inventory_id):
+    clean_expired_promos()
     try:
         inventory_item = Inventory.objects.get(pk=inventory_id)
     except Inventory.DoesNotExist:
         return Response({'error': 'Inventory item not found'}, status=status.HTTP_404_NOT_FOUND)
 
-
     start_date = request.data.get('start_date')
     end_date = request.data.get('end_date')
+    staff_id = request.data.get('staff_id')
 
     if not start_date or not end_date:
         return Response({'error': 'Start and end date required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -470,4 +587,80 @@ def set_promo(request, inventory_id):
     inventory_item.is_promo = True
     inventory_item.save()
 
+    # ✅ Log the promo setting
+    if staff_id:
+        try:
+            staff = Staff.objects.get(id=staff_id)
+            InventoryLog.objects.create(
+                user=staff,
+                medicine=inventory_item.medicine,
+                action_type='Promo Set',
+                description=f"Set promo for batch {inventory_item.batch_num} from {start_date} to {end_date}"
+            )
+        except Staff.DoesNotExist:
+            print(f"Staff with ID {staff_id} not found for promo logging.")
+
     return Response({'message': 'Promo set successfully'}, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def remove_promo(request):
+    try:
+        inventory_id = request.data.get('inventory_id')
+        staff_id = request.data.get('staff_id')
+        inventory = Inventory.objects.get(id=inventory_id)
+
+        # Reset is_promo flag
+        inventory.is_promo = False
+        inventory.save()
+
+        # ✅ Delete the promo
+        Promo.objects.filter(inventory_id=inventory).delete()
+
+        # ✅ Log the promo removal
+        if staff_id:
+            try:
+                staff = Staff.objects.get(id=staff_id)
+                InventoryLog.objects.create(
+                    user=staff,
+                    medicine=inventory.medicine,
+                    action_type='Promo Removed',
+                    description=f"Removed promo for batch {inventory.batch_num}"
+                )
+            except Staff.DoesNotExist:
+                print(f"Staff with ID {staff_id} not found for promo logging.")
+
+        return JsonResponse({'message': 'Promo removed successfully'})
+    except Inventory.DoesNotExist:
+        return JsonResponse({'error': 'Inventory not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+def clean_expired_promos():
+    today = date.today()
+    
+    # Get expired promos (based on end date)
+    expired_promos = Promo.objects.filter(end_date__lt=today)
+
+    # Get promos linked to expired inventory (based on inventory.exp_date)
+    medicine_expired_promos = Promo.objects.filter(inventory_id__exp_date__lte=today)
+
+    # Union both QuerySets
+    all_to_clean = expired_promos.union(medicine_expired_promos)
+
+    for promo in all_to_clean:
+        inventory_item = promo.inventory_id
+        inventory_item.is_promo = False
+        inventory_item.save()
+        promo.delete()
+
+# For Inventory Logs
+from .serializers import InventoryLogSerializer
+
+@api_view(['GET'])
+def inventory_logs(request):
+    logs = InventoryLog.objects.select_related('user', 'medicine').all()
+    serializer = InventoryLogSerializer(logs, many=True)
+    return Response(serializer.data)
+

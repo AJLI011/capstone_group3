@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class RestockDetailsPage extends StatefulWidget {
   final Map<String, dynamic> medicine;
@@ -38,22 +40,35 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
 
     if (!_formKey.currentState!.validate()) return;
 
-    final restockData = {
-      'medicine': widget.medicine['id'],
-      'batch_num': _batchNumberController.text,
-      'exp_date': _expirationDateController.text,
-      'quantity': int.parse(_quantityController.text),
-    };
+    // 🧠 Get staff ID from SharedPreferences
+  final prefs = await SharedPreferences.getInstance();
+  final staffId = prefs.getInt('staff_id');
 
-    print('Submitting restock data: $restockData');
-
-    final url = Uri.parse('http://10.0.2.2:8000/api/inventory/add/'); 
-    
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(restockData),
+  if (staffId == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Error: Staff ID not found.')),
     );
+    return;
+  }
+
+  final restockData = {
+    'medicine': widget.medicine['id'],
+    'batch_num': _batchNumberController.text,
+    'exp_date': _expirationDateController.text,
+    'quantity': int.parse(_quantityController.text),
+    'staff_id': staffId, // ✅ Add staff_id here!
+  };
+
+
+      print('Submitting restock data: $restockData');
+
+      final url = Uri.parse('http://10.0.2.2:8000/api/inventory/add/'); 
+      
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(restockData),
+      );
 
     if (response.statusCode == 201 || response.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(
