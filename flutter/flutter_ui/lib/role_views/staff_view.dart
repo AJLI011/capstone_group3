@@ -157,12 +157,12 @@ class _StaffViewState extends State<StaffView> with SingleTickerProviderStateMix
                                   child: SingleChildScrollView(
                                     child: Column(
                                       children: [
-                                        _drawerItem(Icons.inventory, 'Inventory', () {}),
+                                        _drawerItem(Icons.inventory_outlined, 'Inventory', () {}),
                                         _drawerItem(Icons.qr_code_scanner, 'Sale', () => _open(const SalesBarcodeScreen())),
-                                        _drawerItem(Icons.shopping_cart, 'Online Orders', () {}),
-                                        _drawerItem(Icons.timer_outlined, 'Expiry', () {}),
-                                        _drawerItem(Icons.edit, 'Edit Profile', () {}),
-                                        _drawerItem(Icons.lock, 'Change Password', () {}),
+                                        _drawerItem(Icons.phone_android_outlined, 'Online Orders', () {}),
+                                        _drawerItem(Icons.priority_high, 'Expiry', () {}),
+                                        _drawerItem(Icons.person_outline, 'Edit Profile', () {}),
+                                        _drawerItem(Icons.vpn_key, 'Change Password', () {}),
                                       ],
                                     ),
                                   ),

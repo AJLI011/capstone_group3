@@ -393,7 +393,6 @@ def delete_expired_batch(request, pk):
     except Inventory.DoesNotExist:
         return Response({"error": "Inventory item not found"}, status=status.HTTP_404_NOT_FOUND)
 
-
 # ─────────── SALES MANAGEMENT ───────────
 # Handles barcode scanning for sales
 # Returns 404 if barcode doesn't exist
@@ -410,12 +409,12 @@ def get_inventory_item_details_by_barcode(request, barcode):
     except Medicine.DoesNotExist:
         return Response({'error': 'Medicine with this barcode does not exist.'}, status=status.HTTP_404_NOT_FOUND)
 
-    # Now check for valid inventory (not expired, has stock)
+    # Now check for valid inventory, ordered by expiration date (FEFO)
     valid_inventory_items = Inventory.objects.filter(
         medicine__barcode=barcode,
         quantity__gt=0,
         exp_date__gt=today
-    ).select_related('medicine').prefetch_related('promo_set')
+    ).order_by('exp_date').select_related('medicine').prefetch_related('promo_set') # <-- FEFO logic applied here
 
     if valid_inventory_items:
         # Prepare a list of all valid inventory items

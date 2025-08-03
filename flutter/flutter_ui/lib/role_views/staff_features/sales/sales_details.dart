@@ -125,6 +125,7 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
             _readonlyField('Generic Name', medicineDetails['generic_name']?.toString() ?? 'N/A'),
             _readonlyField('Price', '₱${medicineDetails['price']?.toString() ?? 'N/A'}'),
             _readonlyField('Available Quantity', inventory['quantity']?.toString() ?? 'N/A'),
+            _readonlyField('Batch Number', inventory['batch_num']?.toString() ?? 'N/A'),
 
             const SizedBox(height: 30),
 
