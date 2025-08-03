@@ -2,12 +2,11 @@ from django.urls import path
 from . import views
 from .views import medicine_list, medicine_detail
 # Import only the CreateView for adding new inventory entries
-from .views import InventoryCreateView # Changed from ExpirationListCreateView
+from .views import InventoryCreateView  # Changed from ExpirationListCreateView
 from .views import get_inventory_list, get_inventory_item_details_by_barcode, create_in_store_order, get_all_sales
-
 from .views import GoodStockView, ExpiringSoonView, ExpiredView
-
-from .views import delete_expired_batch
+from .views import delete_expired_batch, remove_promo
+from .views import inventory_logs
 
 urlpatterns = [
     # Authentication
@@ -43,17 +42,26 @@ urlpatterns = [
     path('inventory/add/', InventoryCreateView.as_view(), name='inventory-add'), # Changed URL path and view class
     path('inventory/', get_inventory_list, name='inventory-list'), # Changed URL path and view function
     path('medicines/barcode/<str:barcode>/', views.get_medicine_by_barcode, name='get-medicine-by-barcode'),
+    path('api/inventory/total-quantities/', views.total_quantities, name='total_quantities'),
+    path('inventory/batches/<int:medicine_id>/', views.get_batch_details, name='inventory-batch-details'),
 
     # Expiration tracking
     path('medicines/good-stock/', GoodStockView.as_view(), name='good-stock'),
     path('medicines/expiring-soon/', ExpiringSoonView.as_view(), name='expiring-soon'),
     path('medicines/expired/', ExpiredView.as_view(), name='expired-medicines'),
 
+    # Return Medicine
     path('medicines/delete/<int:pk>/', delete_expired_batch, name='delete-expired-batch'),
-    
+
+    # Promo Medicine
+    path('inventory/<int:inventory_id>/set-promo/', views.set_promo, name='set_promo'),
+    path('inventory/remove-promo/', views.remove_promo, name='remove_promo'),
+
+    # Inventory Logs
+    path('inventory-logs/', inventory_logs, name='inventory_logs'),
+
     # ─────────── SALES APIs ───────────
     path('sales/scan/<str:barcode>/', views.get_inventory_item_details_by_barcode, name='get-inventory-item-details-by-barcode'),
-    path('sales/process/', views.create_in_store_order, name='create-in-store-order'), #
-    path('sales/all/', views.get_all_sales, name='get-all-sales'),  # views all the sales  records done
+    path('sales/process/', views.create_in_store_order, name='create-in-store-order'),
+    path('sales/all/', views.get_all_sales, name='get-all-sales'),
 ]
-

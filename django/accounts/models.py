@@ -37,11 +37,12 @@ class Supplier(models.Model):
 
     def __str__(self):
         return self.name
-    
+
+
 class Medicine(models.Model):
-    
     class Meta:
         db_table = 'medicines_list'
+
     DOSAGE_CHOICES = [
         ('tablet', 'Tablet'),
         ('syrup', 'Syrup'),
@@ -76,7 +77,6 @@ class Medicine(models.Model):
     image = models.ImageField(upload_to='medicine_images/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
 
     def __str__(self):
         return self.name
@@ -98,6 +98,56 @@ class Inventory(models.Model):
         return f"{self.medicine.name} - Batch {self.batch_num}"
 
 
+class TotalQuantity(models.Model):
+    class Meta:
+        db_table = 'total_quantity_tbl'
+
+    medicine = models.OneToOneField('Medicine', on_delete=models.CASCADE, primary_key=True)
+    total_quantity = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.medicine.name} - Total Qty: {self.total_quantity}"
+
+
+# Model for Promotions
+class Promo(models.Model):
+    class Meta:
+        db_table = 'promo_tbl'
+
+    inventory_id = models.ForeignKey('Inventory', on_delete=models.CASCADE)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Promo for {self.inventory_id.medicine.name}"
+
+
+# Model for Inventory Logs
+class InventoryLog(models.Model):
+    ACTION_CHOICES = [
+        ('Add', 'Add'),
+        ('Sold', 'Sold'),
+        ('Restock', 'Restock'),
+        ('Return', 'Return'),
+        ('Delete', 'Delete'),
+        ('Update', 'Update'),
+        ('Promo', 'Promo'),
+    ]
+
+    user = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True)
+    medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE)
+    action_type = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    description = models.TextField()
+
+    class Meta:
+        db_table = 'inventory_logs'
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.user} - {self.action_type} - {self.medicine.name}"
+
+
 # Models for In-store Sales and Orders
 class InStoreOrder(models.Model):
     class Meta:
@@ -113,27 +163,16 @@ class InStoreOrder(models.Model):
     def __str__(self):
         return f"In-Store Order #{self.id} by {self.staff.email}"
 
+
 class InStoreOrderItem(models.Model):
     class Meta:
         db_table = 'in_store_order_items_tbl'
-    
+
     order = models.ForeignKey('InStoreOrder', on_delete=models.CASCADE, related_name='items')
     inventory_id = models.ForeignKey('Inventory', on_delete=models.CASCADE)
     quantity_sold = models.PositiveIntegerField(default=1)
     free_quantity_given = models.PositiveIntegerField(default=0)
-    price_at_sale = models.DecimalField(max_digits=8, decimal_places=2) 
+    price_at_sale = models.DecimalField(max_digits=8, decimal_places=2)
 
     def __str__(self):
         return f"{self.inventory_id.medicine.name} - {self.quantity_sold} sold"
-        
-# Model for Promotions
-class Promo(models.Model):
-    class Meta:
-        db_table = 'promo_tbl'
-
-    inventory_id = models.ForeignKey('Inventory', on_delete=models.CASCADE)
-    start_date = models.DateField(null=True, blank=True)
-    end_date = models.DateField(null=True, blank=True)
-    
-    def __str__(self):
-        return f"Promo for {self.inventory_id.medicine.name}"
