@@ -8,8 +8,13 @@ import 'package:flutter_ui/role_views/staff_view.dart';
 
 class OrderSummaryPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
+  final int? staffId; // ✅ Added
 
-  const OrderSummaryPage({super.key, required this.cartItems});
+  const OrderSummaryPage({
+    super.key,
+    required this.cartItems,
+    this.staffId, // ✅ Added
+  });
 
   @override
   State<OrderSummaryPage> createState() => _OrderSummaryPageState();
@@ -18,11 +23,26 @@ class OrderSummaryPage extends StatefulWidget {
 class _OrderSummaryPageState extends State<OrderSummaryPage> {
   List<Map<String, dynamic>> items = [];
   String customerType = 'Regular';
+  int? staffId;
 
   @override
   void initState() {
     super.initState();
     items = List.from(widget.cartItems);
+    _loadStaffId();
+  }
+
+  Future<void> _loadStaffId() async {
+    if (widget.staffId != null) {
+      setState(() {
+        staffId = widget.staffId;
+      });
+    } else {
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        staffId = prefs.getInt('staff_id');
+      });
+    }
   }
 
   void removeItem(int index) {
@@ -34,7 +54,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
   double getSubtotal() {
     return items.fold(
       0.0,
-      // UPDATED: Used null-aware operator for safety
       (sum, item) => sum +
           (double.tryParse(item['price']?.toString() ?? '0.0') ?? 0.0) *
               (item['quantity_sold'] as int? ?? 0),
@@ -66,9 +85,9 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final staffId = prefs.getInt('staff_id');
+      final currentStaffId = staffId ?? prefs.getInt('staff_id');
 
-      if (staffId == null) {
+      if (currentStaffId == null) {
         if (context.mounted) Navigator.of(context).pop();
         if (context.mounted) {
           _showResultDialog('Error', 'Staff ID not found. Please login again.');
@@ -78,7 +97,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
 
       final isPwd = customerType == 'Discounted (20%)';
 
-      // --- CRITICAL CHANGE: Build the payload with the new fields
       final orderItems = items.map((item) {
         return {
           'inventory_id': item['inventory_id'],
@@ -88,7 +106,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       }).toList();
 
       final payload = {
-        'staff': staffId,
+        'staff': currentStaffId,
         'is_pwd': isPwd,
         'items': orderItems,
       };
@@ -109,11 +127,13 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         final responseBody = json.decode(response.body);
         String errorMessage = 'Unknown error';
         if (responseBody is Map) {
-          errorMessage = responseBody['error']?.toString() ?? responseBody['detail']?.toString() ?? responseBody.toString();
+          errorMessage = responseBody['error']?.toString() ??
+              responseBody['detail']?.toString() ??
+              responseBody.toString();
         } else {
           errorMessage = responseBody.toString();
         }
-        
+
         if (context.mounted) {
           _showResultDialog('Error', 'Failed to process order: $errorMessage');
         }
@@ -158,12 +178,14 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
               onPressed: () {
                 Navigator.of(context).pop();
                 if (title == 'Success!') {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(
-                      builder: (context) => const StaffView(),
-                    ),
-                    (Route<dynamic> route) => false,
-                  );
+                  if (staffId != null && context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (context) => StaffView(staffId: staffId!),
+                      ),
+                      (Route<dynamic> route) => false,
+                    );
+                  }
                 }
               },
             ),
@@ -203,12 +225,11 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
-                    // UPDATED: Used null-aware operator for safety
                     final int quantitySold = item['quantity_sold'] as int? ?? 0;
                     final int freeQuantity = item['free_quantity_given'] as int? ?? 0;
                     final double price = double.tryParse(item['price']?.toString() ?? '0.0') ?? 0.0;
                     final double amount = price * quantitySold;
-                    
+
                     return Card(
                       elevation: 3,
                       child: ListTile(

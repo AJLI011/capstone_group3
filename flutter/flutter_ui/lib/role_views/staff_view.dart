@@ -2,10 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
 
+// Imports from your file (f1)
 import 'staff_features/sales/sales_barcode.dart';
 
+// Imports from your group's file (f2)
+import 'staff_features/edit_profile/edit_staff_profile.dart';
+import 'staff_features/change_password/change_staff_password.dart';
+import 'manager_features/inventory/inventory_grid_screen.dart';
+import 'staff_features/expiration_dashboard/expiry_dashboard_staff_view.dart';
+
 class StaffView extends StatefulWidget {
-  const StaffView({super.key});
+  final int staffId;
+
+  const StaffView({super.key, required this.staffId});
 
   @override
   State<StaffView> createState() => _StaffViewState();
@@ -32,7 +41,7 @@ class _StaffViewState extends State<StaffView> with SingleTickerProviderStateMix
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       staffName = prefs.getString('name') ?? 'Staff User';
-      staffEmail = prefs.getString('email') ?? 'no.email@example.com';
+      staffEmail = prefs.getString('email') ?? 'staff@email.com';
       isLoading = false;
     });
   }
@@ -51,6 +60,7 @@ class _StaffViewState extends State<StaffView> with SingleTickerProviderStateMix
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const ToggleLoginScreen()),
@@ -82,11 +92,11 @@ class _StaffViewState extends State<StaffView> with SingleTickerProviderStateMix
     }
   }
 
-  void _open(Widget page) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => page),
-    );
+  void _open(Widget page) async {
+    // This is from your group's file, a more complete implementation
+    _toggleMenu();
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    _loadStaffInfo();
   }
 
   @override
@@ -140,7 +150,7 @@ class _StaffViewState extends State<StaffView> with SingleTickerProviderStateMix
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  staffName ?? 'User Name',
+                                  staffName ?? 'Staff User',
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
                                     fontSize: 20,
@@ -148,7 +158,7 @@ class _StaffViewState extends State<StaffView> with SingleTickerProviderStateMix
                                   ),
                                 ),
                                 Text(
-                                  staffEmail ?? 'user.email@example.com',
+                                  staffEmail ?? 'staff@email.com',
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(color: Colors.grey),
                                 ),
@@ -157,16 +167,42 @@ class _StaffViewState extends State<StaffView> with SingleTickerProviderStateMix
                                   child: SingleChildScrollView(
                                     child: Column(
                                       children: [
-                                        _drawerItem(Icons.inventory_outlined, 'Inventory', () {}),
-                                        _drawerItem(Icons.qr_code_scanner, 'Sale', () => _open(const SalesBarcodeScreen())),
-                                        _drawerItem(Icons.phone_android_outlined, 'Online Orders', () {}),
-                                        _drawerItem(Icons.priority_high, 'Expiry', () {}),
-                                        _drawerItem(Icons.person_outline, 'Edit Profile', () {}),
-                                        _drawerItem(Icons.vpn_key, 'Change Password', () {}),
+                                        _drawerItem(
+                                          Icons.inventory_outlined,
+                                          'Inventory',
+                                          () => _open(const InventoryGridScreen()),
+                                        ),
+                                        // This is from your file (f1)
+                                        _drawerItem(
+                                          Icons.qr_code_scanner,
+                                          'Sale',
+                                          () => _open(const SalesBarcodeScreen()),
+                                        ),
+                                        _drawerItem(
+                                          Icons.phone_android_outlined,
+                                          'Online Orders',
+                                          () {},
+                                        ),
+                                        _drawerItem(
+                                          Icons.priority_high,
+                                          'Expiry',
+                                          () => _open(const ExpiryDashboardStaffView()),
+                                        ),
+                                        _drawerItem(
+                                          Icons.person_outline,
+                                          'Edit Profile',
+                                          () => _open(EditStaffProfilePage(staffId: widget.staffId)),
+                                        ),
+                                        _drawerItem(
+                                          Icons.vpn_key,
+                                          'Change Password',
+                                          () => _open(ChangeStaffPasswordPage(staffId: widget.staffId)),
+                                        ),
                                       ],
                                     ),
                                   ),
                                 ),
+                                const SizedBox(height: 20),
                                 Padding(
                                   padding: const EdgeInsets.all(16),
                                   child: ElevatedButton(

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'sales_details.dart';
-import 'order_summary.dart';
 import 'package:flutter_ui/role_views/staff_view.dart';
 
 class SalesBarcodeScreen extends StatefulWidget {
@@ -28,10 +28,12 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
   bool _isTorchOn = false;
   CameraFacing _currentCameraFacing = CameraFacing.back;
   bool _isScanning = false;
+  int? _staffId;
 
   @override
   void initState() {
     super.initState();
+    _loadStaffId();
     cameraController.start().then((_) {
       if (mounted) {
         setState(() {
@@ -47,6 +49,15 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
         Navigator.of(context).pop();
       }
     });
+  }
+
+  Future<void> _loadStaffId() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _staffId = prefs.getInt('staff_id');
+      });
+    }
   }
 
   @override
@@ -79,6 +90,7 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
                 builder: (context) => SalesDetailsPage(
                   barcodeData: barcodeData,
                   cartItems: widget.cartItems,
+                  staffId: _staffId, // ADDED: Pass the staffId here
                 ),
               ),
             );
@@ -104,7 +116,6 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
           }
         }
       } else {
-        // Handle the different error scenarios based on the response body
         final errorData = json.decode(response.body);
         final errorMessage = errorData['error'] ?? 'Unexpected error occurred';
         print("Error from backend: $errorMessage");
@@ -171,10 +182,16 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const StaffView()),
-                (Route<dynamic> route) => false,
-              );
+              if (_staffId != null) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => StaffView(staffId: _staffId!)),
+                  (Route<dynamic> route) => false,
+                );
+              } else {
+                // If staffId is not available, we can't go back, so handle it gracefully.
+                // For a real app, this should probably log the user out.
+                Navigator.of(context).pop();
+              }
             },
           ),
           actions: [

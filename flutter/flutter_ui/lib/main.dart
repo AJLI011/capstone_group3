@@ -30,15 +30,17 @@ Future<Widget> _getStartScreen() async {
         if (staffId != null) return AdminView(staffId: staffId);
         break;
       case 'manager':
-        // --- FIX IS HERE ---
-        if (staffId != null) { // Ensure staffId is not null before passing
+        // Ensure staffId is not null before passing
+        if (staffId != null) {
           return ManagerView(staffId: staffId);
         }
         break;
       case 'cashier':
         return const CashierView();
       case 'staff':
-        return const StaffView();
+        // Updated logic from the group's file: check for staffId before creating the view
+        if (staffId != null) return StaffView(staffId: staffId);
+        break;
       case 'customer':
         return const CustomerView();
     }

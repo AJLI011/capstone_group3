@@ -7,11 +7,14 @@ import 'order_summary.dart';
 class SalesDetailsPage extends StatefulWidget {
   final Map<String, dynamic> barcodeData;
   final List<Map<String, dynamic>> cartItems;
+  // CRITICAL ADDITION: This is required to pass to the next screen.
+  final int? staffId;
 
   const SalesDetailsPage({
     super.key,
     required this.barcodeData,
     this.cartItems = const [],
+    this.staffId,
   });
 
   @override
@@ -48,31 +51,35 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
     final int totalItemsToDeduct = _quantitySold + _freeQuantity;
 
     if (_quantitySold <= 0 && _freeQuantity <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid quantity to sell or give as promo.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter a valid quantity to sell or give as promo.')),
+        );
+      }
       return;
     }
 
-    int promoLimit = 999;
-    if (inventory.containsKey('promo') && inventory['promo'] is Map) {
-      promoLimit = (inventory['promo']['quantity'] as int? ?? 999);
-    }
+    // A cleaner way to get the promo limit with null-safety.
+    final int promoLimit = (inventory['promo']?['quantity'] as int? ?? 999);
 
     if (totalItemsToDeduct > availableQuantity) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Total items to deduct ($_quantitySold sold + $_freeQuantity promo) exceeds available stock. Only $availableQuantity available.'),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Total items to deduct ($_quantitySold sold + $_freeQuantity promo) exceeds available stock. Only $availableQuantity available.'),
+          ),
+        );
+      }
       return;
     }
 
     if (isPromo && _freeQuantity > promoLimit) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cannot give $_freeQuantity promo items. Only $promoLimit available.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cannot give $_freeQuantity promo items. Only $promoLimit available.')),
+        );
+      }
       return;
     }
 
@@ -87,9 +94,10 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
 
     final updatedCart = List<Map<String, dynamic>>.from(widget.cartItems)..add(newItem);
 
+    // Pass the staffId along to the next screen.
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (context) => OrderSummaryPage(cartItems: updatedCart),
+        builder: (context) => OrderSummaryPage(cartItems: updatedCart, staffId: widget.staffId),
       ),
     );
   }
@@ -161,8 +169,7 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
     final String imageUrl = imagePath.isNotEmpty ? 'http://10.0.2.2:8000$imagePath' : '';
     final int totalAvailableQuantity = inventory['quantity'] as int? ?? 0;
     final int remainingQuantity = totalAvailableQuantity - _quantitySold - _freeQuantity;
-    int promoLimit = (inventory['promo']?['quantity'] as int? ?? 999);
-    final int promoControlLimit = isPromo ? promoLimit : 0;
+    final int promoLimit = (inventory['promo']?['quantity'] as int? ?? 999);
     final int soldControlLimit = totalAvailableQuantity - _freeQuantity;
     final int freeControlLimit = isPromo ? promoLimit : 0;
     final int combinedFreeLimit =

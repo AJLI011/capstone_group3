@@ -66,7 +66,8 @@ class _LoginStaffState extends State<LoginStaff> {
             destination = const CashierView(); // Assuming CashierView doesn't need staffId yet
             break;
           case 'staff':
-            destination = const StaffView(); // Assuming StaffView doesn't need staffId yet
+            // The StaffView now correctly receives the staffId
+            destination = StaffView(staffId: staffId);
             break;
           default:
             setState(() {
