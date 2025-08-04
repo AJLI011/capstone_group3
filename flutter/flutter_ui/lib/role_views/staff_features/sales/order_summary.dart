@@ -98,10 +98,14 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       final isPwd = customerType == 'Discounted (20%)';
 
       final orderItems = items.map((item) {
+        final isPromo = item['is_promo'] as bool? ?? false;
+        final int quantitySold = item['quantity_sold'] as int? ?? 0;
+        final int freeQuantityGiven = isPromo ? (item['free_quantity_given'] as int? ?? 0) : 0;
+
         return {
           'inventory_id': item['inventory_id'],
-          'quantity_sold': item['quantity_sold'],
-          'free_quantity_given': item['free_quantity_given'],
+          'quantity_sold': quantitySold,
+          'free_quantity_given': freeQuantityGiven,
         };
       }).toList();
 
@@ -110,6 +114,9 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         'is_pwd': isPwd,
         'items': orderItems,
       };
+
+      // For debugging: Print the payload before sending
+      print('Sending payload: ${json.encode(payload)}');
 
       final response = await http.post(
         Uri.parse('http://10.0.2.2:8000/api/sales/process/'),
@@ -124,18 +131,28 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
           _showResultDialog('Success!', 'The order has been processed successfully.');
         }
       } else {
-        final responseBody = json.decode(response.body);
-        String errorMessage = 'Unknown error';
-        if (responseBody is Map) {
-          errorMessage = responseBody['error']?.toString() ??
-              responseBody['detail']?.toString() ??
-              responseBody.toString();
+        final contentType = response.headers['content-type'];
+        if (contentType != null && contentType.contains('application/json')) {
+          final responseBody = json.decode(response.body);
+          String errorMessage = 'Unknown error';
+          if (responseBody is Map) {
+            errorMessage = responseBody['error']?.toString() ??
+                responseBody['detail']?.toString() ??
+                responseBody.toString();
+          } else {
+            errorMessage = responseBody.toString();
+          }
+          if (context.mounted) {
+            _showResultDialog('Error', 'Failed to process order: $errorMessage');
+          }
         } else {
-          errorMessage = responseBody.toString();
-        }
-
-        if (context.mounted) {
-          _showResultDialog('Error', 'Failed to process order: $errorMessage');
+          if (context.mounted) {
+            _showResultDialog(
+              'Server Error',
+              'The server returned an unexpected response. This usually means there is a problem on the server-side. '
+                  'Response status: ${response.statusCode}',
+            );
+          }
         }
       }
     } catch (e) {

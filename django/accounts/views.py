@@ -25,7 +25,8 @@ from .serializers import (
     InventoryListSerializer,
     InventoryBatchDetailSerializer,
     TotalQuantitySerializer,
-    PromoSerializer
+    PromoSerializer,
+    InStoreOrderSerializer
 )
 
 from .models import (
@@ -503,8 +504,6 @@ def total_quantities(request):
 
     return Response(results)
 
-
-
 # ─────────── Expiration Dashboard ───────────
 
 class GoodStockView(generics.ListAPIView):
@@ -738,7 +737,7 @@ def remove_promo(request):
         inventory.is_promo = False
         inventory.save()
 
-        # ✅ Delete the promo
+        
         Promo.objects.filter(inventory_id=inventory).delete()
 
         # ✅ Log the promo removal
@@ -760,7 +759,6 @@ def remove_promo(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
-
 def clean_expired_promos():
     today = date.today()
 
@@ -778,7 +776,6 @@ def clean_expired_promos():
         inventory_item.is_promo = False
         inventory_item.save()
         promo.delete()
-
 
 # For Inventory Logs
 from .serializers import InventoryLogSerializer

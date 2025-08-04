@@ -90,6 +90,7 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
       'quantity_sold': _quantitySold,
       'free_quantity_given': _freeQuantity,
       'inventory_id': inventory['id'],
+      'is_promo': isPromo,
     };
 
     final updatedCart = List<Map<String, dynamic>>.from(widget.cartItems)..add(newItem);

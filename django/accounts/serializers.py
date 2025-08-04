@@ -8,7 +8,7 @@ from django.contrib.auth.hashers import make_password
 from django.utils import timezone
 from decimal import Decimal
 from django.db import transaction
-from datetime import date
+from django.utils.timezone import now, localtime  # Import localtime
 
 # Constants
 PWD_DISCOUNT_RATE = Decimal('0.20')
@@ -147,7 +147,7 @@ class InventoryBatchDetailSerializer(serializers.ModelSerializer):
 
     def get_is_promo(self, obj):
         promo = Promo.objects.filter(inventory_id=obj.id).first()
-        today = date.today()
+        today = now().date()  # This is the same logic as before, which seems correct for a `DateField`
         return (
             promo is not None and 
             promo.start_date is not None and
@@ -237,6 +237,9 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
                 total_amount_after_discount=Decimal('0.00')
             )
 
+            # --- Simplified logic here ---
+            today = now().date()
+
             for item_data in items_data:
                 inventory_id = item_data.get('inventory_id')
                 quantity_sold = item_data.get('quantity_sold')
@@ -248,11 +251,11 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
                     price_at_sale = medicine.price
                 except Inventory.DoesNotExist:
                     raise serializers.ValidationError(f"Inventory item with ID {inventory_id} does not exist.")
-
+                
                 is_promo_db = Promo.objects.filter(
                     inventory_id=inventory_id,
-                    start_date__lte=timezone.now().date(),
-                    end_date__gte=timezone.now().date()
+                    start_date__lte=today,
+                    end_date__gte=today
                 ).exists()
 
                 if not is_promo_db and free_quantity_from_client > 0:
