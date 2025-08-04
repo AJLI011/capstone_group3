@@ -1,7 +1,8 @@
 from rest_framework import serializers
-from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog
-
+from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, InStoreOrder, InStoreOrderItem
+from django.db import transaction
 from django.contrib.auth.hashers import make_password
+from rest_framework.exceptions import ValidationError
 
 from datetime import date  # make sure this is imported at the top
 
@@ -204,3 +205,99 @@ class InventoryLogSerializer(serializers.ModelSerializer):
         if obj.user:
             return f"{obj.user.name}, {obj.user.role}"
         return "Unknown"
+
+#for sales feature
+
+class InStoreOrderItemInputSerializer(serializers.Serializer):
+    inventory_id = serializers.IntegerField()
+    quantity_sold = serializers.IntegerField(min_value=1)
+
+class InStoreOrderSerializer(serializers.ModelSerializer):
+    items = InStoreOrderItemInputSerializer(many=True)
+
+    class Meta:
+        model = InStoreOrder
+        fields = ['staff', 'is_pwd', 'items']
+
+    def validate_items(self, value):
+        if not value:
+            raise ValidationError("At least one item is required.")
+        return value
+
+    def create(self, validated_data):
+        staff = validated_data['staff']
+        is_pwd = validated_data['is_pwd']
+        items_data = validated_data['items']
+
+        # 🔐 Restrict only to role == 'staff'
+        if staff.role != 'staff':
+            raise ValidationError("Only users with role 'staff' can perform sales.")
+
+        total_before_discount = 0
+        order_items = []
+
+        with transaction.atomic():
+            order = InStoreOrder.objects.create(
+                staff=staff,
+                is_pwd=is_pwd,
+                total_amount_before_discount=0,  # placeholder
+                total_amount_after_discount=0    # placeholder
+            )
+
+            for item in items_data:
+                inventory_id = item['inventory_id']
+                quantity_sold = item['quantity_sold']
+
+                try:
+                    inventory = Inventory.objects.select_related('medicine').get(id=inventory_id)
+                except Inventory.DoesNotExist:
+                    raise ValidationError(f"Inventory item with ID {inventory_id} does not exist.")
+
+                if quantity_sold > inventory.quantity:
+                    raise ValidationError(f"Not enough stock for {inventory.medicine.name} (Batch {inventory.batch_num})")
+
+                # Promo logic: 1:1 if active
+                if inventory.is_promo:
+                    free_qty = quantity_sold
+                else:
+                    free_qty = 0
+
+                # Prevent free quantity on non-promo
+                if not inventory.is_promo and free_qty > 0:
+                    raise ValidationError(f"Promo quantity must be 0 for a non promo item (inventory id: {inventory_id})")
+
+                # Deduct stock
+                inventory.quantity -= quantity_sold
+                inventory.save()
+
+                price_per_item = inventory.medicine.price
+                total_price = price_per_item * quantity_sold
+                total_before_discount += total_price
+
+                InStoreOrderItem.objects.create(
+                    order=order,
+                    inventory_id=inventory,
+                    quantity_sold=quantity_sold,
+                    free_quantity_given=free_qty,
+                    price_at_sale=price_per_item
+                )
+
+                # Inventory log
+                InventoryLog.objects.create(
+                    user=staff,
+                    medicine=inventory.medicine,
+                    action_type='Sold',
+                    description=f"Sold {quantity_sold} pcs (Free {free_qty}) from batch {inventory.batch_num}."
+                )
+
+            # Apply 20% discount if PWD
+            total_after_discount = total_before_discount
+            if is_pwd:
+                total_after_discount = round(total_before_discount * 0.8, 2)
+
+            # Save totals
+            order.total_amount_before_discount = total_before_discount
+            order.total_amount_after_discount = total_after_discount
+            order.save()
+
+        return order
