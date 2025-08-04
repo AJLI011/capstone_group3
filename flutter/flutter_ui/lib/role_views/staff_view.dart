@@ -6,6 +6,8 @@ import 'staff_features/edit_profile/edit_staff_profile.dart';
 import 'staff_features/change_password/change_staff_password.dart';
 import 'manager_features/inventory/inventory_grid_screen.dart';
 import 'staff_features/expiration_dashboard/expiry_dashboard_staff_view.dart';
+import 'staff_features/sales/sales_barcode.dart';
+
 
 class StaffView extends StatefulWidget {
   final int staffId;
@@ -164,7 +166,9 @@ class _StaffViewState extends State<StaffView> with SingleTickerProviderStateMix
                                       children: [
                                         _drawerItem(Icons.inventory_outlined, 'Inventory', 
                                          () => _open(const InventoryGridScreen())),
-                                        _drawerItem(Icons.sell, 'Sale', () {}),
+                                        _drawerItem(Icons.sell, 'Sale', () => _open(SalesBarcodeScreen(staffId: widget.staffId))),
+
+
                                         _drawerItem(Icons.mobile_friendly, 'Online Orders', () {}),
                                         _drawerItem(Icons.priority_high, 'Expiry', 
                                          () => _open(const ExpiryDashboardStaffView())),
