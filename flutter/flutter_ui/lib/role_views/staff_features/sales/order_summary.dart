@@ -71,6 +71,38 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     return getSubtotal() - getDiscount();
   }
 
+  // New function to show the confirmation dialog for processing the sale
+Future<void> _showProcessConfirmationDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Sale'),
+          content: const Text('Are you sure you want to process this sale?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(false); // User cancels
+              },
+            ),
+            //  Changed ElevatedButton to TextButton for a simpler look
+            TextButton(
+              child: const Text('Confirm'),
+              onPressed: () {
+                Navigator.of(context).pop(true); // User confirms
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await processSale(); // Only proceed if the user confirmed
+    }
+  }
+
   Future<void> processSale() async {
     if (items.isEmpty) {
       if (context.mounted) {
@@ -115,7 +147,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         'items': orderItems,
       };
 
-      // The print statement is now correctly placed after the payload is defined.
       print('Sending payload: ${json.encode(payload)}');
 
       final response = await http.post(
@@ -257,7 +288,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Order Summary'),
-          // The back button now calls the confirmation dialog.
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
@@ -363,7 +393,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: items.isNotEmpty ? processSale : null,
+                  onPressed: items.isNotEmpty ? _showProcessConfirmationDialog : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue.shade700,
                     foregroundColor: Colors.white,
