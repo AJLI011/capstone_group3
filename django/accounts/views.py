@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
-from .serializers import CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer, InventoryDashboardSerializer
+from .serializers import CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer, InventoryDashboardSerializer, PromoMedicineSerializer
 from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo
 from .serializers import MedicineSerializer, InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, InventoryBatchDetailSerializer, TotalQuantitySerializer
 
@@ -663,4 +663,10 @@ def inventory_logs(request):
     logs = InventoryLog.objects.select_related('user', 'medicine').all()
     serializer = InventoryLogSerializer(logs, many=True)
     return Response(serializer.data)
+
+class PromoMedicineView(APIView):
+    def get(self, request):
+        promos = Inventory.objects.filter(is_promo=True)
+        serializer = PromoMedicineSerializer(promos, many=True, context={'request': request})
+        return Response(serializer.data)
 

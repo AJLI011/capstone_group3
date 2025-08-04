@@ -204,3 +204,21 @@ class InventoryLogSerializer(serializers.ModelSerializer):
         if obj.user:
             return f"{obj.user.name}, {obj.user.role}"
         return "Unknown"
+
+class PromoMedicineSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='medicine.name', read_only=True)
+    generic_name = serializers.CharField(source='medicine.generic_name', read_only=True)
+    price = serializers.DecimalField(source='medicine.price', max_digits=8, decimal_places=2, read_only=True)
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Inventory
+        fields = ['name', 'generic_name', 'image', 'price']
+
+    def get_image(self, obj):
+        request = self.context.get('request', None)
+        if obj.medicine.image and hasattr(obj.medicine.image, 'url'):
+            if request:
+                return request.build_absolute_uri(obj.medicine.image.url)
+            return obj.medicine.image.url
+        return None

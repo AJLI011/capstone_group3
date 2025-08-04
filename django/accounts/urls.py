@@ -7,7 +7,7 @@ from .views import get_inventory_list # Added explicit import for get_inventory_
 
 from .views import GoodStockView, ExpiringSoonView, ExpiredView
 
-from .views import delete_expired_batch, remove_promo
+from .views import delete_expired_batch, remove_promo, PromoMedicineView
 
 from .views import inventory_logs
 
@@ -63,5 +63,6 @@ urlpatterns = [
 
     #Inventory Logs
     path('inventory-logs/', inventory_logs, name='inventory_logs'),
+    path('medicine/promos/', PromoMedicineView.as_view(), name='promo-medicines'),
 ]
 
