@@ -94,137 +94,139 @@ class _InventoryDetailScreenState extends State<InventoryDetailScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.item.name),
-        backgroundColor: const Color(0xFF396AAB),
-      ),
-      body: FutureBuilder<List<BatchDetail>>(
-        future: _batchDetails,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No batch details available.'));
-          }
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: Text(widget.item.name),
+      backgroundColor: const Color(0xFF396AAB),
+    ),
+    body: FutureBuilder<List<BatchDetail>>(
+      future: _batchDetails,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('No batch details available.'));
+        }
 
-          final now = DateTime.now();
-          final batches = snapshot.data!.where((batch) {
-            final expDate = DateTime.tryParse(batch.expirationDate);
-            if (expDate == null) return false;
-            return expDate.isAfter(now) || expDate.isAtSameMomentAs(now);
-          }).toList();
+        final now = DateTime.now();
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: batches.length,
-            itemBuilder: (context, index) {
-              final batch = batches[index];
-              final showPromo = shouldShowPromoStar(batch);
+        // ✅ FEFO: filter unexpired, then sort ascending by expiration date
+        final batches = snapshot.data!
+            .where((batch) {
+              final expDate = DateTime.tryParse(batch.expirationDate);
+              return expDate != null &&
+                  (expDate.isAfter(now) || expDate.isAtSameMomentAs(now));
+            })
+            .toList()
+          ..sort((a, b) {
+            final aDate = DateTime.tryParse(a.expirationDate) ?? now;
+            final bDate = DateTime.tryParse(b.expirationDate) ?? now;
+            return aDate.compareTo(bDate); // Earliest expiring first
+          });
 
-              return Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header row with name and quantity
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '${widget.item.genericName} (${widget.item.name}) ${showPromo ? "⭐️" : ""}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            'Qty: ${batch.quantity}',
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: batches.length,
+          itemBuilder: (context, index) {
+            final batch = batches[index];
+            final showPromo = shouldShowPromoStar(batch);
+
+            return Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${widget.item.genericName} (${widget.item.name}) ${showPromo ? "⭐️" : ""}',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-
-                      // Batch No and Price
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Batch No: ${batch.batchNumber}',
-                            style: const TextStyle(fontSize: 14),
+                        ),
+                        Text(
+                          'Qty: ${batch.quantity}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
                           ),
-                          Text(
-                            '₱${batch.price.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.green,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-
-                      // Expiration Date
-                      Text(
-                        'Expiration Date: ${batch.expirationDate}',
-                        style: const TextStyle(fontSize: 14),
-                      ),
-
-                      // Promo Start and End Dates (side by side)
-                      if (batch.isPromo &&
-                          batch.promoStartDate != null &&
-                          batch.promoEndDate != null) ...[
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Start: ${batch.promoStartDate}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.orange,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                'End: ${batch.promoEndDate}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.orange,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 6),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Batch No: ${batch.batchNumber}',
+                            style: const TextStyle(fontSize: 14)),
+                        Text(
+                          '₱${batch.price.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.green,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
-                  ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Expiration Date: ${batch.expirationDate}',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    if (batch.isPromo &&
+                        batch.promoStartDate != null &&
+                        batch.promoEndDate != null) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Start: ${batch.promoStartDate}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.orange,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              'End: ${batch.promoEndDate}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.orange,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
                 ),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
+              ),
+            );
+          },
+        );
+      },
+    ),
+  );
+}
 }
