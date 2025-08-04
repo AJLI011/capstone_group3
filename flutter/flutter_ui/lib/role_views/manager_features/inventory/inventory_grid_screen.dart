@@ -5,13 +5,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class InventoryApiService {
-  static const String inventoryUrl =
-    'http://10.0.2.2:8000/api/inventory/';
+  static const String inventoryUrl = 'http://10.0.2.2:8000/api/inventory/';
 
   static Future<List<TotalQuantity>> fetchInventoryItems() async {
     try {
       final response = await http.get(Uri.parse(inventoryUrl));
-
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data.map((json) => TotalQuantity.fromJson(json)).toList();
@@ -20,6 +18,22 @@ class InventoryApiService {
       }
     } catch (e) {
       throw Exception('Error fetching inventory: $e');
+    }
+  }
+
+  // ✅ Total quantity sync function
+  static Future<void> syncTotalQuantities() async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://10.0.2.2:8000/api/update-totals/'),
+      );
+      if (response.statusCode == 200) {
+        print('✅ Total quantity synced');
+      } else {
+        print('❌ Failed to sync: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Error syncing total quantity: $e');
     }
   }
 }
@@ -58,7 +72,12 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
   @override
   void initState() {
     super.initState();
-    loadInventory();
+    syncAndLoadInventory(); // ✅ Sync then load inventory
+  }
+
+  Future<void> syncAndLoadInventory() async {
+    await InventoryApiService.syncTotalQuantities(); // 🔄 Sync from backend
+    await loadInventory(); // ✅ Load updated items
   }
 
   Future<void> loadInventory() async {
@@ -95,9 +114,7 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
           IconButton(
             icon: Icon(_sortAZ ? Icons.sort_by_alpha : Icons.sort),
             onPressed: () {
-              setState(() {
-                _sortAZ = !_sortAZ;
-              });
+              setState(() => _sortAZ = !_sortAZ);
             },
           ),
           IconButton(
@@ -148,9 +165,7 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
                       );
                     }).toList(),
                     onChanged: (value) {
-                      setState(() {
-                        _selectedCategory = value ?? '';
-                      });
+                      setState(() => _selectedCategory = value ?? '');
                     },
                   ),
                 ),
