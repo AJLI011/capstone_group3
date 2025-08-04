@@ -8,12 +8,12 @@ import 'package:flutter_ui/role_views/staff_view.dart';
 
 class OrderSummaryPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
-  final int? staffId; // ✅ Added
+  final int? staffId;
 
   const OrderSummaryPage({
     super.key,
     required this.cartItems,
-    this.staffId, // ✅ Added
+    this.staffId,
   });
 
   @override
@@ -115,7 +115,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         'items': orderItems,
       };
 
-      // For debugging: Print the payload before sending
+      // The print statement is now correctly placed after the payload is defined.
       print('Sending payload: ${json.encode(payload)}');
 
       final response = await http.post(
@@ -212,6 +212,44 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     );
   }
 
+  Future<void> _showBackConfirmationDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Discard Order?'),
+          content: const Text(
+              'Are you sure you want to go back? The current order will be lost.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+            TextButton(
+              child: const Text('Proceed'),
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      if (staffId != null && context.mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => StaffView(staffId: staffId!),
+          ),
+          (Route<dynamic> route) => false,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -219,6 +257,13 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Order Summary'),
+          // The back button now calls the confirmation dialog.
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              _showBackConfirmationDialog();
+            },
+          ),
           automaticallyImplyLeading: false,
           actions: [
             IconButton(
