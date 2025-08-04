@@ -64,5 +64,6 @@ urlpatterns = [
     #Inventory Logs
     path('inventory-logs/', inventory_logs, name='inventory_logs'),
     path('medicine/promos/', PromoMedicineView.as_view(), name='promo-medicines'),
+    path('update-totals/', views.trigger_update_total_quantity),
 ]
 

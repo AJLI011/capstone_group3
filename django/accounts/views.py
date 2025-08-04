@@ -22,6 +22,8 @@ from datetime import date, timedelta
 
 from django.http import JsonResponse, HttpResponseNotFound
 
+from django.core.management import call_command
+
 from .models import InventoryLog
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
@@ -670,3 +672,6 @@ class PromoMedicineView(APIView):
         serializer = PromoMedicineSerializer(promos, many=True, context={'request': request})
         return Response(serializer.data)
 
+def trigger_update_total_quantity(request):
+    call_command('update_total_quantities')
+    return JsonResponse({'status': 'success'})
