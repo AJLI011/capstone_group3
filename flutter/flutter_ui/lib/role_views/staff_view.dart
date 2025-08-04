@@ -166,7 +166,7 @@ class _StaffViewState extends State<StaffView> with SingleTickerProviderStateMix
                                       children: [
                                         _drawerItem(Icons.inventory_outlined, 'Inventory', 
                                          () => _open(const InventoryGridScreen())),
-                                        _drawerItem(Icons.sell, 'Sale', () => _open(SalesBarcodeScreen(staffId: widget.staffId))),
+                                        _drawerItem(Icons.sell, 'Sale', () => _open(SalesBarcodeScreen(staffId: widget.staffId, cartItems: []))),
 
 
                                         _drawerItem(Icons.mobile_friendly, 'Online Orders', () {}),

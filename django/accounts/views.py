@@ -3,26 +3,28 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.shortcuts import render
 from django.contrib.auth.hashers import check_password, make_password
+from rest_framework import serializers
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-
-from .serializers import CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer, InventoryDashboardSerializer
-from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo
-from .serializers import MedicineSerializer, InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, InventoryBatchDetailSerializer, TotalQuantitySerializer
-
 from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
-from django.db.models import F
-
 from rest_framework.views import APIView
-
 from rest_framework import generics
 from datetime import date, timedelta
-
 from django.http import JsonResponse, HttpResponseNotFound
+from django.db.models import F
 
-from .models import InventoryLog
+from .models import (
+    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog
+)
+from .serializers import (
+    CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer,
+    InventoryDashboardSerializer, MedicineSerializer, 
+    InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, 
+    InventoryBatchDetailSerializer, TotalQuantitySerializer, InventoryLogSerializer,
+    InStoreOrderSerializer, MedicineInventorySerializer  # <- New serializer
+)
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
@@ -406,10 +408,6 @@ def medicine_detail(request, pk):
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-
-
-
-
     
 # =================== INVENTORY MANAGEMENT -------------------- # Renamed comment for clarity
 class InventoryCreateView(APIView):
@@ -663,4 +661,56 @@ def inventory_logs(request):
     logs = InventoryLog.objects.select_related('user', 'medicine').all()
     serializer = InventoryLogSerializer(logs, many=True)
     return Response(serializer.data)
+
+# ─────────── SALES ───────────
+
+@api_view(['GET'])
+def get_item_by_barcode(request, barcode):
+    """
+    API endpoint to retrieve all available inventory batches for a medicine,
+    ordered by their expiration date (FEFO logic), excluding expired items.
+    """
+    try:
+        # Find the medicine with the given barcode
+        medicine_item = Medicine.objects.get(barcode=barcode)
+        
+        # Find all inventory items for this medicine with quantity > 0,
+        # order them by expiration date, and exclude any that are expired (exp_date > today)
+        inventory_items = Inventory.objects.filter(
+            medicine=medicine_item,
+            quantity__gt=0,
+            exp_date__gt=date.today()  # <-- The filter is now strictly greater than today
+        ).order_by('exp_date')
+
+        if not inventory_items.exists():
+            return Response({'error': 'No available inventory found for this medicine'}, status=status.HTTP_404_NOT_FOUND)
+
+    except Medicine.DoesNotExist:
+        return Response({'error': 'Medicine not found for this barcode'}, status=status.HTTP_404_NOT_FOUND)
+    
+    serializer = MedicineInventorySerializer(inventory_items, many=True, context={'request': request})
+    
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+def process_instore_order(request):
+    serializer = InStoreOrderSerializer(data=request.data)
+    if serializer.is_valid():
+        try:
+            order = serializer.save()
+            return Response({
+                "message": "Order processed successfully",
+                "order_id": order.id,
+                "total_before_discount": float(order.total_amount_before_discount),
+                "total_after_discount": float(order.total_amount_after_discount),
+            }, status=status.HTTP_201_CREATED)
+        except serializers.ValidationError as e:
+            return Response({"error": e.detail}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            # Log the error for backend debugging
+            print(f"[PROCESS ORDER ERROR] {e}")
+            return Response({"error": f"Failed to process order: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
 

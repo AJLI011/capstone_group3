@@ -1,43 +1,28 @@
+// sales_barcode.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:http/http.dart' as http;
-import 'sales_details.dart'; // This is your full SalesDetailsPage
+import 'sales_details.dart';
 
 class SalesBarcodeScreen extends StatefulWidget {
-  final int staffId;
+  final List<Map<String, dynamic>> cartItems;
+  final int? staffId;
 
-  const SalesBarcodeScreen({super.key, required this.staffId});
+  const SalesBarcodeScreen({
+    super.key,
+    required this.cartItems,
+    required this.staffId,
+  });
 
   @override
   State<SalesBarcodeScreen> createState() => _SalesBarcodeScreenState();
 }
 
 class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
-  final MobileScannerController cameraController = MobileScannerController(
-    detectionSpeed: DetectionSpeed.normal,
-    torchEnabled: false,
-  );
-
+  final MobileScannerController cameraController = MobileScannerController();
   bool _isTorchOn = false;
-  CameraFacing _currentCameraFacing = CameraFacing.back;
   bool _isScanning = false;
-
-  @override
-  void initState() {
-    super.initState();
-    cameraController.start().then((_) {
-      setState(() {
-        _isTorchOn = cameraController.torchEnabled;
-        _currentCameraFacing = cameraController.facing;
-      });
-    }).catchError((error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to start camera: $error')),
-      );
-      Navigator.of(context).pop();
-    });
-  }
 
   @override
   void dispose() {
@@ -51,39 +36,41 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
     cameraController.stop();
 
     try {
-      final url = 'http://10.0.2.2:8000/api/sales/barcode/$barcode/';
-      final response = await http.get(Uri.parse(url));
+      final response = await http.get(Uri.parse('http://10.0.2.2:8000/api/sales/barcode/$barcode/'));
 
       if (response.statusCode == 200) {
-        final itemData = json.decode(response.body);
-        print('Scanned item data: ${jsonEncode(itemData)}');
+        // The API now returns a list of batches, not a single item.
+        final List<dynamic> itemData = json.decode(response.body);
+        if (!mounted) return;
 
-        if (mounted) {
+        // Ensure there is at least one item before navigating
+        if (itemData.isNotEmpty) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (_) => SalesDetailsPage(
+                // Pass the entire list of batches to the next screen
                 barcodeData: itemData,
+                cartItems: widget.cartItems,
                 staffId: widget.staffId,
-                cartItems: [], // Empty cart for now
               ),
             ),
           );
-        }
-      } else {
-        if (mounted) {
+        } else {
+          // Handle the case where the API returns an empty list
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No item found for this barcode')),
+            const SnackBar(content: Text('No item found for this barcode')),
           );
           Navigator.of(context).pop();
         }
-      }
-    } catch (e) {
-      if (mounted) {
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          const SnackBar(content: Text('No item found for this barcode')),
         );
         Navigator.of(context).pop();
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      Navigator.of(context).pop();
     } finally {
       _isScanning = false;
     }
@@ -93,31 +80,13 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scan Barcode for Sale'),
+        title: const Text('Scan Barcode'),
         actions: [
           IconButton(
-            icon: Icon(
-              _isTorchOn ? Icons.flash_on : Icons.flash_off,
-              color: _isTorchOn ? Colors.yellow : Colors.grey,
-            ),
+            icon: Icon(_isTorchOn ? Icons.flash_on : Icons.flash_off),
             onPressed: () async {
               await cameraController.toggleTorch();
-              setState(() {
-                _isTorchOn = cameraController.torchEnabled;
-              });
-            },
-          ),
-          IconButton(
-            icon: Icon(
-              _currentCameraFacing == CameraFacing.front
-                  ? Icons.camera_front
-                  : Icons.camera_rear,
-            ),
-            onPressed: () async {
-              await cameraController.switchCamera();
-              setState(() {
-                _currentCameraFacing = cameraController.facing;
-              });
+              setState(() => _isTorchOn = !_isTorchOn);
             },
           ),
         ],
@@ -125,10 +94,8 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
       body: MobileScanner(
         controller: cameraController,
         onDetect: (capture) {
-          final barcodes = capture.barcodes;
-          if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
-            final String code = barcodes.first.rawValue!;
-            print('Barcode detected: $code');
+          final code = capture.barcodes.first.rawValue;
+          if (code != null) {
             _onBarcodeDetected(code);
           }
         },

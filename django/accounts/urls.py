@@ -63,5 +63,10 @@ urlpatterns = [
 
     #Inventory Logs
     path('inventory-logs/', inventory_logs, name='inventory_logs'),
+    
+    #Sales Function
+    path('sales/barcode/<str:barcode>/', views.get_item_by_barcode, name='get_item_by_barcode'),
+    path('sales/process/', views.process_instore_order, name='process_instore_order'),
+
 ]
 

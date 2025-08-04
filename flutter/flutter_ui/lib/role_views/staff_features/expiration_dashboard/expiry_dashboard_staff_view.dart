@@ -44,15 +44,11 @@ class _ExpiryDashboardStaffViewState extends State<ExpiryDashboardStaffView> {
           setCount(data.length);
         });
       } else {
-        setState(() {
-          setCount(0);
-        });
+        setCount(0);
       }
     } catch (e) {
       print("Error fetching from $url: $e");
-      setState(() {
-        setCount(0);
-      });
+      setCount(0);
     }
   }
 
@@ -66,53 +62,60 @@ class _ExpiryDashboardStaffViewState extends State<ExpiryDashboardStaffView> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            _buildStatusButton(
-              context,
-              label: 'GOOD STOCKS',
-              count: goodStockCount,
-              color: Colors.greenAccent,
-              icon: Icons.check_box,
-              onTap: () {
-                Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const GoodStockStaffPage()));
-              },
-            ),
-            const SizedBox(height: 20),
-            _buildStatusButton(
-              context,
-              label: 'EXPIRING SOON',
-              count: expiringSoonCount,
-              color: Colors.yellowAccent,
-              icon: Icons.warning_amber_rounded,
-              onTap: () {
-                Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const ExpiringSoonStaffPage()));
-              },
-            ),
-            const SizedBox(height: 20),
-            _buildStatusButton(
-              context,
-              label: 'EXPIRED STOCKS',
-              count: expiredCount,
-              color: Colors.redAccent,
-              icon: Icons.cancel,
-              onTap: () {
-                Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const ExpiredStockStaffPage()));
-              },
-            ),
-          ],
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Flexible(
+                flex: 1,
+                child: _buildStatusButton(
+                  label: 'GOOD STOCKS',
+                  count: goodStockCount,
+                  color: Colors.greenAccent,
+                  icon: Icons.check_box,
+                  onTap: () {
+                    Navigator.push(context,
+                      MaterialPageRoute(builder: (context) => const GoodStockStaffPage()));
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                flex: 1,
+                child: _buildStatusButton(
+                  label: 'EXPIRING SOON',
+                  count: expiringSoonCount,
+                  color: Colors.yellowAccent,
+                  icon: Icons.warning_amber_rounded,
+                  onTap: () {
+                    Navigator.push(context,
+                      MaterialPageRoute(builder: (context) => const ExpiringSoonStaffPage()));
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                flex: 1,
+                child: _buildStatusButton(
+                  label: 'EXPIRED STOCKS',
+                  count: expiredCount,
+                  color: Colors.redAccent,
+                  icon: Icons.cancel,
+                  onTap: () {
+                    Navigator.push(context,
+                      MaterialPageRoute(builder: (context) => const ExpiredStockStaffPage()));
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStatusButton(
-    BuildContext context, {
+  Widget _buildStatusButton({
     required String label,
     required int count,
     required Color color,
@@ -123,23 +126,24 @@ class _ExpiryDashboardStaffViewState extends State<ExpiryDashboardStaffView> {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 25),
+        padding: const EdgeInsets.symmetric(vertical: 18),
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(15),
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 50),
-            const SizedBox(height: 10),
+            Icon(icon, size: 40),
+            const SizedBox(height: 8),
             Text(
               count.toString(),
-              style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 4),
             Text(
               label,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
             ),
           ],
         ),
