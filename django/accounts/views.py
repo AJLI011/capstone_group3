@@ -26,6 +26,8 @@ from django.core.management import call_command
 
 from .models import InventoryLog
 
+from django.utils.timezone import now
+
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
 
@@ -668,10 +670,30 @@ def inventory_logs(request):
 
 class PromoMedicineView(APIView):
     def get(self, request):
-        promos = Inventory.objects.filter(is_promo=True)
-        serializer = PromoMedicineSerializer(promos, many=True, context={'request': request})
-        return Response(serializer.data)
+        today = now().date()
 
+        # Get all promo-active inventory batches
+        promo_batches = Inventory.objects.filter(
+            promo__start_date__lte=today,
+            promo__end_date__gte=today
+        ).select_related('medicine')
+
+        data = []
+        seen_medicine_ids = set()
+
+        for batch in promo_batches:
+            medicine = batch.medicine
+            if medicine.id not in seen_medicine_ids:
+                seen_medicine_ids.add(medicine.id)
+                data.append({
+                    'name': medicine.name,
+                    'generic_name': medicine.generic_name,
+                    'image': request.build_absolute_uri(medicine.image.url) if medicine.image else '',
+                    'price': float(medicine.price)
+                })
+
+        return Response(data)
+        
 def trigger_update_total_quantity(request):
     call_command('update_total_quantities')
     return JsonResponse({'status': 'success'})
