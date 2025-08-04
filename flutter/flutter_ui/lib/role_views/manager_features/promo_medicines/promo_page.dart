@@ -12,11 +12,31 @@ class PromoMedicinePage extends StatefulWidget {
 
 class _PromoMedicinePageState extends State<PromoMedicinePage> {
   List<dynamic> promoMedicines = [];
+  List<dynamic> filteredMedicines = [];
+  TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     fetchExpiringSoonMedicines();
+    searchController.addListener(filterMedicines);
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
+  void filterMedicines() {
+    final query = searchController.text.toLowerCase();
+    setState(() {
+      filteredMedicines = promoMedicines.where((item) {
+        final name = item['medicine_name']?.toLowerCase() ?? '';
+        final generic = item['generic_name']?.toLowerCase() ?? '';
+        return name.contains(query) || generic.contains(query);
+      }).toList();
+    });
   }
 
   Future<void> fetchExpiringSoonMedicines() async {
@@ -24,8 +44,14 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+
+        // FEFO sorting by expiration date
+        data.sort((a, b) => DateTime.parse(a['exp_date']).compareTo(DateTime.parse(b['exp_date'])));
+
         setState(() {
-          promoMedicines = json.decode(response.body);
+          promoMedicines = data;
+          filteredMedicines = data;
         });
       } else {
         print('Failed to load promo medicines. Status code: ${response.statusCode}');
@@ -36,82 +62,80 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
   }
 
   Future<void> setPromo(int inventoryId, String startDate, String endDate) async {
-  final prefs = await SharedPreferences.getInstance();
-  final staffId = prefs.getInt('staff_id');
+    final prefs = await SharedPreferences.getInstance();
+    final staffId = prefs.getInt('staff_id');
 
-  if (staffId == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Staff ID not found. Please log in again.')),
-    );
-    return;
-  }
+    if (staffId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Staff ID not found. Please log in again.')),
+      );
+      return;
+    }
 
-  final url = Uri.parse('http://10.0.2.2:8000/api/inventory/$inventoryId/set-promo/');
-  final response = await http.post(
-    url,
-    headers: {'Content-Type': 'application/json'},
-    body: jsonEncode({
-      'start_date': startDate,
-      'end_date': endDate,
-      'staff_id': staffId,
-    }),
-  );
-
-  if (response.statusCode == 200 || response.statusCode == 201) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Promo set!')),
-    );
-    fetchExpiringSoonMedicines(); // Refresh list
-  } else {
-    print('Failed to set promo: ${response.body}');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Error setting promo')),
-    );
-  }
-}
-
-
-Future<void> removePromo(int inventoryId) async {
-  final prefs = await SharedPreferences.getInstance();
-  final staffId = prefs.getInt('staff_id');
-
-  if (staffId == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Staff ID not found. Please log in again.')),
-    );
-    return;
-  }
-
-  final url = Uri.parse('http://10.0.2.2:8000/api/inventory/remove-promo/');
-  try {
+    final url = Uri.parse('http://10.0.2.2:8000/api/inventory/$inventoryId/set-promo/');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'inventory_id': inventoryId,
+        'start_date': startDate,
+        'end_date': endDate,
         'staff_id': staffId,
       }),
     );
 
-    if (response.statusCode == 200) {
+    if (response.statusCode == 200 || response.statusCode == 201) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Promo removed successfully')),
+        const SnackBar(content: Text('Promo set!')),
       );
       fetchExpiringSoonMedicines(); // Refresh list
     } else {
-      throw Exception('Failed to remove promo: ${response.body}');
+      print('Failed to set promo: ${response.body}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error setting promo')),
+      );
     }
-  } catch (e) {
-    print('Error removing promo: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Failed to remove promo')),
-    );
   }
-}
 
+  Future<void> removePromo(int inventoryId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final staffId = prefs.getInt('staff_id');
+
+    if (staffId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Staff ID not found. Please log in again.')),
+      );
+      return;
+    }
+
+    final url = Uri.parse('http://10.0.2.2:8000/api/inventory/remove-promo/');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'inventory_id': inventoryId,
+          'staff_id': staffId,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Promo removed successfully')),
+        );
+        fetchExpiringSoonMedicines(); // Refresh list
+      } else {
+        throw Exception('Failed to remove promo: ${response.body}');
+      }
+    } catch (e) {
+      print('Error removing promo: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to remove promo')),
+      );
+    }
+  }
 
   void showPromoDialog(int inventoryId, bool isPromoAlready) {
-    if (isPromoAlready) return; // Safety check — prevent dialog from opening
+    if (isPromoAlready) return;
 
     DateTime? selectedStartDate;
     DateTime? selectedEndDate;
@@ -200,96 +224,113 @@ Future<void> removePromo(int inventoryId) async {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Promo Medicines')),
-      body: promoMedicines.isEmpty
-          ? const Center(child: Text('No medicines eligible for promo.'))
-          : ListView.builder(
-              itemCount: promoMedicines.length,
-              itemBuilder: (context, index) {
-                final item = promoMedicines[index];
-                final isPromo = item['is_promo'] == true || item['is_promo'] == 1;
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: TextField(
+              controller: searchController,
+              decoration: InputDecoration(
+                labelText: 'Search medicine...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+          Expanded(
+            child: filteredMedicines.isEmpty
+                ? const Center(child: Text('No medicines eligible for promo.'))
+                : ListView.builder(
+                    itemCount: filteredMedicines.length,
+                    itemBuilder: (context, index) {
+                      final item = filteredMedicines[index];
+                      final isPromo = item['is_promo'] == true || item['is_promo'] == 1;
 
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF9C4),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFFFEE58)),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Left side
-                      Expanded(
-                        child: Column(
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF9C4),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFFFEE58)),
+                        ),
+                        child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              item['medicine_name'] ?? 'No Name',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.black,
+                            // Left side
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item['medicine_name'] ?? 'No Name',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text('${item['generic_name'] ?? 'N/A'}'),
+                                  Text('${item['batch_num'] ?? 'N/A'}'),
+                                  Text('${item['supplier_name'] ?? 'N/A'}'),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text('${item['generic_name'] ?? 'N/A'}'),
-                            Text('${item['batch_num'] ?? 'N/A'}'),
-                            Text('${item['supplier_name'] ?? 'N/A'}'),
+                            const SizedBox(width: 10),
+                            // Right side
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  item['quantity']?.toString() ?? '0',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${item['exp_date'] ?? 'N/A'}',
+                                  style: const TextStyle(color: Colors.orange),
+                                ),
+                                const SizedBox(height: 8),
+                                if (!isPromo)
+                                  ElevatedButton(
+                                    onPressed: () => showPromoDialog(item['id'], isPromo),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.yellow[700],
+                                      foregroundColor: Colors.black,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                    ),
+                                    child: const Text('Promo'),
+                                  )
+                                else
+                                  ElevatedButton(
+                                    onPressed: () => removePromo(item['id']),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                    ),
+                                    child: const Text('Remove Promo'),
+                                  ),
+                              ],
+                            ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      // Right side
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            item['quantity']?.toString() ?? '0',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${item['exp_date'] ?? 'N/A'}',
-                            style: const TextStyle(color: Colors.orange),
-                          ),
-                          const SizedBox(height: 8),
-                            if (!isPromo)
-                              ElevatedButton(
-                                onPressed: () => showPromoDialog(item['id'], isPromo),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.yellow[700],
-                                  foregroundColor: Colors.black,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                ),
-                                child: const Text('Promo'),
-                              )
-                            else
-                              ElevatedButton(
-                                onPressed: () => removePromo(item['id']),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                ),
-                                child: const Text('Remove Promo'),
-                              ),
-                        ],
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                );
-              },
-            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -9,7 +9,7 @@ from .views import GoodStockView, ExpiringSoonView, ExpiredView
 
 from .views import delete_expired_batch, remove_promo
 
-from .views import inventory_logs
+from .views import inventory_logs, PromoMedicineView
 
 urlpatterns = [
     # Authentication
@@ -68,5 +68,10 @@ urlpatterns = [
     path('sales/barcode/<str:barcode>/', views.get_item_by_barcode, name='get_item_by_barcode'),
     path('sales/process/', views.process_instore_order, name='process_instore_order'),
 
+    #Customer Promo View
+    path('medicine/promos/', PromoMedicineView.as_view(), name='promo-medicines'),
+
+    #Expired Medicines Deducts in Total Quantity
+    path('update-totals/', views.trigger_update_total_quantity),
 ]
 

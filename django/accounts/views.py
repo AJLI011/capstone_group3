@@ -14,6 +14,8 @@ from rest_framework import generics
 from datetime import date, timedelta
 from django.http import JsonResponse, HttpResponseNotFound
 from django.db.models import F
+from django.utils.timezone import now
+from django.core.management import call_command
 
 from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog
@@ -23,7 +25,7 @@ from .serializers import (
     InventoryDashboardSerializer, MedicineSerializer, 
     InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, 
     InventoryBatchDetailSerializer, TotalQuantitySerializer, InventoryLogSerializer,
-    InStoreOrderSerializer, MedicineInventorySerializer  # <- New serializer
+    InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer  # <- New serializer
 )
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
@@ -713,4 +715,32 @@ def process_instore_order(request):
 
     return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
+class PromoMedicineView(APIView):
+    def get(self, request):
+        today = now().date()
 
+        # Get all promo-active inventory batches
+        promo_batches = Inventory.objects.filter(
+            promo__start_date__lte=today,
+            promo__end_date__gte=today
+        ).select_related('medicine')
+
+        data = []
+        seen_medicine_ids = set()
+
+        for batch in promo_batches:
+            medicine = batch.medicine
+            if medicine.id not in seen_medicine_ids:
+                seen_medicine_ids.add(medicine.id)
+                data.append({
+                    'name': medicine.name,
+                    'generic_name': medicine.generic_name,
+                    'image': request.build_absolute_uri(medicine.image.url) if medicine.image else '',
+                    'price': float(medicine.price)
+                })
+
+        return Response(data)
+        
+def trigger_update_total_quantity(request):
+    call_command('update_total_quantities')
+    return JsonResponse({'status': 'success'})
