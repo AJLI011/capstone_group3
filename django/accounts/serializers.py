@@ -378,3 +378,16 @@ class PromoMedicineSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.medicine.image.url)
             return obj.medicine.image.url
         return None
+
+class CustomerMedicineSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Medicine
+        fields = ['id', 'name', 'generic_name', 'price', 'image']
+
+    def get_image(self, obj):
+        request = self.context.get('request')
+        if obj.image and hasattr(obj.image, 'url'):
+            return request.build_absolute_uri(obj.image.url)
+        return ""

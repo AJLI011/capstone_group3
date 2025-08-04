@@ -25,7 +25,7 @@ from .serializers import (
     InventoryDashboardSerializer, MedicineSerializer, 
     InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, 
     InventoryBatchDetailSerializer, TotalQuantitySerializer, InventoryLogSerializer,
-    InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer  # <- New serializer
+    InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer, CustomerMedicineSerializer  # <- New serializer
 )
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
@@ -744,3 +744,10 @@ class PromoMedicineView(APIView):
 def trigger_update_total_quantity(request):
     call_command('update_total_quantities')
     return JsonResponse({'status': 'success'})
+
+@api_view(['GET'])
+def get_customer_medicines(request):
+    inventory_items = TotalQuantity.objects.select_related('medicine').all()
+    medicines = [item.medicine for item in inventory_items]
+    serializer = CustomerMedicineSerializer(medicines, many=True, context={'request': request})
+    return Response(serializer.data)

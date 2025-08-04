@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../main.dart';
 import 'customer_features/promo_grid_view.dart';
+import 'customer_features/medicine_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CustomerView extends StatefulWidget {
@@ -104,14 +105,9 @@ class _CustomerViewState extends State<CustomerView> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> _views = [
-      const Center(
-        child: Text(
-          'No medicines available.',
-          style: TextStyle(fontSize: 18, color: Colors.grey),
-        ),
-      ),
-      const PromoView(),
-    ];
+    const MedicineView(),
+    const PromoView(),
+  ];
 
     return Scaffold(
       backgroundColor: Colors.white,
