@@ -74,7 +74,6 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
       );
 
       if (resp.statusCode != 201 && resp.statusCode != 200) {
-        // Non-fatal, but print for debugging in dev
         if (!mounted) return;
         debugPrint('Employee log POST failed: ${resp.statusCode} ${resp.body}');
       }
@@ -100,7 +99,6 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
       try {
         await _postEmployeeLog(staffIdToUse, 'logout');
       } catch (e) {
-        // ignore and continue with clearing prefs / navigation
         debugPrint('Error posting logout log: $e');
       }
 
@@ -115,7 +113,6 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
       );
     } catch (e) {
       debugPrint('Logout error: $e');
-      // still attempt to clear prefs and navigate away
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
       if (!mounted) return;
@@ -151,20 +148,19 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
     }
   }
 
-  // In admin_view.dart
+  // Open a page from the drawer; reload info if page returns true
   void _open(Widget page) async {
     _toggleMenu();
     final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-
-    // If the popped page sent a 'true' result, it means an update occurred
     if (result == true) {
-      _loadStaffInfo(); // Reload staff info from SharedPreferences
+      _loadStaffInfo();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final screenW = MediaQuery.of(context).size.width;
+    final screenH = MediaQuery.of(context).size.height;
 
     return WillPopScope(
       onWillPop: () async {
@@ -177,18 +173,59 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
       child: Scaffold(
         body: Stack(
           children: [
-            Scaffold(
-              appBar: AppBar(
-                title: const Text(''),
-                actions: [
-                  IconButton(
-                    icon: const Icon(Icons.menu),
-                    onPressed: _toggleMenu,
-                  ),
-                ],
+            // Main background and UI
+            Container(
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/admin_bg.jpg'),
+                  fit: BoxFit.cover,
+                ),
               ),
-              body: const Center(child: Text('Welcome, Admin')),
+              child: SafeArea(
+                child: Stack(
+                  children: [
+                    // Welcome text at top-left, slightly higher, black color
+                    Positioned(
+                      top: screenH * 0.06,
+                      left: 20,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Welcome,',
+                            style: TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          Text(
+                            staffName ?? '',
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Menu button top-right, visible without AppBar
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: IconButton(
+                        icon: const Icon(Icons.menu, color: Colors.black),
+                        onPressed: _toggleMenu,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
+
+            // Sliding drawer
             AnimatedBuilder(
               animation: _ctrl,
               builder: (_, __) {
