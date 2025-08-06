@@ -1,11 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
 import '../main.dart'; // ToggleLoginScreen
 import 'admin_features/customer/customer_management.dart';
 import 'admin_features/suppliers/supplier_list.dart';
 import 'admin_features/employees/employees_management.dart';
 import 'admin_features/edit_profile/edit_admin_profile.dart';
 import 'admin_features/change_password/change_admin_password.dart';
+import 'admin_features/employee_logs/employee_logs.dart';
+
+// Use dart-define to override in different environments
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000',
+);
 
 class AdminView extends StatefulWidget {
   final int staffId;
@@ -36,8 +46,8 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
   Future<void> _loadStaffInfo() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      staffName = prefs.getString('name') ?? 'Admin User'; // Default if name not found
-      staffEmail = prefs.getString('email') ?? 'no.email@example.com'; // Default if email not found
+      staffName = prefs.getString('name') ?? 'Admin User';
+      staffEmail = prefs.getString('email') ?? 'no.email@example.com';
       isLoading = false;
     });
   }
@@ -53,15 +63,68 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
     _isMenuOpen ? _ctrl.forward() : _ctrl.reverse();
   }
 
-  Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear(); // Clears all stored data, including name and email
+  // Helper to POST an employee log (login/logout)
+  Future<void> _postEmployeeLog(int staffId, String action) async {
+    try {
+      final url = Uri.parse('$API_BASE/api/employee-logs/');
+      final resp = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'staff': staffId, 'action': action}),
+      );
 
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const ToggleLoginScreen()),
-      (_) => false,
-    );
+      if (resp.statusCode != 201 && resp.statusCode != 200) {
+        // Non-fatal, but print for debugging in dev
+        if (!mounted) return;
+        debugPrint('Employee log POST failed: ${resp.statusCode} ${resp.body}');
+      }
+    } catch (e) {
+      debugPrint('Failed to send employee log: $e');
+    }
+  }
+
+  Future<void> _logout() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Try to get staffId from prefs first, otherwise fall back to widget.staffId
+      int staffIdToUse;
+      final int? prefsStaffId = prefs.getInt('staff_id');
+      if (prefsStaffId != null) {
+        staffIdToUse = prefsStaffId;
+      } else {
+        staffIdToUse = widget.staffId;
+      }
+
+      // Attempt to send logout log regardless of whether prefs had the id
+      try {
+        await _postEmployeeLog(staffIdToUse, 'logout');
+      } catch (e) {
+        // ignore and continue with clearing prefs / navigation
+        debugPrint('Error posting logout log: $e');
+      }
+
+      // Clear saved session
+      await prefs.clear();
+
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const ToggleLoginScreen()),
+        (_) => false,
+      );
+    } catch (e) {
+      debugPrint('Logout error: $e');
+      // still attempt to clear prefs and navigate away
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const ToggleLoginScreen()),
+        (_) => false,
+      );
+    }
   }
 
   Future<void> _confirmLogout() async {
@@ -84,12 +147,12 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
     );
 
     if (confirm == true) {
-      _logout();
+      await _logout();
     }
   }
 
   // In admin_view.dart
-  void _open(Widget page) async { // Make it async
+  void _open(Widget page) async {
     _toggleMenu();
     final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
 
@@ -150,7 +213,7 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  staffName ?? 'User Name', // Dynamically display staffName
+                                  staffName ?? 'User Name',
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
                                     fontSize: 20,
@@ -158,7 +221,7 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
                                   ),
                                 ),
                                 Text(
-                                  staffEmail ?? 'user.email@example.com', // Dynamically display staffEmail
+                                  staffEmail ?? 'user.email@example.com',
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(color: Colors.grey),
                                 ),
@@ -177,7 +240,8 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
                                             () => _open(EditAdminProfilePage(staffId: widget.staffId))),
                                         _drawerItem(Icons.lock, 'Change Password',
                                             () => _open(ChangeAdminPasswordPage(staffId: widget.staffId))),
-                                        _drawerItem(Icons.list_alt, 'Employees Logs', () {}),
+                                        _drawerItem(Icons.list_alt, 'Employees Logs',
+                                            () => _open(const EmployeeLogsPage())),
                                       ],
                                     ),
                                   ),

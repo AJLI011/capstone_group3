@@ -12,8 +12,21 @@ import 'manager_features/inventory/inventory_grid_screen.dart'; // inventory
 
 import 'manager_features/return_medicines/return_page.dart';
 import 'manager_features/promo_medicines/promo_page.dart';
-
 import 'manager_features/inventory_logs/inventory_logs_page.dart';
+
+
+
+
+
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+// Use dart-define to override in different environments
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000',
+);
+
 
 class ManagerView extends StatefulWidget {
   final int staffId;
@@ -61,15 +74,66 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
     _isMenuOpen ? _ctrl.forward() : _ctrl.reverse();
   }
 
-  Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+      // Helper to POST an employee log (login/logout)
+  Future<void> _postEmployeeLog(int staffId, String action) async {
+      try {
+        final url = Uri.parse('$API_BASE/api/employee-logs/');
+        final resp = await http.post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'staff': staffId, 'action': action}),
+        );
 
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const ToggleLoginScreen()),
-      (_) => false,
-    );
+        if (resp.statusCode != 201 && resp.statusCode != 200) {
+          if (!mounted) return;
+          debugPrint('Employee log POST failed: ${resp.statusCode} ${resp.body}');
+        }
+      } catch (e) {
+        debugPrint('Failed to send employee log: $e');
+      }
+    }
+
+  Future<void> _logout() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Get staff id from prefs if present, otherwise fall back to widget.staffId
+      int staffIdToUse;
+      final int? prefsStaffId = prefs.getInt('staff_id');
+      if (prefsStaffId != null) {
+        staffIdToUse = prefsStaffId;
+      } else {
+        staffIdToUse = widget.staffId;
+      }
+
+      // Try to send logout log, do not block navigation if it fails
+      try {
+        await _postEmployeeLog(staffIdToUse, 'logout');
+      } catch (e) {
+        debugPrint('Error posting logout log: $e');
+      }
+
+      // Clear saved session
+      await prefs.clear();
+
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const ToggleLoginScreen()),
+        (_) => false,
+      );
+    } catch (e) {
+      debugPrint('Logout error: $e');
+      // still attempt to clear prefs and navigate away
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const ToggleLoginScreen()),
+        (_) => false,
+      );
+    }
   }
 
   Future<void> _confirmLogout() async {

@@ -5,7 +5,7 @@ import 'login_function/login_customer.dart';
 import 'login_function/login_staff.dart';
 
 import 'role_views/admin_view.dart';
-import 'role_views/manager_view.dart'; // Make sure this is the updated ManagerView
+import 'role_views/manager_view.dart';
 import 'role_views/cashier_view.dart';
 import 'role_views/staff_view.dart';
 import 'role_views/customer_view.dart';
@@ -30,13 +30,16 @@ Future<Widget> _getStartScreen() async {
         if (staffId != null) return AdminView(staffId: staffId);
         break;
       case 'manager':
-        // --- FIX IS HERE ---
-        if (staffId != null) { // Ensure staffId is not null before passing
+        if (staffId != null) {
           return ManagerView(staffId: staffId);
         }
         break;
       case 'cashier':
-        return const CashierView();
+        // FIX IS HERE: Check for staffId and pass it to the CashierView
+        if (staffId != null) {
+          return CashierView(staffId: staffId);
+        }
+        break;
       case 'staff':
         if (staffId != null) return StaffView(staffId: staffId);
         break;
@@ -94,7 +97,7 @@ class _ToggleLoginScreenState extends State<ToggleLoginScreen> {
             ],
           ),
           Expanded(
-            child: showCustomerLogin ? LoginCustomer() : LoginStaff(),
+            child: showCustomerLogin ? const LoginCustomer() : const LoginStaff(),
           ),
         ],
       ),

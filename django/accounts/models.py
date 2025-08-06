@@ -176,3 +176,23 @@ class InStoreOrderItem(models.Model):
 
     def __str__(self):
         return f"{self.inventory_id.medicine.name} - {self.quantity_sold} sold"
+
+#Model for Employee Log
+class EmployeeLog(models.Model):
+    ACTION_CHOICES = [
+        ('login', 'Login'),
+        ('logout', 'Logout'),
+    ]
+
+    staff = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, related_name='logs')
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+
+    class Meta:
+        db_table = 'employee_logs'
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        staff_str = self.staff.email if self.staff else 'Unknown staff'
+        return f"{staff_str} - {self.action} at {self.timestamp}"

@@ -18,15 +18,17 @@ from django.utils.timezone import now
 from django.core.management import call_command
 
 from .models import (
-    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog
+    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog
 )
 from .serializers import (
     CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer,
     InventoryDashboardSerializer, MedicineSerializer, 
     InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, 
     InventoryBatchDetailSerializer, TotalQuantitySerializer, InventoryLogSerializer,
-    InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer, CustomerMedicineSerializer  # <- New serializer
+    InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer, CustomerMedicineSerializer,
+    EmployeeLogSerializer,
 )
+
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
@@ -715,6 +717,8 @@ def process_instore_order(request):
 
     return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
+#----------Customer Side Mainview----------------
+
 class PromoMedicineView(APIView):
     def get(self, request):
         today = now().date()
@@ -751,3 +755,19 @@ def get_customer_medicines(request):
     medicines = [item.medicine for item in inventory_items]
     serializer = CustomerMedicineSerializer(medicines, many=True, context={'request': request})
     return Response(serializer.data)
+
+
+#----------Employee Logs Views-------
+@api_view(['GET', 'POST'])
+def employee_logs_view(request):
+    if request.method == 'GET':
+        logs = EmployeeLog.objects.all()
+        serializer = EmployeeLogSerializer(logs, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = EmployeeLogSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, InStoreOrder, InStoreOrderItem
+from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, InStoreOrder, InStoreOrderItem, EmployeeLog
 
 from django.contrib.auth.hashers import make_password
 from decimal import Decimal
@@ -391,3 +391,17 @@ class CustomerMedicineSerializer(serializers.ModelSerializer):
         if obj.image and hasattr(obj.image, 'url'):
             return request.build_absolute_uri(obj.image.url)
         return ""
+    
+#Employee Logs serializer
+class EmployeeLogSerializer(serializers.ModelSerializer):
+    # Accept staff ID on write
+    staff = serializers.PrimaryKeyRelatedField(queryset=Staff.objects.all(), write_only=True)
+
+    # Expose readable fields for the response
+    staff_name = serializers.CharField(source='staff.name', read_only=True)
+    staff_role = serializers.CharField(source='staff.role', read_only=True)
+
+    class Meta:
+        model = EmployeeLog
+        fields = ['id', 'staff', 'staff_name', 'staff_role', 'action', 'timestamp']
+        read_only_fields = ['id', 'staff_name', 'staff_role', 'timestamp']

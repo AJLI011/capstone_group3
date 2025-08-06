@@ -1,14 +1,10 @@
 from django.urls import path
 from . import views
 from .views import medicine_list, medicine_detail
-# Import only the CreateView for adding new inventory entries
-from .views import InventoryCreateView # Changed from ExpirationListCreateView
-from .views import get_inventory_list # Added explicit import for get_inventory_list
-
+from .views import InventoryCreateView
+from .views import get_inventory_list
 from .views import GoodStockView, ExpiringSoonView, ExpiredView
-
 from .views import delete_expired_batch, remove_promo, get_customer_medicines
-
 from .views import inventory_logs, PromoMedicineView
 
 urlpatterns = [
@@ -76,5 +72,8 @@ urlpatterns = [
 
     #Expired Medicines Deducts in Total Quantity
     path('update-totals/', views.trigger_update_total_quantity),
+    
+    #employee logs
+    path('employee-logs/', views.employee_logs_view, name='employee-logs'),
 ]
 
