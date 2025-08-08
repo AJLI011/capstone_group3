@@ -380,6 +380,8 @@ class PromoMedicineSerializer(serializers.ModelSerializer):
             return obj.medicine.image.url
         return None
 
+
+#Normal medicine 
 class CustomerMedicineSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
 
@@ -404,6 +406,7 @@ class CustomerMedicineDetailSerializer(serializers.ModelSerializer):
             'id',
             'name',
             'generic_name',
+            'dosage_form',
             'price',
             'image',
             'requires_prescription',

@@ -746,6 +746,8 @@ def trigger_update_total_quantity(request):
     call_command('update_total_quantities')
     return JsonResponse({'status': 'success'})
 
+
+#For Normal Medicine
 @api_view(['GET'])
 def get_customer_medicines(request):
     inventory_items = TotalQuantity.objects.select_related('medicine').all()

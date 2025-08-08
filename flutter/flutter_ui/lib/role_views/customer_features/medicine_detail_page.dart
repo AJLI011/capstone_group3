@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'cart_service.dart'; // import the service
+import 'checkout_page.dart';
 
 class MedicineDetailPage extends StatefulWidget {
   final int medicineId;
@@ -165,21 +167,40 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
 
                     const SizedBox(height: 16),
 
-                    // Add to cart button
+                                        // Add to cart button
+                                        // Add to cart button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: medicineData!['quantity'] > 0
                             ? () {
-                                // TODO: Implement Add to Cart API call
+                                CartService().addToCart(
+                                  CartItem(
+                                    id: medicineData!['id'],
+                                    name: medicineData!['name'],
+                                    genericName: medicineData!['generic_name'],
+                                    dosageForm: medicineData!['dosage_form'] ?? "Unknown",
+                                    image: medicineData!['image'],
+                                    price: double.parse(medicineData!['price'].toString()),
+                                    quantity: selectedQuantity,
+                                  ),
+                                );
+
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text('Added to cart')),
+                                );
+
+                                // Navigate to checkout
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const CheckoutPage()),
                                 );
                               }
                             : null,
                         child: const Text("Add to Cart"),
                       ),
-                    ),
+                    )
+
                   ],
                 ),
               ),
