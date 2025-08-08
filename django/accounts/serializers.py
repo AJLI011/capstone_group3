@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, InStoreOrder, InStoreOrderItem, EmployeeLog
+from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog
 
 from django.contrib.auth.hashers import make_password
 from decimal import Decimal
@@ -442,3 +442,14 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 f"Failed to process order: {str(e)}"
             )
+
+#order logs (wala pa yung online order here)
+# Model for Order Logs
+class OrderLogSerializer(serializers.ModelSerializer):
+    staff_name = serializers.CharField(source='staff_user.name', read_only=True)
+    staff_role = serializers.CharField(source='staff_user.role', read_only=True)
+    
+    class Meta:
+        model = OrderLog
+        fields = ['id', 'staff_name', 'staff_role', 'in_store_order', 'action_type', 'description', 'timestamp']
+        read_only_fields = ['id', 'staff_name', 'staff_role', 'timestamp']

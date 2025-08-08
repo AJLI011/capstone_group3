@@ -19,7 +19,7 @@ from django.core.management import call_command
 from django.db import transaction
 
 from .models import (
-    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem,
+    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog
 )
 from .serializers import (
     CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer,
@@ -27,7 +27,7 @@ from .serializers import (
     InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, 
     InventoryBatchDetailSerializer, TotalQuantitySerializer, InventoryLogSerializer,
     InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer, CustomerMedicineSerializer,
-    EmployeeLogSerializer, CashierInStoreOrderSerializer, InStoreOrderItemSerializer
+    EmployeeLogSerializer, CashierInStoreOrderSerializer, InStoreOrderItemSerializer, OrderLogSerializer
 )
 
 
@@ -699,26 +699,6 @@ def get_item_by_barcode(request, barcode):
     
     return Response(serializer.data, status=status.HTTP_200_OK)
 
-@api_view(['POST'])
-def process_instore_order(request):
-    serializer = InStoreOrderSerializer(data=request.data)
-    if serializer.is_valid():
-        try:
-            order = serializer.save()
-            return Response({
-                "message": "Order processed successfully",
-                "order_id": order.id,
-                "total_before_discount": float(order.total_amount_before_discount),
-                "total_after_discount": float(order.total_amount_after_discount),
-            }, status=status.HTTP_201_CREATED)
-        except serializers.ValidationError as e:
-            return Response({"error": e.detail}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            # Log the error for backend debugging
-            print(f"[PROCESS ORDER ERROR] {e}")
-            return Response({"error": f"Failed to process order: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-
-    return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 #----------Customer Side Mainview----------------
 
@@ -776,6 +756,8 @@ def employee_logs_view(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 #------------ PENDING ORDER----------
+#----------ORDER LOGS PT 1 - FOR CASHER (INSTORE)---------
+#modified some parts of the pending order view for the order logs
 class InStoreOrderProcessingView(APIView):
     def get(self, request):
         """
@@ -797,47 +779,109 @@ class InStoreOrderProcessingView(APIView):
             return Response({'error': 'Pending order not found'}, status=status.HTTP_404_NOT_FOUND)
 
         new_status = request.data.get('status')
-        cashier_id = request.data.get('cashier_id')
+        staff_id = request.data.get('cashier_id') # We will rename this to staff_id to be more consistent
         
         if not new_status or new_status not in ['approved', 'rejected']:
             return Response({'error': 'Invalid status provided'}, status=status.HTTP_400_BAD_REQUEST)
         
+        try:
+            staff_user = Staff.objects.get(id=staff_id)
+        except Staff.DoesNotExist:
+            return Response({'error': f'Staff member with ID {staff_id} not found'}, status=status.HTTP_404_NOT_FOUND)
+        
         if new_status == 'approved':
             try:
                 with transaction.atomic():
-                    # Deduct from inventory and create log entries
                     order_items = InStoreOrderItem.objects.filter(order=order)
                     for item in order_items:
                         total_to_deduct = item.quantity_sold + item.free_quantity_given
                         batch = item.inventory_id
                         
-                        # Use F expressions to prevent race conditions
                         batch.quantity = F('quantity') - total_to_deduct
                         batch.save(update_fields=['quantity'])
                         
-                        # Create an InventoryLog for the sale
-                        cashier_user = Staff.objects.get(id=cashier_id)
+                        # Existing InventoryLog is here
                         InventoryLog.objects.create(
-                            user=cashier_user,
+                            user=staff_user,
                             medicine=batch.medicine,
                             action_type='Sold',
                             description=f"Approved sale of {total_to_deduct} units "
                                         f"of {batch.medicine.name} (Batch: {batch.batch_num}) "
                                         f"from In-Store Order #{order.id}."
                         )
-                    
-                    # Update the order status to approved
+
+                    # NEW: Create a log entry for the approved order
+                    OrderLog.objects.create(
+                        staff_user=staff_user,
+                        in_store_order=order,
+                        action_type='approve',
+                        description='Sale transaction approved'
+                    )
+
                     order.status = 'approved'
                     order.save(update_fields=['status'])
                     
                     return Response({'message': 'Order approved and inventory updated'}, status=status.HTTP_200_OK)
             
-            except Staff.DoesNotExist:
-                return Response({'error': f'Cashier with ID {cashier_id} not found'}, status=status.HTTP_404_NOT_FOUND)
             except Exception as e:
                 return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         elif new_status == 'rejected':
+            # NEW: Create a log entry for the rejected order
+            OrderLog.objects.create(
+                staff_user=staff_user,
+                in_store_order=order,
+                action_type='reject',
+                description='Sale transaction rejected'
+            )
             order.status = 'rejected'
             order.save(update_fields=['status'])
             return Response({'message': 'Order rejected'}, status=status.HTTP_200_OK)
+
+#----------ORDER LOGS PT 2 - FOR STAFF (INSTORE)---------
+@api_view(['POST'])
+def process_instore_order(request):
+    serializer = InStoreOrderSerializer(data=request.data)
+    if serializer.is_valid():
+        try:
+            # First, save the order as you did before
+            order = serializer.save()
+
+            # Now, get the staff user ID from the request data
+            staff_id = request.data.get('staff')  # The serializer uses 'staff'
+            staff_user = Staff.objects.get(id=staff_id)
+            
+            # Create a log entry for the 'initiate sale' action
+            OrderLog.objects.create(
+                staff_user=staff_user,
+                in_store_order=order,
+                action_type='initiate_sale',
+                description='Sale submitted for approval'
+            )
+
+            return Response({
+                "message": "Order processed successfully",
+                "order_id": order.id,
+                "total_before_discount": float(order.total_amount_before_discount),
+                "total_after_discount": float(order.total_amount_after_discount),
+            }, status=status.HTTP_201_CREATED)
+        except Staff.DoesNotExist:
+            return Response({"error": "Staff member not found."}, status=status.HTTP_404_NOT_FOUND)
+        except serializers.ValidationError as e:
+            return Response({"error": e.detail}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            # Log the error for backend debugging
+            print(f"[PROCESS ORDER ERROR] {e}")
+            return Response({"error": f"Failed to process order: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+#------------------ ORDER LOGS VIEW -------------------
+@api_view(['GET'])
+def order_logs_list_view(request):
+    """
+    API endpoint to retrieve all order logs.
+    """
+    logs = OrderLog.objects.all().order_by('-timestamp')
+    serializer = OrderLogSerializer(logs, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)

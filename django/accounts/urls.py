@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views import medicine_list, medicine_detail
+from .views import medicine_list, medicine_detail, order_logs_list_view
 from .views import InventoryCreateView
 from .views import get_inventory_list
 from .views import GoodStockView, ExpiringSoonView, ExpiredView
@@ -79,5 +79,8 @@ urlpatterns = [
     #pending order
     path('sales/pending-orders/', views.InStoreOrderProcessingView.as_view(), name='pending-orders'),
     path('sales/pending-orders/<int:order_id>/', views.InStoreOrderProcessingView.as_view(), name='process-pending-order'),
+    
+    # Order Logs
+    path('order-logs/', views.order_logs_list_view, name='order-logs'),
 ]
 

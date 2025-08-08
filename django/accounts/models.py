@@ -202,4 +202,24 @@ class EmployeeLog(models.Model):
     def __str__(self):
         staff_str = self.staff.email if self.staff else 'Unknown staff'
         return f"{staff_str} - {self.action} at {self.timestamp}"
+
+# Model for Order Logs
+class OrderLog(models.Model):
+    ACTION_CHOICES = [
+        ('initiate_sale', 'Initiate Sale (In-store)'),
+        ('approve', 'Approve'),
+        ('reject', 'Reject'),
+    ]
+
+    staff_user = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, blank=True, related_name='order_logs')
+    in_store_order = models.ForeignKey('InStoreOrder', on_delete=models.CASCADE, related_name='logs')
+    action_type = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    description = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
     
+    class Meta:
+        db_table = 'order_logs'
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"OrderLog - {self.action_type} for Order #{self.in_store_order.id} by {self.staff_user.name}"
