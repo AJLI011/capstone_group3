@@ -6,6 +6,7 @@ from decimal import Decimal
 from datetime import date
 from django.db import transaction
 from django.db.models import F
+from django.db.models import Sum
 
 
 
@@ -391,3 +392,39 @@ class CustomerMedicineSerializer(serializers.ModelSerializer):
         if obj.image and hasattr(obj.image, 'url'):
             return request.build_absolute_uri(obj.image.url)
         return ""
+    
+class CustomerMedicineDetailSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+    quantity = serializers.SerializerMethodField()
+    stock_status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Medicine
+        fields = [
+            'id',
+            'name',
+            'generic_name',
+            'price',
+            'image',
+            'requires_prescription',
+            'quantity',
+            'stock_status'
+        ]
+
+    def get_image(self, obj):
+        request = self.context.get('request')
+        if obj.image and hasattr(obj.image, 'url'):
+            return request.build_absolute_uri(obj.image.url)
+        return ""
+
+    def get_quantity(self, obj):
+        # local import of Inventory avoids circular import problems
+        from .models import Inventory
+        total = Inventory.objects.filter(
+            medicine=obj,
+            is_promo=False
+        ).aggregate(total=Sum('quantity'))['total']
+        return total or 0
+
+    def get_stock_status(self, obj):
+        return "In Stock" if self.get_quantity(obj) > 0 else "Out of Stock"
