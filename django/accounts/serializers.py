@@ -322,13 +322,12 @@ class InStoreOrderItemSerializer(serializers.ModelSerializer):
 
 
 class CashierInStoreOrderSerializer(serializers.ModelSerializer):
-    items = InStoreOrderItemSerializer(many=True, read_only=True, source='instoreorderitem_set')
+    items = InStoreOrderItemSerializer(many=True, read_only=True)
     staff_name = serializers.CharField(source='staff.name', read_only=True)
 
     class Meta:
         model = InStoreOrder
         fields = ['id', 'staff_name', 'is_pwd', 'total_amount_before_discount', 'total_amount_after_discount', 'items']
-
 class InStoreOrderSerializer(serializers.ModelSerializer):
     # This now expects a list of items with medicine_id and total quantity
     items = FEFOOrderItemSerializer(many=True)

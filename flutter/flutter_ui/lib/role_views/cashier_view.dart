@@ -6,6 +6,7 @@ import 'dart:convert';
 import '../main.dart'; // ToggleLoginScreen
 import 'cashier_features/edit_profile/edit_cashier_profile.dart'; // Import for the new page
 import 'cashier_features/change_password/change_cashier_password.dart'; // Import for the new page
+import 'cashier_features/pending_orders/pending_orders.dart'; 
 
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
@@ -226,8 +227,7 @@ class _CashierViewState extends State<CashierView> with SingleTickerProviderStat
                                   child: SingleChildScrollView(
                                     child: Column(
                                       children: [
-                                        _drawerItem(
-                                            Icons.assignment, 'Pending Orders', () => {}),
+                                        _drawerItem(Icons.assignment, 'Pending Orders', () => _open(PendingOrdersScreen(cashierId: widget.staffId))),
                                         _drawerItem(Icons.store, 'Online Orders',
                                             () => {}),
                                         _drawerItem(Icons.shopping_bag, 'In-store Sales Transaction',
@@ -238,7 +238,7 @@ class _CashierViewState extends State<CashierView> with SingleTickerProviderStat
                                             () => _open(EditCashierProfilePage(staffId: widget.staffId))),
                                         _drawerItem(Icons.lock, 'Change Password',
                                             () => _open(ChangeCashierPasswordPage(staffId: widget.staffId))),
-                                      
+                                        
                                       ],
                                     ),
                                   ),

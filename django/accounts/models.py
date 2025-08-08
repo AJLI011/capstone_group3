@@ -203,12 +203,3 @@ class EmployeeLog(models.Model):
         staff_str = self.staff.email if self.staff else 'Unknown staff'
         return f"{staff_str} - {self.action} at {self.timestamp}"
     
-
-#Model for pending orders feature
-
-
-
-
-
-
-

@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 from rest_framework import generics
 from datetime import date, timedelta
 from django.http import JsonResponse, HttpResponseNotFound
-from django.db.models import F
+from django.db.models import F, Prefetch
 from django.utils.timezone import now
 from django.core.management import call_command
 from django.db import transaction
@@ -27,8 +27,9 @@ from .serializers import (
     InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, 
     InventoryBatchDetailSerializer, TotalQuantitySerializer, InventoryLogSerializer,
     InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer, CustomerMedicineSerializer,
-    EmployeeLogSerializer, CashierInStoreOrderSerializer,
+    EmployeeLogSerializer, CashierInStoreOrderSerializer, InStoreOrderItemSerializer
 )
+
 
 
 
@@ -780,7 +781,9 @@ class InStoreOrderProcessingView(APIView):
         """
         Get all orders that are pending cashier approval.
         """
-        pending_orders = InStoreOrder.objects.filter(status='pending')
+        pending_orders = InStoreOrder.objects.filter(status='pending').select_related('staff').prefetch_related(
+            Prefetch('items', queryset=InStoreOrderItem.objects.select_related('inventory_id__medicine'))
+        )
         serializer = CashierInStoreOrderSerializer(pending_orders, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
