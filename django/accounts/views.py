@@ -16,6 +16,7 @@ from django.http import JsonResponse, HttpResponseNotFound
 from django.db.models import F
 from django.utils.timezone import now
 from django.core.management import call_command
+from django.shortcuts import get_object_or_404
 
 from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog
@@ -25,7 +26,7 @@ from .serializers import (
     InventoryDashboardSerializer, MedicineSerializer, 
     InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, 
     InventoryBatchDetailSerializer, TotalQuantitySerializer, InventoryLogSerializer,
-    InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer, CustomerMedicineSerializer  # <- New serializer
+    InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer, CustomerMedicineSerializer, CustomerMedicineDetailSerializer # <- New serializer
 )
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
@@ -750,4 +751,10 @@ def get_customer_medicines(request):
     inventory_items = TotalQuantity.objects.select_related('medicine').all()
     medicines = [item.medicine for item in inventory_items]
     serializer = CustomerMedicineSerializer(medicines, many=True, context={'request': request})
+    return Response(serializer.data)
+
+@api_view(['GET'])
+def get_customer_medicine_detail(request, pk):
+    medicine = get_object_or_404(Medicine, pk=pk)
+    serializer = CustomerMedicineDetailSerializer(medicine, context={'request': request})
     return Response(serializer.data)
