@@ -9,7 +9,7 @@ from .views import GoodStockView, ExpiringSoonView, ExpiredView
 
 from .views import delete_expired_batch, remove_promo, get_customer_medicines
 
-from .views import inventory_logs, PromoMedicineView
+from .views import inventory_logs, PromoMedicineView, get_customer_medicine_detail
 
 urlpatterns = [
     # Authentication
@@ -73,6 +73,7 @@ urlpatterns = [
 
     # Customer Medicine View
     path('customer/medicines/', get_customer_medicines),
+    path('customer/medicines/<int:pk>/', get_customer_medicine_detail),
 
     #Expired Medicines Deducts in Total Quantity
     path('update-totals/', views.trigger_update_total_quantity),
