@@ -16,9 +16,10 @@ from django.http import JsonResponse, HttpResponseNotFound
 from django.db.models import F
 from django.utils.timezone import now
 from django.core.management import call_command
+from django.db import transaction
 
 from .models import (
-    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog
+    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem,
 )
 from .serializers import (
     CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer,
@@ -26,8 +27,9 @@ from .serializers import (
     InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, 
     InventoryBatchDetailSerializer, TotalQuantitySerializer, InventoryLogSerializer,
     InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer, CustomerMedicineSerializer,
-    EmployeeLogSerializer,
+    EmployeeLogSerializer, CashierInStoreOrderSerializer,
 )
+
 
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
@@ -771,3 +773,68 @@ def employee_logs_view(request):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+#------------ PENDING ORDER----------
+class InStoreOrderProcessingView(APIView):
+    def get(self, request):
+        """
+        Get all orders that are pending cashier approval.
+        """
+        pending_orders = InStoreOrder.objects.filter(status='pending')
+        serializer = CashierInStoreOrderSerializer(pending_orders, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, order_id):
+        """
+        Approve or Reject an order.
+        """
+        try:
+            order = InStoreOrder.objects.get(id=order_id, status='pending')
+        except InStoreOrder.DoesNotExist:
+            return Response({'error': 'Pending order not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        new_status = request.data.get('status')
+        cashier_id = request.data.get('cashier_id')
+        
+        if not new_status or new_status not in ['approved', 'rejected']:
+            return Response({'error': 'Invalid status provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if new_status == 'approved':
+            try:
+                with transaction.atomic():
+                    # Deduct from inventory and create log entries
+                    order_items = InStoreOrderItem.objects.filter(order=order)
+                    for item in order_items:
+                        total_to_deduct = item.quantity_sold + item.free_quantity_given
+                        batch = item.inventory_id
+                        
+                        # Use F expressions to prevent race conditions
+                        batch.quantity = F('quantity') - total_to_deduct
+                        batch.save(update_fields=['quantity'])
+                        
+                        # Create an InventoryLog for the sale
+                        cashier_user = Staff.objects.get(id=cashier_id)
+                        InventoryLog.objects.create(
+                            user=cashier_user,
+                            medicine=batch.medicine,
+                            action_type='Sold',
+                            description=f"Approved sale of {total_to_deduct} units "
+                                        f"of {batch.medicine.name} (Batch: {batch.batch_num}) "
+                                        f"from In-Store Order #{order.id}."
+                        )
+                    
+                    # Update the order status to approved
+                    order.status = 'approved'
+                    order.save(update_fields=['status'])
+                    
+                    return Response({'message': 'Order approved and inventory updated'}, status=status.HTTP_200_OK)
+            
+            except Staff.DoesNotExist:
+                return Response({'error': f'Cashier with ID {cashier_id} not found'}, status=status.HTTP_404_NOT_FOUND)
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        elif new_status == 'rejected':
+            order.status = 'rejected'
+            order.save(update_fields=['status'])
+            return Response({'message': 'Order rejected'}, status=status.HTTP_200_OK)

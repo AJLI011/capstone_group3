@@ -153,9 +153,15 @@ class InStoreOrder(models.Model):
     class Meta:
         db_table = 'in_store_orders_tbl'
 
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+
     staff = models.ForeignKey('Staff', on_delete=models.CASCADE)
     date_created = models.DateTimeField(auto_now_add=True)
-    is_completed = models.BooleanField(default=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     is_pwd = models.BooleanField(default=False)
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total_amount_after_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -196,3 +202,13 @@ class EmployeeLog(models.Model):
     def __str__(self):
         staff_str = self.staff.email if self.staff else 'Unknown staff'
         return f"{staff_str} - {self.action} at {self.timestamp}"
+    
+
+#Model for pending orders feature
+
+
+
+
+
+
+

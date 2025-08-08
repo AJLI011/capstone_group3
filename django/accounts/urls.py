@@ -75,5 +75,9 @@ urlpatterns = [
     
     #employee logs
     path('employee-logs/', views.employee_logs_view, name='employee-logs'),
+    
+    #pending order
+    path('sales/pending-orders/', views.InStoreOrderProcessingView.as_view(), name='pending-orders'),
+    path('sales/pending-orders/<int:order_id>/', views.InStoreOrderProcessingView.as_view(), name='process-pending-order'),
 ]
 
