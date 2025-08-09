@@ -3,6 +3,7 @@ import '../main.dart';
 import 'customer_features/promo_grid_view.dart';
 import 'customer_features/medicine_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'customer_features/checkout_page.dart';
 
 class CustomerView extends StatefulWidget {
   const CustomerView({Key? key}) : super(key: key);
@@ -28,15 +29,12 @@ class _CustomerViewState extends State<CustomerView> {
     });
   }
 
-  void _onItemTapped(int index) {
-    if (index == 2) {
-      // Ignore tap on "Check Out" for now
-      return;
-    }
+    void _onItemTapped(int index) {
     setState(() {
       _currentIndex = index;
     });
   }
+
 
   Future<void> logout(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
@@ -107,6 +105,7 @@ class _CustomerViewState extends State<CustomerView> {
     final List<Widget> _views = [
     const MedicineView(),
     const PromoView(),
+    const CheckoutPage(),
   ];
 
     return Scaffold(

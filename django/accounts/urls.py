@@ -9,7 +9,7 @@ from .views import GoodStockView, ExpiringSoonView, ExpiredView
 
 from .views import delete_expired_batch, remove_promo, get_customer_medicines
 
-from .views import inventory_logs, PromoMedicineView, get_customer_medicine_detail
+from .views import inventory_logs, PromoMedicineView, PromoMedicineDetailView, get_customer_medicine_detail
 
 urlpatterns = [
     # Authentication
@@ -70,6 +70,7 @@ urlpatterns = [
 
     #Customer Promo View
     path('medicine/promos/', PromoMedicineView.as_view(), name='promo-medicines'),
+    path('medicine/promos/<int:pk>/', PromoMedicineDetailView.as_view(), name='promo-medicine-detail'),
 
     # Customer Medicine View
     path('customer/medicines/', get_customer_medicines),

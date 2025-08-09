@@ -7,6 +7,7 @@ from datetime import date
 from django.db import transaction
 from django.db.models import F
 from django.db.models import Sum
+from django.utils.timezone import now
 
 
 
@@ -363,6 +364,7 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
 
 # Customer Promo Medicines View
 class PromoMedicineSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source='medicine.id', read_only=True)
     name = serializers.CharField(source='medicine.name', read_only=True)
     generic_name = serializers.CharField(source='medicine.generic_name', read_only=True)
     price = serializers.DecimalField(source='medicine.price', max_digits=8, decimal_places=2, read_only=True)
@@ -370,7 +372,7 @@ class PromoMedicineSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Inventory
-        fields = ['name', 'generic_name', 'image', 'price']
+        fields = ['id, name', 'generic_name', 'image', 'price']
 
     def get_image(self, obj):
         request = self.context.get('request', None)
@@ -379,6 +381,70 @@ class PromoMedicineSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.medicine.image.url)
             return obj.medicine.image.url
         return None
+    
+class CustomerPromoMedicineDetailSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+    quantity = serializers.SerializerMethodField()
+    stock_status = serializers.SerializerMethodField()
+    start_date = serializers.SerializerMethodField()
+    end_date = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Medicine
+        fields = [
+            'id',
+            'name',
+            'generic_name',
+            'dosage_form',
+            'price',
+            'image',
+            'requires_prescription',
+            'quantity',
+            'stock_status',
+            'start_date',
+            'end_date',
+        ]
+
+    def get_image(self, obj):
+        request = self.context.get('request')
+        if obj.image and hasattr(obj.image, 'url'):
+            return request.build_absolute_uri(obj.image.url)
+        return ""
+
+    def get_quantity(self, obj):
+        from .models import Inventory
+        # sum only promo inventory batches of this medicine
+        total = Inventory.objects.filter(
+            medicine=obj,
+            is_promo=True
+        ).aggregate(total=Sum('quantity'))['total']
+        return total or 0
+
+    def get_stock_status(self, obj):
+        return "In Stock" if self.get_quantity(obj) > 0 else "Out of Stock"
+
+    def get_start_date(self, obj):
+        from .models import Promo
+        # find earliest start_date of active promos for this medicine's promo inventories
+        promos = Promo.objects.filter(
+            inventory_id__medicine=obj,
+            inventory_id__is_promo=True,
+            end_date__gte=now().date()  # promo is still active
+        ).order_by('start_date')
+        if promos.exists():
+            return promos.first().start_date
+        return None
+
+    def get_end_date(self, obj):
+        from .models import Promo
+        promos = Promo.objects.filter(
+            inventory_id__medicine=obj,
+            inventory_id__is_promo=True,
+            end_date__gte=now().date()
+        ).order_by('end_date')
+        if promos.exists():
+            return promos.last().end_date
+        return None    
 
 
 #Normal medicine 

@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'cart_service.dart'; // import the service
+import 'cart_service.dart'; // your existing service
 import 'checkout_page.dart';
 
-class MedicineDetailPage extends StatefulWidget {
+class PromoMedicineDetailPage extends StatefulWidget {
   final int medicineId;
-  const MedicineDetailPage({super.key, required this.medicineId});
+  const PromoMedicineDetailPage({super.key, required this.medicineId});
 
   @override
-  State<MedicineDetailPage> createState() => _MedicineDetailPageState();
+  State<PromoMedicineDetailPage> createState() => _PromoMedicineDetailPageState();
 }
 
-class _MedicineDetailPageState extends State<MedicineDetailPage> {
+class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
   Map<String, dynamic>? medicineData;
   bool isLoading = true;
   int selectedQuantity = 1;
@@ -24,7 +24,9 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
   }
 
   Future<void> fetchMedicineDetail() async {
-    final url = 'http://10.0.2.2:8000/api/customer/medicines/${widget.medicineId}/';
+    final url = 'http://10.0.2.2:8000/api/medicine/promos/${widget.medicineId}/';
+    // Use your actual IP or localhost as needed
+
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
@@ -33,7 +35,7 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
           isLoading = false;
         });
       } else {
-        throw Exception('Failed to load medicine detail');
+        throw Exception('Failed to load promo medicine detail');
       }
     } catch (e) {
       debugPrint('Error: $e');
@@ -122,7 +124,7 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
 
                     const SizedBox(height: 8),
 
-                    // Stock status
+                    // Stock status and Quantity
                     Row(
                       children: [
                         Container(
@@ -140,6 +142,25 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                         Text("Quantity: ${medicineData!['quantity']}"),
                       ],
                     ),
+
+                    const SizedBox(height: 16),
+
+                    // Promo start and end date display
+                    if (medicineData!['start_date'] != null && medicineData!['end_date'] != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade100,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          "Promo: ${medicineData!['start_date']} to ${medicineData!['end_date']}",
+                          style: const TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
 
                     const SizedBox(height: 16),
 
@@ -167,8 +188,7 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
 
                     const SizedBox(height: 16),
 
-                                        // Add to cart button
-                                        // Add to cart button
+                    // Add to cart button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -183,6 +203,7 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                                     image: medicineData!['image'],
                                     price: double.parse(medicineData!['price'].toString()),
                                     quantity: selectedQuantity,
+
                                   ),
                                 );
 
@@ -190,7 +211,6 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                                   const SnackBar(content: Text('Added to cart')),
                                 );
 
-                                // Navigate to checkout
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(builder: (_) => const CheckoutPage()),
@@ -199,7 +219,7 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                             : null,
                         child: const Text("Add to Cart"),
                       ),
-                    )
+                    ),
 
                   ],
                 ),

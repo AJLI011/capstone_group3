@@ -26,7 +26,7 @@ from .serializers import (
     InventoryDashboardSerializer, MedicineSerializer, 
     InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, 
     InventoryBatchDetailSerializer, TotalQuantitySerializer, InventoryLogSerializer,
-    InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer, CustomerMedicineSerializer, CustomerMedicineDetailSerializer # <- New serializer
+    InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer, CustomerPromoMedicineDetailSerializer, CustomerMedicineSerializer, CustomerMedicineDetailSerializer # <- New serializer
 )
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
@@ -734,6 +734,7 @@ class PromoMedicineView(APIView):
             if medicine.id not in seen_medicine_ids:
                 seen_medicine_ids.add(medicine.id)
                 data.append({
+                    'id': medicine.id, 
                     'name': medicine.name,
                     'generic_name': medicine.generic_name,
                     'image': request.build_absolute_uri(medicine.image.url) if medicine.image else '',
@@ -745,6 +746,12 @@ class PromoMedicineView(APIView):
 def trigger_update_total_quantity(request):
     call_command('update_total_quantities')
     return JsonResponse({'status': 'success'})
+
+class PromoMedicineDetailView(APIView):
+    def get(self, request, pk):
+        medicine = get_object_or_404(Medicine, pk=pk)
+        serializer = CustomerPromoMedicineDetailSerializer(medicine, context={'request': request})
+        return Response(serializer.data)
 
 
 #For Normal Medicine
