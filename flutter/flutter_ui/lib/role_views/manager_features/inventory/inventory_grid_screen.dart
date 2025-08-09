@@ -72,12 +72,12 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
   @override
   void initState() {
     super.initState();
-    syncAndLoadInventory(); // ✅ Sync then load inventory
+    syncAndLoadInventory();
   }
 
   Future<void> syncAndLoadInventory() async {
-    await InventoryApiService.syncTotalQuantities(); // 🔄 Sync from backend
-    await loadInventory(); // ✅ Load updated items
+    await InventoryApiService.syncTotalQuantities();
+    await loadInventory();
   }
 
   Future<void> loadInventory() async {
@@ -200,10 +200,22 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
                     itemBuilder: (context, index) {
                       final item = _filteredItems[index];
 
-                      return Material(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        elevation: 2,
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          border: Border.all(
+                            color: const Color(0xFF396AAB),
+                            width: 1,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 6,
+                              offset: Offset(0, 3),
+                            ),
+                          ],
+                        ),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(12),
                           onTap: () {
@@ -215,47 +227,82 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
                               ),
                             );
                           },
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (item.image.isNotEmpty)
-                                  Center(
-                                    child: Image.network(
-                                      item.image,
-                                      height: 60,
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (context, error, stackTrace) =>
-                                          const Icon(Icons.image_not_supported, size: 48),
+                          child: Stack(
+                            children: [
+                              // I've wrapped the Column with a Center widget
+                              Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8.0,
+                                    vertical: 16.0, // Added more vertical padding
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center, // Center contents vertically
+                                    crossAxisAlignment: CrossAxisAlignment.center, // Center contents horizontally
+                                    children: [
+                                      if (item.image.isNotEmpty)
+                                        SizedBox(
+                                          height: 125, // Increased height
+                                          child: Image.network(
+                                            item.image,
+                                            fit: BoxFit.contain,
+                                            errorBuilder: (context, error, stackTrace) =>
+                                                const Icon(Icons.image_not_supported, size: 80, color: Colors.grey),
+                                          ),
+                                        )
+                                      else
+                                        const SizedBox(
+                                          height: 120,
+                                          child: Center(
+                                            child: Icon(Icons.medication, size: 80, color: Colors.grey),
+                                          ),
+                                        ),
+                                      const SizedBox(height: 10), // Increased spacing
+                                      Text(
+                                        item.name,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        item.genericName,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: Colors.grey,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF396AAB),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    "Qty: ${item.totalQuantity}",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 17,
+                                      color: Colors.white,
                                     ),
-                                  )
-                                else
-                                  const Center(
-                                    child: Icon(Icons.medication, size: 48),
-                                  ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  item.genericName,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  item.name,
-                                  style: const TextStyle(
-                                      fontSize: 14, color: Colors.grey),
-                                ),
-                                const Spacer(),
-                                Text(
-                                  "Qty: ${item.totalQuantity}",
-                                  style:
-                                      const TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       );
