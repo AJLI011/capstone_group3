@@ -250,13 +250,13 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
                                     child: Column(
                                       children: [
                                         _drawerItem(
-                                            Icons.assignment,
-                                            'Pending Orders',
+                                            Icons.shopping_bag_outlined,
+                                            'My Orders',
                                             () => _open(
                                                 _placeholderPage('My Orders'))),
                                         _drawerItem(
                                             Icons.assignment_outlined,
-                                            'Online Orders',
+                                            'Medicine Order Agreement',
                                             () => _open(
                                                 _placeholderPage('Medicine Order Agreement'))),
                                         _drawerItem(
