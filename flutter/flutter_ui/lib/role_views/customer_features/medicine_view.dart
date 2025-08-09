@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'medicine_detail_page.dart';
 
 class Medicine {
   final int id;
@@ -145,20 +144,8 @@ Widget _buildMedicineCard(Medicine med) {
                       mainAxisSpacing: 12,
                       childAspectRatio: 0.75,
                     ),
-                        itemBuilder: (context, index) {
-                          return InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => MedicineDetailPage(medicineId: _medicines[index].id),
-                                ),
-                              );
-                            },
-                            child: _buildMedicineCard(_medicines[index]),
-                          );
-                        }
-
+                    itemBuilder: (context, index) =>
+                        _buildMedicineCard(_medicines[index]),
                   ),
                 ),
     );
