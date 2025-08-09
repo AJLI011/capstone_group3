@@ -112,7 +112,10 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Restock')),
+      appBar: AppBar(title: const Text('Restock'),
+        backgroundColor: const Color(0xFF5C7C9A), // Updated color
+        foregroundColor: Colors.white, // Updated color for font and icon
+    ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -159,7 +162,7 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
                     if (value == null || value.isEmpty) {
                       return 'Quantity cannot be empty'; // Changed message as it's not user input
                     }
-                    if (int.tryParse(value) == null || int.parse(value)! <= 0) {
+                    if (int.tryParse(value) == null || int.parse(value) <= 0) {
                       return 'Invalid quantity value'; // Changed message
                     }
                     return null;

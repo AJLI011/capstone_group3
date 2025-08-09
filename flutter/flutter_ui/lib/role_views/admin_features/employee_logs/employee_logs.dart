@@ -111,8 +111,8 @@ class _EmployeeLogsPageState extends State<EmployeeLogsPage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text('Employees Logs'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.blue[800],
+        backgroundColor: const Color(0xFF5C7C9A), // Updated color
+        foregroundColor: Colors.white, // Updated color for font and icon
         elevation: 0,
       ),
       body: SafeArea(

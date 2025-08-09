@@ -181,6 +181,8 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Medicine'),
+        backgroundColor: const Color(0xFF5C7C9A), // Updated color
+        foregroundColor: Colors.white, // Updated color for font and icon
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),

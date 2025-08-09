@@ -100,7 +100,10 @@ class _ChangeStaffPasswordPageState extends State<ChangeStaffPasswordPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Change Password')),
+      appBar: AppBar(title: const Text('Change Password'),
+        backgroundColor: const Color(0xFF5C7C9A), // Updated color
+        foregroundColor: Colors.white, // Updated color for font and icon
+      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(

@@ -38,7 +38,10 @@ class _ExpiredStockPageState extends State<ExpiredStockPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Expired Stocks')),
+      appBar: AppBar(title: const Text('Expired Stocks'),
+      backgroundColor: const Color(0xFF5C7C9A), // Updated color
+      foregroundColor: Colors.white, // Updated color for font and icon
+      ),
       body: expiredStocks.isEmpty
           ? const Center(child: Text('No expired medicines'))
           : ListView.builder(

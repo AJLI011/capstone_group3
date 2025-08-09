@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
 class InventoryLogsPage extends StatefulWidget {
   const InventoryLogsPage({Key? key}) : super(key: key);
@@ -46,38 +47,48 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Inventory Logs'),
-        backgroundColor: Colors.teal,
+        backgroundColor: const Color(0xFF5C7C9A), // Updated color
+        foregroundColor: Colors.white, // Updated color for font and icon
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : logs.isEmpty
               ? const Center(child: Text('No logs available.'))
-              : ListView.builder(
-                  itemCount: logs.length,
-                  itemBuilder: (context, index) {
-                    final log = logs[index];
-                    return Card(
-                      elevation: 2,
-                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      child: ListTile(
-                        leading: const Icon(Icons.history, color: Colors.teal),
-                        title: Text(
-                          log['description'],
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('User: ${log['user_name']}'),
-                            Text('Medicine: ${log['medicine_name']}'),
-                            Text('Action: ${log['action_type']}'),
-                            Text('Time: ${log['timestamp']}'),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+              : _buildInventoryLogsList(logs),
+    );
+  }
+
+  Widget _buildInventoryLogsList(List<dynamic> logs) {
+    return ListView.builder(
+      itemCount: logs.length,
+      itemBuilder: (context, index) {
+        final log = logs[index];
+        final timestamp = DateTime.parse(log['timestamp']);
+
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: ExpansionTile(
+            title: Text(
+              '${log['action_type']} by ${log['user_name']}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(DateFormat('MM-dd-yyyy hh:mm a').format(timestamp)),
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Description: ${log['description']}', style: const TextStyle(fontSize: 16)),
+                    const SizedBox(height: 8),
+                    Text('Medicine: ${log['medicine_name']}'),
+                  ],
                 ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -36,8 +36,8 @@ void fetchExpiredMedicines() async {
       expiredMedicines = jsonDecode(response.body);
     });
     
-    // 🔍 Print to debug the data structure
-    print(jsonEncode(expiredMedicines)); // 👈 Put it here
+    // Print to debug the data structure
+    print(jsonEncode(expiredMedicines)); 
   } else {
     print('Failed to fetch expired medicines: ${response.statusCode}');
   }
@@ -210,7 +210,10 @@ Future<void> generateAndSavePdf(List<Map<String, dynamic>> medicines) async {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Return Medicines')),
+      appBar: AppBar(title: const Text('Return Medicines'),
+        backgroundColor: const Color(0xFF5C7C9A), // Updated color
+        foregroundColor: Colors.white, // Updated color for font and icon
+      ),
       body: expiredMedicines.isEmpty
           ? const Center(child: Text('No expired medicines to return.'))
           : ListView.builder(

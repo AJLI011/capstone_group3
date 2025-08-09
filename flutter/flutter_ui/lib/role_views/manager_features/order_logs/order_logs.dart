@@ -140,7 +140,8 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Order Logs'),
-        backgroundColor: Colors.blue.shade900,
+        backgroundColor: const Color(0xFF5C7C9A), // Updated color
+        foregroundColor: Colors.white, // Updated color for font and icon
       ),
       body: FutureBuilder<List<OrderLog>>(
         future: _futureOrderLogs,

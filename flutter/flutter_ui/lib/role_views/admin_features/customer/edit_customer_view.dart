@@ -95,7 +95,11 @@ class _EditCustomerViewState extends State<EditCustomerView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Customer Profile')),
+      appBar: AppBar(title: const Text('Edit Customer Profile'),
+      backgroundColor: const Color(0xFF5C7C9A), // Updated color
+      foregroundColor: Colors.white, // Updated color for font and icon
+      
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(

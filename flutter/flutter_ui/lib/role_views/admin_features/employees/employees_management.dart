@@ -62,6 +62,9 @@ class _EmployeesManagementPageState extends State<EmployeesManagementPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Manage Employees'),
+        backgroundColor: const Color(0xFF5C7C9A), // Updated color
+        foregroundColor: Colors.white, // Updated color for font and icon
+      
         actions: [
           IconButton(
             icon: Icon(Icons.add),

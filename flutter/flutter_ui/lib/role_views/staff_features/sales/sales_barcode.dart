@@ -81,6 +81,8 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scan Barcode'),
+        backgroundColor: const Color(0xFF5C7C9A), // Updated color
+        foregroundColor: Colors.white, // Updated color for font and icon
         actions: [
           IconButton(
             icon: Icon(_isTorchOn ? Icons.flash_on : Icons.flash_off),

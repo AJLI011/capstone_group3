@@ -150,9 +150,8 @@ class _MedicineListViewState extends State<MedicineListView> {
     // ✅ Attach staff_id as query parameter
     final uri = Uri.parse('http://10.0.2.2:8000/api/medicines/$id/?staff_id=$staffId');
 
-    final response = await http.delete(
-      Uri.parse('http://10.0.2.2:8000/api/medicines/$id/'),
-    );
+    // ❌ The original code used a hardcoded Uri.parse here instead of the 'uri' variable.
+    final response = await http.delete(uri); // Corrected line
 
     if (response.statusCode == 204) {
       setState(() {
@@ -188,6 +187,8 @@ class _MedicineListViewState extends State<MedicineListView> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Medicine List'),
+        backgroundColor: const Color(0xFF5C7C9A), // Updated color
+        foregroundColor: Colors.white, // Updated color for font and icon
       ),
       body: FutureBuilder<List<Medicine>>(
         future: futureMedicines,

@@ -92,6 +92,8 @@ class _RestockBarcodeScreenState extends State<RestockBarcodeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scan Barcode'),
+        backgroundColor: const Color(0xFF5C7C9A), // Updated color
+        foregroundColor: Colors.white, // Updated color for font and icon
         actions: [
           IconButton(
             icon: Icon(

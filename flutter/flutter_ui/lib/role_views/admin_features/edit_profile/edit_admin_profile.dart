@@ -124,7 +124,11 @@ class _EditAdminProfilePageState extends State<EditAdminProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Edit Profile")),
+      appBar: AppBar(title: const Text("Edit Profile"),
+      backgroundColor: const Color(0xFF5C7C9A), // Updated color
+      foregroundColor: Colors.white, // Updated color for font and icon
+      
+      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : Padding(

@@ -228,6 +228,8 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Medicine'),
+        backgroundColor: const Color(0xFF5C7C9A), // Updated color
+        foregroundColor: Colors.white, // Updated color for font and icon
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),

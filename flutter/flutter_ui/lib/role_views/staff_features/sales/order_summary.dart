@@ -198,6 +198,9 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Order Summary'),
+          backgroundColor: const Color(0xFF5C7C9A), // Updated color
+          foregroundColor: Colors.white, // Updated color for font and icon
+      
           leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: _showBackConfirmationDialog),
           actions: [
             IconButton(

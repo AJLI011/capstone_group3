@@ -38,7 +38,10 @@ class _ExpiringSoonPageState extends State<ExpiringSoonPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Expiring Soon')),
+      appBar: AppBar(title: const Text('Expiring Soon'),
+      backgroundColor: const Color(0xFF5C7C9A), // Updated color
+      foregroundColor: Colors.white, // Updated color for font and icon
+      ),
       body: expiringSoonStocks.isEmpty
           ? const Center(child: Text('No medicines expiring soon'))
           : ListView.builder(

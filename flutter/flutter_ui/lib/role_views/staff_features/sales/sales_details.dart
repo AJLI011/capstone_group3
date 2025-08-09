@@ -186,7 +186,11 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
     final int promoControlLimit = isPromo ? (totalAvailableQuantity - _quantitySold) : 0;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Sales Details')),
+      appBar: AppBar(title: const Text('Sales Details'),
+      backgroundColor: const Color(0xFF5C7C9A), // Updated color
+      foregroundColor: Colors.white, // Updated color for font and icon
+      
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(

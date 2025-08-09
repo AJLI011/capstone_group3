@@ -114,6 +114,8 @@ class _SupplierListPageState extends State<SupplierListPage> {
           onPressed: () => Navigator.pop(context), // Back to AdminView
         ),
         title: const Text('Supplier List'),
+        backgroundColor: const Color(0xFF5C7C9A), // Updated color
+        foregroundColor: Colors.white, // Updated color for font and icon
         actions: [
           IconButton(icon: const Icon(Icons.add), onPressed: openAddPage),
         ],

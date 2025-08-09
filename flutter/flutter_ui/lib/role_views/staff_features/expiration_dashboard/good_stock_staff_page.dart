@@ -38,7 +38,10 @@ class _GoodStockStaffPageState extends State<GoodStockStaffPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Good Stocks')),
+      appBar: AppBar(title: const Text('Good Stocks'),
+      backgroundColor: const Color(0xFF5C7C9A), // Updated color
+      foregroundColor: Colors.white, // Updated color for font and icon
+      ),
       body: goodStocks.isEmpty
           ? const Center(child: Text('No good stock medicines'))
           : ListView.builder(

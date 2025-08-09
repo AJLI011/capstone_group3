@@ -91,7 +91,11 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage Customers')),
+      appBar: AppBar(title: const Text('Manage Customers'),
+      backgroundColor: const Color(0xFF5C7C9A), // Updated color
+      foregroundColor: Colors.white, // Updated color for font and icon
+      
+      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : error.isNotEmpty

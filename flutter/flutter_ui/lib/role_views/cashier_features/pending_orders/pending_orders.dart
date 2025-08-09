@@ -104,7 +104,7 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
           'Pending Orders',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-          ),
+          ), 
         ),
         backgroundColor: const Color(0xFF5C7C9A),
         foregroundColor: Colors.white,
