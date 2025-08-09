@@ -445,11 +445,30 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
 
 #order logs (wala pa yung online order here)
 # Model for Order Logs
+# =====================================
+# ORDER LOGS SERIALIZERS
+
+class InStoreOrderItemSerializer(serializers.ModelSerializer):
+    medicine_name = serializers.CharField(source='inventory_id.medicine.name', read_only=True)
+    
+    class Meta:
+        model = InStoreOrderItem
+        fields = ['id', 'medicine_name', 'quantity_sold', 'price_at_sale']
+
+class InStoreOrderDetailsSerializer(serializers.ModelSerializer):
+    items = InStoreOrderItemSerializer(many=True, read_only=True)
+    staff_name = serializers.CharField(source='staff.name', read_only=True)
+
+    class Meta:
+        model = InStoreOrder
+        fields = ['id', 'staff_name', 'items']
+
 class OrderLogSerializer(serializers.ModelSerializer):
     staff_name = serializers.CharField(source='staff_user.name', read_only=True)
     staff_role = serializers.CharField(source='staff_user.role', read_only=True)
     
+    in_store_order_details = InStoreOrderDetailsSerializer(source='in_store_order', read_only=True)
+
     class Meta:
         model = OrderLog
-        fields = ['id', 'staff_name', 'staff_role', 'in_store_order', 'action_type', 'description', 'timestamp']
-        read_only_fields = ['id', 'staff_name', 'staff_role', 'timestamp']
+        fields = ['id', 'staff_name', 'staff_role', 'in_store_order_details', 'action_type', 'description', 'timestamp']

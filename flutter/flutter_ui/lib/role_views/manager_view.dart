@@ -14,8 +14,8 @@ import 'manager_features/return_medicines/return_page.dart';
 import 'manager_features/promo_medicines/promo_page.dart';
 import 'manager_features/inventory_logs/inventory_logs_page.dart';
 
-
-
+// NEW IMPORT FOR ORDER LOGS
+import 'manager_features/order_logs/order_logs.dart';
 
 
 import 'package:http/http.dart' as http;
@@ -234,30 +234,31 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                                   child: SingleChildScrollView(
                                     child: Column(
                                       children: [
-                                        _drawerItem(Icons.inventory_outlined, 'Inventory', 
+                                        _drawerItem(Icons.inventory_outlined, 'Inventory',
                                           () => _open(const InventoryGridScreen())),
-                                        _drawerItem(Icons.shelves, 'Restock', 
+                                        _drawerItem(Icons.shelves, 'Restock',
                                           () => _open(const RestockBarcodeScreen())),
                                         _drawerItem(Icons.store, 'In Store Sales Transaction', () {}),
                                         _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction', () {}),
                                         _drawerItem(Icons.priority_high, 'Expiry',
                                           () => _open(const ExpiryDashboardView())),
-                                        _drawerItem(Icons.assignment_return, 'Return Medicines', 
+                                        _drawerItem(Icons.assignment_return, 'Return Medicines',
                                           () => _open(const ReturnMedicinePage())),
-                                        _drawerItem(Icons.local_offer, 'Promo Medicines', 
+                                        _drawerItem(Icons.local_offer, 'Promo Medicines',
                                           () => _open(const PromoMedicinePage())),
                                         _drawerItem(Icons.point_of_sale, 'In Store Sales Report', () {}),
                                         _drawerItem(Icons.trending_up, 'Online Sales Report', () {}),
                                         _drawerItem(Icons.insights, 'Demand Forecast', () {}),
                                         _drawerItem(Icons.shopping_cart, 'Purchase Request', () {}),
-                                        _drawerItem(Icons.list_alt, 'Medicine List', 
+                                        _drawerItem(Icons.list_alt, 'Medicine List',
                                           () => _open(const MedicineListView())),
-                                        _drawerItem(Icons.history, 'Inventory Logs', 
+                                        _drawerItem(Icons.history, 'Inventory Logs',
                                           () => _open(const InventoryLogsPage())),
-                                        _drawerItem(Icons.receipt_long, 'Order Logs', () {}),
-                                        _drawerItem(Icons.person_outline, 'Edit Profile', 
-                                          () => _open(EditManagerProfilePage(staffId: widget.staffId))), 
-                                        _drawerItem(Icons.vpn_key, 'Change Password', 
+                                        _drawerItem(Icons.receipt_long, 'Order Logs',
+                                          () => _open(const OrderLogsScreen())),
+                                        _drawerItem(Icons.person_outline, 'Edit Profile',
+                                          () => _open(EditManagerProfilePage(staffId: widget.staffId))),
+                                        _drawerItem(Icons.vpn_key, 'Change Password',
                                           () => _open(ChangeManagerPasswordPage(staffId: widget.staffId))),
                                       ],
                                     ),

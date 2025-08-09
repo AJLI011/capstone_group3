@@ -877,11 +877,18 @@ def process_instore_order(request):
     return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 #------------------ ORDER LOGS VIEW -------------------
+#------------------ ORDER LOGS VIEW -------------------
 @api_view(['GET'])
 def order_logs_list_view(request):
     """
     API endpoint to retrieve all order logs.
+    This version uses select_related and prefetch_related for optimal performance.
     """
-    logs = OrderLog.objects.all().order_by('-timestamp')
+    logs = OrderLog.objects.all().select_related(
+        'staff_user', 'in_store_order__staff'
+    ).prefetch_related(
+        'in_store_order__items__inventory_id__medicine'
+    ).order_by('-timestamp')
+    
     serializer = OrderLogSerializer(logs, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
