@@ -125,44 +125,34 @@ class _EmployeeLogsPageState extends State<EmployeeLogsPage> {
                 margin: const EdgeInsets.symmetric(horizontal: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 elevation: 0,
-                child: Column(
-                  children: [
-                    _buildHeaderRow(),
-                    if (isLoading && logs.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    else if (error != null)
-                      Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          children: [
-                            Text(error!, style: const TextStyle(color: Colors.red)),
-                            const SizedBox(height: 12),
-                            ElevatedButton(onPressed: _fetchLogs, child: const Text('Retry')),
-                          ],
-                        ),
-                      )
-                    else if (logs.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24),
-                        child: Center(child: Text('No logs yet')),
-                      )
-                    else
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: logs.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFEFEFEF)),
-                        itemBuilder: (context, i) {
-                          return _buildRow(logs[i]);
-                        },
-                      ),
-                  ],
-                ),
+                child: _buildHeaderRow(),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+              Expanded( // This is the key change to make the list scrollable
+                child: isLoading && logs.isEmpty
+                    ? const Center(child: CircularProgressIndicator())
+                    : error != null
+                        ? Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              children: [
+                                Text(error!, style: const TextStyle(color: Colors.red)),
+                                const SizedBox(height: 12),
+                                ElevatedButton(onPressed: _fetchLogs, child: const Text('Retry')),
+                              ],
+                            ),
+                          )
+                        : logs.isEmpty
+                            ? const Center(child: Text('No logs yet'))
+                            : ListView.separated(
+                                // Removed shrinkWrap and physics
+                                itemCount: logs.length,
+                                separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFEFEFEF)),
+                                itemBuilder: (context, i) {
+                                  return _buildRow(logs[i]);
+                                },
+                              ),
+              ),
             ],
           ),
         ),
