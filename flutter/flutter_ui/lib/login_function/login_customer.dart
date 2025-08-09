@@ -7,8 +7,15 @@ import '../role_views/customer_view.dart';
 import 'register_customer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// Use dart-define to override in different environments
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000',
+);
+
 class LoginCustomer extends StatefulWidget {
   const LoginCustomer({super.key});
+
   @override
   State<LoginCustomer> createState() => _LoginCustomerState();
 }
@@ -37,11 +44,10 @@ class _LoginCustomerState extends State<LoginCustomer> {
           ],
         ),
         const SizedBox(height: 10),
-        Expanded(
-          child: showRegister
-              ? const RegisterCustomer()
-              : const CustomerLoginForm(),
-        ),
+        // Removed the Expanded widget here
+        showRegister
+            ? const RegisterCustomer()
+            : const CustomerLoginForm(),
       ],
     );
   }
@@ -49,6 +55,7 @@ class _LoginCustomerState extends State<LoginCustomer> {
 
 class CustomerLoginForm extends StatefulWidget {
   const CustomerLoginForm({super.key});
+
   @override
   State<CustomerLoginForm> createState() => _CustomerLoginFormState();
 }
@@ -59,35 +66,57 @@ class _CustomerLoginFormState extends State<CustomerLoginForm> {
   bool isLoading = false;
   String errorMsg = '';
 
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
   Future<void> loginCustomer() async {
     setState(() {
       isLoading = true;
       errorMsg = '';
     });
 
-    final url = Uri.parse('http://10.0.2.2:8000/api/login/');
-    final response = await http.post(url, body: {
-      'email': emailController.text.trim(),
-      'password': passwordController.text.trim(),
-    });
+    final url = Uri.parse('$API_BASE/api/login/');
+    try {
+      final response = await http.post(url, body: {
+        'email': emailController.text.trim(),
+        'password': passwordController.text.trim(),
+      });
 
-    setState(() => isLoading = false);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('API Login Response: $data');
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      if (data['user_type'] == 'customer') {
-        // Save session in SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('is_logged_in', true);
-        await prefs.setString('role', data['user_type']);
+        if (data['user_type'] == 'customer') {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('is_logged_in', true);
+          await prefs.setString('role', data['user_type']);
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const CustomerView()),
-        );
+          await prefs.setInt('customerId', data['id']);
+          await prefs.setString('customerName', data['name']);
+          await prefs.setString('customerEmail', data['email']);
+
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const CustomerView()),
+            );
+          }
+        } else {
+          setState(() => errorMsg = 'Unsupported user type.');
+        }
+      } else {
+        final errorData = json.decode(response.body);
+        setState(() => errorMsg = errorData['error'] ?? 'Invalid email or password');
       }
-    } else {
-      setState(() => errorMsg = 'Invalid email or password');
+    } catch (e) {
+      setState(() => errorMsg = 'Network error. Please try again.');
+      print('Login Error: $e');
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 
@@ -96,6 +125,8 @@ class _CustomerLoginFormState extends State<CustomerLoginForm> {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
+        // The key change to align the fields at the top
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           TextField(
             controller: emailController,

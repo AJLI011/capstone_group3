@@ -55,8 +55,16 @@ def login_user(request):
 
     try:
         customer = Customer.objects.get(email=email)
+        # Assuming you're using Django's check_password
         if check_password(password, customer.password):
-            return Response({'message': 'Login successful', 'user_type': 'customer', 'view': 'customer_view'})
+            return Response({
+                'message': 'Login successful',
+                'user_type': 'customer',
+                'view': 'customer_view',
+                'id': customer.id,       # <-- Added
+                'name': customer.name,   # <-- Added
+                'email': customer.email  # <-- Added
+            })
     except Customer.DoesNotExist:
         pass
 

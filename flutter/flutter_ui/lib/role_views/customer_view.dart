@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../main.dart';
 import 'customer_features/promo_grid_view.dart';
 import 'customer_features/medicine_view.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'customer_features/edit_profile/edit_customer_profile.dart';
+import 'customer_features/change_password/change_customer_password.dart';
 
 class CustomerView extends StatefulWidget {
   const CustomerView({Key? key}) : super(key: key);
@@ -11,37 +14,63 @@ class CustomerView extends StatefulWidget {
   State<CustomerView> createState() => _CustomerViewState();
 }
 
-class _CustomerViewState extends State<CustomerView> {
+class _CustomerViewState extends State<CustomerView> with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   String _customerName = '';
+  String _customerEmail = '';
+  int _customerId = 0; // Changed to non-nullable and initialized
+
+  late AnimationController _ctrl;
+  bool _isMenuOpen = false;
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadCustomerName();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _loadCustomerData();
   }
 
-  Future<void> _loadCustomerName() async {
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadCustomerData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _customerName = prefs.getString('customerName') ?? 'Customer';
+      _customerEmail = prefs.getString('customerEmail') ?? 'email@example.com';
+      // Provide a fallback value for _customerId to handle null
+      _customerId = prefs.getInt('customerId') ?? 0;
+      isLoading = false;
     });
   }
 
-  void _onItemTapped(int index) {
-    if (index == 2) {
-      // Ignore tap on "Check Out" for now
-      return;
+  void _toggleMenu() {
+    setState(() => _isMenuOpen = !_isMenuOpen);
+    _isMenuOpen ? _ctrl.forward() : _ctrl.reverse();
+    if (!_isMenuOpen) {
+      _loadCustomerData();
     }
+  }
+
+  void _onItemTapped(int index) {
+    if (index == 2) return;
     setState(() {
       _currentIndex = index;
     });
   }
 
-  Future<void> logout(BuildContext context) async {
+  Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('is_logged_in');
-    await prefs.remove('role');
+    await prefs.clear();
+
+    if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const ToggleLoginScreen()),
@@ -49,11 +78,51 @@ class _CustomerViewState extends State<CustomerView> {
     );
   }
 
+  Future<void> _confirmLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Confirm Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _logout();
+    }
+  }
+
+  void _open(Widget page) async {
+    _toggleMenu();
+    final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    if (result == true) {
+      _loadCustomerData();
+    }
+  }
+
+  Widget _drawerItem(IconData icon, String title, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      onTap: onTap,
+      hoverColor: Colors.blue.shade50,
+    );
+  }
+
   Widget _buildHeader() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header Row with logout button
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -66,9 +135,9 @@ class _CustomerViewState extends State<CustomerView> {
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.logout, color: Colors.white),
-              onPressed: () => logout(context),
-              tooltip: 'Logout',
+              icon: const Icon(Icons.menu, color: Colors.white),
+              onPressed: _toggleMenu,
+              tooltip: 'Menu',
             ),
           ],
         ),
@@ -82,7 +151,6 @@ class _CustomerViewState extends State<CustomerView> {
           ),
         ),
         const SizedBox(height: 20),
-        // Search Bar
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
@@ -104,52 +172,162 @@ class _CustomerViewState extends State<CustomerView> {
 
   @override
   Widget build(BuildContext context) {
+    final screenW = MediaQuery.of(context).size.width;
     final List<Widget> _views = [
-    const MedicineView(),
-    const PromoView(),
-  ];
+      const MedicineView(),
+      const PromoView(),
+    ];
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Column(
-        children: [
-          if (_currentIndex == 0)
-            Container(
-              padding: const EdgeInsets.only(top: 50, left: 20, right: 20, bottom: 20),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF003B8D), Color(0xFF0050C8)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-                borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-              ),
-              child: _buildHeader(),
+    return WillPopScope(
+      onWillPop: () async {
+        if (_isMenuOpen) {
+          _toggleMenu();
+          return false;
+        }
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: Stack(
+          children: [
+            Column(
+              children: [
+                if (_currentIndex == 0)
+                  Container(
+                    padding: const EdgeInsets.only(
+                        top: 50, left: 20, right: 20, bottom: 20),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF003B8D), Color(0xFF0050C8)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                      borderRadius:
+                          BorderRadius.vertical(bottom: Radius.circular(20)),
+                    ),
+                    child: _buildHeader(),
+                  ),
+                Expanded(child: _views[_currentIndex]),
+              ],
             ),
-          Expanded(child: _views[_currentIndex]),
-        ],
+            AnimatedBuilder(
+              animation: _ctrl,
+              builder: (_, __) {
+                final dx = screenW - (_ctrl.value * screenW);
+                return Transform.translate(
+                  offset: Offset(dx, 0),
+                  child: SizedBox(
+                    width: screenW,
+                    height: double.infinity,
+                    child: Material(
+                      color: Colors.white,
+                      elevation: 16,
+                      child: isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const SizedBox(height: 60),
+                                const CircleAvatar(
+                                  radius: 40,
+                                  child: Icon(Icons.person, size: 50),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _customerName,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      fontSize: 20, fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  _customerEmail,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.grey),
+                                ),
+                                const Divider(height: 40),
+                                Expanded(
+                                  child: SingleChildScrollView(
+                                    child: Column(
+                                      children: [
+                                        _drawerItem(
+                                            Icons.assignment,
+                                            'Pending Orders',
+                                            () => _open(
+                                                _placeholderPage('My Orders'))),
+                                        _drawerItem(
+                                            Icons.assignment_outlined,
+                                            'Online Orders',
+                                            () => _open(
+                                                _placeholderPage('Medicine Order Agreement'))),
+                                        _drawerItem(
+                                            Icons.edit,
+                                            'Edit Profile',
+                                            () => _open(EditCustomerProfilePage(customerId: _customerId))),
+                                        _drawerItem(
+                                            Icons.lock,
+                                            'Change Password',
+                                            () => _open(ChangeCustomerPasswordPage(customerId: _customerId))),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blue.shade700,
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    onPressed: _confirmLogout,
+                                    child: const Text(
+                                      'Logout',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+        bottomNavigationBar: _isMenuOpen
+            ? null
+            : BottomNavigationBar(
+                backgroundColor: const Color(0xFF002B64),
+                selectedItemColor: Colors.white,
+                unselectedItemColor: Colors.white70,
+                currentIndex: _currentIndex,
+                onTap: _onItemTapped,
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.medication),
+                    label: 'Medicines',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.local_offer),
+                    label: 'Promos',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.shopping_cart),
+                    label: 'Check Out',
+                  ),
+                ],
+              ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF002B64),
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white70,
-        currentIndex: _currentIndex,
-        onTap: _onItemTapped,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.medication),
-            label: 'Medicines',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.local_offer),
-            label: 'Promos',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart),
-            label: 'Check Out',
-          ),
-        ],
-      ),
+    );
+  }
+
+  Widget _placeholderPage(String title) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Center(child: Text(title)),
     );
   }
 }
