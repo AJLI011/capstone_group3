@@ -728,6 +728,7 @@ class PromoMedicineView(APIView):
             if medicine.id not in seen_medicine_ids:
                 seen_medicine_ids.add(medicine.id)
                 data.append({
+                    'id': medicine.id,
                     'name': medicine.name,
                     'generic_name': medicine.generic_name,
                     'image': request.build_absolute_uri(medicine.image.url) if medicine.image else '',

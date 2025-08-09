@@ -260,6 +260,7 @@ class FEFOOrderItemSerializer(serializers.Serializer):
 
 # Customer Promo Medicines View
 class PromoMedicineSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source='medicine.id', read_only=True)
     name = serializers.CharField(source='medicine.name', read_only=True)
     generic_name = serializers.CharField(source='medicine.generic_name', read_only=True)
     price = serializers.DecimalField(source='medicine.price', max_digits=8, decimal_places=2, read_only=True)
@@ -267,7 +268,7 @@ class PromoMedicineSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Inventory
-        fields = ['name', 'generic_name', 'image', 'price']
+        fields = ['id', 'name', 'generic_name', 'image', 'price']
 
     def get_image(self, obj):
         request = self.context.get('request', None)

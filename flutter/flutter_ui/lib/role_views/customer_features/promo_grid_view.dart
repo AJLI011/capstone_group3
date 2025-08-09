@@ -4,12 +4,14 @@ import 'package:http/http.dart' as http;
 
 // ===================== MODEL: PromoMedicine =====================
 class PromoMedicine {
+  final int id;
   final String name;
   final String genericName;
   final String image;
   final double price;
 
   PromoMedicine({
+    required this.id,
     required this.name,
     required this.genericName,
     required this.image,
@@ -29,6 +31,7 @@ class PromoMedicine {
     }
 
     return PromoMedicine(
+      id: json['id'],
       name: json['name'] ?? '',
       genericName: json['generic_name'] ?? '',
       image: json['image'] ?? '',
