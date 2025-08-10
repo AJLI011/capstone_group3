@@ -181,7 +181,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      // ... (rest of your UI for date/time picker and button)
+                      // Pickup date and time selectors
                       Row(
                         children: [
                           Expanded(
@@ -221,10 +221,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         width: double.infinity,
                         child: ElevatedButton(
                           onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const OrderArrangementPage()),
-                            );
+                            if (selectedDate == null || selectedTime == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Please select a scheduled pickup date and time."),
+                                ),
+                              );
+                            } else {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const OrderArrangementPage()),
+                              );
+                            }
                           },
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade400),
                           child: const Text("Place Order Request", style: TextStyle(color: Colors.white)),
@@ -242,7 +250,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   Future<void> pickDate() async {
-    // ... (Your pickDate method remains the same)
     final now = DateTime.now();
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -259,7 +266,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   Future<void> pickTime() async {
-    // ... (Your pickTime method remains the same)
     if (selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please select a pickup date first.")),
@@ -316,7 +322,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             title: const Text("Invalid Time"),
             content: Text(
               "Please select a time between "
-                  "${startTime.format(context)} and ${endTime.format(context)}.",
+              "${startTime.format(context)} and ${endTime.format(context)}.",
             ),
             actions: [
               TextButton(
