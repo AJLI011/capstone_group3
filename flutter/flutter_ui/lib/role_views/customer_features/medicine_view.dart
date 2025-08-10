@@ -1,7 +1,8 @@
+// medicine_view.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'medicine_detail_page.dart'; // Make sure you have this import
+import 'medicine_detail_page.dart';
 
 class Medicine {
   final int id;
@@ -68,10 +69,9 @@ class _MedicineViewState extends State<MedicineView> {
   }
 
   Widget _buildMedicineCard(Medicine med) {
-    return InkWell( // Added InkWell here
+    return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () {
-        // Navigate to the medicine detail page, passing the medicine's ID
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -80,13 +80,9 @@ class _MedicineViewState extends State<MedicineView> {
         );
       },
       child: Container(
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Colors.white, Color.fromARGB(255, 206, 231, 249)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            stops: [0.3, 0.7],
-          ),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: const [
             BoxShadow(
@@ -96,58 +92,55 @@ class _MedicineViewState extends State<MedicineView> {
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              ClipRRect(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: med.imageUrl.isNotEmpty
                     ? Image.network(
                         med.imageUrl,
-                        height: 110,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) =>
-                            Image.asset('assets/placeholder.png', height: 110, fit: BoxFit.cover),
+                            Image.asset('assets/placeholder.png', fit: BoxFit.cover),
                       )
-                    : Image.asset('assets/placeholder.png', height: 110, fit: BoxFit.cover),
+                    : Image.asset('assets/placeholder.png', fit: BoxFit.cover),
               ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      med.name,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 16),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      med.genericName,
-                      style: const TextStyle(color: Colors.grey),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              med.name,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
               ),
-              const Spacer(),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  '₱${med.price.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
+              textAlign: TextAlign.start,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              med.genericName,
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 12,
               ),
-            ],
-          ),
+              textAlign: TextAlign.start,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '₱${med.price.toStringAsFixed(2)}',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+              textAlign: TextAlign.end,
+            ),
+          ],
         ),
       ),
     );
@@ -168,7 +161,7 @@ class _MedicineViewState extends State<MedicineView> {
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
-                      childAspectRatio: 0.75,
+                      childAspectRatio: 0.7, // Adjusted for better layout
                     ),
                     itemBuilder: (context, index) =>
                         _buildMedicineCard(_medicines[index]),

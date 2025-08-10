@@ -1,7 +1,8 @@
+// promo_grid_view.dart
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'medicine_promo_detail_page.dart'; // Make sure this is correctly imported
+import 'medicine_promo_detail_page.dart';
 
 // ===================== MODEL: PromoMedicine =====================
 class PromoMedicine {
@@ -91,7 +92,7 @@ class _PromoViewState extends State<PromoView> {
       appBar: AppBar(
         title: const Text("Promos"),
         backgroundColor: const Color(0xFF003B63),
-        automaticallyImplyLeading: false, // Removes the back button
+        automaticallyImplyLeading: false,
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -105,13 +106,13 @@ class _PromoViewState extends State<PromoView> {
                         itemCount: promos.length,
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          mainAxisSpacing: 16,
-                          crossAxisSpacing: 16,
-                          childAspectRatio: 0.65,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 0.7, // Adjusted to match the new style
                         ),
                         itemBuilder: (context, index) {
                           final promo = promos[index];
-                          return InkWell( // Added InkWell here
+                          return InkWell(
                             borderRadius: BorderRadius.circular(16),
                             onTap: () {
                               Navigator.push(
@@ -122,9 +123,10 @@ class _PromoViewState extends State<PromoView> {
                               );
                             },
                             child: Container(
+                              padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
                                 color: const Color(0xFFE6F2FF),
+                                borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withOpacity(0.1),
@@ -134,57 +136,52 @@ class _PromoViewState extends State<PromoView> {
                                 ],
                               ),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  ClipRRect(
-                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                                    child: promo.image.isNotEmpty
-                                        ? Image.network(
-                                            promo.image,
-                                            height: 120,
-                                            width: double.infinity,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) {
-                                              return Image.asset(
-                                                'assets/placeholder.png',
-                                                height: 120,
-                                                width: double.infinity,
-                                                fit: BoxFit.cover,
-                                              );
-                                            },
-                                          )
-                                        : Image.asset(
-                                            'assets/placeholder.png',
-                                            height: 120,
-                                            width: double.infinity,
-                                            fit: BoxFit.cover,
-                                          ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          promo.name,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold, fontSize: 16),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          promo.genericName,
-                                          style: const TextStyle(color: Colors.grey),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '₱${promo.price.toStringAsFixed(2)}',
-                                          style: const TextStyle(
-                                              color: Colors.green, fontWeight: FontWeight.bold),
-                                        ),
-                                      ],
+                                  Expanded(
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: promo.image.isNotEmpty
+                                          ? Image.network(
+                                              promo.image,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) =>
+                                                  Image.asset('assets/placeholder.png', fit: BoxFit.cover),
+                                            )
+                                          : Image.asset('assets/placeholder.png', fit: BoxFit.cover),
                                     ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    promo.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                    textAlign: TextAlign.start,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    promo.genericName,
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                    ),
+                                    textAlign: TextAlign.start,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '₱${promo.price.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.orange, // Use a distinct color for promos
+                                    ),
+                                    textAlign: TextAlign.end,
                                   ),
                                 ],
                               ),
