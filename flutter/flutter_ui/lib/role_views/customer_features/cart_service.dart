@@ -37,34 +37,19 @@ class CartService with ChangeNotifier {
   List<CartItem> get items => _items;
 
   void addToCart(CartItem item) {
-    // Find an existing item that is NOT a promo item
+    // Find an existing item with the same ID and promo status
     final existingIndex = _items.indexWhere(
-      (i) => i.id == item.id && !i.isPromo,
+      (i) => i.id == item.id && i.isPromo == item.isPromo,
     );
 
     if (existingIndex >= 0) {
-      // If a paid item exists, update its quantities
-      final existingItem = _items[existingIndex];
-      existingItem.quantity += item.quantity;
-      if (item.isPromo) {
-        // Only update promoQuantity if the incoming item is a promo
-        existingItem.promoQuantity += item.quantity;
-      }
-      // If the incoming item is not a promo, promoQuantity is not changed.
+      // If the exact item exists, update its quantities.
+      // The incoming item already has the correct promoQuantity.
+      _items[existingIndex].quantity += item.quantity;
+      _items[existingIndex].promoQuantity += item.promoQuantity;
     } else {
-      // If no existing paid item, add a new one.
-      final newItem = CartItem(
-        id: item.id,
-        name: item.name,
-        genericName: item.genericName,
-        dosageForm: item.dosageForm,
-        image: item.image,
-        price: item.price,
-        quantity: item.quantity,
-        isPromo: item.isPromo, // Use the promo status of the incoming item
-        promoQuantity: item.isPromo ? item.quantity : 0, // Set promoQuantity based on the flag
-      );
-      _items.add(newItem);
+      // If no existing item, add a new one.
+      _items.add(item);
     }
     notifyListeners();
   }
@@ -82,7 +67,7 @@ class CartService with ChangeNotifier {
     _items.clear();
     notifyListeners();
   }
-  
+
   void removeItem(int index) {
     if (index >= 0 && index < _items.length) {
       _items.removeAt(index);
