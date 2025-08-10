@@ -1,3 +1,4 @@
+// promo_medicine_detail_page.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -154,7 +155,7 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          "Promo: ${medicineData!['start_date']} to ${medicineData!['end_date']}",
+                          "Promo: Buy 1 Take 1!",
                           style: const TextStyle(
                             color: Colors.orange,
                             fontWeight: FontWeight.bold,
@@ -203,8 +204,7 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                                     image: medicineData!['image'],
                                     price: double.parse(medicineData!['price'].toString()),
                                     quantity: selectedQuantity,
-                                    isPromo: true, // Explicitly set to true
-
+                                    isPromo: true, // This is the key line
                                   ),
                                 );
 

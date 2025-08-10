@@ -1,4 +1,6 @@
 // cart_service.dart
+import 'package:flutter/material.dart';
+
 class CartItem {
   final int id;
   final String name;
@@ -7,7 +9,8 @@ class CartItem {
   final String image;
   final double price;
   int quantity;
-  final bool isPromo; // The property is non-nullable
+  final bool isPromo;
+  int promoQuantity;
 
   CartItem({
     required this.id,
@@ -17,13 +20,14 @@ class CartItem {
     required this.image,
     required this.price,
     required this.quantity,
-    this.isPromo = false, // The default value 'false' prevents the error
+    this.isPromo = false,
+    this.promoQuantity = 0,
   });
 
   double get totalPrice => price * quantity;
 }
 
-class CartService {
+class CartService with ChangeNotifier {
   static final CartService _instance = CartService._internal();
   factory CartService() => _instance;
   CartService._internal();
@@ -33,21 +37,82 @@ class CartService {
   List<CartItem> get items => _items;
 
   void addToCart(CartItem item) {
+    // Find an existing item that is NOT a promo item
     final existingIndex = _items.indexWhere(
-      (i) => i.id == item.id && i.isPromo == item.isPromo, // Now checks both ID and isPromo
+      (i) => i.id == item.id && !i.isPromo,
     );
+
     if (existingIndex >= 0) {
-      _items[existingIndex].quantity += item.quantity;
+      // If a paid item exists, update its quantities
+      final existingItem = _items[existingIndex];
+      existingItem.quantity += item.quantity;
+      if (item.isPromo) {
+        // Only update promoQuantity if the incoming item is a promo
+        existingItem.promoQuantity += item.quantity;
+      }
+      // If the incoming item is not a promo, promoQuantity is not changed.
     } else {
-      _items.add(item);
+      // If no existing paid item, add a new one.
+      final newItem = CartItem(
+        id: item.id,
+        name: item.name,
+        genericName: item.genericName,
+        dosageForm: item.dosageForm,
+        image: item.image,
+        price: item.price,
+        quantity: item.quantity,
+        isPromo: item.isPromo, // Use the promo status of the incoming item
+        promoQuantity: item.isPromo ? item.quantity : 0, // Set promoQuantity based on the flag
+      );
+      _items.add(newItem);
     }
+    notifyListeners();
   }
+
+  int get totalPaidQuantity =>
+      _items.fold(0, (sum, item) => sum + item.quantity);
+
+  int get totalPromoQuantity =>
+      _items.fold(0, (sum, item) => sum + item.promoQuantity);
 
   double get totalPrice =>
       _items.fold(0, (sum, item) => sum + item.totalPrice);
 
-  int get totalQuantity =>
-      _items.fold(0, (sum, item) => sum + item.quantity);
+  void clearCart() {
+    _items.clear();
+    notifyListeners();
+  }
+  
+  void removeItem(int index) {
+    if (index >= 0 && index < _items.length) {
+      _items.removeAt(index);
+      notifyListeners();
+    }
+  }
 
-  void clearCart() => _items.clear();
+  void decreaseQuantity(int index) {
+    if (index >= 0 && index < _items.length) {
+      final item = _items[index];
+      if (item.quantity > 1) {
+        item.quantity--;
+        if (item.isPromo) {
+          item.promoQuantity--;
+        }
+      } else {
+        _items.removeAt(index);
+      }
+      notifyListeners();
+    }
+  }
+
+  void increaseQuantity(int index) {
+    if (index >= 0 && index < _items.length) {
+      final item = _items[index];
+      item.quantity++;
+      if (item.isPromo) {
+        item.promoQuantity++;
+      }
+      notifyListeners();
+    }
+  }
 }

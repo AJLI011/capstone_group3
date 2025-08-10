@@ -1,4 +1,6 @@
+// checkout_page.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // Import Provider
 import 'cart_service.dart';
 import 'package:intl/intl.dart';
 import 'orderarrangement_page.dart';
@@ -16,207 +18,225 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cartItems = CartService().items;
+    // Use ChangeNotifierProvider to listen to CartService changes
+    return ChangeNotifierProvider.value(
+      value: CartService(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text("Check Out"),
+          backgroundColor: Colors.blue,
+        ),
+        body: Consumer<CartService>(
+          builder: (context, cartService, child) {
+            final cartItems = cartService.items;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Check Out"),
-        backgroundColor: Colors.blue,
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: cartItems.length,
-              itemBuilder: (context, index) {
-                final item = cartItems[index];
-                // Use the isPromo property to set the color
-                final isPromo = item.isPromo;
+            return Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: cartItems.length,
+                    itemBuilder: (context, index) {
+                      final item = cartItems[index];
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: isPromo ? const Color(0xFFE6F2FF) : Colors.blue.shade700,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        spreadRadius: 1,
-                        blurRadius: 5,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          item.image,
-                          width: 70,
-                          height: 70,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.name,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: isPromo ? Colors.black : Colors.white,
-                              ),
-                            ),
-                            Text(
-                              item.genericName,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isPromo ? Colors.grey.shade700 : Colors.white70,
-                              ),
-                            ),
-                            Text(
-                              "₱${item.price.toStringAsFixed(2)}",
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isPromo ? Colors.green.shade800 : Colors.white,
-                              ),
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white, // Changed background color for clarity
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              spreadRadius: 1,
+                              blurRadius: 5,
+                              offset: const Offset(0, 3),
                             ),
                           ],
                         ),
-                      ),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.remove_circle_outline, color: isPromo ? Colors.blue.shade900 : Colors.white),
-                            onPressed: () {
-                              setState(() {
-                                if (item.quantity > 1) {
-                                  item.quantity--;
-                                }
-                              });
-                            },
-                          ),
-                          Text(
-                            "${item.quantity}",
-                            style: TextStyle(color: isPromo ? Colors.black : Colors.white),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.add_circle_outline, color: isPromo ? Colors.blue.shade900 : Colors.white),
-                            onPressed: () {
-                              setState(() {
-                                item.quantity++;
-                              });
-                            },
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.close, color: isPromo ? Colors.red.shade900 : Colors.white),
-                            onPressed: () {
-                              setState(() {
-                                cartItems.removeAt(index);
-                              });
-                            },
-                          ),
-                        ],
-                      )
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: Color(0xFF1565C0),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Order Summary",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text("Quantity", style: TextStyle(color: Colors.white)),
-                    Text("${CartService().totalQuantity}", style: const TextStyle(color: Colors.white)),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text("Order Total", style: TextStyle(color: Colors.white)),
-                    Text("₱${CartService().totalPrice.toStringAsFixed(2)}", style: const TextStyle(color: Colors.white)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: pickDate,
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade900),
-                        child: Text(
-                          selectedDate == null
-                              ? "MM / DD / YYYY"
-                              : DateFormat('MM / dd / yyyy').format(selectedDate!),
-                          style: const TextStyle(color: Colors.white),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                item.image,
+                                width: 70,
+                                height: 70,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.name,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  Text(
+                                    item.genericName,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                  Text(
+                                    "₱${item.price.toStringAsFixed(2)}",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green.shade800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  // Display Promo Quantity if applicable
+                                  if (item.promoQuantity > 0)
+                                    Text(
+                                      "Promo: ${item.promoQuantity}",
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.remove_circle_outline, color: Colors.blue),
+                                  onPressed: () {
+                                    cartService.decreaseQuantity(index);
+                                  },
+                                ),
+                                Text(
+                                  "${item.quantity}",
+                                  style: const TextStyle(color: Colors.black),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.add_circle_outline, color: Colors.blue),
+                                  onPressed: () {
+                                    cartService.increaseQuantity(index);
+                                  },
+                                ),
+                              ],
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, color: Colors.red),
+                              onPressed: () {
+                                cartService.removeItem(index);
+                              },
+                            ),
+                          ],
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: pickTime,
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade900),
-                        child: Text(
-                          selectedTime == null
-                              ? "HH : MM"
-                              : selectedTime!.format(context),
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  "Note the following for pickup time:\nDaily Operations — 9:00 AM to 9:00 PM",
-                  style: TextStyle(fontSize: 12, color: Colors.white70),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const OrderArrangementPage()),
                       );
                     },
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade400),
-                    child: const Text("Place Order Request", style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1565C0),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Order Summary",
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("Quantity", style: TextStyle(color: Colors.white)),
+                          Text("${cartService.totalPaidQuantity}", style: const TextStyle(color: Colors.white)),
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("Promo Quantity", style: TextStyle(color: Colors.white)),
+                          Text("${cartService.totalPromoQuantity}", style: const TextStyle(color: Colors.white)),
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("Order Total", style: TextStyle(color: Colors.white)),
+                          Text("₱${cartService.totalPrice.toStringAsFixed(2)}", style: const TextStyle(color: Colors.white)),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // ... (rest of your UI for date/time picker and button)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: pickDate,
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade900),
+                              child: Text(
+                                selectedDate == null
+                                    ? "MM / DD / YYYY"
+                                    : DateFormat('MM / dd / yyyy').format(selectedDate!),
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: pickTime,
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade900),
+                              child: Text(
+                                selectedTime == null
+                                    ? "HH : MM"
+                                    : selectedTime!.format(context),
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        "Note the following for pickup time:\nDaily Operations — 9:00 AM to 9:00 PM",
+                        style: TextStyle(fontSize: 12, color: Colors.white70),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const OrderArrangementPage()),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade400),
+                          child: const Text("Place Order Request", style: TextStyle(color: Colors.white)),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ),
-          )
-        ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -296,7 +316,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             title: const Text("Invalid Time"),
             content: Text(
               "Please select a time between "
-              "${startTime.format(context)} and ${endTime.format(context)}.",
+                  "${startTime.format(context)} and ${endTime.format(context)}.",
             ),
             actions: [
               TextButton(
