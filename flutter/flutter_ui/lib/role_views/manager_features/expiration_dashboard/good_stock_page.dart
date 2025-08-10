@@ -10,12 +10,38 @@ class GoodStockPage extends StatefulWidget {
 }
 
 class _GoodStockPageState extends State<GoodStockPage> {
-  List<dynamic> goodStocks = [];
+  // Original list of all good stocks fetched from the API
+  List<dynamic> allGoodStocks = [];
+  // List to display in the UI, filtered by the search query
+  List<dynamic> filteredGoodStocks = [];
+  // Controller for the search bar
+  final TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     fetchGoodStocks();
+    // Add a listener to the search controller to filter the list as the user types
+    searchController.addListener(filterGoodStocks);
+  }
+
+  @override
+  void dispose() {
+    // Clean up the controller when the widget is disposed
+    searchController.dispose();
+    super.dispose();
+  }
+
+  // Method to filter the list based on the search query
+  void filterGoodStocks() {
+    final query = searchController.text.toLowerCase();
+    setState(() {
+      filteredGoodStocks = allGoodStocks.where((stock) {
+        final medicineName = stock['medicine_name']?.toLowerCase() ?? '';
+        final genericName = stock['generic_name']?.toLowerCase() ?? '';
+        return medicineName.contains(query) || genericName.contains(query);
+      }).toList();
+    });
   }
 
   Future<void> fetchGoodStocks() async {
@@ -24,8 +50,29 @@ class _GoodStockPageState extends State<GoodStockPage> {
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
+        final List<dynamic> fetchedData = json.decode(response.body);
+
+        // Sort the fetched data first
+        fetchedData.sort((a, b) {
+          final dateA = a['exp_date'] != null ? DateTime.tryParse(a['exp_date']) : null;
+          final dateB = b['exp_date'] != null ? DateTime.tryParse(b['exp_date']) : null;
+
+          if (dateA != null && dateB != null) {
+            return dateA.compareTo(dateB);
+          }
+          if (dateA == null && dateB != null) {
+            return 1;
+          }
+          if (dateA != null && dateB == null) {
+            return -1;
+          }
+          return 0;
+        });
+
         setState(() {
-          goodStocks = json.decode(response.body);
+          // Store the sorted data in both lists
+          allGoodStocks = fetchedData;
+          filteredGoodStocks = fetchedData;
         });
       } else {
         print('Failed to load good stocks. Status code: ${response.statusCode}');
@@ -38,63 +85,80 @@ class _GoodStockPageState extends State<GoodStockPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Good Stocks'),
-      backgroundColor: const Color(0xFF5C7C9A), // Updated color
-      foregroundColor: Colors.white, // Updated color for font and icon
+      appBar: AppBar(
+        title: const Text('Good Stocks'),
+        backgroundColor: const Color(0xFF5C7C9A),
+        foregroundColor: Colors.white,
       ),
-      
-      body: goodStocks.isEmpty
-          ? const Center(child: Text('No good stock medicines'))
-          : ListView.builder(
-              itemCount: goodStocks.length,
-              itemBuilder: (context, index) {
-                final stock = goodStocks[index];
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.green.shade200),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: TextField(
+              controller: searchController,
+              decoration: InputDecoration(
+                labelText: 'Search medicine...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+          Expanded(
+            child: filteredGoodStocks.isEmpty
+                ? const Center(child: Text('No good stock medicines'))
+                : ListView.builder(
+                    itemCount: filteredGoodStocks.length,
+                    itemBuilder: (context, index) {
+                      final stock = filteredGoodStocks[index];
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.green[50],
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.green.shade200),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              stock['medicine_name'] ?? 'No Name',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    stock['medicine_name'] ?? 'No Name',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text('Generic: ${stock['generic_name'] ?? 'N/A'}'),
+                                  Text('Batch: ${stock['batch_num'] ?? 'N/A'}'),
+                                  Text('Quantity: ${stock['quantity'] ?? '0'}'),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text('Generic: ${stock['generic_name'] ?? 'N/A'}'),
-                            Text('Batch: ${stock['batch_num'] ?? 'N/A'}'),
-                            Text('Quantity: ${stock['quantity'] ?? '0'}'),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  'Expires: ${stock['exp_date'] ?? 'N/A'}',
+                                  style: const TextStyle(color: Colors.green),
+                                ),
+                                Text('Supplier: ${stock['supplier_name'] ?? 'N/A'}'),
+                              ],
+                            ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Expires: ${stock['exp_date'] ?? 'N/A'}',
-                            style: const TextStyle(color: Colors.green),
-                          ),
-                          Text('Supplier: ${stock['supplier_name'] ?? 'N/A'}'),
-                        ],
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                );
-              },
-            ),
+          ),
+        ],
+      ),
     );
   }
 }
