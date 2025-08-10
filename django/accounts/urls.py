@@ -5,7 +5,7 @@ from .views import InventoryCreateView
 from .views import get_inventory_list
 from .views import GoodStockView, ExpiringSoonView, ExpiredView
 from .views import delete_expired_batch, remove_promo, get_customer_medicines
-from .views import inventory_logs, PromoMedicineView
+from .views import inventory_logs, PromoMedicineView, PromoMedicineDetailView, get_customer_medicine_detail
 
 urlpatterns = [
     # Authentication
@@ -67,11 +67,13 @@ urlpatterns = [
     #Customer Promo View
     path('medicine/promos/', PromoMedicineView.as_view(), name='promo-medicines'),
 
+    #Customer Promo View
+    path('medicine/promos/', PromoMedicineView.as_view(), name='promo-medicines'),
+    path('medicine/promos/<int:pk>/', PromoMedicineDetailView.as_view(), name='promo-medicine-detail'),
+
     # Customer Medicine View
     path('customer/medicines/', get_customer_medicines),
-
-    #Expired Medicines Deducts in Total Quantity
-    path('update-totals/', views.trigger_update_total_quantity),
+    path('customer/medicines/<int:pk>/', get_customer_medicine_detail),
     
     #employee logs
     path('employee-logs/', views.employee_logs_view, name='employee-logs'),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'medicine_promo_detail_page.dart'; // Make sure this is correctly imported
 
 // ===================== MODEL: PromoMedicine =====================
 class PromoMedicine {
@@ -110,72 +111,83 @@ class _PromoViewState extends State<PromoView> {
                         ),
                         itemBuilder: (context, index) {
                           final promo = promos[index];
-                          return Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              color: const Color(0xFFE6F2FF),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
+                          return InkWell( // Added InkWell here
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => PromoMedicineDetailPage(medicineId: promo.id),
                                 ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                ClipRRect(
-                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                                  child: promo.image.isNotEmpty
-                                      ? Image.network(
-                                          promo.image,
-                                          height: 120,
-                                          width: double.infinity,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) {
-                                            return Image.asset(
-                                              'assets/placeholder.png',
-                                              height: 120,
-                                              width: double.infinity,
-                                              fit: BoxFit.cover,
-                                            );
-                                          },
-                                        )
-                                      : Image.asset(
-                                          'assets/placeholder.png',
-                                          height: 120,
-                                          width: double.infinity,
-                                          fit: BoxFit.cover,
-                                        ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        promo.name,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold, fontSize: 16),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        promo.genericName,
-                                        style: const TextStyle(color: Colors.grey),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '₱${promo.price.toStringAsFixed(2)}',
-                                        style: const TextStyle(
-                                            color: Colors.green, fontWeight: FontWeight.bold),
-                                      ),
-                                    ],
+                              );
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                color: const Color(0xFFE6F2FF),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                    child: promo.image.isNotEmpty
+                                        ? Image.network(
+                                            promo.image,
+                                            height: 120,
+                                            width: double.infinity,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return Image.asset(
+                                                'assets/placeholder.png',
+                                                height: 120,
+                                                width: double.infinity,
+                                                fit: BoxFit.cover,
+                                              );
+                                            },
+                                          )
+                                        : Image.asset(
+                                            'assets/placeholder.png',
+                                            height: 120,
+                                            width: double.infinity,
+                                            fit: BoxFit.cover,
+                                          ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          promo.name,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold, fontSize: 16),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          promo.genericName,
+                                          style: const TextStyle(color: Colors.grey),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '₱${promo.price.toStringAsFixed(2)}',
+                                          style: const TextStyle(
+                                              color: Colors.green, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           );
                         },

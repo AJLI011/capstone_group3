@@ -6,6 +6,7 @@ import 'customer_features/promo_grid_view.dart';
 import 'customer_features/medicine_view.dart';
 import 'customer_features/edit_profile/edit_customer_profile.dart';
 import 'customer_features/change_password/change_customer_password.dart';
+import 'customer_features/checkout_page.dart';
 
 class CustomerView extends StatefulWidget {
   const CustomerView({Key? key}) : super(key: key);
@@ -18,7 +19,7 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
   int _currentIndex = 0;
   String _customerName = '';
   String _customerEmail = '';
-  int _customerId = 0; // Changed to non-nullable and initialized
+  int _customerId = 0;
 
   late AnimationController _ctrl;
   bool _isMenuOpen = false;
@@ -45,7 +46,6 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
     setState(() {
       _customerName = prefs.getString('customerName') ?? 'Customer';
       _customerEmail = prefs.getString('customerEmail') ?? 'email@example.com';
-      // Provide a fallback value for _customerId to handle null
       _customerId = prefs.getInt('customerId') ?? 0;
       isLoading = false;
     });
@@ -60,7 +60,10 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
   }
 
   void _onItemTapped(int index) {
-    if (index == 2) return;
+    if (_isMenuOpen) {
+      // Close the menu if a bottom nav item is tapped
+      _toggleMenu();
+    }
     setState(() {
       _currentIndex = index;
     });
@@ -176,6 +179,7 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
     final List<Widget> _views = [
       const MedicineView(),
       const PromoView(),
+      const CheckoutPage(),
     ];
 
     return WillPopScope(

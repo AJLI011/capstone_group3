@@ -17,6 +17,7 @@ from django.db.models import F, Prefetch
 from django.utils.timezone import now
 from django.core.management import call_command
 from django.db import transaction
+from django.shortcuts import get_object_or_404
 
 from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog
@@ -27,7 +28,8 @@ from .serializers import (
     InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, 
     InventoryBatchDetailSerializer, TotalQuantitySerializer, InventoryLogSerializer,
     InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer, CustomerMedicineSerializer,
-    EmployeeLogSerializer, CashierInStoreOrderSerializer, InStoreOrderItemSerializer, OrderLogSerializer
+    EmployeeLogSerializer, CashierInStoreOrderSerializer, InStoreOrderItemSerializer, OrderLogSerializer, CustomerPromoMedicineDetailSerializer,
+    CustomerMedicineDetailSerializer
 )
 
 
@@ -728,7 +730,7 @@ class PromoMedicineView(APIView):
             if medicine.id not in seen_medicine_ids:
                 seen_medicine_ids.add(medicine.id)
                 data.append({
-                    'id': medicine.id,
+                    'id': medicine.id, 
                     'name': medicine.name,
                     'generic_name': medicine.generic_name,
                     'image': request.build_absolute_uri(medicine.image.url) if medicine.image else '',
@@ -737,6 +739,30 @@ class PromoMedicineView(APIView):
 
         return Response(data)
         
+def trigger_update_total_quantity(request):
+    call_command('update_total_quantities')
+    return JsonResponse({'status': 'success'})
+
+class PromoMedicineDetailView(APIView):
+    def get(self, request, pk):
+        medicine = get_object_or_404(Medicine, pk=pk)
+        serializer = CustomerPromoMedicineDetailSerializer(medicine, context={'request': request})
+        return Response(serializer.data)
+
+
+#For Normal Medicine
+@api_view(['GET'])
+def get_customer_medicines(request):
+    inventory_items = TotalQuantity.objects.select_related('medicine').all()
+    medicines = [item.medicine for item in inventory_items]
+    serializer = CustomerMedicineSerializer(medicines, many=True, context={'request': request})
+    return Response(serializer.data)
+
+@api_view(['GET'])
+def get_customer_medicine_detail(request, pk):
+    medicine = get_object_or_404(Medicine, pk=pk)
+    serializer = CustomerMedicineDetailSerializer(medicine, context={'request': request})
+    return Response(serializer.data)
 def trigger_update_total_quantity(request):
     call_command('update_total_quantities')
     return JsonResponse({'status': 'success'})
