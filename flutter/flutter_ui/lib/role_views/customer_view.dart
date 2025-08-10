@@ -7,6 +7,7 @@ import 'customer_features/medicine_view.dart';
 import 'customer_features/edit_profile/edit_customer_profile.dart';
 import 'customer_features/change_password/change_customer_password.dart';
 import 'customer_features/checkout_page.dart';
+import 'customer_features/medicine_order_agreement_form/medicine_order_agreement_page.dart';
 
 class CustomerView extends StatefulWidget {
   const CustomerView({Key? key}) : super(key: key);
@@ -261,8 +262,7 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
                                         _drawerItem(
                                             Icons.assignment_outlined,
                                             'Medicine Order Agreement',
-                                            () => _open(
-                                                _placeholderPage('Medicine Order Agreement'))),
+                                            () => _open(const MedicineOrderAgreementPage())),
                                         _drawerItem(
                                             Icons.edit,
                                             'Edit Profile',
