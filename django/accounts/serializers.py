@@ -472,3 +472,62 @@ class OrderLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderLog
         fields = ['id', 'staff_name', 'staff_role', 'in_store_order_details', 'action_type', 'description', 'timestamp']
+        
+
+#-------- in store transactions serializers--------------------
+# New serializer for Staff to get their name and role
+class StaffDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Staff
+        fields = ['name', 'role']
+
+# New nested serializer for InStoreOrderItem
+class ManagerInStoreOrderItemSerializer(serializers.ModelSerializer):
+    medicine_name = serializers.CharField(source='inventory_id.medicine.name', read_only=True)
+    is_promo = serializers.BooleanField(source='inventory_id.is_promo', read_only=True)
+    price_per_item = serializers.DecimalField(source='price_at_sale', max_digits=8, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = InStoreOrderItem
+        fields = [
+            'medicine_name', 
+            'quantity_sold', 
+            'free_quantity_given', 
+            'is_promo', 
+            'price_per_item'
+        ]
+
+# Main serializer for the manager's sales log
+class InStoreSalesTransactionSerializer(serializers.ModelSerializer):
+    staff = serializers.CharField(source='staff.name', read_only=True)
+    cashier = serializers.SerializerMethodField()
+    items = ManagerInStoreOrderItemSerializer(many=True, read_only=True)
+    
+    # Custom fields for subtotal and discount
+    subtotal = serializers.DecimalField(source='total_amount_before_discount', max_digits=10, decimal_places=2, read_only=True)
+    discount_amount = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = InStoreOrder
+        fields = [
+            'id', 
+            'date_created', 
+            'is_pwd', 
+            'staff', 
+            'cashier', 
+            'subtotal',
+            'discount_amount',
+            'total_amount_after_discount',
+            'items'
+        ]
+    
+    def get_cashier(self, obj):
+        # We fetch the cashier from the new InStoreOrderApproval model
+        if hasattr(obj, 'approval') and obj.approval:
+            return obj.approval.cashier.name
+        return "Not yet approved"
+
+    def get_discount_amount(self, obj):
+        if obj.is_pwd:
+            return obj.total_amount_before_discount - obj.total_amount_after_discount
+        return Decimal('0.00')

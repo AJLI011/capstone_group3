@@ -82,5 +82,8 @@ urlpatterns = [
     
     # Order Logs
     path('order-logs/', views.order_logs_list_view, name='order-logs'),
+    
+    #instore sales transaction
+    path('in-store-transactions/', views.InStoreSalesTransactionView.as_view(), name='in-store-transactions'),
 ]
 

@@ -19,7 +19,7 @@ from django.core.management import call_command
 from django.db import transaction
 
 from .models import (
-    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog
+    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, InStoreOrderApproval
 )
 from .serializers import (
     CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer,
@@ -27,7 +27,8 @@ from .serializers import (
     InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, 
     InventoryBatchDetailSerializer, TotalQuantitySerializer, InventoryLogSerializer,
     InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer, CustomerMedicineSerializer,
-    EmployeeLogSerializer, CashierInStoreOrderSerializer, InStoreOrderItemSerializer, OrderLogSerializer
+    EmployeeLogSerializer, CashierInStoreOrderSerializer, InStoreOrderItemSerializer, OrderLogSerializer, 
+    InStoreSalesTransactionSerializer
 )
 
 
@@ -758,6 +759,7 @@ def employee_logs_view(request):
 #------------ PENDING ORDER----------
 #----------ORDER LOGS PT 1 - FOR CASHER (INSTORE)---------
 #modified some parts of the pending order view for the order logs
+#modified put function for instore sales transaction feature
 class InStoreOrderProcessingView(APIView):
     def get(self, request):
         """
@@ -779,7 +781,7 @@ class InStoreOrderProcessingView(APIView):
             return Response({'error': 'Pending order not found'}, status=status.HTTP_404_NOT_FOUND)
 
         new_status = request.data.get('status')
-        staff_id = request.data.get('cashier_id') # We will rename this to staff_id to be more consistent
+        staff_id = request.data.get('cashier_id')
         
         if not new_status or new_status not in ['approved', 'rejected']:
             return Response({'error': 'Invalid status provided'}, status=status.HTTP_400_BAD_REQUEST)
@@ -797,10 +799,17 @@ class InStoreOrderProcessingView(APIView):
                         total_to_deduct = item.quantity_sold + item.free_quantity_given
                         batch = item.inventory_id
                         
+                        # Ensure sufficient stock before proceeding
+                        if batch.quantity < total_to_deduct:
+                             return Response(
+                                {'error': f"Insufficient stock for {batch.medicine.name}. Available: {batch.quantity}, Required: {total_to_deduct}"}, 
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                        
                         batch.quantity = F('quantity') - total_to_deduct
                         batch.save(update_fields=['quantity'])
                         
-                        # Existing InventoryLog is here
+                        # Log the sale
                         InventoryLog.objects.create(
                             user=staff_user,
                             medicine=batch.medicine,
@@ -810,12 +819,18 @@ class InStoreOrderProcessingView(APIView):
                                         f"from In-Store Order #{order.id}."
                         )
 
-                    # NEW: Create a log entry for the approved order
+                    # NEW: Create the InStoreOrderApproval record
+                    InStoreOrderApproval.objects.create(
+                        order=order,
+                        cashier=staff_user
+                    )
+                    
+                    # Create a log entry for the approved order
                     OrderLog.objects.create(
                         staff_user=staff_user,
                         in_store_order=order,
                         action_type='approve',
-                        description='Sale transaction approved'
+                        description=f'Sale transaction approved by {staff_user.name}'
                     )
 
                     order.status = 'approved'
@@ -827,12 +842,12 @@ class InStoreOrderProcessingView(APIView):
                 return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         elif new_status == 'rejected':
-            # NEW: Create a log entry for the rejected order
+            # Create a log entry for the rejected order
             OrderLog.objects.create(
                 staff_user=staff_user,
                 in_store_order=order,
                 action_type='reject',
-                description='Sale transaction rejected'
+                description=f'Sale transaction rejected by {staff_user.name}'
             )
             order.status = 'rejected'
             order.save(update_fields=['status'])
@@ -892,3 +907,22 @@ def order_logs_list_view(request):
     
     serializer = OrderLogSerializer(logs, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+#------instore sales transaction views----------------
+
+class InStoreSalesTransactionView(generics.ListAPIView):
+    serializer_class = InStoreSalesTransactionSerializer
+
+    def get_queryset(self):
+        # We want to retrieve all orders, not just pending ones.
+        queryset = InStoreOrder.objects.all()
+
+        # Prefetch related data to avoid N+1 queries.
+        queryset = queryset.select_related(
+            'staff',
+        ).prefetch_related(
+            'items__inventory_id__medicine',
+            'approval__cashier'
+        ).order_by('-date_created')
+
+        return queryset

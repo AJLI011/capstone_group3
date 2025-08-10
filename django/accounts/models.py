@@ -223,3 +223,14 @@ class OrderLog(models.Model):
 
     def __str__(self):
         return f"OrderLog - {self.action_type} for Order #{self.in_store_order.id} by {self.staff_user.name}"
+
+class InStoreOrderApproval(models.Model):
+    class Meta:
+        db_table = 'in_store_order_approvals_tbl'
+        
+    order = models.OneToOneField('InStoreOrder', on_delete=models.CASCADE, related_name='approval')
+    cashier = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, related_name='approved_in_store_orders')
+    approval_date = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Order #{self.order.id} approved by {self.cashier.name if self.cashier else 'Unknown'}"
