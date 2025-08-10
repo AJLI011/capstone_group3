@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PromoMedicinePage extends StatefulWidget {
-  const PromoMedicinePage({Key? key}) : super(key: key);
+  const PromoMedicinePage({super.key});
 
   @override
   State<PromoMedicinePage> createState() => _PromoMedicinePageState();

@@ -5,7 +5,7 @@ import 'customer_features/medicine_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CustomerView extends StatefulWidget {
-  const CustomerView({Key? key}) : super(key: key);
+  const CustomerView({super.key});
 
   @override
   State<CustomerView> createState() => _CustomerViewState();
@@ -104,7 +104,7 @@ class _CustomerViewState extends State<CustomerView> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> _views = [
+    final List<Widget> views = [
     const MedicineView(),
     const PromoView(),
   ];
@@ -126,7 +126,7 @@ class _CustomerViewState extends State<CustomerView> {
               ),
               child: _buildHeader(),
             ),
-          Expanded(child: _views[_currentIndex]),
+          Expanded(child: views[_currentIndex]),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(

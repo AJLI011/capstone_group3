@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 // Extension to format strings for display in dropdowns
 extension StringCasingExtension on String {
-  String toTitleCase() => this.isNotEmpty
+  String toTitleCase() => isNotEmpty
       ? '${this[0].toUpperCase()}${substring(1).toLowerCase()}'
       : '';
 }

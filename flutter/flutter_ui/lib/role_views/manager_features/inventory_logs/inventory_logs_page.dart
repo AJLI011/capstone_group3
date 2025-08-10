@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
 class InventoryLogsPage extends StatefulWidget {
-  const InventoryLogsPage({Key? key}) : super(key: key);
+  const InventoryLogsPage({super.key});
 
   @override
   State<InventoryLogsPage> createState() => _InventoryLogsPageState();

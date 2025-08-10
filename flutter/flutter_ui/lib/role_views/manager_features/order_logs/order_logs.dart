@@ -189,7 +189,7 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
                       const Text('Items:', style: TextStyle(fontWeight: FontWeight.bold)),
                       ...log.orderDetails!.items.map((item) => Text(
                         ' - ${item.medicineName} (x${item.quantitySold}) - Php${item.priceAtSale.toStringAsFixed(2)}',
-                      )).toList(),
+                      )),
                     ],
                   ],
                 ),
