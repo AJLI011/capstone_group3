@@ -1,8 +1,8 @@
+// medicine_detail_page.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'cart_service.dart'; // import the service
-
+import 'cart_service.dart';
 
 class MedicineDetailPage extends StatefulWidget {
   final int medicineId;
@@ -46,108 +46,165 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        appBar: AppBar(title: const Text('Loading...')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (medicineData == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Error')),
+        body: const Center(child: Text('Failed to load medicine details')),
+      );
     }
 
-    if (medicineData == null) {
-      return const Scaffold(body: Center(child: Text('Failed to load medicine')));
-    }
+    final String priceString = '₱${double.parse(medicineData!['price'].toString()).toStringAsFixed(2)}';
+    final bool prescriptionRequired = medicineData!['requires_prescription'] ?? false;
+    final int availableQuantity = medicineData!['quantity'] ?? 0;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(medicineData!['name']),
+        title: const Text('View Specific Medicine'),
+        backgroundColor: const Color(0xFF003B63),
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Top Half: Image
-          Expanded(
-            flex: 5,
-            child: Container(
-              width: double.infinity,
-              color: Colors.white,
-              child: medicineData!['image'] != ""
-                  ? Image.network(
-                      medicineData!['image'],
-                      fit: BoxFit.contain,
-                    )
-                  : Image.asset('assets/placeholder.png', fit: BoxFit.contain),
-            ),
-          ),
-
-          // Bottom Half: Info
-          Expanded(
-            flex: 5,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "${medicineData!['name']} (${medicineData!['generic_name']})",
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    Text(
-                      "₱${medicineData!['price']}",
-                      style: const TextStyle(
-                        fontSize: 18,
-                        color: Colors.blue,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Prescription tag
-                    if (medicineData!['requires_prescription'])
-                      Container(
-                        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          "Prescription Required",
-                          style: TextStyle(color: Colors.white, fontSize: 14),
+          // Scrollable Content
+          SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Image Section
+                Container(
+                  color: Colors.white,
+                  height: 300,
+                  alignment: Alignment.center,
+                  child: medicineData!['image'].isNotEmpty
+                      ? Image.network(
+                          medicineData!['image'],
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Image.asset('assets/placeholder.png', fit: BoxFit.contain),
+                        )
+                      : Image.asset('assets/placeholder.png', fit: BoxFit.contain),
+                ),
+                // Information Section
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        medicineData!['name'],
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF003B63),
                         ),
                       ),
-
-                    const SizedBox(height: 8),
-
-                    // Stock status
-                    Row(
-                      children: [
+                      const SizedBox(height: 4),
+                      Text(
+                        medicineData!['generic_name'] ?? '',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Price, In Stock & Quantity
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            priceString,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF003B63),
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: availableQuantity > 0 ? Colors.green.shade500 : Colors.red,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  availableQuantity > 0 ? "In Stock" : "Out of Stock",
+                                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "Quantity: $availableQuantity",
+                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Prescription Required
+                      if (prescriptionRequired)
                         Container(
-                          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: medicineData!['stock_status'] == "In Stock" ? Colors.green : Colors.red,
+                            color: Colors.red.shade100,
+                            border: Border.all(color: Colors.red),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Text(
-                            medicineData!['stock_status'],
-                            style: const TextStyle(color: Colors.white, fontSize: 14),
+                          child: const Text(
+                            "Prescription Required",
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Text("Quantity: ${medicineData!['quantity']}"),
-                      ],
+                      const SizedBox(height: 200), // Placeholder to prevent bottom overlap
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Bottom fixed bar with Quantity Selector and Add to Cart button
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Quantity Selector
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(30),
                     ),
-
-                    const SizedBox(height: 16),
-
-                    // Quantity selector
-                    Row(
+                    child: Row(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.remove),
+                          icon: const Icon(Icons.remove, size: 20),
                           onPressed: selectedQuantity > 1
                               ? () => setState(() => selectedQuantity--)
                               : null,
@@ -157,47 +214,47 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                           style: const TextStyle(fontSize: 18),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.add),
-                          onPressed: selectedQuantity < medicineData!['quantity']
+                          icon: const Icon(Icons.add, size: 20),
+                          onPressed: selectedQuantity < availableQuantity
                               ? () => setState(() => selectedQuantity++)
                               : null,
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: 16),
-
-                                        // Add to cart button
-                                        // Add to cart button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: medicineData!['quantity'] > 0
-                            ? () {
-                                CartService().addToCart(
-                                  CartItem(
-                                    id: medicineData!['id'],
-                                    name: medicineData!['name'],
-                                    genericName: medicineData!['generic_name'],
-                                    dosageForm: medicineData!['dosage_form'] ?? "Unknown",
-                                    image: medicineData!['image'],
-                                    price: double.parse(medicineData!['price'].toString()),
-                                    quantity: selectedQuantity,
-                                    isPromo: false, // Explicitly set to false
-                                  ),
-                                );
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Added to cart')),
-                                );
-                              }
-                            : null,
-                        child: const Text("Add to Cart"),
+                  ),
+                  // Add to Cart Button
+                  ElevatedButton.icon(
+                    onPressed: availableQuantity > 0
+                        ? () {
+                            CartService().addToCart(
+                              CartItem(
+                                id: medicineData!['id'],
+                                name: medicineData!['name'],
+                                genericName: medicineData!['generic_name'],
+                                dosageForm: medicineData!['dosage_form'] ?? "Unknown",
+                                image: medicineData!['image'],
+                                price: double.parse(medicineData!['price'].toString()),
+                                quantity: selectedQuantity,
+                                isPromo: false,
+                              ),
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Added to cart')),
+                            );
+                          }
+                        : null,
+                    icon: const Icon(Icons.shopping_cart),
+                    label: const Text('Add to cart'),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: const Color(0xFF003B63),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
                       ),
-                    )
-
-                  ],
-                ),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
