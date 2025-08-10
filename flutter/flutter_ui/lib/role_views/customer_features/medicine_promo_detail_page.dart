@@ -205,6 +205,7 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                                     price: double.parse(medicineData!['price'].toString()),
                                     quantity: selectedQuantity,
                                     isPromo: true, // This is the key line
+                                    promoQuantity: selectedQuantity, // This is the fix
                                   ),
                                 );
 
