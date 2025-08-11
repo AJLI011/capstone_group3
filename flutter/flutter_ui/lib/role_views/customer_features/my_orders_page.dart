@@ -218,6 +218,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
       final medicineName = medicine['name'] ?? 'N/A';
       final genericName = medicine['generic_name'] ?? 'N/A';
       final imageUrl = medicine['image'] ?? '';
+      final requiresPrescription = medicine['requires_prescription'] ?? false; // New line
 
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -248,6 +249,15 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
                     genericName,
                     style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.grey),
                   ),
+                  if (requiresPrescription) // New line
+                    const Text(
+                      'Prescription Required',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.red,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
                   const SizedBox(height: 4),
                   if (freeQuantity > 0)
                     Text(
