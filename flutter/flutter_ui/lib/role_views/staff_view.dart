@@ -7,7 +7,7 @@ import 'staff_features/change_password/change_staff_password.dart';
 import 'manager_features/inventory/inventory_grid_screen.dart';
 import 'staff_features/expiration_dashboard/expiry_dashboard_staff_view.dart';
 import 'staff_features/sales/sales_barcode.dart';
-
+import 'staff_features/online_orders/online_orders_page.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -231,7 +231,7 @@ class _StaffViewState extends State<StaffView> with SingleTickerProviderStateMix
                                         _drawerItem(Icons.sell, 'Sale', () => _open(SalesBarcodeScreen(staffId: widget.staffId, cartItems: []))),
 
 
-                                        _drawerItem(Icons.mobile_friendly, 'Online Orders', () {}),
+                                        _drawerItem(Icons.mobile_friendly, 'Online Orders', () => _open(const OnlineOrdersPage())),
                                         _drawerItem(Icons.priority_high, 'Expiry', 
                                          () => _open(const ExpiryDashboardStaffView())),
                                         _drawerItem(Icons.person_outline, 'Edit Profile', 
