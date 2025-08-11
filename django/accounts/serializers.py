@@ -610,10 +610,48 @@ class OnlineOrderItemCreateSerializer(serializers.ModelSerializer):
     )
     quantity_sold = serializers.IntegerField(min_value=1)
     free_quantity_given = serializers.IntegerField(default=0, min_value=0)
+    is_promo = serializers.BooleanField()
 
     class Meta:
         model = OnlineOrderItem
-        fields = ['medicine_id', 'quantity_sold', 'free_quantity_given']
+        fields = ['medicine_id', 'quantity_sold', 'free_quantity_given', 'is_promo']
+
+    def validate(self, data):
+        """
+        Custom validation to ensure that `is_promo` flag matches the actual promo status
+        of the medicine in the inventory.
+        """
+        medicine = data.get('medicine_id')
+        is_promo_requested = data.get('is_promo')
+        
+        if not medicine:
+            # This should be caught by the PrimaryKeyRelatedField, but it's a good
+            # defensive check to have.
+            raise serializers.ValidationError("Medicine ID is required.")
+
+        # Check for active promo inventory for the requested medicine
+        has_active_promo = Inventory.objects.filter(
+            medicine=medicine,
+            is_promo=True,
+            quantity__gt=0,
+            exp_date__gt=date.today()
+        ).exists()
+
+        if is_promo_requested and not has_active_promo:
+            # User is requesting a promo price, but no active promo exists.
+            raise serializers.ValidationError({
+                'is_promo': "This medicine is not currently on promotion. Please set 'is_promo' to False."
+            })
+        
+        if not is_promo_requested and has_active_promo:
+            # User is requesting non-promo price, but an active promo exists.
+            # This might be valid business logic (e.g., customer chooses to not use a promo)
+            # but for a simple system, it's safer to ensure they can't bypass a promo price if
+            # only promo stock is available. The `OnlineOrderCreateSerializer` logic handles this by
+            # filtering, so we don't need a hard fail here.
+            pass
+
+        return data
 
 
 class OnlineOrderCreateSerializer(serializers.ModelSerializer):
@@ -635,85 +673,78 @@ class OnlineOrderCreateSerializer(serializers.ModelSerializer):
         is_pwd = validated_data.get('is_pwd', False)
         
         total_before = Decimal('0.00')
+        order_items_to_create = []
 
         try:
             with transaction.atomic():
-                order = OnlineOrder(
-                    customer=customer,
-                    is_pwd=is_pwd,
-                    pickup_schedule=pickup_schedule,
-                )
-
-                medicine_ids = [item['medicine_id'] for item in items_data]
-
-                all_batches = Inventory.objects.filter(
-                    medicine__in=medicine_ids,
-                    quantity__gt=0,
-                    exp_date__gt=date.today()
-                ).order_by('exp_date')
-
-                order_items_to_create = []
-
+                # Perform a dry run to check stock and prepare items
                 for item_data in items_data:
                     medicine = item_data['medicine_id']
-                    quantity_sold = item_data['quantity_sold']
-                    free_quantity_given = item_data.get('free_quantity_given', 0)
-                    total_to_deduct = quantity_sold + free_quantity_given
+                    quantity_sold_initial = item_data['quantity_sold']
+                    free_quantity_given_initial = item_data.get('free_quantity_given', 0)
+                    is_promo = item_data['is_promo']
+                    total_to_deduct = quantity_sold_initial + free_quantity_given_initial
+
+                    # Check for total availability for the specific promo status
+                    total_available = Inventory.objects.filter(
+                        medicine=medicine,
+                        is_promo=is_promo,
+                        quantity__gt=0,
+                        exp_date__gt=date.today()
+                    ).aggregate(total=Sum('quantity'))['total'] or 0
+
+                    if total_available < total_to_deduct:
+                        raise serializers.ValidationError(
+                            f"Not enough stock for {medicine.name} (Promo Status: {is_promo}). "
+                            f"Requested: {total_to_deduct}, "
+                            f"Available: {total_available}"
+                        )
+                    
+                    available_batches = Inventory.objects.filter(
+                        medicine=medicine,
+                        is_promo=is_promo,
+                        quantity__gt=0,
+                        exp_date__gt=date.today()
+                    ).order_by('exp_date')
+
                     remaining_to_deduct = total_to_deduct
 
-                    try:
-                        total_quantity_obj = TotalQuantity.objects.get(medicine=medicine)
-                        if total_quantity_obj.total_quantity < total_to_deduct:
-                            raise serializers.ValidationError(
-                                f"Not enough stock for {medicine.name}. "
-                                f"Requested: {total_to_deduct}, "
-                                f"Available: {total_quantity_obj.total_quantity}"
-                            )
-                    except TotalQuantity.DoesNotExist:
-                        raise serializers.ValidationError(
-                            f"Stock for {medicine.name} not found."
-                        )
-
-                    available_batches = all_batches.filter(medicine=medicine)
-                    
                     for batch in available_batches:
                         if remaining_to_deduct <= 0:
                             break
                         
                         quantity_from_batch = min(remaining_to_deduct, batch.quantity)
-                        sold_from_batch = min(quantity_from_batch, quantity_sold)
+                        sold_from_batch = min(quantity_from_batch, quantity_sold_initial)
                         free_from_batch = quantity_from_batch - sold_from_batch
                         
                         order_items_to_create.append(
                             OnlineOrderItem(
-                                order=order,
                                 inventory_id=batch,
                                 quantity_sold=sold_from_batch,
                                 free_quantity_given=free_from_batch,
                                 price_at_sale=medicine.price
                             )
                         )
+                        
                         remaining_to_deduct -= quantity_from_batch
-                        quantity_sold -= sold_from_batch
                         
-                        batch.quantity -= quantity_from_batch
-                        
-                    if remaining_to_deduct > 0:
-                        raise serializers.ValidationError(
-                            f"Internal Error: Could not deduct all requested quantity for {medicine.name}. Remaining: {remaining_to_deduct}"
-                        )
+                    total_before += quantity_sold_initial * medicine.price
 
-                    total_before += item_data['quantity_sold'] * medicine.price
+                # Create the order once all checks pass
+                order = OnlineOrder.objects.create(
+                    customer=customer,
+                    is_pwd=is_pwd,
+                    pickup_schedule=pickup_schedule,
+                    status='pending',
+                    total_amount_before_discount=total_before,
+                    total_amount_after_discount=total_before - (total_before * Decimal('0.20') if is_pwd else Decimal('0.00'))
+                )
 
-                order.total_amount_before_discount = total_before
-                discount = total_before * Decimal('0.20') if is_pwd else Decimal('0.00')
-                order.total_amount_after_discount = total_before - discount
-                order.save()
-                
-                Inventory.objects.bulk_update(all_batches, ['quantity'])
-
+                # Assign the newly created order to each order item before bulk creating
                 for item in order_items_to_create:
                     item.order = order
+
+                # Bulk create order items
                 OnlineOrderItem.objects.bulk_create(order_items_to_create)
 
                 return order

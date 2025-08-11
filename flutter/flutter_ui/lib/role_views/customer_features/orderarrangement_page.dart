@@ -40,6 +40,7 @@ class OrderArrangementPage extends StatelessWidget {
       'medicine_id': item.id,
       'quantity_sold': item.quantity,
       'free_quantity_given': item.promoQuantity,
+      'is_promo': item.isPromo,
     }).toList();
 
     final Map<String, dynamic> requestBody = {
