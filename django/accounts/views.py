@@ -927,6 +927,7 @@ def order_logs_list_view(request):
     serializer = OrderLogSerializer(logs, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+#------------------ ONLINE ORDERS VIEW -------------------
 @api_view(['POST'])
 def create_online_order(request):
     """
@@ -948,7 +949,7 @@ def create_online_order(request):
             print(f"[ONLINE ORDER ERROR] {e}")
             return Response({"error": f"Failed to process order: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
 @api_view(['GET'])
 def get_online_customer_orders(request, customer_id):
     """
@@ -964,34 +965,17 @@ def get_online_customer_orders(request, customer_id):
 @api_view(['PUT'])
 def cancel_online_order(request, order_id):
     """
-    API endpoint to cancel an online order and re-stock inventory,
-    correctly handling both paid and free quantities.
+    API endpoint to cancel an online order without affecting inventory.
     """
     try:
         with transaction.atomic():
             order = OnlineOrder.objects.select_for_update().get(pk=order_id)
 
             if order.status == 'pending':
-                order_items = OnlineOrderItem.objects.filter(order=order)
-                for item in order_items:
-                    try:
-                        # Re-stock both the paid quantity and the free quantity
-                        total_quantity_obj = TotalQuantity.objects.get(medicine=item.inventory_id.medicine)
-                        total_quantity_obj.total_quantity = F('total_quantity') + item.quantity_sold + item.free_quantity_given
-                        total_quantity_obj.save()
-                        total_quantity_obj.refresh_from_db()
-                        
-                        # Re-stock the individual inventory batch
-                        item.inventory_id.quantity = F('quantity') + item.quantity_sold + item.free_quantity_given
-                        item.inventory_id.save()
-
-                    except TotalQuantity.DoesNotExist:
-                        print(f"Warning: TotalQuantity for medicine ID {item.inventory_id.medicine.id} not found.")
-
                 order.status = 'cancelled'
                 order.save()
                 return Response(
-                    {"detail": "Online order cancelled successfully and inventory re-stocked."},
+                    {"detail": "Online order cancelled successfully."},
                     status=status.HTTP_200_OK
                 )
             else:

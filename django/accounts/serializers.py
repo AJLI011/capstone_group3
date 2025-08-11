@@ -578,8 +578,10 @@ class OrderLogSerializer(serializers.ModelSerializer):
         model = OrderLog
         fields = ['id', 'staff_name', 'staff_role', 'in_store_order_details', 'action_type', 'description', 'timestamp']
 
-# Online Orders Serializers
+# --- Online Orders Serializers ---
 class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
+    # This serializer will now correctly return a nested Medicine object,
+    # which is what the Flutter app is expecting.
     medicine = MedicineSerializer(source='inventory_id.medicine')
     free_quantity_given = serializers.IntegerField()
 
@@ -589,7 +591,6 @@ class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
 
 
 class OnlineOrderListSerializer(serializers.ModelSerializer):
-    # Removed the redundant `source='items'`
     items = OnlineOrderItemReadSerializer(many=True, read_only=True)
     customer_name = serializers.CharField(source='customer.name', read_only=True)
     customer_email = serializers.CharField(source='customer.email', read_only=True)
@@ -619,17 +620,14 @@ class OnlineOrderItemCreateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         """
         Custom validation to ensure that `is_promo` flag matches the actual promo status
-        of the medicine in the inventory.
+        of the medicine in the inventory. We're not deducting from the inventory here.
         """
         medicine = data.get('medicine_id')
         is_promo_requested = data.get('is_promo')
         
         if not medicine:
-            # This should be caught by the PrimaryKeyRelatedField, but it's a good
-            # defensive check to have.
             raise serializers.ValidationError("Medicine ID is required.")
 
-        # Check for active promo inventory for the requested medicine
         has_active_promo = Inventory.objects.filter(
             medicine=medicine,
             is_promo=True,
@@ -638,19 +636,10 @@ class OnlineOrderItemCreateSerializer(serializers.ModelSerializer):
         ).exists()
 
         if is_promo_requested and not has_active_promo:
-            # User is requesting a promo price, but no active promo exists.
             raise serializers.ValidationError({
                 'is_promo': "This medicine is not currently on promotion. Please set 'is_promo' to False."
             })
         
-        if not is_promo_requested and has_active_promo:
-            # User is requesting non-promo price, but an active promo exists.
-            # This might be valid business logic (e.g., customer chooses to not use a promo)
-            # but for a simple system, it's safer to ensure they can't bypass a promo price if
-            # only promo stock is available. The `OnlineOrderCreateSerializer` logic handles this by
-            # filtering, so we don't need a hard fail here.
-            pass
-
         return data
 
 
@@ -677,57 +666,39 @@ class OnlineOrderCreateSerializer(serializers.ModelSerializer):
 
         try:
             with transaction.atomic():
-                # Perform a dry run to check stock and prepare items
                 for item_data in items_data:
                     medicine = item_data['medicine_id']
                     quantity_sold_initial = item_data['quantity_sold']
                     free_quantity_given_initial = item_data.get('free_quantity_given', 0)
                     is_promo = item_data['is_promo']
-                    total_to_deduct = quantity_sold_initial + free_quantity_given_initial
-
-                    # Check for total availability for the specific promo status
-                    total_available = Inventory.objects.filter(
-                        medicine=medicine,
-                        is_promo=is_promo,
-                        quantity__gt=0,
-                        exp_date__gt=date.today()
-                    ).aggregate(total=Sum('quantity'))['total'] or 0
-
-                    if total_available < total_to_deduct:
-                        raise serializers.ValidationError(
-                            f"Not enough stock for {medicine.name} (Promo Status: {is_promo}). "
-                            f"Requested: {total_to_deduct}, "
-                            f"Available: {total_available}"
-                        )
                     
-                    available_batches = Inventory.objects.filter(
-                        medicine=medicine,
-                        is_promo=is_promo,
-                        quantity__gt=0,
-                        exp_date__gt=date.today()
-                    ).order_by('exp_date')
-
-                    remaining_to_deduct = total_to_deduct
-
-                    for batch in available_batches:
-                        if remaining_to_deduct <= 0:
-                            break
+                    # Prepare the order item without affecting inventory
+                    try:
+                        inventory_batch = Inventory.objects.filter(
+                            medicine=medicine,
+                            is_promo=is_promo,
+                            quantity__gt=0,
+                            exp_date__gt=date.today()
+                        ).order_by('exp_date').first()
                         
-                        quantity_from_batch = min(remaining_to_deduct, batch.quantity)
-                        sold_from_batch = min(quantity_from_batch, quantity_sold_initial)
-                        free_from_batch = quantity_from_batch - sold_from_batch
-                        
+                        if not inventory_batch:
+                            raise serializers.ValidationError(
+                                f"No available inventory batch found for {medicine.name}."
+                            )
+
                         order_items_to_create.append(
                             OnlineOrderItem(
-                                inventory_id=batch,
-                                quantity_sold=sold_from_batch,
-                                free_quantity_given=free_from_batch,
+                                inventory_id=inventory_batch,
+                                quantity_sold=quantity_sold_initial,
+                                free_quantity_given=free_quantity_given_initial,
                                 price_at_sale=medicine.price
                             )
                         )
-                        
-                        remaining_to_deduct -= quantity_from_batch
-                        
+                    except Exception as e:
+                        raise serializers.ValidationError(
+                            f"Error processing item {medicine.name}: {str(e)}"
+                        )
+
                     total_before += quantity_sold_initial * medicine.price
 
                 # Create the order once all checks pass
@@ -740,7 +711,7 @@ class OnlineOrderCreateSerializer(serializers.ModelSerializer):
                     total_amount_after_discount=total_before - (total_before * Decimal('0.20') if is_pwd else Decimal('0.00'))
                 )
 
-                # Assign the newly created order to each order item before bulk creating
+                # Assign the newly created order to each order item
                 for item in order_items_to_create:
                     item.order = order
 

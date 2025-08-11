@@ -101,6 +101,10 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
           } else {
             final orders = snapshot.data!;
             final ongoingOrders = orders.where((order) => order['status'] == 'pending').toList();
+            // Filter orders for the 'All Orders' tab to include only completed or cancelled orders
+            final pastOrders = orders.where((order) => 
+                order['status'] == 'completed' || order['status'] == 'cancelled'
+            ).toList();
 
             return TabBarView(
               controller: _tabController,
@@ -120,12 +124,12 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
                 // All Orders Tab
                 RefreshIndicator(
                   onRefresh: _refreshOrders,
-                  child: orders.isEmpty
-                      ? const Center(child: Text('You have no online orders.'))
+                  child: pastOrders.isEmpty
+                      ? const Center(child: Text('You have no past orders.'))
                       : ListView.builder(
-                          itemCount: orders.length,
+                          itemCount: pastOrders.length,
                           itemBuilder: (context, index) {
-                            return _buildOrderCard(orders[index]);
+                            return _buildOrderCard(pastOrders[index]);
                           },
                         ),
                 ),
