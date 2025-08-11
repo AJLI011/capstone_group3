@@ -7,7 +7,7 @@ import 'staff_features/change_password/change_staff_password.dart';
 import 'manager_features/inventory/inventory_grid_screen.dart';
 import 'staff_features/expiration_dashboard/expiry_dashboard_staff_view.dart';
 import 'staff_features/sales/sales_barcode.dart';
-import 'staff_features/online_orders/online_orders_page.dart';
+import 'staff_features/online_orders/online_orders_staff_page.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
