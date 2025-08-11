@@ -100,10 +100,10 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
             return const Center(child: Text('You have no online orders.'));
           } else {
             final orders = snapshot.data!;
-            final ongoingOrders = orders.where((order) => order['status'] == 'pending').toList();
-            // Filter orders for the 'All Orders' tab to include only completed or cancelled orders
+            // Now include 'ready for pickup' as an ongoing order
+            final ongoingOrders = orders.where((order) => order['status'] == 'pending' || order['status'] == 'ready for pickup').toList();
             final pastOrders = orders.where((order) => 
-                order['status'] == 'completed' || order['status'] == 'cancelled'
+              order['status'] == 'completed' || order['status'] == 'cancelled'
             ).toList();
 
             return TabBarView(
@@ -143,7 +143,8 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
 
   Widget _buildOrderCard(Map<String, dynamic> order) {
     final totalAmount = double.tryParse(order['total_amount_after_discount'].toString()) ?? 0.0;
-    final hasOngoingItems = order['status'] == 'pending';
+    // Determine if the order is cancellable (i.e., status is pending)
+    final canBeCancelled = order['status'] == 'pending';
 
     return Card(
       margin: const EdgeInsets.all(8.0),
@@ -155,7 +156,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
             Text(
               'Status: ${order['status'].toString().toUpperCase()}',
               style: TextStyle(
-                color: hasOngoingItems ? Colors.orange : Colors.green,
+                color: canBeCancelled ? Colors.orange : (order['status'] == 'ready for pickup' ? Colors.blue : Colors.green),
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -189,7 +190,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
                     ),
                   ],
                 ),
-                if (hasOngoingItems)
+                if (canBeCancelled)
                   Padding(
                     padding: const EdgeInsets.only(top: 16.0),
                     child: ElevatedButton(

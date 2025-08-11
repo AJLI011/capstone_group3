@@ -231,7 +231,7 @@ class _StaffViewState extends State<StaffView> with SingleTickerProviderStateMix
                                         _drawerItem(Icons.sell, 'Sale', () => _open(SalesBarcodeScreen(staffId: widget.staffId, cartItems: []))),
 
 
-                                        _drawerItem(Icons.mobile_friendly, 'Online Orders', () => _open(const OnlineOrdersPage())),
+                                        _drawerItem(Icons.mobile_friendly, 'Online Orders', () => _open(const StaffOrdersPage())),
                                         _drawerItem(Icons.priority_high, 'Expiry', 
                                          () => _open(const ExpiryDashboardStaffView())),
                                         _drawerItem(Icons.person_outline, 'Edit Profile', 

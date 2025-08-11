@@ -988,3 +988,60 @@ def cancel_online_order(request, order_id):
     except Exception as e:
         print(f"[CANCEL ORDER ERROR] {e}")
         return Response({"detail": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# Staff View Confirm Online Order
+@api_view(['GET'])
+def get_pending_online_orders(request):
+    """
+    API view for staff to get a list of all online orders with a 'pending' status.
+    """
+    try:
+        # Fetch only orders that are in a 'pending' or 'ready for pickup' status
+        orders = OnlineOrder.objects.filter(
+            status__in=['pending', 'ready for pickup']
+        ).prefetch_related(
+            Prefetch(
+                'items',
+                queryset=OnlineOrderItem.objects.select_related('inventory_id__medicine')
+            )
+        ).order_by('-date_created')
+        serializer = OnlineOrderListSerializer(orders, many=True)
+        return Response(serializer.data)
+    except Exception as e:
+        print(f"[GET PENDING ONLINE ORDERS ERROR] {e}")
+        return Response(
+            {"detail": f"An unexpected error occurred: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['PUT'])
+def confirm_online_order(request, orderId):
+    """
+    API view for staff to confirm a pending online order.
+    Changes the status from 'pending' to 'ready for pickup'.
+    """
+    try:
+        with transaction.atomic():
+            order = OnlineOrder.objects.get(id=orderId)
+
+            if order.status == 'pending':
+                # Update the order status
+                order.status = 'ready for pickup'
+                order.save()
+                return Response(
+                    {"detail": "Online order confirmed successfully."},
+                    status=status.HTTP_200_OK
+                )
+            else:
+                return Response(
+                    {"detail": f"Order status is '{order.status}' and cannot be confirmed."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+    except OnlineOrder.DoesNotExist:
+        return Response({"detail": "Online order not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"[CONFIRM ORDER ERROR] {e}")
+        return Response(
+            {"detail": f"An unexpected error occurred: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
