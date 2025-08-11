@@ -8,6 +8,7 @@ import 'customer_features/edit_profile/edit_customer_profile.dart';
 import 'customer_features/change_password/change_customer_password.dart';
 import 'customer_features/checkout_page.dart';
 import 'customer_features/medicine_order_agreement_form/medicine_order_agreement_page.dart';
+import 'customer_features/my_orders_page.dart';
 
 class CustomerView extends StatefulWidget {
   const CustomerView({Key? key}) : super(key: key);
@@ -177,10 +178,12 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     final screenW = MediaQuery.of(context).size.width;
+
+    // MODIFIED: Passed the _customerId to the MedicineView and PromoView widgets.
     final List<Widget> _views = [
-      const MedicineView(),
-      const PromoView(),
-      const CheckoutPage(),
+      MedicineView(customerId: _customerId),
+      PromoView(customerId: _customerId),
+      CheckoutPage(customerId: _customerId),
     ];
 
     return WillPopScope(
@@ -258,7 +261,7 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
                                             Icons.shopping_bag_outlined,
                                             'My Orders',
                                             () => _open(
-                                                _placeholderPage('My Orders'))),
+                                                MyOrdersPage(customerId: _customerId))),
                                         _drawerItem(
                                             Icons.assignment_outlined,
                                             'Medicine Order Agreement',

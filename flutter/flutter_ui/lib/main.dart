@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart'; // ADDED: Import provider package
 
 import 'login_function/login_customer.dart';
 import 'login_function/login_staff.dart';
@@ -9,11 +10,18 @@ import 'role_views/manager_view.dart';
 import 'role_views/cashier_view.dart';
 import 'role_views/staff_view.dart';
 import 'role_views/customer_view.dart';
+import 'role_views/customer_features/cart_service.dart'; // ADDED: Import CartService
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final startScreen = await _getStartScreen();
-  runApp(MyApp(startScreen));
+
+  runApp(
+    ChangeNotifierProvider( // ADDED: Wrap your app with ChangeNotifierProvider
+      create: (context) => CartService(),
+      child: MyApp(startScreen),
+    ),
+  );
 }
 
 Future<Widget> _getStartScreen() async {

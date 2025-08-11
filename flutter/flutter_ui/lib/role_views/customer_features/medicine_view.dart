@@ -31,7 +31,8 @@ class Medicine {
 }
 
 class MedicineView extends StatefulWidget {
-  const MedicineView({super.key});
+  final int customerId; // <--- ADDED: customerId
+  const MedicineView({super.key, required this.customerId}); // <--- ADDED: customerId to constructor
 
   @override
   State<MedicineView> createState() => _MedicineViewState();
@@ -75,7 +76,10 @@ class _MedicineViewState extends State<MedicineView> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => MedicineDetailPage(medicineId: med.id),
+            builder: (context) => MedicineDetailPage(
+              medicineId: med.id,
+              customerId: widget.customerId, // <--- MODIFIED: Passed customerId
+            ),
           ),
         );
       },

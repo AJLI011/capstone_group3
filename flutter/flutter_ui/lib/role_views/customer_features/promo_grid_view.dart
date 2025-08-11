@@ -44,7 +44,8 @@ class PromoMedicine {
 
 // ===================== PROMO VIEW =====================
 class PromoView extends StatefulWidget {
-  const PromoView({super.key});
+  final int customerId; // <--- ADDED: customerId
+  const PromoView({super.key, required this.customerId}); // <--- ADDED: customerId to constructor
 
   @override
   State<PromoView> createState() => _PromoViewState();
@@ -118,7 +119,10 @@ class _PromoViewState extends State<PromoView> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => PromoMedicineDetailPage(medicineId: promo.id),
+                                  builder: (context) => PromoMedicineDetailPage(
+                                    medicineId: promo.id,
+                                    customerId: widget.customerId, // <--- MODIFIED: Passed customerId
+                                  ),
                                 ),
                               );
                             },

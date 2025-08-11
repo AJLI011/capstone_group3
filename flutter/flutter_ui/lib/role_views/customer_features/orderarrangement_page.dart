@@ -1,20 +1,29 @@
+// orderarrangement_page.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart'; // ADDED: Import for Provider
 import 'success_page.dart';
 import 'cart_service.dart';
 import 'my_orders_page.dart';
 
 class OrderArrangementPage extends StatelessWidget {
   final DateTime pickupSchedule;
-  const OrderArrangementPage({super.key, required this.pickupSchedule});
+  final int customerId;
+  final bool isPwd; // ADDED: Now a required parameter
 
-  final int customerId = 2;
-  final bool isPwd = false;
+  const OrderArrangementPage({
+    super.key,
+    required this.pickupSchedule,
+    required this.customerId,
+    required this.isPwd, // ADDED: Require isPwd in the constructor
+  });
 
   Future<void> _placeOrder(BuildContext context) async {
-    final cartService = CartService();
+    // CORRECTION: Get the existing CartService instance from the Provider
+    // instead of creating a new one.
+    final cartService = Provider.of<CartService>(context, listen: false);
     final items = cartService.items;
 
     if (items.isEmpty) {
@@ -34,8 +43,8 @@ class OrderArrangementPage extends StatelessWidget {
     }).toList();
 
     final Map<String, dynamic> requestBody = {
-      'customer_id': customerId,
-      'is_pwd': isPwd,
+      'customer_id': customerId, // Using the constructor value
+      'is_pwd': isPwd, // Using the constructor value
       'items': orderItems,
       'pickup_schedule': pickupScheduleString,
     };
@@ -104,30 +113,30 @@ class OrderArrangementPage extends StatelessWidget {
 By placing an order with the pharmacy, the customer agrees with the following terms:
 
 (A) Pickup Only:
-      All orders must be picked up at the pharmacy. Delivery
-      services are not offered.
+    All orders must be picked up at the pharmacy. Delivery
+    services are not offered.
 
 (B) Pickup Schedule:
-      The customer agrees to collect their order on the
-      selected date and time. If the order is still not collected
-      on that day during pharmacy hours, it will be canceled.
-      Orders scheduled outside of operating hours will also
-      be canceled.
+    The customer agrees to collect their order on the
+    selected date and time. If the order is still not collected
+    on that day during pharmacy hours, it will be canceled.
+    Orders scheduled outside of operating hours will also
+    be canceled.
 
 (C) Cancellation & Product Availability
-      If an order is canceled due to non-pickup, the
-      customer acknowledges that the pharmacy will
-      not hold the product for the customer and will
-      not be held accountable if the product is not
-      available on their next order request.
+    If an order is canceled due to non-pickup, the
+    customer acknowledges that the pharmacy will
+    not hold the product for the customer and will
+    not be held accountable if the product is not
+    available on their next order request.
 
 (D) Prescription & Discount Requirement
-      For medicines requiring a prescription and for
-      discount, the customer must present a valid
-      prescription or ID at the pharmacy during the
-      scheduled pickup time. If not provided, prescription
-      required items will be not released. Discounts will
-      also not be applied without proof.
+    For medicines requiring a prescription and for
+    discount, the customer must present a valid
+    prescription or ID at the pharmacy during the
+    scheduled pickup time. If not provided, prescription
+    required items will be not released. Discounts will
+    also not be applied without proof.
 
 By pressing “I Agree” the customer confirms they have read, understood, and agree to the terms above.
                       """,

@@ -6,7 +6,8 @@ import 'cart_service.dart';
 
 class MedicineDetailPage extends StatefulWidget {
   final int medicineId;
-  const MedicineDetailPage({super.key, required this.medicineId});
+  final int customerId;
+  const MedicineDetailPage({super.key, required this.medicineId, required this.customerId});
 
   @override
   State<MedicineDetailPage> createState() => _MedicineDetailPageState();
