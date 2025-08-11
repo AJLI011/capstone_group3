@@ -84,5 +84,10 @@ urlpatterns = [
     
     # Order Logs
     path('order-logs/', views.order_logs_list_view, name='order-logs'),
+
+    # Online Orders
+    path('customer/<str:customer_id>/online-orders/', views.get_online_customer_orders, name='get_online_customer_orders'),
+    path('customer/cancel-online-order/<int:order_id>/', views.cancel_online_order, name='cancel_online_order'),
+    path('customer/online-orders/create/', views.create_online_order, name='create_online_order'),
 ]
 

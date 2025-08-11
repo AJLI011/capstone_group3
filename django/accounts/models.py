@@ -223,3 +223,39 @@ class OrderLog(models.Model):
 
     def __str__(self):
         return f"OrderLog - {self.action_type} for Order #{self.in_store_order.id} by {self.staff_user.name}"
+
+# =================== NEW MODELS FOR ONLINE ORDERS ===================
+class OnlineOrder(models.Model):
+    ORDER_STATUS = [
+        ('pending', 'Pending'),
+        ('ready_for_pickup', 'Ready for Pickup'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    date_created = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=ORDER_STATUS, default='pending')
+    is_pwd = models.BooleanField(default=False)
+    total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_amount_after_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    pickup_schedule = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'online_orders_tbl'
+
+    def __str__(self):
+        return f"Online Order {self.id} by {self.customer.name}"
+
+
+class OnlineOrderItem(models.Model):
+    order = models.ForeignKey('OnlineOrder', on_delete=models.CASCADE, related_name='items')
+    inventory_id = models.ForeignKey('Inventory', on_delete=models.CASCADE)
+    quantity_sold = models.PositiveIntegerField(default=1)
+    free_quantity_given = models.PositiveIntegerField(default=0)
+    price_at_sale = models.DecimalField(max_digits=8, decimal_places=2)
+
+    class Meta:
+        db_table = 'online_order_items_tbl'
+        
+    def __str__(self):
+        return f"{self.inventory_id.medicine.name} - {self.quantity_sold} sold"

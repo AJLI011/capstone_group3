@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog
+from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog, OnlineOrder, OnlineOrderItem
 
 from django.contrib.auth.hashers import make_password
 from decimal import Decimal
@@ -577,3 +577,145 @@ class OrderLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderLog
         fields = ['id', 'staff_name', 'staff_role', 'in_store_order_details', 'action_type', 'description', 'timestamp']
+
+# Online Orders Serializers
+class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
+    medicine = MedicineSerializer(source='inventory_id.medicine')
+    free_quantity_given = serializers.IntegerField()
+
+    class Meta:
+        model = OnlineOrderItem
+        fields = ['medicine', 'quantity_sold', 'free_quantity_given', 'price_at_sale']
+
+
+class OnlineOrderListSerializer(serializers.ModelSerializer):
+    # Removed the redundant `source='items'`
+    items = OnlineOrderItemReadSerializer(many=True, read_only=True)
+    customer_name = serializers.CharField(source='customer.name', read_only=True)
+    customer_email = serializers.CharField(source='customer.email', read_only=True)
+    pickup_schedule = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = OnlineOrder
+        fields = [
+            'id', 'customer_name', 'customer_email', 'date_created',
+            'status', 'total_amount_before_discount', 'total_amount_after_discount',
+            'is_pwd', 'items', 'pickup_schedule'
+        ]
+
+
+class OnlineOrderItemCreateSerializer(serializers.ModelSerializer):
+    medicine_id = serializers.PrimaryKeyRelatedField(
+        queryset=Medicine.objects.all(), write_only=True
+    )
+    quantity_sold = serializers.IntegerField(min_value=1)
+    free_quantity_given = serializers.IntegerField(default=0, min_value=0)
+
+    class Meta:
+        model = OnlineOrderItem
+        fields = ['medicine_id', 'quantity_sold', 'free_quantity_given']
+
+
+class OnlineOrderCreateSerializer(serializers.ModelSerializer):
+    items = OnlineOrderItemCreateSerializer(many=True, write_only=True)
+    customer_id = serializers.PrimaryKeyRelatedField(
+        queryset=Customer.objects.all(), source='customer', write_only=True
+    )
+    pickup_schedule = serializers.DateTimeField(write_only=True)
+    id = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = OnlineOrder
+        fields = ['id', 'customer_id', 'is_pwd', 'items', 'pickup_schedule']
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        pickup_schedule = validated_data.pop('pickup_schedule')
+        customer = validated_data['customer']
+        is_pwd = validated_data.get('is_pwd', False)
+        
+        total_before = Decimal('0.00')
+
+        try:
+            with transaction.atomic():
+                order = OnlineOrder(
+                    customer=customer,
+                    is_pwd=is_pwd,
+                    pickup_schedule=pickup_schedule,
+                )
+
+                medicine_ids = [item['medicine_id'] for item in items_data]
+
+                all_batches = Inventory.objects.filter(
+                    medicine__in=medicine_ids,
+                    quantity__gt=0,
+                    exp_date__gt=date.today()
+                ).order_by('exp_date')
+
+                order_items_to_create = []
+
+                for item_data in items_data:
+                    medicine = item_data['medicine_id']
+                    quantity_sold = item_data['quantity_sold']
+                    free_quantity_given = item_data.get('free_quantity_given', 0)
+                    total_to_deduct = quantity_sold + free_quantity_given
+                    remaining_to_deduct = total_to_deduct
+
+                    try:
+                        total_quantity_obj = TotalQuantity.objects.get(medicine=medicine)
+                        if total_quantity_obj.total_quantity < total_to_deduct:
+                            raise serializers.ValidationError(
+                                f"Not enough stock for {medicine.name}. "
+                                f"Requested: {total_to_deduct}, "
+                                f"Available: {total_quantity_obj.total_quantity}"
+                            )
+                    except TotalQuantity.DoesNotExist:
+                        raise serializers.ValidationError(
+                            f"Stock for {medicine.name} not found."
+                        )
+
+                    available_batches = all_batches.filter(medicine=medicine)
+                    
+                    for batch in available_batches:
+                        if remaining_to_deduct <= 0:
+                            break
+                        
+                        quantity_from_batch = min(remaining_to_deduct, batch.quantity)
+                        sold_from_batch = min(quantity_from_batch, quantity_sold)
+                        free_from_batch = quantity_from_batch - sold_from_batch
+                        
+                        order_items_to_create.append(
+                            OnlineOrderItem(
+                                order=order,
+                                inventory_id=batch,
+                                quantity_sold=sold_from_batch,
+                                free_quantity_given=free_from_batch,
+                                price_at_sale=medicine.price
+                            )
+                        )
+                        remaining_to_deduct -= quantity_from_batch
+                        quantity_sold -= sold_from_batch
+                        
+                        batch.quantity -= quantity_from_batch
+                        
+                    if remaining_to_deduct > 0:
+                        raise serializers.ValidationError(
+                            f"Internal Error: Could not deduct all requested quantity for {medicine.name}. Remaining: {remaining_to_deduct}"
+                        )
+
+                    total_before += item_data['quantity_sold'] * medicine.price
+
+                order.total_amount_before_discount = total_before
+                discount = total_before * Decimal('0.20') if is_pwd else Decimal('0.00')
+                order.total_amount_after_discount = total_before - discount
+                order.save()
+                
+                Inventory.objects.bulk_update(all_batches, ['quantity'])
+
+                for item in order_items_to_create:
+                    item.order = order
+                OnlineOrderItem.objects.bulk_create(order_items_to_create)
+
+                return order
+        except Exception as e:
+            raise serializers.ValidationError(f"Failed to process order: {str(e)}")

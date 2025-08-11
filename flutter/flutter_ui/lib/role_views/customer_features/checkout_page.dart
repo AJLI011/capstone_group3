@@ -228,9 +228,22 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                 ),
                               );
                             } else {
+                              // Combine the selected date and time into a single DateTime object
+                              final DateTime pickupDateTime = DateTime(
+                                selectedDate!.year,
+                                selectedDate!.month,
+                                selectedDate!.day,
+                                selectedTime!.hour,
+                                selectedTime!.minute,
+                              );
+
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => const OrderArrangementPage()),
+                                MaterialPageRoute(
+                                  builder: (_) => OrderArrangementPage(
+                                    pickupSchedule: pickupDateTime,
+                                  ),
+                                ),
                               );
                             }
                           },

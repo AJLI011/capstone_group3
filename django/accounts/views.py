@@ -20,7 +20,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 
 from .models import (
-    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog
+    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, OnlineOrder, OnlineOrderItem
 )
 from .serializers import (
     CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer,
@@ -29,7 +29,7 @@ from .serializers import (
     InventoryBatchDetailSerializer, TotalQuantitySerializer, InventoryLogSerializer,
     InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer, CustomerMedicineSerializer,
     EmployeeLogSerializer, CashierInStoreOrderSerializer, InStoreOrderItemSerializer, OrderLogSerializer, CustomerPromoMedicineDetailSerializer,
-    CustomerMedicineDetailSerializer
+    CustomerMedicineDetailSerializer, OnlineOrderItemReadSerializer, OnlineOrderListSerializer, OnlineOrderItemCreateSerializer, OnlineOrderCreateSerializer
 )
 
 
@@ -912,7 +912,6 @@ def process_instore_order(request):
     return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 #------------------ ORDER LOGS VIEW -------------------
-#------------------ ORDER LOGS VIEW -------------------
 @api_view(['GET'])
 def order_logs_list_view(request):
     """
@@ -927,3 +926,81 @@ def order_logs_list_view(request):
     
     serializer = OrderLogSerializer(logs, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+def create_online_order(request):
+    """
+    API endpoint to create a new online order from the Flutter app.
+    This now correctly uses the OnlineOrderCreateSerializer.
+    """
+    serializer = OnlineOrderCreateSerializer(data=request.data)
+    if serializer.is_valid():
+        try:
+            # This 'save' call triggers the create method in the OnlineOrderCreateSerializer
+            order = serializer.save()
+            return Response(
+                {'message': 'Order created successfully!', 'order_id': order.id},
+                status=status.HTTP_201_CREATED
+            )
+        except serializers.ValidationError as e:
+            return Response({"error": e.detail}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(f"[ONLINE ORDER ERROR] {e}")
+            return Response({"error": f"Failed to process order: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+@api_view(['GET'])
+def get_online_customer_orders(request, customer_id):
+    """
+    API endpoint to retrieve all online orders for a specific customer.
+    """
+    try:
+        orders = OnlineOrder.objects.filter(customer__id=customer_id).order_by('-date_created')
+        serializer = OnlineOrderListSerializer(orders, many=True, context={'request': request})
+        return Response(serializer.data)
+    except OnlineOrder.DoesNotExist:
+        return Response({"detail": "No online orders found for this customer."}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['PUT'])
+def cancel_online_order(request, order_id):
+    """
+    API endpoint to cancel an online order and re-stock inventory,
+    correctly handling both paid and free quantities.
+    """
+    try:
+        with transaction.atomic():
+            order = OnlineOrder.objects.select_for_update().get(pk=order_id)
+
+            if order.status == 'pending':
+                order_items = OnlineOrderItem.objects.filter(order=order)
+                for item in order_items:
+                    try:
+                        # Re-stock both the paid quantity and the free quantity
+                        total_quantity_obj = TotalQuantity.objects.get(medicine=item.inventory_id.medicine)
+                        total_quantity_obj.total_quantity = F('total_quantity') + item.quantity_sold + item.free_quantity_given
+                        total_quantity_obj.save()
+                        total_quantity_obj.refresh_from_db()
+                        
+                        # Re-stock the individual inventory batch
+                        item.inventory_id.quantity = F('quantity') + item.quantity_sold + item.free_quantity_given
+                        item.inventory_id.save()
+
+                    except TotalQuantity.DoesNotExist:
+                        print(f"Warning: TotalQuantity for medicine ID {item.inventory_id.medicine.id} not found.")
+
+                order.status = 'cancelled'
+                order.save()
+                return Response(
+                    {"detail": "Online order cancelled successfully and inventory re-stocked."},
+                    status=status.HTTP_200_OK
+                )
+            else:
+                return Response(
+                    {"detail": f"Order status is '{order.status}' and cannot be cancelled."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+    except OnlineOrder.DoesNotExist:
+        return Response({"detail": "Online order not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"[CANCEL ORDER ERROR] {e}")
+        return Response({"detail": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
