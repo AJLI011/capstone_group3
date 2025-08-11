@@ -16,6 +16,8 @@ import 'manager_features/inventory_logs/inventory_logs_page.dart';
 
 // NEW IMPORT FOR ORDER LOGS
 import 'manager_features/order_logs/order_logs.dart';
+// NEW IMPORT FOR IN-STORE TRANSACTIONS
+import 'manager_features/instore_sales_transaction/instore_transaction.dart';
 
 
 import 'package:http/http.dart' as http;
@@ -238,7 +240,8 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                                           () => _open(const InventoryGridScreen())),
                                         _drawerItem(Icons.shelves, 'Restock',
                                           () => _open(const RestockBarcodeScreen())),
-                                        _drawerItem(Icons.store, 'In Store Sales Transaction', () {}),
+                                        _drawerItem(Icons.store, 'In Store Sales Transaction', 
+                                          () => _open(const InStoreTransactionPage())), // CHANGED
                                         _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction', () {}),
                                         _drawerItem(Icons.priority_high, 'Expiry',
                                           () => _open(const ExpiryDashboardView())),

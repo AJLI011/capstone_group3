@@ -17,6 +17,8 @@ from django.db.models import F, Prefetch
 from django.utils.timezone import now
 from django.core.management import call_command
 from django.db import transaction
+from datetime import date
+
 
 from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, InStoreOrderApproval
@@ -911,18 +913,24 @@ def order_logs_list_view(request):
 #------instore sales transaction views----------------
 
 class InStoreSalesTransactionView(generics.ListAPIView):
+    # Make sure this serializer is imported correctly
+    # from .serializers import InStoreSalesTransactionSerializer
     serializer_class = InStoreSalesTransactionSerializer
 
     def get_queryset(self):
-        # We want to retrieve all orders, not just pending ones.
-        queryset = InStoreOrder.objects.all()
+        queryset = InStoreOrder.objects.all().order_by('-date_created')
 
-        # Prefetch related data to avoid N+1 queries.
-        queryset = queryset.select_related(
-            'staff',
-        ).prefetch_related(
-            'items__inventory_id__medicine',
-            'approval__cashier'
-        ).order_by('-date_created')
+        filter_date_str = self.request.query_params.get('date', None)
+
+        if filter_date_str:
+            try:
+                filter_date = date.fromisoformat(filter_date_str)
+                # Filter for records from the start of the day to the end of the day
+                start_of_day = filter_date
+                end_of_day = filter_date + timedelta(days=1)
+                
+                queryset = queryset.filter(date_created__gte=start_of_day, date_created__lt=end_of_day)
+            except ValueError:
+                pass
 
         return queryset

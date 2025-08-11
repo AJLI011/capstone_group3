@@ -7,6 +7,9 @@ from datetime import date
 from django.db import transaction
 from django.db.models import F
 
+from .models import InStoreOrderApproval # Add this if it's not already there
+
+from django.contrib.auth.hashers import make_password
 
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -518,14 +521,21 @@ class InStoreSalesTransactionSerializer(serializers.ModelSerializer):
             'subtotal',
             'discount_amount',
             'total_amount_after_discount',
-            'items'
+            'items',
+            'status'
         ]
     
     def get_cashier(self, obj):
-        # We fetch the cashier from the new InStoreOrderApproval model
-        if hasattr(obj, 'approval') and obj.approval:
+        # First, try to get the cashier from the InStoreOrderApproval table (for new data).
+        if hasattr(obj, 'approval') and obj.approval and obj.approval.cashier:
             return obj.approval.cashier.name
-        return "Not yet approved"
+        
+        # If no approval record exists but the order has a final status, use the staff name instead.
+        if obj.status in ['approved', 'rejected']:
+            return obj.staff.name
+            
+        # For pending orders with no approval record, return "N/A".
+        return "N/A"
 
     def get_discount_amount(self, obj):
         if obj.is_pwd:
