@@ -89,7 +89,17 @@ urlpatterns = [
     path('customer/<str:customer_id>/online-orders/', views.get_online_customer_orders, name='get_online_customer_orders'),
     path('customer/cancel-online-order/<int:order_id>/', views.cancel_online_order, name='cancel_online_order'),
     path('customer/online-orders/create/', views.create_online_order, name='create_online_order'),
+    
+    #Staff Online Orders
     path('staff/online-orders/', views.get_pending_online_orders, name='staff-pending-orders'),
-    path('staff/confirm-online-order/<int:orderId>/', views.confirm_online_order, name='staff-confirm-order')
+    path('staff/confirm-online-order/<int:orderId>/', views.confirm_online_order, name='staff-confirm-order'),
+
+    # Cashier Online Orders
+    path('cashier/online-orders/', views.get_pending_online_orders, name='cashier-pending-orders'),
+    path('cashier/confirm-online-order/<int:orderId>/', views.confirm_online_order, name='cashier-confirm-order'),
+    path('cashier/online-orders/<int:orderId>/update-discount/', views.update_order_discount, name='cashier-update-order-discount'),
+    path('cashier/online-orders/<int:orderId>/items/<int:itemId>/', views.remove_online_order_item, name='cashier-remove-online-order-item'),
+    path('cashier/online-orders/<int:orderId>/cancel/', views.cancel_online_order_cashier, name='cashier-cancel-online-order'),
+    path('cashier/online-orders/<int:orderId>/finalize/', views.finalize_online_order, name='cashier-finalize-online-order'),
 ]
 

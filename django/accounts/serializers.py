@@ -587,7 +587,7 @@ class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OnlineOrderItem
-        fields = ['medicine', 'quantity_sold', 'free_quantity_given', 'price_at_sale']
+        fields = ['id', 'medicine', 'quantity_sold', 'free_quantity_given', 'price_at_sale']
 
 
 class OnlineOrderListSerializer(serializers.ModelSerializer):

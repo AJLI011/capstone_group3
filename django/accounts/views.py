@@ -18,6 +18,10 @@ from django.utils.timezone import now
 from django.core.management import call_command
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+from decimal import Decimal
+import logging
+from django.db import transaction
+from django.utils import timezone
 
 from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, OnlineOrder, OnlineOrderItem
@@ -989,7 +993,7 @@ def cancel_online_order(request, order_id):
         print(f"[CANCEL ORDER ERROR] {e}")
         return Response({"detail": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# Staff View Confirm Online Order
+# Cashier and Staff Confirm Online Order
 @api_view(['GET'])
 def get_pending_online_orders(request):
     """
@@ -1041,6 +1045,243 @@ def confirm_online_order(request, orderId):
         return Response({"detail": "Online order not found."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         print(f"[CONFIRM ORDER ERROR] {e}")
+        return Response(
+            {"detail": f"An unexpected error occurred: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+# Cashier Apply Discount
+logger = logging.getLogger(__name__)
+
+@api_view(['PUT'])
+def update_order_discount(request, orderId):
+    """
+    Updates the discount for an online order.
+    """
+    try:
+        # Fetch the order by its ID
+        order = OnlineOrder.objects.get(id=orderId)
+        
+        # Check if the order status is 'pending' or 'ready for pickup'.
+        # This prevents changes to already completed or cancelled orders.
+        if order.status in ['pending', 'ready for pickup']:
+            # Get the is_pwd value from the request body. Default to False if not provided.
+            is_pwd_discount = request.data.get('is_pwd', False)
+            
+            if is_pwd_discount:
+                # Apply a 20% discount (0.80) to the total amount before discount
+                order.total_amount_after_discount = order.total_amount_before_discount * Decimal('0.80')
+                order.is_pwd = True
+            else:
+                # Revert the discount if the checkbox is unchecked
+                order.total_amount_after_discount = order.total_amount_before_discount
+                order.is_pwd = False
+
+            order.save()
+            
+            # Return the updated order data so the frontend can refresh the UI
+            serializer = OnlineOrderListSerializer(order)
+            return Response(
+                {"message": "Discount updated successfully.", "order": serializer.data},
+                status=status.HTTP_200_OK
+            )
+        else:
+            # If the order is not in an editable status, return an error
+            return Response(
+                {"error": "Cannot update discount on a completed or cancelled order."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    except OnlineOrder.DoesNotExist:
+        # Handle the case where no order is found with the given ID
+        return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        # Log and return a generic server error for any other exceptions
+        logger.error(f"[UPDATE DISCOUNT ERROR] {e}")
+        return Response({"error": "An unexpected error occurred."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# Cashier Remove Item
+@api_view(['DELETE'])
+def remove_online_order_item(request, orderId, itemId):
+    """
+    API view to remove a specific item from an online order that is ready for pickup.
+    This view will not affect the inventory, and will permanently delete the item.
+    """
+    try:
+        # Validate that orderId and itemId are integers
+        orderId = int(orderId)
+        itemId = int(itemId)
+
+        # Use an atomic transaction to ensure all database operations succeed or fail together
+        with transaction.atomic():
+            # Get the order and the item to be removed. The order must be 'ready for pickup'.
+            order = OnlineOrder.objects.get(id=orderId, status='ready for pickup')
+            order_item = OnlineOrderItem.objects.get(id=itemId, order=order)
+            
+            # Recalculate the order's total amount before applying the discount
+            price_of_removed_item = order_item.quantity_sold * order_item.price_at_sale
+            order.total_amount_before_discount -= price_of_removed_item
+            
+            # Recalculate the after-discount total based on whether a discount was applied
+            if order.is_pwd:
+                order.total_amount_after_discount = order.total_amount_before_discount * Decimal('0.80')
+            else:
+                order.total_amount_after_discount = order.total_amount_before_discount
+
+            # Delete the order item permanently
+            order_item.delete()
+
+            # Save the updated order
+            order.save()
+
+            # Check if the order is now empty after the item was removed
+            if not order.items.exists():
+                order.status = 'cancelled'
+                order.save()
+                return Response(
+                    {"detail": "Order item removed, and the order has been cancelled because it is now empty."},
+                    status=status.HTTP_200_OK
+                )
+            
+            # If the order is not empty, return the updated order data
+            serializer = OnlineOrderListSerializer(order)
+            return Response(
+                {"detail": "Order item removed and order total updated successfully.", "order": serializer.data},
+                status=status.HTTP_200_OK
+            )
+
+    except ValueError:
+        # Catch a ValueError if the orderId or itemId can't be converted to an integer
+        return Response(
+            {"detail": "Invalid order or item ID format. IDs must be integers."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except OnlineOrder.DoesNotExist:
+        # If the order is not found or not in the 'ready for pickup' status
+        return Response(
+            {"detail": "Online order not found or is not ready for pickup."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except OnlineOrderItem.DoesNotExist:
+        # If the specific item is not found within the order
+        return Response(
+            {"detail": "Order item not found."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        # Log and return a generic server error for any other exceptions
+        logger.error(f"[REMOVE ORDER ITEM ERROR] {e}")
+        return Response(
+            {"detail": f"An unexpected error occurred: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+# Cashier Cancel Order
+@api_view(['PUT'])
+def cancel_online_order_cashier(request, orderId):
+    """
+    API view to cancel an online order that is ready for pickup.
+    This will not affect the inventory.
+    """
+    try:
+        # Use an atomic transaction for data integrity
+        with transaction.atomic():
+            # Get the order by ID, ensuring it's in the 'ready for pickup' status
+            order = OnlineOrder.objects.get(id=orderId, status='ready for pickup')
+            
+            # Update the order status to 'cancelled' and save the change
+            order.status = 'cancelled'
+            order.save()
+            
+            # Return a success message
+            return Response(
+                {"detail": "Online order cancelled successfully."},
+                status=status.HTTP_200_OK
+            )
+    except OnlineOrder.DoesNotExist:
+        # If the order is not found or not in the correct status
+        return Response(
+            {"detail": "Online order not found or is not ready for pickup."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        # Log and return a generic server error
+        logger.error(f"[CANCEL ORDER ERROR] {e}")
+        return Response(
+            {"detail": f"An unexpected error occurred: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+# Finalize Online Order
+@api_view(['PUT'])
+def finalize_online_order(request, orderId):
+    """
+    API view to finalize an online order after pickup.
+    This marks the order status as 'completed' and deducts the inventory.
+    """
+    try:
+        # Use an atomic transaction for data integrity
+        with transaction.atomic():
+            # Get the order by ID, ensuring it's in the 'ready for pickup' status
+            order = OnlineOrder.objects.get(id=orderId, status='ready for pickup')
+            
+            # Create a dictionary to hold the total quantity to deduct for each medicine
+            medicine_deductions = {}
+
+            for item in order.items.all():
+                medicine_id = item.inventory_id.medicine.id
+                
+                # Calculate total quantity to deduct by summing sold and free quantities
+                quantity_to_deduct = item.quantity_sold + item.free_quantity_given
+                
+                if medicine_id in medicine_deductions:
+                    medicine_deductions[medicine_id]['quantity'] += quantity_to_deduct
+                else:
+                    medicine_deductions[medicine_id] = {
+                        'quantity': quantity_to_deduct,
+                        'inventory_batch': item.inventory_id,
+                        'medicine_name': item.inventory_id.medicine.name
+                    }
+
+            # Now iterate through the deductions and update the inventory
+            for medicine_id, data in medicine_deductions.items():
+                inventory_batch = data['inventory_batch']
+                total_quantity_to_deduct = data['quantity']
+                medicine_name = data['medicine_name']
+
+                # Check for sufficient stock before performing the deduction
+                if inventory_batch.quantity < total_quantity_to_deduct:
+                    raise ValueError(
+                        f"Insufficient stock for {medicine_name}. Available: {inventory_batch.quantity}, Required: {total_quantity_to_deduct}"
+                    )
+                
+                inventory_batch.quantity -= total_quantity_to_deduct
+                inventory_batch.save()
+            
+            # Update the order status to 'completed' and record the fulfillment date
+            order.status = 'completed'
+            order.date_fulfilled = timezone.now()
+            order.save()
+
+            return Response(
+                {"detail": "Online order finalized successfully, inventory deducted."},
+                status=status.HTTP_200_OK
+            )
+    except OnlineOrder.DoesNotExist:
+        # If the order is not found or not in the correct status
+        return Response(
+            {"detail": "Online order not found or is not ready for pickup."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except ValueError as ve:
+        # If there's a stock issue, return a specific bad request error
+        return Response(
+            {"detail": str(ve)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        # Log and return a generic server error for any other exceptions
+        logger.error(f"[FINALIZE ORDER ERROR] {e}")
         return Response(
             {"detail": f"An unexpected error occurred: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR

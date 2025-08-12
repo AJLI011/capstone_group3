@@ -7,7 +7,9 @@ import '../main.dart'; // ToggleLoginScreen
 import 'cashier_features/edit_profile/edit_cashier_profile.dart'; // Import for the new page
 import 'cashier_features/change_password/change_cashier_password.dart'; // Import for the new page
 import 'cashier_features/pending_orders/pending_orders.dart'; 
+import 'cashier_features/online_orders/online_orders_cashier_page.dart'; // Import for the new page
 
+// Import for the new page  
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
@@ -228,8 +230,7 @@ class _CashierViewState extends State<CashierView> with SingleTickerProviderStat
                                     child: Column(
                                       children: [
                                         _drawerItem(Icons.assignment, 'Pending Orders', () => _open(PendingOrdersScreen(cashierId: widget.staffId))),
-                                        _drawerItem(Icons.store, 'Online Orders',
-                                            () => {}),
+                                        _drawerItem(Icons.store, 'Online Orders', () => _open (CashierOnlineOrdersPage())),
                                         _drawerItem(Icons.shopping_bag, 'In-store Sales Transaction',
                                             () => {}),
                                         _drawerItem(Icons.smartphone, 'Online Sales Transaction',
