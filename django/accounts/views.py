@@ -11,7 +11,7 @@ from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
 from rest_framework import generics
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from django.http import JsonResponse, HttpResponseNotFound
 from django.db.models import F, Prefetch
 from django.utils.timezone import now
@@ -1360,3 +1360,97 @@ class InStoreSalesTransactionView(generics.ListAPIView):
                 pass
 
         return queryset
+
+# Online Orders Transaction for Manager View
+@api_view(['GET'])
+def completed_online_orders_report(request):
+    """
+    API endpoint to retrieve all completed online orders with detailed breakdowns.
+    """
+    try:
+        # Start with all completed orders
+        completed_orders = OnlineOrder.objects.filter(status='completed')
+
+        # Check if a date parameter is provided in the query
+        date_param = request.query_params.get('date')
+
+        if date_param:
+            try:
+                # Convert the string date to a naive date object
+                target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
+
+                # Get the timezone set in your Django settings
+                local_timezone = timezone.get_current_timezone()
+
+                # Create timezone-aware start and end datetimes for the target day
+                start_of_day = timezone.make_aware(
+                    datetime.combine(target_date, datetime.min.time()),
+                    local_timezone
+                )
+                end_of_day = timezone.make_aware(
+                    datetime.combine(target_date, datetime.max.time()),
+                    local_timezone
+                )
+
+                # Filter for orders created within this precise date range
+                completed_orders = completed_orders.filter(
+                    date_created__range=(start_of_day, end_of_day)
+                )
+                
+            except ValueError:
+                # Handle cases where the date format is incorrect
+                return Response(
+                    {"error": "Invalid date format. Use YYYY-MM-DD."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Order the results by creation date
+        completed_orders = completed_orders.order_by('-date_created')
+
+        orders_data = []
+        for order in completed_orders:
+            # Get initiated and approved staff from logs
+            initiated_by_log = OrderLog.objects.filter(online_order=order, action_type='online_confirmed').first()
+            approved_by_log = OrderLog.objects.filter(online_order=order, action_type='online_picked_up').first()
+            
+            # Get the customer type based on the 'is_pwd' field
+            customer_type = 'Discounted' if order.is_pwd else 'Regular'
+            
+            # Get the timestamp from the 'date_created' field and format it
+            fulfilled_timestamp = order.date_created.strftime('%m/%d/%Y %I:%M %p') if order.date_created else 'N/A'
+            
+            # Calculate subtotal and discount
+            subtotal_amount = order.total_amount_before_discount
+            discount_amount = subtotal_amount - order.total_amount_after_discount
+            
+            # Get items
+            items_data = []
+            for item in order.items.all():
+                items_data.append({
+                    'medicine_name': item.inventory_id.medicine.name,
+                    'generic_name': item.inventory_id.medicine.generic_name,
+                    'quantity_ordered': item.quantity_sold,
+                    'promo_quantity': item.free_quantity_given,
+                    'item_total': float(item.price_at_sale * item.quantity_sold),
+                })
+
+            orders_data.append({
+                'order_id': order.id,
+                'customer_name': order.customer.name,
+                'customer_type': customer_type,
+                'initiated_by': initiated_by_log.staff_user.name if initiated_by_log else 'N/A',
+                'approved_by': approved_by_log.staff_user.name if approved_by_log else 'N/A',
+                'total_amount': float(order.total_amount_after_discount),
+                'subtotal_amount': float(subtotal_amount),
+                'discount_amount': float(discount_amount),
+                'fulfilled_timestamp': fulfilled_timestamp,
+                'medicines_ordered': items_data,
+            })
+        
+        return Response(orders_data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        # Check if the logger is defined before using it
+        # if 'logger' in globals():
+        #     logger.error(f"[COMPLETED ORDERS REPORT ERROR] {e}")
+        return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

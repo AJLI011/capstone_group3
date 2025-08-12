@@ -103,5 +103,8 @@ urlpatterns = [
     
     #instore sales transaction
     path('in-store-transactions/', views.InStoreSalesTransactionView.as_view(), name='in-store-transactions'),
+
+    # Online Sales Transaction
+    path('manager/completed-online-orders/', views.completed_online_orders_report, name='completed-online-orders-report'),
 ]
 

@@ -13,11 +13,11 @@ import 'manager_features/inventory/inventory_grid_screen.dart'; // inventory
 import 'manager_features/return_medicines/return_page.dart';
 import 'manager_features/promo_medicines/promo_page.dart';
 import 'manager_features/inventory_logs/inventory_logs_page.dart';
+import 'manager_features/online_sales_transaction/online_transaction.dart';
 
 // NEW IMPORT FOR ORDER LOGS
 import 'manager_features/order_logs/order_logs.dart';
 import 'manager_features/instore_sales_transaction_m/instore_transaction.dart';
-
 
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -241,7 +241,8 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                                           () => _open(const RestockBarcodeScreen())),
                                         _drawerItem(Icons.store, 'In Store Sales Transaction',
                                          () => _open(const InStoreTransactionPage())),
-                                        _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction', () {}),
+                                        _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction', 
+                                        () => _open(const OnlineOrdersReportPage())),
                                         _drawerItem(Icons.priority_high, 'Expiry',
                                           () => _open(const ExpiryDashboardView())),
                                         _drawerItem(Icons.assignment_return, 'Return Medicines',
