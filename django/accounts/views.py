@@ -1264,6 +1264,10 @@ def finalize_online_order(request, orderId):
     """
     API view to finalize an online order after pickup.
     This marks the order status as 'completed' and deducts the inventory.
+    
+    This function has been fixed to correctly deduct inventory for each individual
+    order item, ensuring that promo items and regular items for the same medicine
+    are deducted from their respective, pre-allocated inventory batches.
     """
     try:
         staff_id = request.data.get('staff_id')
@@ -1275,37 +1279,25 @@ def finalize_online_order(request, orderId):
         with transaction.atomic():
             order = OnlineOrder.objects.get(id=orderId, status='ready for pickup')
             
-            # Create a dictionary to hold the total quantity to deduct for each medicine
-            medicine_deductions = {}
-
+            # Iterate through each specific item in the order to deduct from its
+            # dedicated inventory batch. This fixes the issue of mixed deductions.
             for item in order.items.all():
-                medicine_id = item.inventory_id.medicine.id
+                inventory_batch = item.inventory_id
                 
-                # Calculate total quantity to deduct by summing sold and free quantities
+                # The quantity to deduct is the sum of sold and free quantities.
+                # This quantity is already linked to the correct inventory batch via the
+                # OnlineOrderItem model.
                 quantity_to_deduct = item.quantity_sold + item.free_quantity_given
-                
-                if medicine_id in medicine_deductions:
-                    medicine_deductions[medicine_id]['quantity'] += quantity_to_deduct
-                else:
-                    medicine_deductions[medicine_id] = {
-                        'quantity': quantity_to_deduct,
-                        'inventory_batch': item.inventory_id,
-                        'medicine_name': item.inventory_id.medicine.name
-                    }
+                medicine_name = inventory_batch.medicine.name
 
-            # Now iterate through the deductions and update the inventory
-            for medicine_id, data in medicine_deductions.items():
-                inventory_batch = data['inventory_batch']
-                total_quantity_to_deduct = data['quantity']
-                medicine_name = data['medicine_name']
-
-                # Check for sufficient stock before performing the deduction
-                if inventory_batch.quantity < total_quantity_to_deduct:
+                # Check for sufficient stock in the specific inventory batch
+                if inventory_batch.quantity < quantity_to_deduct:
                     raise ValueError(
-                        f"Insufficient stock for {medicine_name}. Available: {inventory_batch.quantity}, Required: {total_quantity_to_deduct}"
+                        f"Insufficient stock for {medicine_name}. Available: {inventory_batch.quantity}, Required: {quantity_to_deduct}"
                     )
                 
-                inventory_batch.quantity -= total_quantity_to_deduct
+                # Deduct the quantity from the specific inventory batch
+                inventory_batch.quantity -= quantity_to_deduct
                 inventory_batch.save()
             
             # Update the order status to 'completed' and record the fulfillment date
@@ -1313,7 +1305,7 @@ def finalize_online_order(request, orderId):
             order.date_fulfilled = timezone.now()
             order.save()
 
-            # NEW: Create a log entry for the picked up online order
+            # Create a log entry for the picked up online order
             OrderLog.objects.create(
                 staff_user=staff_user,
                 online_order=order,
