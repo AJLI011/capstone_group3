@@ -8,6 +8,7 @@ import 'cashier_features/edit_profile/edit_cashier_profile.dart'; // Import for 
 import 'cashier_features/change_password/change_cashier_password.dart'; // Import for the new page
 import 'cashier_features/pending_orders/pending_orders.dart'; 
 import 'cashier_features/online_orders/online_orders_cashier_page.dart'; // Import for the new page
+import 'cashier_features/instore_sales_transaction-c/instore_transaction.dart';
 
 // Import for the new page  
 // Use dart-define to override in different environments
@@ -232,7 +233,7 @@ class _CashierViewState extends State<CashierView> with SingleTickerProviderStat
                                         _drawerItem(Icons.assignment, 'Pending Orders', () => _open(PendingOrdersScreen(cashierId: widget.staffId))),
                                         _drawerItem(Icons.store, 'Online Orders', () => _open (CashierOnlineOrdersPage())),
                                         _drawerItem(Icons.shopping_bag, 'In-store Sales Transaction',
-                                            () => {}),
+                                            () => _open(const InStoreTransactionPage())),
                                         _drawerItem(Icons.smartphone, 'Online Sales Transaction',
                                             () => {}),
                                         _drawerItem(Icons.edit, 'Edit Profile',

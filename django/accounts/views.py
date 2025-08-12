@@ -795,6 +795,8 @@ def employee_logs_view(request):
 #------------ PENDING ORDER----------
 #----------ORDER LOGS PT 1 - FOR CASHER (INSTORE)---------
 #modified some parts of the pending order view for the order logs
+
+#combined logic from previous InStoreOrderProcessingView with recent 8/12/25
 class InStoreOrderProcessingView(APIView):
 
     def get(self, request):
