@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class StaffOrdersPage extends StatefulWidget {
   const StaffOrdersPage({super.key});
@@ -47,22 +48,46 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
   }
 
   Future<void> _confirmOrder(int orderId) async {
-    final url = '$_baseUrl/api/staff/confirm-online-order/$orderId/';
-    final response = await http.put(Uri.parse(url));
+      final url = '$_baseUrl/api/staff/confirm-online-order/$orderId/';
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final int? staffId = prefs.getInt('staff_id');
 
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Order confirmed successfully.')),
-      );
-      _refreshOrders();
-    } else {
-      final errorBody = jsonDecode(response.body);
-      final errorMessage = errorBody['detail'] ?? 'Failed to confirm order.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
-      );
+      if (staffId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Staff ID is missing.')),
+        );
+        return;
+      }
+
+      final body = jsonEncode({
+        'staff_id': staffId,
+      });
+
+      try {
+        final response = await http.put(
+          Uri.parse(url),
+          headers: {'Content-Type': 'application/json'},
+          body: body,
+        );
+
+        if (response.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Order confirmed successfully.')),
+          );
+          _refreshOrders();
+        } else {
+          final errorBody = jsonDecode(response.body);
+          final errorMessage = errorBody['detail'] ?? 'Failed to confirm order.';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMessage)),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to connect to the server: $e')),
+        );
+      }
     }
-  }
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(

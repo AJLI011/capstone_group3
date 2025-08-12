@@ -56,7 +56,6 @@ urlpatterns = [
     path('inventory/<int:inventory_id>/set-promo/', views.set_promo, name='set_promo'),
     path('inventory/remove-promo/', views.remove_promo, name='remove_promo'),
 
-
     #Inventory Logs
     path('inventory-logs/', inventory_logs, name='inventory_logs'),
     

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // New widget to display a confirmation dialog. This replaces standard alerts.
 Future<bool?> showConfirmationDialog(BuildContext context, String title, String content) async {
@@ -399,54 +400,127 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> with 
 
   Future<void> _confirmOrder(int orderId) async {
     final url = '$_baseUrl/api/cashier/confirm-online-order/$orderId/';
-    final response = await http.put(Uri.parse(url));
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final int? staffId = prefs.getInt('staff_id'); // Get the staff ID from local storage
 
-    if (response.statusCode == 200) {
+    if (staffId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Order confirmed successfully.')),
+        const SnackBar(content: Text('Error: Staff ID is missing.')),
       );
-      _fetchCashierOrders();
-    } else {
-      final errorBody = jsonDecode(response.body);
-      final errorMessage = errorBody['detail'] ?? 'Failed to confirm order.';
+      return;
+    }
+
+    final body = jsonEncode({
+      'staff_id': staffId,
+    });
+
+    try {
+      final response = await http.put(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: body,
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Order confirmed successfully.')),
+        );
+        // Refresh the orders to update the UI
+        _fetchCashierOrders();
+      } else {
+        final errorBody = jsonDecode(response.body);
+        final errorMessage = errorBody['detail'] ?? 'Failed to confirm order.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
+        SnackBar(content: Text('Failed to connect to the server: $e')),
       );
     }
   }
 
   Future<void> _cancelOrder(int orderId) async {
     final url = '$_baseUrl/api/cashier/online-orders/$orderId/cancel/';
-    final response = await http.put(Uri.parse(url));
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final int? staffId = prefs.getInt('staff_id');
 
-    if (response.statusCode == 200) {
+    if (staffId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Order cancelled successfully.')),
+        const SnackBar(content: Text('Error: Staff ID is missing.')),
       );
-      _fetchCashierOrders();
-    } else {
-      final errorBody = jsonDecode(response.body);
-      final errorMessage = errorBody['detail'] ?? 'Failed to cancel order.';
+      return;
+    }
+
+    final body = jsonEncode({
+      'staff_id': staffId,
+    });
+
+    try {
+      final response = await http.put(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: body,
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Order cancelled successfully.')),
+        );
+        _fetchCashierOrders();
+      } else {
+        final errorBody = jsonDecode(response.body);
+        final errorMessage = errorBody['detail'] ?? 'Failed to cancel order.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
+        SnackBar(content: Text('Failed to connect to the server: $e')),
       );
     }
   }
 
   Future<void> _finalizeOrder(int orderId) async {
     final url = '$_baseUrl/api/cashier/online-orders/$orderId/finalize/';
-    final response = await http.put(Uri.parse(url));
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final int? staffId = prefs.getInt('staff_id');
 
-    if (response.statusCode == 200) {
+    if (staffId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Order finalized successfully.')),
+        const SnackBar(content: Text('Error: Staff ID is missing.')),
       );
-      _fetchCashierOrders();
-    } else {
-      final errorBody = jsonDecode(response.body);
-      final errorMessage = errorBody['detail'] ?? 'Failed to finalize order.';
+      return;
+    }
+
+    final body = jsonEncode({
+      'staff_id': staffId,
+    });
+
+    try {
+      final response = await http.put(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: body,
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Order finalized successfully.')),
+        );
+        _fetchCashierOrders();
+      } else {
+        final errorBody = jsonDecode(response.body);
+        final errorMessage = errorBody['detail'] ?? 'Failed to finalize order.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
+        SnackBar(content: Text('Failed to connect to the server: $e')),
       );
     }
   }

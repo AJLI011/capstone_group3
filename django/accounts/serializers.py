@@ -433,6 +433,7 @@ class CashierInStoreOrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = InStoreOrder
         fields = ['id', 'staff_name', 'is_pwd', 'total_amount_before_discount', 'total_amount_after_discount', 'items']
+
 class InStoreOrderSerializer(serializers.ModelSerializer):
     # This now expects a list of items with medicine_id and total quantity
     items = FEFOOrderItemSerializer(many=True)
@@ -548,9 +549,6 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
                 f"Failed to process order: {str(e)}"
             )
 
-#order logs (wala pa yung online order here)
-# Model for Order Logs
-# =====================================
 # ORDER LOGS SERIALIZERS
 
 class InStoreOrderItemSerializer(serializers.ModelSerializer):
@@ -568,20 +566,57 @@ class InStoreOrderDetailsSerializer(serializers.ModelSerializer):
         model = InStoreOrder
         fields = ['id', 'staff_name', 'items']
 
+# Modified OrderLogSerializer to handle both in-store and online orders
 class OrderLogSerializer(serializers.ModelSerializer):
     staff_name = serializers.CharField(source='staff_user.name', read_only=True)
     staff_role = serializers.CharField(source='staff_user.role', read_only=True)
-    
-    in_store_order_details = InStoreOrderDetailsSerializer(source='in_store_order', read_only=True)
+
+    order_details = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderLog
-        fields = ['id', 'staff_name', 'staff_role', 'in_store_order_details', 'action_type', 'description', 'timestamp']
+        fields = ['id', 'staff_name', 'staff_role', 'order_details', 'action_type', 'description', 'timestamp']
+
+    def get_order_details(self, obj):
+        if obj.in_store_order:
+            # If it's an in-store order, use the existing InStoreOrderDetailsSerializer
+            return InStoreOrderDetailsSerializer(obj.in_store_order).data
+        elif obj.online_order:
+            # If it's an online order, use the new OnlineOrderLogDetailsSerializer
+            return OnlineOrderLogDetailsSerializer(obj.online_order).data
+        return None
 
 # --- Online Orders Serializers ---
 class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
-    # This serializer will now correctly return a nested Medicine object,
-    # which is what the Flutter app is expecting.
+    # This is the correct way to get the medicine name
+    medicine_name = serializers.CharField(source='inventory_id.medicine.name') 
+    price_at_sale = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+    # REMOVE the get_medicine_name method
+    # It is not needed and causes redundancy.
+
+    class Meta:
+        model = OnlineOrderItem
+        fields = [
+            'id', 
+            'medicine_name',   # <-- Don't forget the comma here
+            'quantity_sold', 
+            'free_quantity_given', 
+            'price_at_sale'
+        ]
+
+# New serializer for Online order details within a log
+class OnlineOrderLogDetailsSerializer(serializers.ModelSerializer):
+    items = OnlineOrderItemReadSerializer(many=True, read_only=True)
+    customer_name = serializers.CharField(source='customer.name', read_only=True)
+    customer_email = serializers.CharField(source='customer.email', read_only=True)
+
+    class Meta:
+        model = OnlineOrder
+        fields = ['id', 'customer_name', 'customer_email', 'items']
+
+# --- Online Orders Serializers ---
+class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
     medicine = MedicineSerializer(source='inventory_id.medicine')
     free_quantity_given = serializers.IntegerField()
 

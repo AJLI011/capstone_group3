@@ -33,7 +33,8 @@ from .serializers import (
     InventoryBatchDetailSerializer, TotalQuantitySerializer, InventoryLogSerializer,
     InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer, CustomerMedicineSerializer,
     EmployeeLogSerializer, CashierInStoreOrderSerializer, InStoreOrderItemSerializer, OrderLogSerializer, CustomerPromoMedicineDetailSerializer,
-    CustomerMedicineDetailSerializer, OnlineOrderItemReadSerializer, OnlineOrderListSerializer, OnlineOrderItemCreateSerializer, OnlineOrderCreateSerializer
+    CustomerMedicineDetailSerializer, OnlineOrderItemReadSerializer, OnlineOrderListSerializer, OnlineOrderItemCreateSerializer, OnlineOrderCreateSerializer,
+    OnlineOrderLogDetailsSerializer
 )
 
 
@@ -920,18 +921,22 @@ def process_instore_order(request):
 def order_logs_list_view(request):
     """
     API endpoint to retrieve all order logs.
-    This version uses select_related and prefetch_related for optimal performance.
+    This version uses select_related and prefetch_related for optimal performance
+    with both in-store and online orders.
     """
     logs = OrderLog.objects.all().select_related(
-        'staff_user', 'in_store_order__staff'
+        'staff_user', 
+        'in_store_order__staff',
+        'online_order__customer'
     ).prefetch_related(
-        'in_store_order__items__inventory_id__medicine'
+        'in_store_order__items__inventory_id__medicine',
+        'online_order__items__inventory_id__medicine'
     ).order_by('-timestamp')
     
     serializer = OrderLogSerializer(logs, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
-#------------------ ONLINE ORDERS VIEW -------------------
+#------------------ CUSTOMER ONLINE ORDERS -------------------
 @api_view(['POST'])
 def create_online_order(request):
     """
@@ -1025,6 +1030,12 @@ def confirm_online_order(request, orderId):
     Changes the status from 'pending' to 'ready for pickup'.
     """
     try:
+        staff_id = request.data.get('staff_id')
+        if not staff_id:
+            return Response({'error': 'Staff ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        staff_user = Staff.objects.get(id=staff_id)
+
         with transaction.atomic():
             order = OnlineOrder.objects.get(id=orderId)
 
@@ -1032,6 +1043,15 @@ def confirm_online_order(request, orderId):
                 # Update the order status
                 order.status = 'ready for pickup'
                 order.save()
+
+                # NEW: Create a log entry for the confirmed online order
+                OrderLog.objects.create(
+                    staff_user=staff_user,
+                    online_order=order,
+                    action_type='online_confirmed',
+                    description=f'Online order confirmed by staff member {staff_user.name} ({staff_user.role}).'
+                )
+
                 return Response(
                     {"detail": "Online order confirmed successfully."},
                     status=status.HTTP_200_OK
@@ -1041,6 +1061,8 @@ def confirm_online_order(request, orderId):
                     {"detail": f"Order status is '{order.status}' and cannot be confirmed."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+    except Staff.DoesNotExist:
+        return Response({'error': 'Staff member not found'}, status=status.HTTP_404_NOT_FOUND)
     except OnlineOrder.DoesNotExist:
         return Response({"detail": "Online order not found."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
@@ -1176,7 +1198,6 @@ def remove_online_order_item(request, orderId, itemId):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-# Cashier Cancel Order
 @api_view(['PUT'])
 def cancel_online_order_cashier(request, orderId):
     """
@@ -1184,35 +1205,45 @@ def cancel_online_order_cashier(request, orderId):
     This will not affect the inventory.
     """
     try:
-        # Use an atomic transaction for data integrity
+        staff_id = request.data.get('staff_id')
+        if not staff_id:
+            return Response({'error': 'Staff ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        staff_user = Staff.objects.get(id=staff_id)
+        
         with transaction.atomic():
-            # Get the order by ID, ensuring it's in the 'ready for pickup' status
             order = OnlineOrder.objects.get(id=orderId, status='ready for pickup')
             
             # Update the order status to 'cancelled' and save the change
             order.status = 'cancelled'
             order.save()
             
-            # Return a success message
+            # NEW: Create a log entry for the cancelled online order
+            OrderLog.objects.create(
+                staff_user=staff_user,
+                online_order=order,
+                action_type='online_cancelled',
+                description=f'Online order cancelled by cashier {staff_user.name}.'
+            )
+            
             return Response(
                 {"detail": "Online order cancelled successfully."},
                 status=status.HTTP_200_OK
             )
+    except Staff.DoesNotExist:
+        return Response({'error': 'Staff member not found'}, status=status.HTTP_404_NOT_FOUND)
     except OnlineOrder.DoesNotExist:
-        # If the order is not found or not in the correct status
         return Response(
             {"detail": "Online order not found or is not ready for pickup."},
             status=status.HTTP_404_NOT_FOUND
         )
     except Exception as e:
-        # Log and return a generic server error
         logger.error(f"[CANCEL ORDER ERROR] {e}")
         return Response(
             {"detail": f"An unexpected error occurred: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-# Finalize Online Order
 @api_view(['PUT'])
 def finalize_online_order(request, orderId):
     """
@@ -1220,9 +1251,13 @@ def finalize_online_order(request, orderId):
     This marks the order status as 'completed' and deducts the inventory.
     """
     try:
-        # Use an atomic transaction for data integrity
+        staff_id = request.data.get('staff_id')
+        if not staff_id:
+            return Response({'error': 'Staff ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        staff_user = Staff.objects.get(id=staff_id)
+
         with transaction.atomic():
-            # Get the order by ID, ensuring it's in the 'ready for pickup' status
             order = OnlineOrder.objects.get(id=orderId, status='ready for pickup')
             
             # Create a dictionary to hold the total quantity to deduct for each medicine
@@ -1263,24 +1298,31 @@ def finalize_online_order(request, orderId):
             order.date_fulfilled = timezone.now()
             order.save()
 
+            # NEW: Create a log entry for the picked up online order
+            OrderLog.objects.create(
+                staff_user=staff_user,
+                online_order=order,
+                action_type='online_picked_up',
+                description=f'Online order marked as picked up by cashier {staff_user.name}.'
+            )
+
             return Response(
                 {"detail": "Online order finalized successfully, inventory deducted."},
                 status=status.HTTP_200_OK
             )
+    except Staff.DoesNotExist:
+        return Response({'error': 'Staff member not found'}, status=status.HTTP_404_NOT_FOUND)
     except OnlineOrder.DoesNotExist:
-        # If the order is not found or not in the correct status
         return Response(
             {"detail": "Online order not found or is not ready for pickup."},
             status=status.HTTP_404_NOT_FOUND
         )
     except ValueError as ve:
-        # If there's a stock issue, return a specific bad request error
         return Response(
             {"detail": str(ve)},
             status=status.HTTP_400_BAD_REQUEST
         )
     except Exception as e:
-        # Log and return a generic server error for any other exceptions
         logger.error(f"[FINALIZE ORDER ERROR] {e}")
         return Response(
             {"detail": f"An unexpected error occurred: {str(e)}"},

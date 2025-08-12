@@ -1,5 +1,3 @@
-// flutter_ui/lib/role_views/manager_features/order_logs/order_logs.dart
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -9,7 +7,57 @@ import 'dart:developer';
 
 const String _baseUrl = 'http://10.0.2.2:8000/api';
 
-// Data model for InStoreOrderItem
+// NEW: Data model for OnlineOrderItem
+class OnlineOrderItem {
+  final String medicineName;
+  final int quantitySold;
+  final int freeQuantity; // Added new field
+  final double priceAtSale;
+
+  OnlineOrderItem({
+    required this.medicineName,
+    required this.quantitySold,
+    required this.freeQuantity, // Updated constructor
+    required this.priceAtSale,
+  });
+
+  factory OnlineOrderItem.fromJson(Map<String, dynamic> json) {
+    return OnlineOrderItem(
+      medicineName: json['medicine_name'] ?? 'Unknown',
+      quantitySold: json['quantity_sold'] ?? 0,
+      freeQuantity: json['free_quantity_given'] ?? 0, // Updated factory
+      priceAtSale: double.tryParse(json['price_at_sale']?.toString() ?? '0.0') ?? 0.0,
+    );
+  }
+}
+
+// NEW: Data model for OnlineOrderDetails
+class OnlineOrderDetails {
+  final int id;
+  final String customerName;
+  final String customerEmail;
+  final List<OnlineOrderItem> items;
+
+  OnlineOrderDetails({
+    required this.id,
+    required this.customerName,
+    required this.customerEmail,
+    required this.items,
+  });
+
+  factory OnlineOrderDetails.fromJson(Map<String, dynamic> json) {
+    var list = json['items'] as List;
+    List<OnlineOrderItem> itemsList = list.map((i) => OnlineOrderItem.fromJson(i)).toList();
+    return OnlineOrderDetails(
+      id: json['id'] ?? 0,
+      customerName: json['customer_name'] ?? 'Unknown',
+      customerEmail: json['customer_email'] ?? 'Unknown',
+      items: itemsList,
+    );
+  }
+}
+
+// Existing InStoreOrderItem model (unchanged)
 class InStoreOrderItem {
   final String medicineName;
   final int quantitySold;
@@ -30,7 +78,7 @@ class InStoreOrderItem {
   }
 }
 
-// Data model for InStoreOrderDetails
+// Existing InStoreOrderDetails model (unchanged)
 class InStoreOrderDetails {
   final int id;
   final String staffName;
@@ -53,7 +101,7 @@ class InStoreOrderDetails {
   }
 }
 
-// Data model for OrderLog
+// UPDATED: OrderLog model with dynamic orderDetails field
 class OrderLog {
   final int id;
   final String staffName;
@@ -61,7 +109,7 @@ class OrderLog {
   final String actionType;
   final String description;
   final DateTime timestamp;
-  final InStoreOrderDetails? orderDetails;
+  final dynamic orderDetails; // Can be InStoreOrderDetails or OnlineOrderDetails
 
   OrderLog({
     required this.id,
@@ -74,6 +122,17 @@ class OrderLog {
   });
 
   factory OrderLog.fromJson(Map<String, dynamic> json) {
+    dynamic parsedDetails;
+    if (json['order_details'] != null) {
+      if (json['order_details'].containsKey('customer_name')) {
+        // It's an online order because it has a customer_name
+        parsedDetails = OnlineOrderDetails.fromJson(json['order_details']);
+      } else if (json['order_details'].containsKey('staff_name')) {
+        // It's an in-store order because it has a staff_name
+        parsedDetails = InStoreOrderDetails.fromJson(json['order_details']);
+      }
+    }
+
     return OrderLog(
       id: json['id'] ?? 0,
       staffName: json['staff_name'] ?? 'Unknown',
@@ -81,9 +140,7 @@ class OrderLog {
       actionType: json['action_type'] ?? 'Unknown',
       description: json['description'] ?? '',
       timestamp: DateTime.parse(json['timestamp']),
-      orderDetails: json['in_store_order_details'] != null
-          ? InStoreOrderDetails.fromJson(json['in_store_order_details'])
-          : null,
+      orderDetails: parsedDetails,
     );
   }
 }
@@ -140,8 +197,8 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Order Logs'),
-        backgroundColor: const Color(0xFF5C7C9A), // Updated color
-        foregroundColor: Colors.white, // Updated color for font and icon
+        backgroundColor: const Color(0xFF5C7C9A),
+        foregroundColor: Colors.white,
       ),
       body: FutureBuilder<List<OrderLog>>(
         future: _futureOrderLogs,
@@ -169,7 +226,7 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: ExpansionTile(
             title: Text(
-              '${log.actionType} by ${log.staffName}',
+              '${log.actionType.replaceAll('_', ' ')} by ${log.staffName}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(DateFormat('yyyy-MM-dd h:mm a').format(log.timestamp)),
@@ -181,16 +238,10 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
                   children: [
                     Text('Description: ${log.description}', style: const TextStyle(fontSize: 16)),
                     const SizedBox(height: 8),
-                    if (log.orderDetails != null) ...[
-                      const Text('Order Details:', style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text('Order ID: #${log.orderDetails!.id}'),
-                      Text('Cashier: ${log.orderDetails!.staffName}'),
-                      const SizedBox(height: 8),
-                      const Text('Items:', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ...log.orderDetails!.items.map((item) => Text(
-                        ' - ${item.medicineName} (x${item.quantitySold}) - Php${item.priceAtSale.toStringAsFixed(2)}',
-                      )).toList(),
-                    ],
+                    if (log.orderDetails is InStoreOrderDetails)
+                      _buildInStoreOrderDetails(log.orderDetails as InStoreOrderDetails)
+                    else if (log.orderDetails is OnlineOrderDetails)
+                      _buildOnlineOrderDetails(log.orderDetails as OnlineOrderDetails),
                   ],
                 ),
               ),
@@ -198,6 +249,44 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildInStoreOrderDetails(InStoreOrderDetails details) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('In-Store Order Details:', style: TextStyle(fontWeight: FontWeight.bold)),
+        Text('Order ID: #${details.id}'),
+        Text('Cashier: ${details.staffName}'),
+        const SizedBox(height: 8),
+        const Text('Items:', style: TextStyle(fontWeight: FontWeight.bold)),
+        ...details.items.map((item) => Text(
+          ' - ${item.medicineName} (x${item.quantitySold}) - Php${item.priceAtSale.toStringAsFixed(2)}',
+        )).toList(),
+      ],
+    );
+  }
+
+  Widget _buildOnlineOrderDetails(OnlineOrderDetails details) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Online Order Details:', style: TextStyle(fontWeight: FontWeight.bold)),
+        Text('Order ID: #${details.id}'),
+        Text('Customer: ${details.customerName} (${details.customerEmail})'),
+        const SizedBox(height: 8),
+        const Text('Items:', style: TextStyle(fontWeight: FontWeight.bold)),
+        ...details.items.map((item) {
+          String quantityText = ' (x${item.quantitySold})';
+          if (item.freeQuantity > 0) {
+            quantityText = ' (x${item.quantitySold} + ${item.freeQuantity} Promo)';
+          }
+          return Text(
+            ' - ${item.medicineName}${quantityText} - Php${item.priceAtSale.toStringAsFixed(2)}',
+          );
+        }).toList(),
+      ],
     );
   }
 }

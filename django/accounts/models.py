@@ -207,14 +207,18 @@ class EmployeeLog(models.Model):
 class OrderLog(models.Model):
     ACTION_CHOICES = [
         ('initiate_sale', 'Initiate Sale (In-store)'),
-        ('approve', 'Approve'),
-        ('reject', 'Reject'),
+        ('in_store_approve', 'Approve In-store Order'),
+        ('in_store_reject', 'Reject In-store Order'),
+        ('online_confirmed', 'Online Order Confirmed'),
+        ('online_cancelled', 'Online Order Cancelled'),
+        ('online_picked_up', 'Online Order Picked Up'),
     ]
 
     staff_user = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, blank=True, related_name='order_logs')
-    in_store_order = models.ForeignKey('InStoreOrder', on_delete=models.CASCADE, related_name='logs')
+    in_store_order = models.ForeignKey('InStoreOrder', on_delete=models.SET_NULL, null=True, blank=True, related_name='logs')
+    online_order = models.ForeignKey('OnlineOrder', on_delete=models.SET_NULL, null=True, blank=True, related_name='logs')
     action_type = models.CharField(max_length=20, choices=ACTION_CHOICES)
-    description = models.TextField()
+    description = models.TextField(blank=True, null=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -222,8 +226,15 @@ class OrderLog(models.Model):
         ordering = ['-timestamp']
 
     def __str__(self):
-        return f"OrderLog - {self.action_type} for Order #{self.in_store_order.id} by {self.staff_user.name}"
-
+        order_str = ""
+        if self.in_store_order:
+            order_str = f"In-store Order #{self.in_store_order.id}"
+        elif self.online_order:
+            order_str = f"Online Order #{self.online_order.id}"
+        
+        staff_str = self.staff_user.name if self.staff_user else 'System'
+        return f"OrderLog - {self.action_type} for {order_str} by {staff_str}"
+        
 # =================== NEW MODELS FOR ONLINE ORDERS ===================
 class OnlineOrder(models.Model):
     ORDER_STATUS = [
