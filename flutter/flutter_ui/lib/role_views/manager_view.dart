@@ -17,7 +17,7 @@ import 'manager_features/inventory_logs/inventory_logs_page.dart';
 // NEW IMPORT FOR ORDER LOGS
 import 'manager_features/order_logs/order_logs.dart';
 // NEW IMPORT FOR IN-STORE TRANSACTIONS
-import 'manager_features/instore_sales_transaction/instore_transaction.dart';
+import 'manager_features/instore_sales_transaction_m/instore_transaction.dart';
 
 
 import 'package:http/http.dart' as http;
