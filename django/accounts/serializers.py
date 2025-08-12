@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog, OnlineOrder, OnlineOrderItem
+from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog, OnlineOrder, OnlineOrderItem, OrderLog
 
 from django.contrib.auth.hashers import make_password
 from decimal import Decimal
@@ -756,3 +756,68 @@ class OnlineOrderCreateSerializer(serializers.ModelSerializer):
                 return order
         except Exception as e:
             raise serializers.ValidationError(f"Failed to process order: {str(e)}")
+
+#-------- in store transactions serializers--------------------
+# New serializer for Staff to get their name and role
+class StaffDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Staff
+        fields = ['name', 'role']
+
+# New nested serializer for InStoreOrderItem
+class ManagerInStoreOrderItemSerializer(serializers.ModelSerializer):
+    medicine_name = serializers.CharField(source='inventory_id.medicine.name', read_only=True)
+    is_promo = serializers.BooleanField(source='inventory_id.is_promo', read_only=True)
+    price_per_item = serializers.DecimalField(source='price_at_sale', max_digits=8, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = InStoreOrderItem
+        fields = [
+            'medicine_name', 
+            'quantity_sold', 
+            'free_quantity_given', 
+            'is_promo', 
+            'price_per_item'
+        ]
+
+# Main serializer for the manager's sales log
+class InStoreSalesTransactionSerializer(serializers.ModelSerializer):
+    staff = serializers.CharField(source='staff.name', read_only=True)
+    cashier = serializers.SerializerMethodField()
+    items = ManagerInStoreOrderItemSerializer(many=True, read_only=True)
+    
+    # Custom fields for subtotal and discount
+    subtotal = serializers.DecimalField(source='total_amount_before_discount', max_digits=10, decimal_places=2, read_only=True)
+    discount_amount = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = InStoreOrder
+        fields = [
+            'id', 
+            'date_created', 
+            'is_pwd', 
+            'staff', 
+            'cashier', 
+            'subtotal',
+            'discount_amount',
+            'total_amount_after_discount',
+            'items',
+            'status'
+        ]
+    
+    def get_cashier(self, obj):
+        # First, try to get the cashier from the InStoreOrderApproval table (for new data).
+        if hasattr(obj, 'approval') and obj.approval and obj.approval.cashier:
+            return obj.approval.cashier.name
+        
+        # If no approval record exists but the order has a final status, use the staff name instead.
+        if obj.status in ['approved', 'rejected']:
+            return obj.staff.name
+            
+        # For pending orders with no approval record, return "N/A".
+        return "N/A"
+
+    def get_discount_amount(self, obj):
+        if obj.is_pwd:
+            return obj.total_amount_before_discount - obj.total_amount_after_discount
+        return Decimal('0.00')

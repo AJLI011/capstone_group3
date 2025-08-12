@@ -270,3 +270,15 @@ class OnlineOrderItem(models.Model):
         
     def __str__(self):
         return f"{self.inventory_id.medicine.name} - {self.quantity_sold} sold"
+
+#model for instore sales tranaction
+class InStoreOrderApproval(models.Model):
+    class Meta:
+        db_table = 'in_store_order_approvals_tbl'
+        
+    order = models.OneToOneField('InStoreOrder', on_delete=models.CASCADE, related_name='approval')
+    cashier = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, related_name='approved_in_store_orders')
+    approval_date = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Order #{self.order.id} approved by {self.cashier.name if self.cashier else 'Unknown'}"

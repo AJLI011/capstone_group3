@@ -20,11 +20,10 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from decimal import Decimal
 import logging
-from django.db import transaction
 from django.utils import timezone
 
 from .models import (
-    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, OnlineOrder, OnlineOrderItem
+    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, OnlineOrder, OnlineOrderItem, InStoreOrderApproval
 )
 from .serializers import (
     CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer,
@@ -34,10 +33,8 @@ from .serializers import (
     InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer, CustomerMedicineSerializer,
     EmployeeLogSerializer, CashierInStoreOrderSerializer, InStoreOrderItemSerializer, OrderLogSerializer, CustomerPromoMedicineDetailSerializer,
     CustomerMedicineDetailSerializer, OnlineOrderItemReadSerializer, OnlineOrderListSerializer, OnlineOrderItemCreateSerializer, OnlineOrderCreateSerializer,
-    OnlineOrderLogDetailsSerializer
+    OnlineOrderLogDetailsSerializer,InStoreSalesTransactionSerializer
 )
-
-
 
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
@@ -799,6 +796,7 @@ def employee_logs_view(request):
 #----------ORDER LOGS PT 1 - FOR CASHER (INSTORE)---------
 #modified some parts of the pending order view for the order logs
 class InStoreOrderProcessingView(APIView):
+
     def get(self, request):
         """
         Get all orders that are pending cashier approval.
@@ -819,7 +817,7 @@ class InStoreOrderProcessingView(APIView):
             return Response({'error': 'Pending order not found'}, status=status.HTTP_404_NOT_FOUND)
 
         new_status = request.data.get('status')
-        staff_id = request.data.get('cashier_id') # We will rename this to staff_id to be more consistent
+        staff_id = request.data.get('cashier_id')  # Will rename to staff_id for consistency
         
         if not new_status or new_status not in ['approved', 'rejected']:
             return Response({'error': 'Invalid status provided'}, status=status.HTTP_400_BAD_REQUEST)
@@ -837,10 +835,18 @@ class InStoreOrderProcessingView(APIView):
                         total_to_deduct = item.quantity_sold + item.free_quantity_given
                         batch = item.inventory_id
                         
+                        # Ensure sufficient stock before proceeding
+                        if batch.quantity < total_to_deduct:
+                            return Response(
+                                {'error': f"Insufficient stock for {batch.medicine.name}. "
+                                          f"Available: {batch.quantity}, Required: {total_to_deduct}"},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                        
                         batch.quantity = F('quantity') - total_to_deduct
                         batch.save(update_fields=['quantity'])
                         
-                        # Existing InventoryLog is here
+                        # Log the sale in InventoryLog
                         InventoryLog.objects.create(
                             user=staff_user,
                             medicine=batch.medicine,
@@ -850,12 +856,18 @@ class InStoreOrderProcessingView(APIView):
                                         f"from In-Store Order #{order.id}."
                         )
 
-                    # NEW: Create a log entry for the approved order
+                    # Create the InStoreOrderApproval record
+                    InStoreOrderApproval.objects.create(
+                        order=order,
+                        cashier=staff_user
+                    )
+
+                    # Create a log entry for the approved order
                     OrderLog.objects.create(
                         staff_user=staff_user,
                         in_store_order=order,
                         action_type='approve',
-                        description='Sale transaction approved'
+                        description=f'Sale transaction approved by {staff_user.name}'
                     )
 
                     order.status = 'approved'
@@ -867,12 +879,12 @@ class InStoreOrderProcessingView(APIView):
                 return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         elif new_status == 'rejected':
-            # NEW: Create a log entry for the rejected order
+            # Create a log entry for the rejected order
             OrderLog.objects.create(
                 staff_user=staff_user,
                 in_store_order=order,
                 action_type='reject',
-                description='Sale transaction rejected'
+                description=f'Sale transaction rejected by {staff_user.name}'
             )
             order.status = 'rejected'
             order.save(update_fields=['status'])
@@ -915,6 +927,7 @@ def process_instore_order(request):
             return Response({"error": f"Failed to process order: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
     return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
 
 #------------------ ORDER LOGS VIEW -------------------
 @api_view(['GET'])
@@ -1328,3 +1341,28 @@ def finalize_online_order(request, orderId):
             {"detail": f"An unexpected error occurred: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+#------instore sales transaction views----------------
+
+class InStoreSalesTransactionView(generics.ListAPIView):
+    # Make sure this serializer is imported correctly
+    # from .serializers import InStoreSalesTransactionSerializer
+    serializer_class = InStoreSalesTransactionSerializer
+
+    def get_queryset(self):
+        queryset = InStoreOrder.objects.all().order_by('-date_created')
+
+        filter_date_str = self.request.query_params.get('date', None)
+
+        if filter_date_str:
+            try:
+                filter_date = date.fromisoformat(filter_date_str)
+                # Filter for records from the start of the day to the end of the day
+                start_of_day = filter_date
+                end_of_day = filter_date + timedelta(days=1)
+                
+                queryset = queryset.filter(date_created__gte=start_of_day, date_created__lt=end_of_day)
+            except ValueError:
+                pass
+
+        return queryset

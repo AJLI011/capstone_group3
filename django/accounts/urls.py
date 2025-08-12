@@ -100,5 +100,8 @@ urlpatterns = [
     path('cashier/online-orders/<int:orderId>/items/<int:itemId>/', views.remove_online_order_item, name='cashier-remove-online-order-item'),
     path('cashier/online-orders/<int:orderId>/cancel/', views.cancel_online_order_cashier, name='cashier-cancel-online-order'),
     path('cashier/online-orders/<int:orderId>/finalize/', views.finalize_online_order, name='cashier-finalize-online-order'),
+    
+    #instore sales transaction
+    path('in-store-transactions/', views.InStoreSalesTransactionView.as_view(), name='in-store-transactions'),
 ]
 
