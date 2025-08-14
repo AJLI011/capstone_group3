@@ -1,4 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter_ui/services/sales_report_service.dart';
 
 class InStoreSalesReportPage extends StatefulWidget {
@@ -14,6 +17,10 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
   SalesReport? _salesReport;
   bool _isLoading = false;
   String? _errorMessage;
+
+  // Assume you get the manager's name from a login state or a service
+  // For now, we will use a placeholder
+  final String _managerName = "Tan";
 
   Future<void> _selectStartDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -86,6 +93,53 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
     }
   }
 
+  Future<void> _downloadReportPdf() async {
+    if (_startDate == null || _endDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a date range first.'),
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Downloading PDF...'),
+      ),
+    );
+
+    try {
+      final startDateStr = '${_startDate!.year}-${_startDate!.month.toString().padLeft(2, '0')}-${_startDate!.day.toString().padLeft(2, '0')}';
+      final endDateStr = '${_endDate!.year}-${_endDate!.month.toString().padLeft(2, '0')}-${_endDate!.day.toString().padLeft(2, '0')}';
+
+      final uri = Uri.parse('$baseUrl/in-store-sales-report/pdf/?start_date=$startDateStr&end_date=$endDateStr&manager_name=$_managerName');
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/InStore_Sales_Report_$startDateStr\_to_$endDateStr.pdf');
+        await file.writeAsBytes(response.bodyBytes);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF downloaded to: ${file.path}'),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      } else {
+        throw Exception('Failed to download PDF: ${response.statusCode}');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error downloading PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -110,7 +164,7 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
                       child: Text(
                         _startDate == null
                             ? 'Select Date'
-                            : '${_startDate!.year}-${_startDate!.month}-${_startDate!.day}',
+                            : '${_startDate!.year}-${_startDate!.month.toString().padLeft(2, '0')}-${_startDate!.day.toString().padLeft(2, '0')}',
                       ),
                     ),
                   ),
@@ -127,7 +181,7 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
                       child: Text(
                         _endDate == null
                             ? 'Select Date'
-                            : '${_endDate!.year}-${_endDate!.month}-${_endDate!.day}',
+                            : '${_endDate!.year}-${_endDate!.month.toString().padLeft(2, '0')}-${_endDate!.day.toString().padLeft(2, '0')}',
                       ),
                     ),
                   ),
@@ -135,9 +189,22 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
               ],
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _fetchReport,
-              child: const Text('Generate Report'),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _fetchReport,
+                    child: const Text('Generate Report'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _downloadReportPdf,
+                    child: const Text('Generate File'),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             if (_isLoading)
@@ -185,7 +252,6 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
                             fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
-                      // Use a ListView.builder for a long list of items
                       ..._salesReport!.salesReport.map((item) {
                         return Card(
                           margin: const EdgeInsets.symmetric(vertical: 4),
