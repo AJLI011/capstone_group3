@@ -266,18 +266,28 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
                           style: TextStyle(
                               fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      ..._salesReport!.salesReport.map((item) {
-                        return Card(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          child: ListTile(
-                            title: Text(item.medicine),
-                            subtitle:
-                                Text('Quantity Sold: ${item.quantitySold}'),
-                            trailing: Text(
-                                'Total Sale: P${item.totalSale.toStringAsFixed(2)}'),
-                          ),
-                        );
-                      }).toList(),
+                      // The new DataTable widget
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: DataTable(
+                          columns: const <DataColumn>[
+                            DataColumn(label: Text('Medicine')),
+                            DataColumn(label: Text('Quantity Sold'), numeric: true),
+                            DataColumn(label: Text('Total Sale'), numeric: true),
+                          ],
+                          rows: _salesReport!.salesReport
+                              .map(
+                                (item) => DataRow(
+                                  cells: <DataCell>[
+                                    DataCell(Text(item.medicine)),
+                                    DataCell(Text(item.quantitySold.toString())),
+                                    DataCell(Text('P${item.totalSale.toStringAsFixed(2)}')),
+                                  ],
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
                     ],
                   ),
                 ),
