@@ -22,13 +22,6 @@ from decimal import Decimal
 import logging
 from django.utils import timezone
 
-#===========For Instore File Generator===================
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
-from reportlab.lib.styles import getSampleStyleSheet
-from io import BytesIO
-#=========================================================
 
 
 from .models import (
@@ -1527,80 +1520,3 @@ class InStoreSalesReportView(APIView):
 
         return Response(response_data)
     
-# For Instore Page File Generation    
-class GenerateInStoreSalesPDFView(APIView):
-    # Removed permission_classes = [IsAuthenticated]
-    
-    def get(self, request, *args, **kwargs):
-        # We'll get the manager's name from a query parameter
-        manager_name = request.query_params.get('manager_name', 'Unknown Manager')
-
-        start_date_str = request.query_params.get('start_date')
-        end_date_str = request.query_params.get('end_date')
-
-        if not start_date_str or not end_date_str:
-            return HttpResponse("Please provide both start_date and end_date query parameters.", status=400)
-
-        try:
-            start_datetime = datetime.strptime(start_date_str, '%Y-%m-%d')
-            end_datetime = datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1) - timedelta(seconds=1)
-        except ValueError:
-            return HttpResponse("Invalid date format. Please use YYYY-MM-DD.", status=400)
-
-        approved_orders = InStoreOrderApproval.objects.filter(
-            approval_date__range=[start_datetime, end_datetime]
-        ).select_related('order')
-
-        order_items = InStoreOrderItem.objects.filter(
-            order__in=[ao.order for ao in approved_orders]
-        ).select_related('inventory_id__medicine')
-
-        total_revenue = sum(ao.order.total_amount_after_discount for ao in approved_orders)
-
-        sales_data = {}
-        for item in order_items:
-            medicine_name = item.inventory_id.medicine.name
-            if medicine_name not in sales_data:
-                sales_data[medicine_name] = {'quantity_sold': 0, 'total_sale': 0}
-            sales_data[medicine_name]['quantity_sold'] += item.quantity_sold
-            sales_data[medicine_name]['total_sale'] += item.quantity_sold * item.price_at_sale
-
-        # Create the PDF in memory
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter)
-        styles = getSampleStyleSheet()
-        elements = []
-
-        # Title and Header
-        elements.append(Paragraph("<b>IN-STORE SALE SUMMARY</b>", styles['h1']))
-        elements.append(Paragraph("<br/>", styles['Normal']))
-        elements.append(Paragraph("BlueWhite Generic Pharmacy", styles['h3']))
-        # Use the manager's name from the query parameter
-        elements.append(Paragraph(f"Manager: {manager_name}", styles['Normal'])) 
-        elements.append(Paragraph(f"Report Period: {start_date_str} - {end_date_str}", styles['Normal']))
-        elements.append(Paragraph(f"Total Revenue: P{total_revenue.quantize(Decimal('0.01'))}", styles['Normal']))
-        elements.append(Paragraph("<br/>", styles['Normal']))
-
-        # Table Data
-        data = [['Medicine', 'Quantity Sold', 'Total Sale']]
-        for name, values in sales_data.items():
-            data.append([name, values['quantity_sold'], f"P{values['total_sale'].quantize(Decimal('0.01'))}"])
-
-        table = Table(data)
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('BOX', (0, 0), (-1, -1), 1, colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ]))
-        elements.append(table)
-        
-        doc.build(elements)
-
-        buffer.seek(0)
-        
-        response = HttpResponse(buffer, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="InStore_Sales_Report_{start_date_str}_to_{end_date_str}.pdf"'
-        
-        return response

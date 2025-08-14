@@ -6,7 +6,7 @@ from .views import get_inventory_list
 from .views import GoodStockView, ExpiringSoonView, ExpiredView
 from .views import delete_expired_batch, remove_promo, get_customer_medicines
 from .views import inventory_logs, PromoMedicineView, PromoMedicineDetailView, get_customer_medicine_detail
-from .views import InStoreSalesReportView, GenerateInStoreSalesPDFView
+from .views import InStoreSalesReportView
 
 
 urlpatterns = [
@@ -108,9 +108,6 @@ urlpatterns = [
 
     #instore sales report
     path('in-store-sales-report/', InStoreSalesReportView.as_view(), name='in-store-sales-report'),
-
-    #Instore sales file generator
-    path('in-store-sales-report/pdf/', GenerateInStoreSalesPDFView.as_view(), name='in-store-sales-report-pdf'),
 
     # Online Sales Transaction
     path('manager/completed-online-orders/', views.completed_online_orders_report, name='completed-online-orders-report'),

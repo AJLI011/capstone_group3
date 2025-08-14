@@ -1,8 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 import 'package:flutter_ui/services/sales_report_service.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf/pdf.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class InStoreSalesReportPage extends StatefulWidget {
   const InStoreSalesReportPage({Key? key}) : super(key: key);
@@ -17,10 +21,6 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
   SalesReport? _salesReport;
   bool _isLoading = false;
   String? _errorMessage;
-
-  // Assume you get the manager's name from a login state or a service
-  // For now, we will use a placeholder
-  final String _managerName = "Tan";
 
   Future<void> _selectStartDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -93,50 +93,109 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
     }
   }
 
-  Future<void> _downloadReportPdf() async {
-    if (_startDate == null || _endDate == null) {
+  Future<void> _generateAndSavePdf() async {
+    if (_salesReport == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a date range first.'),
-        ),
+        const SnackBar(content: Text('Please generate the report first.')),
       );
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Downloading PDF...'),
+    // Get manager info from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final managerName = prefs.getString('name') ?? 'N/A';
+
+    final pdf = pw.Document();
+    final now = DateTime.now();
+    final formattedDate = DateFormat('MMMM d, y').format(now);
+    final reportingPeriodText =
+        '${_salesReport!.reportingPeriod.startDate} - ${_salesReport!.reportingPeriod.endDate}';
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (context) => [
+          pw.Center(
+            child: pw.Text(
+              'IN-STORE SALE SUMMARY',
+              style: pw.TextStyle(
+                  fontSize: 20, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.SizedBox(height: 5),
+          pw.Center(
+            child: pw.Text(
+              'Generic Pharmacy',
+              style: pw.TextStyle(fontSize: 16),
+            ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'Date: $formattedDate',
+                style: const pw.TextStyle(fontSize: 12),
+              ),
+              pw.Text(
+                'Manager: $managerName',
+                style: const pw.TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 5),
+          pw.Text(
+            'Reporting Period: $reportingPeriodText',
+            style: const pw.TextStyle(fontSize: 12),
+          ),
+          pw.SizedBox(height: 20),
+          pw.Text(
+            'Total Revenue: P${_salesReport!.totalRevenue.toStringAsFixed(2)}',
+            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 10),
+          pw.Table.fromTextArray(
+            border: pw.TableBorder.all(width: 1),
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            headers: [
+              'Medicine',
+              'Quantity Sold',
+              'Total Sale',
+            ],
+            data: _salesReport!.salesReport
+                .map(
+                  (item) => [
+                    item.medicine,
+                    item.quantitySold.toString(),
+                    'P${item.totalSale.toStringAsFixed(2)}',
+                  ],
+                )
+                .toList(),
+          ),
+        ],
       ),
     );
 
     try {
-      final startDateStr = '${_startDate!.year}-${_startDate!.month.toString().padLeft(2, '0')}-${_startDate!.day.toString().padLeft(2, '0')}';
-      final endDateStr = '${_endDate!.year}-${_endDate!.month.toString().padLeft(2, '0')}-${_endDate!.day.toString().padLeft(2, '0')}';
+      final bytes = await pdf.save();
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/in_store_sales_report_summary.pdf');
+      await file.writeAsBytes(bytes);
 
-      final uri = Uri.parse('$baseUrl/in-store-sales-report/pdf/?start_date=$startDateStr&end_date=$endDateStr&manager_name=$_managerName');
-      final response = await http.get(uri);
-
-      if (response.statusCode == 200) {
-        final directory = await getApplicationDocumentsDirectory();
-        final file = File('${directory.path}/InStore_Sales_Report_$startDateStr\_to_$endDateStr.pdf');
-        await file.writeAsBytes(response.bodyBytes);
-
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('PDF downloaded to: ${file.path}'),
-            duration: const Duration(seconds: 5),
-          ),
+              content: Text(
+                  '✅ PDF saved to Documents folder at: ${file.path}')),
         );
-      } else {
-        throw Exception('Failed to download PDF: ${response.statusCode}');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error downloading PDF: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      print('❌ Error saving PDF: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('❌ Failed to save PDF.')),
+        );
+      }
     }
   }
 
@@ -164,7 +223,7 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
                       child: Text(
                         _startDate == null
                             ? 'Select Date'
-                            : '${_startDate!.year}-${_startDate!.month.toString().padLeft(2, '0')}-${_startDate!.day.toString().padLeft(2, '0')}',
+                            : '${_startDate!.year}-${_startDate!.month}-${_startDate!.day}',
                       ),
                     ),
                   ),
@@ -181,7 +240,7 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
                       child: Text(
                         _endDate == null
                             ? 'Select Date'
-                            : '${_endDate!.year}-${_endDate!.month.toString().padLeft(2, '0')}-${_endDate!.day.toString().padLeft(2, '0')}',
+                            : '${_endDate!.year}-${_endDate!.month}-${_endDate!.day}',
                       ),
                     ),
                   ),
@@ -189,22 +248,9 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
               ],
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _fetchReport,
-                    child: const Text('Generate Report'),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _downloadReportPdf,
-                    child: const Text('Generate File'),
-                  ),
-                ),
-              ],
+            ElevatedButton(
+              onPressed: _fetchReport,
+              child: const Text('Generate Report'),
             ),
             const SizedBox(height: 16),
             if (_isLoading)
@@ -252,6 +298,7 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
                             fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
+                      // Use a ListView.builder for a long list of items
                       ..._salesReport!.salesReport.map((item) {
                         return Card(
                           margin: const EdgeInsets.symmetric(vertical: 4),
@@ -269,6 +316,15 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
           ],
         ),
       ),
+      floatingActionButton: _salesReport != null
+          ? FloatingActionButton.extended(
+              onPressed: _generateAndSavePdf,
+              label: const Text('Generate PDF'),
+              icon: const Icon(Icons.picture_as_pdf),
+              backgroundColor: const Color(0xFF5C7C9A),
+              foregroundColor: Colors.white,
+            )
+          : null,
     );
   }
 }
