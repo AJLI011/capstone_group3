@@ -1,12 +1,10 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_ui/services/sales_report_service.dart';
+import 'package:flutter_ui/services/pdf_instore_service.dart'; // updated PdfService
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 
 class InStoreSalesReportPage extends StatefulWidget {
   const InStoreSalesReportPage({Key? key}) : super(key: key);
@@ -27,7 +25,7 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
       context: context,
       initialDate: _startDate ?? DateTime.now(),
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: DateTime(2100),
     );
     if (picked != null && picked != _startDate) {
       setState(() {
@@ -41,7 +39,7 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
       context: context,
       initialDate: _endDate ?? _startDate ?? DateTime.now(),
       firstDate: _startDate ?? DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: DateTime(2100),
     );
     if (picked != null) {
       if (_startDate != null && picked.isBefore(_startDate!)) {
@@ -101,7 +99,6 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
       return;
     }
 
-    // Get manager info from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     final managerName = prefs.getString('name') ?? 'N/A';
 
@@ -118,29 +115,19 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
           pw.Center(
             child: pw.Text(
               'IN-STORE SALE SUMMARY',
-              style: pw.TextStyle(
-                  fontSize: 20, fontWeight: pw.FontWeight.bold),
+              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
             ),
           ),
           pw.SizedBox(height: 5),
           pw.Center(
-            child: pw.Text(
-              'Generic Pharmacy',
-              style: pw.TextStyle(fontSize: 16),
-            ),
+            child: pw.Text('Generic Pharmacy', style: pw.TextStyle(fontSize: 16)),
           ),
           pw.SizedBox(height: 20),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text(
-                'Date: $formattedDate',
-                style: const pw.TextStyle(fontSize: 12),
-              ),
-              pw.Text(
-                'Manager: $managerName',
-                style: const pw.TextStyle(fontSize: 12),
-              ),
+              pw.Text('Date: $formattedDate', style: const pw.TextStyle(fontSize: 12)),
+              pw.Text('Manager: $managerName', style: const pw.TextStyle(fontSize: 12)),
             ],
           ),
           pw.SizedBox(height: 5),
@@ -157,19 +144,13 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
           pw.Table.fromTextArray(
             border: pw.TableBorder.all(width: 1),
             headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-            headers: [
-              'Medicine',
-              'Quantity Sold',
-              'Total Sale',
-            ],
+            headers: ['Medicine', 'Quantity Sold', 'Total Sale'],
             data: _salesReport!.salesReport
-                .map(
-                  (item) => [
-                    item.medicine,
-                    item.quantitySold.toString(),
-                    'P${item.totalSale.toStringAsFixed(2)}',
-                  ],
-                )
+                .map((item) => [
+                      item.medicine,
+                      item.quantitySold.toString(),
+                      'P${item.totalSale.toStringAsFixed(2)}',
+                    ])
                 .toList(),
           ),
         ],
@@ -177,20 +158,17 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
     );
 
     try {
-      final bytes = await pdf.save();
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/in_store_sales_report_summary.pdf');
-      await file.writeAsBytes(bytes);
+      final savedPath = await PdfService.savePdfToDownloadsAndAppStorage(
+        pdf,
+        'in_store_sales_report_summary.pdf',
+      );
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(
-                  '✅ PDF saved to Documents folder at: ${file.path}')),
+          SnackBar(content: Text('✅ PDF saved successfully at: $savedPath')),
         );
       }
     } catch (e) {
-      print('❌ Error saving PDF: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('❌ Failed to save PDF.')),
@@ -202,14 +180,11 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('In-store Sales Report'),
-      ),
+      appBar: AppBar(title: const Text('In-store Sales Report')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Date Range Selection
             Row(
               children: [
                 Expanded(
@@ -256,10 +231,7 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
             if (_isLoading)
               const CircularProgressIndicator()
             else if (_errorMessage != null)
-              Text(
-                _errorMessage!,
-                style: const TextStyle(color: Colors.red),
-              )
+              Text(_errorMessage!, style: const TextStyle(color: Colors.red))
             else if (_salesReport != null)
               Expanded(
                 child: SingleChildScrollView(
@@ -273,11 +245,9 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Report Summary',
-                                style: TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
+                              const Text('Report Summary',
+                                  style: TextStyle(
+                                      fontSize: 18, fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
                               Text(
                                 'Total Revenue: P${_salesReport!.totalRevenue.toStringAsFixed(2)}',
@@ -292,20 +262,19 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'Detailed Sales Report',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
+                      const Text('Detailed Sales Report',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      // Use a ListView.builder for a long list of items
                       ..._salesReport!.salesReport.map((item) {
                         return Card(
                           margin: const EdgeInsets.symmetric(vertical: 4),
                           child: ListTile(
                             title: Text(item.medicine),
-                            subtitle: Text('Quantity Sold: ${item.quantitySold}'),
-                            trailing: Text('Total Sale: P${item.totalSale.toStringAsFixed(2)}'),
+                            subtitle:
+                                Text('Quantity Sold: ${item.quantitySold}'),
+                            trailing: Text(
+                                'Total Sale: P${item.totalSale.toStringAsFixed(2)}'),
                           ),
                         );
                       }).toList(),
