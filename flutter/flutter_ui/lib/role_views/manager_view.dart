@@ -14,6 +14,7 @@ import 'manager_features/return_medicines/return_page.dart';
 import 'manager_features/promo_medicines/promo_page.dart';
 import 'manager_features/inventory_logs/inventory_logs_page.dart';
 import 'manager_features/online_sales_transaction/online_transaction.dart';
+import 'manager_features/instore_sales_report/in_store_sales_report_page.dart';
 
 // NEW IMPORT FOR ORDER LOGS
 import 'manager_features/order_logs/order_logs.dart';
@@ -249,7 +250,8 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                                           () => _open(const ReturnMedicinePage())),
                                         _drawerItem(Icons.local_offer, 'Promo Medicines',
                                           () => _open(const PromoMedicinePage())),
-                                        _drawerItem(Icons.point_of_sale, 'In Store Sales Report', () {}),
+                                        _drawerItem(Icons.point_of_sale, 'In Store Sales Report',
+                                          () => _open(const InStoreSalesReportPage())),
                                         _drawerItem(Icons.trending_up, 'Online Sales Report', () {}),
                                         _drawerItem(Icons.insights, 'Demand Forecast', () {}),
                                         _drawerItem(Icons.shopping_cart, 'Purchase Request', () {}),

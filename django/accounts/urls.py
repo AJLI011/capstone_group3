@@ -6,6 +6,7 @@ from .views import get_inventory_list
 from .views import GoodStockView, ExpiringSoonView, ExpiredView
 from .views import delete_expired_batch, remove_promo, get_customer_medicines
 from .views import inventory_logs, PromoMedicineView, PromoMedicineDetailView, get_customer_medicine_detail
+from .views import InStoreSalesReportView
 
 urlpatterns = [
     # Authentication
@@ -103,6 +104,9 @@ urlpatterns = [
     
     #instore sales transaction
     path('in-store-transactions/', views.InStoreSalesTransactionView.as_view(), name='in-store-transactions'),
+
+    #instore sale report
+    path('in-store-sales-report/', InStoreSalesReportView.as_view(), name='in-store-sales-report'),
 
     # Online Sales Transaction
     path('manager/completed-online-orders/', views.completed_online_orders_report, name='completed-online-orders-report'),

@@ -12,8 +12,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
 from rest_framework import generics
 from datetime import date, timedelta, datetime
-from django.http import JsonResponse, HttpResponseNotFound
-from django.db.models import F, Prefetch
+from django.http import JsonResponse, HttpResponseNotFound, HttpResponse
+from django.db.models import F, Prefetch, DecimalField
 from django.utils.timezone import now
 from django.core.management import call_command
 from django.db import transaction
@@ -21,6 +21,7 @@ from django.shortcuts import get_object_or_404
 from decimal import Decimal
 import logging
 from django.utils import timezone
+
 
 from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, OnlineOrder, OnlineOrderItem, InStoreOrderApproval
@@ -1359,7 +1360,7 @@ class InStoreSalesTransactionView(generics.ListAPIView):
             except ValueError:
                 pass
 
-        return queryset
+        return queryset    
 
 # Online Orders Transaction for Manager View
 @api_view(['GET'])
@@ -1454,3 +1455,65 @@ def completed_online_orders_report(request):
         # if 'logger' in globals():
         #     logger.error(f"[COMPLETED ORDERS REPORT ERROR] {e}")
         return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+#===================In store Sales Report=================
+class InStoreSalesReportView(APIView):
+    def get(self, request, *args, **kwargs):
+        start_date_str = request.query_params.get('start_date')
+        end_date_str = request.query_params.get('end_date')
+
+        if not start_date_str or not end_date_str:
+            return Response({"error": "Please provide both start_date and end_date query parameters in YYYY-MM-DD format."}, status=400)
+
+        try:
+            start_datetime = datetime.strptime(start_date_str, '%Y-%m-%d')
+            end_datetime = datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1) - timedelta(seconds=1)
+        except ValueError:
+            return Response({"error": "Invalid date format. Please use YYYY-MM-DD."}, status=400)
+
+        # Filter approved in-store orders based on the approval date
+        approved_orders = InStoreOrderApproval.objects.filter(
+            approval_date__range=[start_datetime, end_datetime]
+        ).select_related('order')
+
+        # Get all approved order items within the date range
+        order_items = InStoreOrderItem.objects.filter(
+            order__in=[ao.order for ao in approved_orders]
+        ).select_related('inventory_id__medicine')
+
+        # Calculate total revenue
+        total_revenue = sum(ao.order.total_amount_after_discount for ao in approved_orders)
+
+        # Aggregate sales by medicine
+        sales_data = {}
+        for item in order_items:
+            medicine_name = item.inventory_id.medicine.name
+            if medicine_name not in sales_data:
+                sales_data[medicine_name] = {
+                    'quantity_sold': 0,
+                    'total_sale': 0
+                }
+            sales_data[medicine_name]['quantity_sold'] += item.quantity_sold
+            sales_data[medicine_name]['total_sale'] += item.quantity_sold * item.price_at_sale
+
+        # Format the aggregated sales data for the response
+        formatted_sales_data = [
+            {
+                'medicine': name,
+                'quantity_sold': data['quantity_sold'],
+                'total_sale': data['total_sale']
+            }
+            for name, data in sales_data.items()
+        ]
+
+        response_data = {
+            'total_revenue': total_revenue,
+            'reporting_period': {
+                'start_date': start_date_str,
+                'end_date': end_date_str
+            },
+            'sales_report': formatted_sales_data
+        }
+
+        return Response(response_data)
