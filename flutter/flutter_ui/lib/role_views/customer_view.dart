@@ -27,6 +27,25 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
   bool _isMenuOpen = false;
   bool isLoading = true;
 
+  String _selectedCategory = 'all';
+
+  final List<Map<String, String>> _categoryChoices = [
+    {'value': 'all', 'label': 'All'},
+    {'value': 'analgesics', 'label': 'Analgesics'},
+    {'value': 'antibiotics', 'label': 'Antibiotics'},
+    {'value': 'antivirals', 'label': 'Antivirals'},
+    {'value': 'antihypertensives', 'label': 'Antihypertensives'},
+    {'value': 'antidiabetics', 'label': 'Antidiabetics'},
+    {'value': 'gastrointestinal_medicines', 'label': 'Gastrointestinal Medicines'},
+    {'value': 'antihistamines', 'label': 'Antihistamines'},
+    {'value': 'cough_and_cold_medicines', 'label': 'Cough and Cold Medicines'},
+    {'value': 'vitamins_and_supplements', 'label': 'Vitamins and Supplements'},
+    {'value': 'cardiovascular_medicines', 'label': 'Cardiovascular Medicines'},
+    {'value': 'anti_asthma_and_respiratory_medicines', 'label': 'Anti-asthma and Respiratory Medicines'},
+    {'value': 'antimalarials', 'label': 'Antimalarials'},
+    {'value': 'antiparasitics', 'label': 'Antiparasitics'},
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -124,6 +143,45 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
     );
   }
 
+  void _showCategoryFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Filter by Category'),
+              content: SingleChildScrollView(
+                child: Wrap(
+                  spacing: 8.0,
+                  children: _categoryChoices.map((category) {
+                    final categoryValue = category['value']!;
+                    final categoryLabel = category['label']!;
+                    final isSelected = _selectedCategory == categoryValue;
+
+                    return ActionChip(
+                      label: Text(categoryLabel),
+                      onPressed: () {
+                        this.setState(() {
+                          _selectedCategory = categoryValue;
+                        });
+                        Navigator.pop(context);
+                      },
+                      backgroundColor: isSelected ? Colors.blue.shade700 : Colors.blue.shade100,
+                      labelStyle: TextStyle(
+                        color: isSelected ? Colors.white : Colors.blue.shade900,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildHeader() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,21 +214,27 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
           ),
         ),
         const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const TextField(
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              icon: Icon(Icons.search),
-              hintText: 'Search',
-              suffixIcon: Icon(Icons.tune),
-            ),
-          ),
-        ),
+        _currentIndex == 0
+            ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextField(
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    icon: const Icon(Icons.search),
+                    hintText: 'Search',
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.tune),
+                      onPressed: _showCategoryFilterDialog,
+                      tooltip: 'Filter by Category',
+                    ),
+                  ),
+                ),
+              )
+            : Container(),
       ],
     );
   }
@@ -179,9 +243,11 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     final screenW = MediaQuery.of(context).size.width;
 
-    // MODIFIED: Passed the _customerId to the MedicineView and PromoView widgets.
     final List<Widget> _views = [
-      MedicineView(customerId: _customerId),
+      MedicineView(
+        customerId: _customerId,
+        selectedCategory: _selectedCategory,
+      ),
       PromoView(customerId: _customerId),
       CheckoutPage(customerId: _customerId),
     ];
@@ -269,11 +335,13 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
                                         _drawerItem(
                                             Icons.edit,
                                             'Edit Profile',
-                                            () => _open(EditCustomerProfilePage(customerId: _customerId))),
+                                            () => _open(EditCustomerProfilePage(
+                                                customerId: _customerId))),
                                         _drawerItem(
                                             Icons.lock,
                                             'Change Password',
-                                            () => _open(ChangeCustomerPasswordPage(customerId: _customerId))),
+                                            () => _open(ChangeCustomerPasswordPage(
+                                                customerId: _customerId))),
                                       ],
                                     ),
                                   ),
@@ -328,13 +396,6 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
                 ],
               ),
       ),
-    );
-  }
-
-  Widget _placeholderPage(String title) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(child: Text(title)),
     );
   }
 }

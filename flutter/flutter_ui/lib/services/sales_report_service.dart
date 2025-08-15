@@ -83,3 +83,18 @@ Future<SalesReport> fetchInStoreSalesReport(
     throw Exception('Failed to load sales report');
   }
 }
+
+Future<SalesReport> fetchOnlineSalesReport(
+    String startDate, String endDate) async {
+  final response = await http.get(Uri.parse(
+      '$baseUrl/online-sales-report/?start_date=$startDate&end_date=$endDate'));
+
+  if (response.statusCode == 200) {
+    // If the server returns a 200 OK response, parse the JSON.
+    return SalesReport.fromJson(jsonDecode(response.body));
+  } else {
+    // If the server did not return a 200 OK response,
+    // throw an exception.
+    throw Exception('Failed to load online sales report');
+  }
+}

@@ -250,6 +250,7 @@ class OnlineOrder(models.Model):
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total_amount_after_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     pickup_schedule = models.DateTimeField(null=True, blank=True)
+    date_fulfilled = models.DateTimeField(null=True, blank=True) #ADDED THIS FOR ONLINE SALES REPORT!
     
     class Meta:
         db_table = 'online_orders_tbl'

@@ -99,7 +99,8 @@ Widget build(BuildContext context) {
   return Scaffold(
     appBar: AppBar(
       title: Text(widget.item.name),
-      backgroundColor: const Color(0xFF396AAB),
+        backgroundColor: const Color(0xFF5C7C9A),
+        foregroundColor: Colors.white,
     ),
     body: FutureBuilder<List<BatchDetail>>(
       future: _batchDetails,

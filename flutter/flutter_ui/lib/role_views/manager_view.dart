@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_ui/role_views/manager_features/expiration_dashboard/expiry_dashboard_view.dart';
+import 'package:flutter_ui/role_views/manager_features/online_sales_report/online_sales_report_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart'; // ToggleLoginScreen
 
@@ -252,7 +253,8 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                                           () => _open(const PromoMedicinePage())),
                                         _drawerItem(Icons.point_of_sale, 'In Store Sales Report',
                                           () => _open(const InStoreSalesReportPage())),
-                                        _drawerItem(Icons.trending_up, 'Online Sales Report', () {}),
+                                        _drawerItem(Icons.trending_up, 'Online Sales Report', 
+                                          () => _open(const OnlineSalesReportPage())),
                                         _drawerItem(Icons.insights, 'Demand Forecast', () {}),
                                         _drawerItem(Icons.shopping_cart, 'Purchase Request', () {}),
                                         _drawerItem(Icons.list_alt, 'Medicine List',

@@ -109,7 +109,8 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Inventory'),
-        backgroundColor: const Color(0xFF396AAB),
+        backgroundColor: const Color(0xFF5C7C9A),
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: Icon(_sortAZ ? Icons.sort_by_alpha : Icons.sort),

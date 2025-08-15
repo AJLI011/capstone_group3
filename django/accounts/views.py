@@ -757,27 +757,42 @@ class PromoMedicineDetailView(APIView):
 #For Normal Medicine
 @api_view(['GET'])
 def get_customer_medicines(request):
+    """
+    Retrieves a list of medicines for the customer view.
+    Filters the list by category if a 'category' query parameter is provided.
+    """
+    category = request.query_params.get('category', None)
+    
+    # Start with all inventory items
     inventory_items = TotalQuantity.objects.select_related('medicine').all()
+    
+    # If a category is specified and is not 'all', filter the queryset
+    if category and category != 'all':
+        inventory_items = inventory_items.filter(medicine__category=category)
+    
+    # Extract the medicine objects from the filtered inventory items
     medicines = [item.medicine for item in inventory_items]
+    
+    # Serialize the filtered list of medicines
     serializer = CustomerMedicineSerializer(medicines, many=True, context={'request': request})
     return Response(serializer.data)
 
 @api_view(['GET'])
 def get_customer_medicine_detail(request, pk):
+    """
+    Retrieves the detailed information for a single medicine.
+    """
     medicine = get_object_or_404(Medicine, pk=pk)
     serializer = CustomerMedicineDetailSerializer(medicine, context={'request': request})
     return Response(serializer.data)
+
 def trigger_update_total_quantity(request):
+    """
+    Triggers the management command to update total quantities.
+    (This function seems unrelated to the filtering issue but is kept for completeness)
+    """
     call_command('update_total_quantities')
     return JsonResponse({'status': 'success'})
-
-@api_view(['GET'])
-def get_customer_medicines(request):
-    inventory_items = TotalQuantity.objects.select_related('medicine').all()
-    medicines = [item.medicine for item in inventory_items]
-    serializer = CustomerMedicineSerializer(medicines, many=True, context={'request': request})
-    return Response(serializer.data)
-
 
 #----------Employee Logs Views-------
 @api_view(['GET', 'POST'])
@@ -1305,7 +1320,7 @@ def finalize_online_order(request, orderId):
             # Update the order status to 'completed' and record the fulfillment date
             order.status = 'completed'
             order.date_fulfilled = timezone.now()
-            order.save()
+            order.save() # Mark the order as completed and record the exact fulfillment timestamp
 
             # Create a log entry for the picked up online order
             OrderLog.objects.create(
@@ -1519,4 +1534,80 @@ class InStoreSalesReportView(APIView):
         }
 
         return Response(response_data)
-    
+
+#===================Online Sales Report=================
+class OnlineSalesReportView(APIView):
+    def get(self, request, *args, **kwargs):
+        start_date_str = request.query_params.get('start_date')
+        end_date_str = request.query_params.get('end_date')
+
+        # Debug: print the raw query params
+        print(f"DEBUG: Raw start_date_str={start_date_str}, end_date_str={end_date_str}")
+
+        if not start_date_str or not end_date_str:
+            return Response(
+                {"error": "Please provide both start_date and end_date in YYYY-MM-DD format."},
+                status=400
+            )
+
+        try:
+            # Parse and make timezone-aware
+            start_datetime = timezone.make_aware(
+                datetime.strptime(start_date_str, '%Y-%m-%d')
+            )
+            end_datetime = timezone.make_aware(
+                datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1) - timedelta(seconds=1)
+            )
+        except ValueError:
+            return Response({"error": "Invalid date format. Please use YYYY-MM-DD."}, status=400)
+
+        # Debug: print the aware datetimes
+        print(f"DEBUG: start_datetime={start_datetime}, end_datetime={end_datetime}")
+
+        # Filter completed online orders within date range
+        completed_orders = OnlineOrder.objects.filter(
+            status='completed',
+            date_fulfilled__range=[start_datetime, end_datetime]
+        )
+        print(f"DEBUG: completed_orders.count()={completed_orders.count()}")
+
+        # Get all order items for these orders
+        order_items = OnlineOrderItem.objects.filter(
+            order__in=completed_orders
+        ).select_related('inventory_id__medicine')
+        print(f"DEBUG: order_items.count()={order_items.count()}")
+
+        # Calculate total revenue
+        total_revenue = sum(order.total_amount_after_discount for order in completed_orders)
+        print(f"DEBUG: total_revenue={total_revenue}")
+
+        # Aggregate sales by medicine
+        sales_data = {}
+        for item in order_items:
+            med_name = item.inventory_id.medicine.name
+            if med_name not in sales_data:
+                sales_data[med_name] = {
+                    'quantity_sold': 0,
+                    'total_sale': 0
+                }
+            sales_data[med_name]['quantity_sold'] += item.quantity_sold
+            sales_data[med_name]['total_sale'] += item.quantity_sold * item.price_at_sale
+
+        # Format sales data
+        formatted_sales = [
+            {
+                'medicine': name,
+                'quantity_sold': data['quantity_sold'],
+                'total_sale': data['total_sale']
+            }
+            for name, data in sales_data.items()
+        ]
+
+        return Response({
+            'total_revenue': total_revenue,
+            'reporting_period': {
+                'start_date': start_date_str,
+                'end_date': end_date_str
+            },
+            'sales_report': formatted_sales
+        })

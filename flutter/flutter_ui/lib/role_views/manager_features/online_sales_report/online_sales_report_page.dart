@@ -1,19 +1,17 @@
+// lib/pages/online_sales_report_page.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_ui/services/sales_report_service.dart';
-import 'package:flutter_ui/services/pdf_instore_service.dart'; // updated PdfService
-import 'package:pdf/widgets.dart' as pw;
-import 'package:pdf/pdf.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_ui/services/sales_report_service.dart';
+import 'package:flutter_ui/services/pdf_online_service.dart';
 
-class InStoreSalesReportPage extends StatefulWidget {
-  const InStoreSalesReportPage({Key? key}) : super(key: key);
+class OnlineSalesReportPage extends StatefulWidget {
+  const OnlineSalesReportPage({Key? key}) : super(key: key);
 
   @override
-  _InStoreSalesReportPageState createState() => _InStoreSalesReportPageState();
+  _OnlineSalesReportPageState createState() => _OnlineSalesReportPageState();
 }
 
-class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
+class _OnlineSalesReportPageState extends State<OnlineSalesReportPage> {
   DateTime? _startDate;
   DateTime? _endDate;
   SalesReport? _salesReport;
@@ -73,16 +71,16 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
     });
 
     try {
-      final report = await fetchInStoreSalesReport(
-        '${_startDate!.year}-${_startDate!.month.toString().padLeft(2, '0')}-${_startDate!.day.toString().padLeft(2, '0')}',
-        '${_endDate!.year}-${_endDate!.month.toString().padLeft(2, '0')}-${_endDate!.day.toString().padLeft(2, '0')}',
+      final report = await fetchOnlineSalesReport(
+        DateFormat('yyyy-MM-dd').format(_startDate!),
+        DateFormat('yyyy-MM-dd').format(_endDate!),
       );
       setState(() {
         _salesReport = report;
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Failed to fetch report: ${e.toString()}';
+        _errorMessage = 'Failed to fetch online sales report: ${e.toString()}';
       });
     } finally {
       setState(() {
@@ -99,79 +97,34 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
       return;
     }
 
-    final prefs = await SharedPreferences.getInstance();
-    final managerName = prefs.getString('name') ?? 'N/A';
-
-    final pdf = pw.Document();
-    final now = DateTime.now();
-    final formattedDate = DateFormat('MMMM d, y').format(now);
-    final reportingPeriodText =
-        '${_salesReport!.reportingPeriod.startDate} - ${_salesReport!.reportingPeriod.endDate}';
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        build: (context) => [
-          pw.Center(
-            child: pw.Text(
-              'IN-STORE SALE SUMMARY',
-              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
-            ),
-          ),
-          pw.SizedBox(height: 5),
-          pw.Center(
-            child: pw.Text('Generic Pharmacy', style: pw.TextStyle(fontSize: 16)),
-          ),
-          pw.SizedBox(height: 20),
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text('Date: $formattedDate', style: const pw.TextStyle(fontSize: 12)),
-              pw.Text('Manager: $managerName', style: const pw.TextStyle(fontSize: 12)),
-            ],
-          ),
-          pw.SizedBox(height: 5),
-          pw.Text(
-            'Reporting Period: $reportingPeriodText',
-            style: const pw.TextStyle(fontSize: 12),
-          ),
-          pw.SizedBox(height: 20),
-          pw.Text(
-            'Total Revenue: P${_salesReport!.totalRevenue.toStringAsFixed(2)}',
-            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 10),
-          pw.Table.fromTextArray(
-            border: pw.TableBorder.all(width: 1),
-            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-            headers: ['Medicine', 'Quantity Sold', 'Total Sale'],
-            data: _salesReport!.salesReport
-                .map((item) => [
-                      item.medicine,
-                      item.quantitySold.toString(),
-                      'P${item.totalSale.toStringAsFixed(2)}',
-                    ])
-                .toList(),
-          ),
-        ],
-      ),
-    );
-
+    // Call the online-specific PDF service
     try {
-      final savedPath = await PdfService.savePdfToDownloadsAndAppStorage(
-        pdf,
-        'in_store_sales_report_summary.pdf',
-      );
+      final salesJson = {
+        'total_revenue': _salesReport!.totalRevenue,
+        'reporting_period': {
+          'start_date': _salesReport!.reportingPeriod.startDate,
+          'end_date': _salesReport!.reportingPeriod.endDate,
+        },
+        'sales_report': _salesReport!.salesReport
+            .map((item) => {
+                  'medicine': item.medicine,
+                  'quantity_sold': item.quantitySold,
+                  'total_sale': item.totalSale,
+                })
+            .toList(),
+      };
+
+      await PdfOnlineService.generateAndSavePdf(salesJson: salesJson);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ PDF saved successfully at: $savedPath')),
+          const SnackBar(content: Text('✅ PDF saved successfully to downloads.')),
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('❌ Failed to save PDF.')),
+          SnackBar(content: Text('❌ Failed to save PDF: $e')),
         );
       }
     }
@@ -180,9 +133,9 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('In-store Sales Report'),
+      appBar: AppBar(title: const Text('Online Sales Report'),
         backgroundColor: const Color(0xFF5C7C9A),
-        foregroundColor: Colors.white,      
+        foregroundColor: Colors.white,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -201,7 +154,7 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
                       child: Text(
                         _startDate == null
                             ? 'Select Date'
-                            : '${_startDate!.year}-${_startDate!.month}-${_startDate!.day}',
+                            : DateFormat('yyyy-MM-dd').format(_startDate!),
                       ),
                     ),
                   ),
@@ -218,7 +171,7 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
                       child: Text(
                         _endDate == null
                             ? 'Select Date'
-                            : '${_endDate!.year}-${_endDate!.month}-${_endDate!.day}',
+                            : DateFormat('yyyy-MM-dd').format(_endDate!),
                       ),
                     ),
                   ),
@@ -269,7 +222,6 @@ class _InStoreSalesReportPageState extends State<InStoreSalesReportPage> {
                           style: TextStyle(
                               fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      // The new DataTable widget
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: DataTable(

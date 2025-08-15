@@ -10,6 +10,7 @@ class Medicine {
   final String genericName;
   final String imageUrl;
   final double price;
+  final String category;
 
   Medicine({
     required this.id,
@@ -17,6 +18,7 @@ class Medicine {
     required this.genericName,
     required this.imageUrl,
     required this.price,
+    required this.category,
   });
 
   factory Medicine.fromJson(Map<String, dynamic> json) {
@@ -26,13 +28,20 @@ class Medicine {
       genericName: json['generic_name'] ?? '',
       imageUrl: json['image'] ?? '',
       price: double.parse(json['price']),
+      category: json['category'] ?? '',
     );
   }
 }
 
 class MedicineView extends StatefulWidget {
-  final int customerId; // <--- ADDED: customerId
-  const MedicineView({super.key, required this.customerId}); // <--- ADDED: customerId to constructor
+  final int customerId;
+  final String selectedCategory;
+
+  const MedicineView({
+    super.key,
+    required this.customerId,
+    this.selectedCategory = 'all',
+  });
 
   @override
   State<MedicineView> createState() => _MedicineViewState();
@@ -48,8 +57,24 @@ class _MedicineViewState extends State<MedicineView> {
     fetchMedicines();
   }
 
+  @override
+  void didUpdateWidget(covariant MedicineView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedCategory != oldWidget.selectedCategory) {
+      fetchMedicines();
+    }
+  }
+
   Future<void> fetchMedicines() async {
-    const url = 'http://10.0.2.2:8000/api/customer/medicines/';
+    setState(() {
+      _isLoading = true;
+    });
+    
+    String url = 'http://10.0.2.2:8000/api/customer/medicines/';
+    if (widget.selectedCategory != 'all') {
+      url += '?category=${widget.selectedCategory}';
+    }
+
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
@@ -59,7 +84,7 @@ class _MedicineViewState extends State<MedicineView> {
           _isLoading = false;
         });
       } else {
-        throw Exception('Failed to load medicines');
+        throw Exception('Failed to load medicines: ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('Error fetching medicines: $e');
@@ -78,7 +103,7 @@ class _MedicineViewState extends State<MedicineView> {
           MaterialPageRoute(
             builder: (context) => MedicineDetailPage(
               medicineId: med.id,
-              customerId: widget.customerId, // <--- MODIFIED: Passed customerId
+              customerId: widget.customerId,
             ),
           ),
         );
@@ -156,7 +181,9 @@ class _MedicineViewState extends State<MedicineView> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _medicines.isEmpty
-              ? const Center(child: Text("No medicines available"))
+              ? Center(
+                  child: Text(
+                      "No medicines available for the category: ${widget.selectedCategory}"))
               : Padding(
                   padding: const EdgeInsets.all(12),
                   child: GridView.builder(
@@ -165,7 +192,7 @@ class _MedicineViewState extends State<MedicineView> {
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
-                      childAspectRatio: 0.7, // Adjusted for better layout
+                      childAspectRatio: 0.7,
                     ),
                     itemBuilder: (context, index) =>
                         _buildMedicineCard(_medicines[index]),

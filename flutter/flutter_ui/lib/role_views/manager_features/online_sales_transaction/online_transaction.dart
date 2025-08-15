@@ -89,7 +89,7 @@ class _OnlineOrdersReportPageState extends State<OnlineOrdersReportPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Online Sales Report'),
-        backgroundColor: Colors.blue.shade700,
+        backgroundColor: const Color(0xFF5C7C9A),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
