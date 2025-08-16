@@ -240,6 +240,7 @@ class _CashierViewState extends State<CashierView> with SingleTickerProviderStat
                                             () => _open(EditCashierProfilePage(staffId: widget.staffId))),
                                         _drawerItem(Icons.lock, 'Change Password',
                                             () => _open(ChangeCashierPasswordPage(staffId: widget.staffId))),
+                                        _drawerItem(Icons.description, 'Prescription', () => {}),
                                         
                                       ],
                                     ),
