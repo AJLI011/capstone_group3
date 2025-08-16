@@ -72,18 +72,50 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
     ) ?? false; // In case the user taps outside the dialog.
   }
 
+  // New dialog for confirming save action.
+  Future<bool> _showSaveConfirmationDialog() async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Save?'),
+          content: const Text('Are you sure you want to save the changes?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false); // Do not save
+              },
+              child: const Text('No'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(true); // Proceed with save
+              },
+              child: const Text('Yes'),
+            ),
+          ],
+        );
+      },
+    ) ?? false;
+  }
+
   Future<void> _submitRestock() async {
-    if (_batchNumberController.text.isEmpty ||
-        _expirationDateController.text.isEmpty ||
-        _quantityController.text.isEmpty) {
+    // First, validate the form. If validation fails, show a snackbar and return.
+    if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill out all fields')),
+        const SnackBar(content: Text('Please fill out all required fields')),
       );
       return;
     }
 
-    if (!_formKey.currentState!.validate()) return;
+    // Show confirmation dialog before proceeding with the API call.
+    final shouldSave = await _showSaveConfirmationDialog();
+    if (!shouldSave) {
+      // If the user chooses not to save, we simply return.
+      return;
+    }
 
+    // Proceed with the save logic only if the user confirmed.
     // 🧠 Get staff ID from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     final staffId = prefs.getInt('staff_id');
