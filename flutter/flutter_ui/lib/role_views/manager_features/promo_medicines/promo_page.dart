@@ -220,6 +220,33 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
     );
   }
 
+void showRemovePromoConfirmationDialog(int inventoryId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Removal'),
+        content: const Text('Are you sure you want to remove the promo?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+        ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              removePromo(inventoryId);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -311,19 +338,20 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
                                     ),
                                     child: const Text('Promo'),
                                   )
-                                else
-                                  ElevatedButton(
-                                    onPressed: () => removePromo(item['id']),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(20),
+                                  // Find this section in your ListView.builder:
+                                  else
+                                    ElevatedButton(
+                                      onPressed: () => showRemovePromoConfirmationDialog(item['id']), // Change this line
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
                                       ),
+                                      child: const Text('Remove Promo'),
                                     ),
-                                    child: const Text('Remove Promo'),
-                                  ),
                               ],
                             ),
                           ],
