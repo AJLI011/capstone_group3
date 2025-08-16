@@ -66,11 +66,41 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
     }
   }
 
+  // ADDED: Function to show a confirmation dialog before canceling an order
+  void _confirmCancelOrder(int orderId) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Cancel Order'),
+          content: const Text('Are you sure you want to cancel this order?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('No'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Dismiss the dialog
+              },
+            ),
+            TextButton(
+              child: const Text('Yes', style: TextStyle(color: Colors.red)),
+              onPressed: () {
+                Navigator.of(context).pop(); // Dismiss the dialog
+                _cancelOrder(orderId); // Call the cancel function
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Orders'),
+        backgroundColor: const Color.fromARGB(255, 10, 84, 182),// added color to appbar
+        foregroundColor: Colors.white, //changed font color
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -79,9 +109,9 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.black, // Set the color of the selected tab text
+          labelColor: Colors.white, // Set the color of the selected tab text
           unselectedLabelColor: Colors.grey, // Set the color of the unselected tab text
-          indicatorColor: Colors.blue, // Set the color of the tab indicator
+          indicatorColor: const Color.fromARGB(255, 83, 167, 235), // Set the color of the tab indicator
           indicatorWeight: 4.0, // Set the thickness of the tab indicator
           tabs: const [
             Tab(text: 'Ongoing Orders'),
@@ -194,9 +224,11 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
                   Padding(
                     padding: const EdgeInsets.only(top: 16.0),
                     child: ElevatedButton(
-                      onPressed: () => _cancelOrder(order['id']),
+                      // MODIFIED: Call the confirmation dialog function instead of the cancel function directly
+                      onPressed: () => _confirmCancelOrder(order['id']),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
+                        //: Colors.red, // old color
+                        backgroundColor: const Color.fromARGB(255, 10, 84, 182),
                         foregroundColor: Colors.white,
                         minimumSize: const Size(double.infinity, 50),
                       ),

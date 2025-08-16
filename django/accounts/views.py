@@ -773,7 +773,10 @@ def trigger_update_total_quantity(request):
 
 @api_view(['GET'])
 def get_customer_medicines(request):
+    category = request.query_params.get('category', None) #ADDED FOR CUSTOMER CATEGORY FILTER
     inventory_items = TotalQuantity.objects.select_related('medicine').all()
+    if category and category != 'all':
+        inventory_items = inventory_items.filter(medicine__category=category) # This is the crucial line
     medicines = [item.medicine for item in inventory_items]
     serializer = CustomerMedicineSerializer(medicines, many=True, context={'request': request})
     return Response(serializer.data)

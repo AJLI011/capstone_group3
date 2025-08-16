@@ -157,7 +157,11 @@ class _EditCustomerProfilePageState extends State<EditCustomerProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Edit Profile")),
+      appBar: AppBar(
+        title: const Text("Edit Profile"),
+        backgroundColor: const Color.fromARGB(255, 10, 84, 182), //a dded color
+        foregroundColor: Colors.white, //changed font color
+      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : Padding(

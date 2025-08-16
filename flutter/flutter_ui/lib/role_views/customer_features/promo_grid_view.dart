@@ -92,8 +92,9 @@ class _PromoViewState extends State<PromoView> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text("Promos"),
-        backgroundColor: const Color(0xFF003B63),
-        automaticallyImplyLeading: false,
+        backgroundColor: const Color.fromARGB(255, 10, 84, 182), // added color to appbar
+        foregroundColor: Colors.white, //changed font color
+        automaticallyImplyLeading: false, 
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())

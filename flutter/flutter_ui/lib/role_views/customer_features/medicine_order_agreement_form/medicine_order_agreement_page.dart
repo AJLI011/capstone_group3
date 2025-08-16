@@ -8,6 +8,8 @@ class MedicineOrderAgreementPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Medicine Order Agreement"),
+        backgroundColor: const Color.fromARGB(255, 10, 84, 182), // added color to appbar
+        foregroundColor: Colors.white, //changed font color
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
