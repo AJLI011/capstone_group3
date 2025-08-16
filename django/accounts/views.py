@@ -757,42 +757,26 @@ class PromoMedicineDetailView(APIView):
 #For Normal Medicine
 @api_view(['GET'])
 def get_customer_medicines(request):
-    """
-    Retrieves a list of medicines for the customer view.
-    Filters the list by category if a 'category' query parameter is provided.
-    """
-    category = request.query_params.get('category', None)
-    
-    # Start with all inventory items
     inventory_items = TotalQuantity.objects.select_related('medicine').all()
-    
-    # If a category is specified and is not 'all', filter the queryset
-    if category and category != 'all':
-        inventory_items = inventory_items.filter(medicine__category=category)
-    
-    # Extract the medicine objects from the filtered inventory items
     medicines = [item.medicine for item in inventory_items]
-    
-    # Serialize the filtered list of medicines
     serializer = CustomerMedicineSerializer(medicines, many=True, context={'request': request})
     return Response(serializer.data)
 
 @api_view(['GET'])
 def get_customer_medicine_detail(request, pk):
-    """
-    Retrieves the detailed information for a single medicine.
-    """
     medicine = get_object_or_404(Medicine, pk=pk)
     serializer = CustomerMedicineDetailSerializer(medicine, context={'request': request})
     return Response(serializer.data)
-
 def trigger_update_total_quantity(request):
-    """
-    Triggers the management command to update total quantities.
-    (This function seems unrelated to the filtering issue but is kept for completeness)
-    """
     call_command('update_total_quantities')
     return JsonResponse({'status': 'success'})
+
+@api_view(['GET'])
+def get_customer_medicines(request):
+    inventory_items = TotalQuantity.objects.select_related('medicine').all()
+    medicines = [item.medicine for item in inventory_items]
+    serializer = CustomerMedicineSerializer(medicines, many=True, context={'request': request})
+    return Response(serializer.data)
 
 #----------Employee Logs Views-------
 @api_view(['GET', 'POST'])

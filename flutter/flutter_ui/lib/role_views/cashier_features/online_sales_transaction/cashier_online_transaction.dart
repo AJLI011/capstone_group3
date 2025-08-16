@@ -1,5 +1,3 @@
-// lib/screens/cashier_online_transaction_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -12,10 +10,7 @@ const String API_BASE = String.fromEnvironment(
 );
 
 class CashierOnlineTransactionPage extends StatefulWidget {
-  // We removed the 'title' parameter from the constructor.
-  const CashierOnlineTransactionPage({
-    super.key,
-  });
+  const CashierOnlineTransactionPage({super.key});
 
   @override
   State<CashierOnlineTransactionPage> createState() => _CashierOnlineTransactionPageState();
@@ -30,6 +25,7 @@ class _CashierOnlineTransactionPageState extends State<CashierOnlineTransactionP
   @override
   void initState() {
     super.initState();
+    // Fetch orders for the current date when the page first loads.
     _fetchCompletedOrdersForSelectedDate();
   }
 
@@ -44,6 +40,7 @@ class _CashierOnlineTransactionPageState extends State<CashierOnlineTransactionP
       setState(() {
         _selectedDate = picked;
       });
+      // Fetch orders for the newly selected date.
       _fetchCompletedOrdersForSelectedDate();
     }
   }
@@ -56,9 +53,7 @@ class _CashierOnlineTransactionPageState extends State<CashierOnlineTransactionP
 
     try {
       final formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate);
-      
-      // Hardcoded the API path directly
-      final uri = Uri.parse('$API_BASE/api/cashier/completed-online-orders/').replace(
+      final uri = Uri.parse('$API_BASE/api/manager/completed-online-orders/').replace(
         queryParameters: {'date': formattedDate},
       );
       
@@ -93,7 +88,6 @@ class _CashierOnlineTransactionPageState extends State<CashierOnlineTransactionP
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // Hardcoded the title here instead of using a parameter.
         title: const Text('Online Sales Transaction'),
         backgroundColor: const Color(0xFF5C7C9A),
         foregroundColor: Colors.white,
@@ -107,7 +101,7 @@ class _CashierOnlineTransactionPageState extends State<CashierOnlineTransactionP
       body: _buildBody(),
     );
   }
-  
+
   Widget _buildBody() {
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -135,6 +129,7 @@ class _CashierOnlineTransactionPageState extends State<CashierOnlineTransactionP
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
+        // This is the code block that handles the message when no orders are found.
         if (completedOrders.isEmpty)
           const Expanded(
             child: Center(
@@ -153,10 +148,13 @@ class _CashierOnlineTransactionPageState extends State<CashierOnlineTransactionP
                 final orderId = order['order_id'];
                 final customerType = order['customer_type'];
                 
+                // ---- START OF CHANGES ----
+                // Retrieve the new fields from the updated Django API response
                 final initiatedByName = order['initiated_by_name'] ?? 'N/A';
                 final initiatedByRole = order['initiated_by_role'] ?? 'N/A';
                 final approvedByName = order['approved_by_name'] ?? 'N/A';
                 final approvedByRole = order['approved_by_role'] ?? 'N/A';
+                // ---- END OF CHANGES ----
 
                 final totalAmount = order['total_amount'];
                 final subtotalAmount = order['subtotal_amount'] ?? 0.0;
@@ -212,8 +210,12 @@ class _CashierOnlineTransactionPageState extends State<CashierOnlineTransactionP
                         const SizedBox(height: 8),
 
                         Text('Customer Type: $customerType'),
+                        
+                        // ---- START OF CHANGES ----
+                        // Display the name and role from the new fields
                         Text('Initiated by: $initiatedByName ($initiatedByRole)'),
                         Text('Approved by: $approvedByName ($approvedByRole)'),
+                        // ---- END OF CHANGES ----
                         
                         const Divider(height: 20),
 

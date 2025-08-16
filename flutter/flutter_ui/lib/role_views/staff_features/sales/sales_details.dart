@@ -1,3 +1,4 @@
+// sales_details.dart
 import 'package:flutter/material.dart';
 import 'order_summary.dart';
 
@@ -34,6 +35,29 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
               promoFlag.toString().toLowerCase() == 'true' ||
               promoFlag.toString() == '1');
     }
+  }
+
+  // Updated method to show a confirmation dialog before leaving the page,
+  // regardless of whether there are changes.
+  Future<bool> _onWillPop() async {
+    final bool confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Discard Item?'),
+        content: const Text('Are you sure you want to go back? This item will not be recorded.'),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    ) ?? false;
+    return confirm;
   }
 
   void _proceedToCheckout() {
@@ -185,50 +209,73 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
     final int soldControlLimit = totalAvailableQuantity - _freeQuantity;
     final int promoControlLimit = isPromo ? (totalAvailableQuantity - _quantitySold) : 0;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Sales Details'),
-      backgroundColor: const Color(0xFF5C7C9A), // Updated color
-      foregroundColor: Colors.white, // Updated color for font and icon
-      
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (imageUrl.isNotEmpty)
-              Center(
-                child: Image.network(
-                  imageUrl,
-                  height: 120,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 80),
+    // Use PopScope to handle the back button press
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) {
+          return;
+        }
+        final bool shouldPop = await _onWillPop();
+        if (shouldPop) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Sales Details'),
+          backgroundColor: const Color(0xFF5C7C9A), // Updated color
+          foregroundColor: Colors.white, // Updated color for font and icon
+          // Added custom back button to handle the confirmation dialog
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () async {
+              final bool shouldPop = await _onWillPop();
+              if (shouldPop) {
+                Navigator.of(context).pop();
+              }
+            },
+          ),
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (imageUrl.isNotEmpty)
+                Center(
+                  child: Image.network(
+                    imageUrl,
+                    height: 120,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 80),
+                  ),
                 ),
+              const SizedBox(height: 16),
+              _readonlyField('Medicine Name', inventory['name'] ?? 'N/A'),
+              _readonlyField('Price', '₱${inventory['price'].toString()}'),
+              _readonlyField('Available Quantity', remainingQuantity.toString()),
+              _readonlyField('Batch Number', inventory['batch_num'] ?? 'N/A'),
+              _readonlyField('Expiration Date', inventory['exp_date'] ?? 'N/A'),
+              const SizedBox(height: 20),
+              _buildQuantityControl('Quantity Sold', _quantitySold, (val) {
+                setState(() => _quantitySold = val);
+              }, limit: soldControlLimit),
+              _buildQuantityControl('Promo Quantity', _freeQuantity, (val) {
+                setState(() => _freeQuantity = val);
+              }, enabled: isPromo, limit: promoControlLimit),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _proceedToCheckout,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.shade700,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  minimumSize: const Size(double.infinity, 45),
+                ),
+                child: const Text('Proceed to Checkout', style: TextStyle(color: Colors.white)),
               ),
-            const SizedBox(height: 16),
-            _readonlyField('Medicine Name', inventory['name'] ?? 'N/A'),
-            _readonlyField('Price', '₱${inventory['price'].toString()}'),
-            _readonlyField('Available Quantity', remainingQuantity.toString()),
-            _readonlyField('Batch Number', inventory['batch_num'] ?? 'N/A'),
-            _readonlyField('Expiration Date', inventory['exp_date'] ?? 'N/A'),
-            const SizedBox(height: 20),
-            _buildQuantityControl('Quantity Sold', _quantitySold, (val) {
-              setState(() => _quantitySold = val);
-            }, limit: soldControlLimit),
-            _buildQuantityControl('Promo Quantity', _freeQuantity, (val) {
-              setState(() => _freeQuantity = val);
-            }, enabled: isPromo, limit: promoControlLimit),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _proceedToCheckout,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade700,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                minimumSize: const Size(double.infinity, 45),
-              ),
-              child: const Text('Proceed to Checkout', style: TextStyle(color: Colors.white)),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

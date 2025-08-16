@@ -64,6 +64,31 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     return getSubtotal() - getDiscount();
   }
 
+  // New method for item removal confirmation
+  Future<void> _showRemoveConfirmationDialog(int index) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Remove Item?'),
+        content: const Text('Are you sure you want to remove this item from the list?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      removeItem(index);
+    }
+  }
+
   Future<void> _showProcessConfirmationDialog() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -200,7 +225,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
           title: const Text('Order Summary'),
           backgroundColor: const Color(0xFF5C7C9A), // Updated color
           foregroundColor: Colors.white, // Updated color for font and icon
-      
+        
           leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: _showBackConfirmationDialog),
           actions: [
             IconButton(
@@ -249,7 +274,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                         ),
                         trailing: IconButton(
                           icon: const Icon(Icons.close, color: Colors.red),
-                          onPressed: () => removeItem(index),
+                          onPressed: () => _showRemoveConfirmationDialog(index),
                         ),
                       ),
                     );
