@@ -21,6 +21,10 @@ from django.shortcuts import get_object_or_404
 from decimal import Decimal
 import logging
 from django.utils import timezone
+#ADDED THESE 3 TO AUTOMATICALLY REMOVE EXPIRED MEDS REAL-TIME
+from django.utils.timezone import now 
+from django.db.models import Sum
+from django.http import JsonResponse
 
 
 
@@ -478,14 +482,30 @@ def get_medicine_by_barcode(request, barcode):
     serializer = MedicineSerializer(medicine)
     return Response(serializer.data)
 
-# FOR INVENTORY 
+####### FOR INVENTORY 
 # main inventory screen - with total qty
 
 
 # 2. batch level details for a selected medicine
+#--------OLD OUTDATED VERSION
+#@api_view(['GET'])
+#def get_batch_details(request, medicine_id):
+    batches = Inventory.objects.filter(medicine__id=medicine_id)
+    if not batches.exists():
+        return Response({'message': 'No batches found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = InventoryBatchDetailSerializer(batches, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
 @api_view(['GET'])
 def get_batch_details(request, medicine_id):
-    batches = Inventory.objects.filter(medicine__id=medicine_id)
+    today = timezone.now().date()
+
+    batches = Inventory.objects.filter(
+        medicine__id=medicine_id,
+        exp_date__gte=today  # ✅ Only batches expiring today or later
+    )
+
     if not batches.exists():
         return Response({'message': 'No batches found.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -495,22 +515,24 @@ def get_batch_details(request, medicine_id):
 # for total quantity
 @api_view(['GET'])
 def total_quantities(request):
-    inventory_items = Inventory.objects.select_related('medicine_id').all()
+    today = now().date()
 
-    results = []
+    # Group by medicine and sum only unexpired batches
+    inventory_totals = (
+        Inventory.objects
+        .filter(exp_date__gte=today)  # ✅ exclude expired
+        .values(
+            'medicine_id',
+            'medicine__name',
+            'medicine__generic_name',
+            'medicine__image',
+            'medicine__category'
+        )
+        .annotate(total_quantity=Sum('quantity'))
+        .order_by('medicine__name')
+    )
 
-    for item in inventory_items:
-        medicine = item.medicine_id  # thanks to ForeignKey
-        results.append({
-            "medicine_id": medicine.id,
-            "name": medicine.name,
-            "generic_name": medicine.generic_name,
-            "image": medicine.image.url if medicine.image else "",
-            "category": medicine.category,
-            "total_quantity": item.total_quantity,
-        })
-
-    return Response(results)
+    return JsonResponse(list(inventory_totals), safe=False)
 
 # =================== Expiration Dashboard -------------------- # 
 # ✅ Good Stocks:

@@ -44,7 +44,7 @@ urlpatterns = [
     path('inventory/add/', InventoryCreateView.as_view(), name='inventory-add'), # Changed URL path and view class
     path('inventory/', get_inventory_list, name='inventory-list'), # Changed URL path and view function
     path('medicines/barcode/<str:barcode>/', views.get_medicine_by_barcode, name='get-medicine-by-barcode'),
-    path('api/inventory/total-quantities/', views.total_quantities, name='total_quantities'),
+    path('inventory/total-quantities/', views.total_quantities, name='total_quantities'), #EDITED api/inventory
     path('inventory/batches/<int:medicine_id>/', views.get_batch_details, name='inventory-batch-details'),
 
     # Expiration tracking

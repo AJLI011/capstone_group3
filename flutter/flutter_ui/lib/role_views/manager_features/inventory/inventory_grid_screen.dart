@@ -25,7 +25,7 @@ class InventoryApiService {
   static Future<void> syncTotalQuantities() async {
     try {
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:8000/api/update-totals/'),
+        Uri.parse('http://10.0.2.2:8000/api/inventory/total-quantities'),
       );
       if (response.statusCode == 200) {
         print('✅ Total quantity synced');
