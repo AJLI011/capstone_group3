@@ -21,11 +21,19 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from accounts.views import reset_password
+from django.shortcuts import redirect
+
+# urlpatterns = [
+#     path('admin/', admin.site.urls),
+#     path('api/', include('accounts.urls')),
+#     path('reset-password/<str:token>/', reset_password, name='reset_password'),  # needed for email reset
+# ]
 
 urlpatterns = [
+    path('', lambda request: redirect('/admin/', permanent=False)),  # Redirect root to /admin
     path('admin/', admin.site.urls),
     path('api/', include('accounts.urls')),
-    path('reset-password/<str:token>/', reset_password, name='reset_password'),  # needed for email reset
+    path('reset-password/<str:token>/', reset_password, name='reset_password'),
 ]
 
 # Serve uploaded media files ONLY during development (when DEBUG is True)
