@@ -1450,13 +1450,32 @@ def completed_online_orders_report(request):
                     'promo_quantity': item.free_quantity_given,
                     'item_total': float(item.price_at_sale * item.quantity_sold),
                 })
+            
+            # ---- START OF CORRECTED LOGIC (Based on your models) ----
+            
+            initiated_by_name = 'N/A'
+            initiated_by_role = 'N/A'
+            if initiated_by_log and initiated_by_log.staff_user:
+                initiated_by_name = initiated_by_log.staff_user.name
+                initiated_by_role = initiated_by_log.staff_user.role.capitalize()
+                # You can use .capitalize() to make it 'Cashier' or 'Staff'
+
+            approved_by_name = 'N/A'
+            approved_by_role = 'N/A'
+            if approved_by_log and approved_by_log.staff_user:
+                approved_by_name = approved_by_log.staff_user.name
+                approved_by_role = approved_by_log.staff_user.role.capitalize()
+            
+            # ---- END OF CORRECTED LOGIC ----
 
             orders_data.append({
                 'order_id': order.id,
                 'customer_name': order.customer.name,
                 'customer_type': customer_type,
-                'initiated_by': initiated_by_log.staff_user.name if initiated_by_log else 'N/A',
-                'approved_by': approved_by_log.staff_user.name if approved_by_log else 'N/A',
+                'initiated_by_name': initiated_by_name,
+                'initiated_by_role': initiated_by_role,
+                'approved_by_name': approved_by_name,
+                'approved_by_role': approved_by_role,
                 'total_amount': float(order.total_amount_after_discount),
                 'subtotal_amount': float(subtotal_amount),
                 'discount_amount': float(discount_amount),
@@ -1471,8 +1490,7 @@ def completed_online_orders_report(request):
         # if 'logger' in globals():
         #     logger.error(f"[COMPLETED ORDERS REPORT ERROR] {e}")
         return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
+        
 #===================In store Sales Report=================
 #For Instore Page Viewing
 class InStoreSalesReportView(APIView):

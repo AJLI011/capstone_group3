@@ -88,7 +88,7 @@ class _OnlineOrdersReportPageState extends State<OnlineOrdersReportPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Online Sales Report'),
+        title: const Text('Online Sales Transaction'),
         backgroundColor: const Color(0xFF5C7C9A),
         foregroundColor: Colors.white,
         actions: [
@@ -147,8 +147,15 @@ class _OnlineOrdersReportPageState extends State<OnlineOrdersReportPage> {
                 final order = completedOrders[index];
                 final orderId = order['order_id'];
                 final customerType = order['customer_type'];
-                final initiatedBy = order['initiated_by'];
-                final approvedBy = order['approved_by'];
+                
+                // ---- START OF CHANGES ----
+                // Retrieve the new fields from the updated Django API response
+                final initiatedByName = order['initiated_by_name'] ?? 'N/A';
+                final initiatedByRole = order['initiated_by_role'] ?? 'N/A';
+                final approvedByName = order['approved_by_name'] ?? 'N/A';
+                final approvedByRole = order['approved_by_role'] ?? 'N/A';
+                // ---- END OF CHANGES ----
+
                 final totalAmount = order['total_amount'];
                 final subtotalAmount = order['subtotal_amount'] ?? 0.0;
                 final discountAmount = order['discount_amount'] ?? 0.0;
@@ -203,8 +210,13 @@ class _OnlineOrdersReportPageState extends State<OnlineOrdersReportPage> {
                         const SizedBox(height: 8),
 
                         Text('Customer Type: $customerType'),
-                        Text('Initiated by: $initiatedBy (Staff)'),
-                        Text('Approved by: $approvedBy (Cashier)'),
+                        
+                        // ---- START OF CHANGES ----
+                        // Display the name and role from the new fields
+                        Text('Initiated by: $initiatedByName ($initiatedByRole)'),
+                        Text('Approved by: $approvedByName ($approvedByRole)'),
+                        // ---- END OF CHANGES ----
+                        
                         const Divider(height: 20),
 
                         ...items.map((item) {
@@ -231,7 +243,7 @@ class _OnlineOrdersReportPageState extends State<OnlineOrdersReportPage> {
                                         style: const TextStyle(fontWeight: FontWeight.bold),
                                       ),
                                       Text(
-                                        promoQuantity > 0 ? 'Promo (Qty: $promoQuantity)' : 'Promo (Qty)',
+                                        promoQuantity > 0 ? 'Promo (Qty: $promoQuantity)' : 'Regular Sale',
                                         style: const TextStyle(color: Colors.grey, fontSize: 12),
                                       ),
                                     ],
