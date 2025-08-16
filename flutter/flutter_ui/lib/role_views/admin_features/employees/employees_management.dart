@@ -23,21 +23,31 @@ class _EmployeesManagementPageState extends State<EmployeesManagementPage> {
   Future<void> fetchEmployees() async {
     final response = await http.get(Uri.parse('http://10.0.2.2:8000/api/staff/'));
     if (response.statusCode == 200) {
+      final List<dynamic> fetchedEmployees = json.decode(response.body);
       setState(() {
-        employees = json.decode(response.body);
+        // Filter out employees with the 'admin' role
+        employees = fetchedEmployees.where((emp) => emp['role'] != 'admin').toList();
       });
     } else {
-      print('Failed to load employees');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load employees')),
+        );
+      }
     }
   }
 
   Future<void> deleteEmployee(int id) async {
     final response = await http.delete(Uri.parse('http://10.0.2.2:8000/api/staff/$id/'));
     if (response.statusCode == 204) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Deleted successfully')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted successfully')));
+      }
       fetchEmployees(); // refresh list
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to delete')));
+      }
     }
   }
 
@@ -61,68 +71,70 @@ class _EmployeesManagementPageState extends State<EmployeesManagementPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Manage Employees'),
+        title: const Text('Manage Employees'),
         backgroundColor: const Color(0xFF5C7C9A), // Updated color
         foregroundColor: Colors.white, // Updated color for font and icon
       
         actions: [
           IconButton(
-            icon: Icon(Icons.add),
+            icon: const Icon(Icons.add),
             onPressed: openAddEmployeeForm,
           )
         ],
       ),
-      body: ListView.builder(
-        itemCount: employees.length,
-        itemBuilder: (context, index) {
-          final emp = employees[index];
-          return Card(
-            margin: EdgeInsets.all(8),
-            child: ListTile(
-              title: Text(emp['name']),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Role: ${emp['role']}'),
-                  Text('Contact: ${emp['contact_num']}'),
-                  Text('Email: ${emp['email']}'),
-                ],
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(icon: Icon(Icons.edit), onPressed: () => openEditEmployeeForm(emp)),
-                  IconButton(
-                    icon: Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: Text('Confirm Delete'),
-                          content: Text('Do you want to remove this employee?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              child: Text('No'),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                deleteEmployee(emp['id']);
-                              },
-                              child: Text('Yes'),
-                            ),
-                          ],
+      body: employees.isEmpty
+          ? const Center(child: Text('No non-admin employees found'))
+          : ListView.builder(
+              itemCount: employees.length,
+              itemBuilder: (context, index) {
+                final emp = employees[index];
+                return Card(
+                  margin: const EdgeInsets.all(8),
+                  child: ListTile(
+                    title: Text(emp['name']),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Role: ${emp['role']}'),
+                        Text('Contact: ${emp['contact_num']}'),
+                        Text('Email: ${emp['email']}'),
+                      ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(icon: const Icon(Icons.edit), onPressed: () => openEditEmployeeForm(emp)),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Confirm Delete'),
+                                content: const Text('Do you want to remove this employee?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.of(context).pop(),
+                                    child: const Text('No'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                      deleteEmployee(emp['id']);
+                                    },
+                                    child: const Text('Yes'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
+                      ],
+                    ),
                   ),
-                ],
-              ),
+                );
+              },
             ),
-          );
-        },
-      ),
     );
   }
 }
@@ -176,7 +188,9 @@ class _EmployeeFormState extends State<EmployeeForm> {
 
     if (!isEdit) {
       if (passwordController.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Password is required')));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password is required')));
+        }
         return;
       } else {
         data['password'] = passwordController.text;
@@ -196,50 +210,67 @@ class _EmployeeFormState extends State<EmployeeForm> {
             body: json.encode(data)));
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Saved successfully')));
-      widget.onSuccess();
-      Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Saved successfully')));
+        widget.onSuccess();
+        Navigator.pop(context);
+      }
     } else {
       print('Error Response: ${response.body}');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to save')));
+      }
     }
+  }
+  
+  @override
+  void dispose() {
+    nameController.dispose();
+    emailController.dispose();
+    contactController.dispose();
+    passwordController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.employee == null ? 'Add Staff Profile' : 'Edit Staff Profile')),
+      appBar: AppBar(
+        title: Text(widget.employee == null ? 'Add Staff Profile' : 'Edit Staff Profile'),
+        backgroundColor: const Color(0xFF5C7C9A), // Updated color
+        foregroundColor: Colors.white, // Updated color for font and icon
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              TextFormField(controller: nameController, decoration: InputDecoration(labelText: 'Name')),
-              TextFormField(controller: emailController, decoration: InputDecoration(labelText: 'Email')),
-              TextFormField(controller: contactController, decoration: InputDecoration(labelText: 'Contact Number')),
+              TextFormField(controller: nameController, decoration: const InputDecoration(labelText: 'Name')),
+              TextFormField(controller: emailController, decoration: const InputDecoration(labelText: 'Email')),
+              TextFormField(controller: contactController, decoration: const InputDecoration(labelText: 'Contact Number')),
               DropdownButtonFormField(
                 value: selectedRole,
                 items: roles.map((role) => DropdownMenuItem(value: role, child: Text(role))).toList(),
                 onChanged: (value) => setState(() => selectedRole = value!),
-                decoration: InputDecoration(labelText: 'Role'),
+                decoration: const InputDecoration(labelText: 'Role'),
               ),
               TextFormField(
                 controller: passwordController,
                 obscureText: true,
-                decoration: InputDecoration(labelText: 'Password'),
+                decoration: const InputDecoration(labelText: 'Password'),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () async {
                   final confirm = await showDialog<bool>(
                     context: context,
                     builder: (_) => AlertDialog(
-                      title: Text('Confirm Save'),
-                      content: Text('Do you want to save changes?'),
+                      title: const Text('Confirm Save'),
+                      content: const Text('Do you want to save changes?'),
                       actions: [
-                        TextButton(onPressed: () => Navigator.pop(context, false), child: Text('No')),
-                        TextButton(onPressed: () => Navigator.pop(context, true), child: Text('Yes')),
+                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
+                        TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes')),
                       ],
                     ),
                   );
@@ -248,7 +279,7 @@ class _EmployeeFormState extends State<EmployeeForm> {
                     saveEmployee();
                   }
                 },
-                child: Text('Save'),
+                child: const Text('Save'),
               ),
             ],
           ),

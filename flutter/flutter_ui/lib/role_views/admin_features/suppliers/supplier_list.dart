@@ -227,7 +227,7 @@ class _SupplierFormPageState extends State<SupplierFormPage> {
 
     if (name.isEmpty || contact.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please fill in all fields')),
+        const SnackBar(content: Text('Please fill in all fields')),
       );
       return;
     }
@@ -236,16 +236,16 @@ class _SupplierFormPageState extends State<SupplierFormPage> {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text('Confirm Edit'),
-          content: Text('Are you sure you want to save changes?'),
+          title: const Text('Confirm Edit'),
+          content: const Text('Are you sure you want to save changes?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: Text('Cancel'),
+              child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: Text('Save'),
+              child: const Text('Save'),
             ),
           ],
         ),
@@ -256,8 +256,29 @@ class _SupplierFormPageState extends State<SupplierFormPage> {
         Navigator.pop(context);
       }
     } else {
-      widget.onSubmit(name, contact);
-      Navigator.pop(context);
+      // New confirmation prompt for adding a supplier
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Confirm Add'),
+          content: const Text('Are you sure you want to add this supplier?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm == true) {
+        widget.onSubmit(name, contact);
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -268,6 +289,8 @@ class _SupplierFormPageState extends State<SupplierFormPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isEdit ? 'Edit Supplier' : 'Add Supplier'),
+        backgroundColor: const Color(0xFF5C7C9A), // Updated color
+        foregroundColor: Colors.white, 
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),

@@ -251,6 +251,9 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                                           () => _open(const ReturnMedicinePage())),
                                         _drawerItem(Icons.local_offer, 'Promo Medicines',
                                           () => _open(const PromoMedicinePage())),
+
+
+
                                         _drawerItem(Icons.point_of_sale, 'In Store Sales Report',
                                           () => _open(const InStoreSalesReportPage())),
                                         _drawerItem(Icons.trending_up, 'Online Sales Report', 
