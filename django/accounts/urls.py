@@ -112,7 +112,8 @@ urlpatterns = [
 
     # Online Sales Transaction
     path('manager/completed-online-orders/', views.completed_online_orders_report, name='completed-online-orders-report'),
-
+    path('cashier/completed-online-orders/', views.completed_online_orders_report, name='cashier-online-orders-report'),
+   
     #Online Sales Report
     path('online-sales-report/', OnlineSalesReportView.as_view(), name='online-sales-report'),
 ]
