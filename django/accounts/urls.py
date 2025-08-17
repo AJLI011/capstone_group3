@@ -115,5 +115,13 @@ urlpatterns = [
 
     #Online Sales Report
     path('online-sales-report/', OnlineSalesReportView.as_view(), name='online-sales-report'),
+    
+        # =================== PRESCRIPTIONS ===================
+    path('prescriptions/', views.prescription_list_create, name='prescription-list-create'),
+    path('prescriptions/<int:prescription_id>/upload-image/', views.upload_prescription_image, name='upload-prescription-image'),
+    path('prescriptions/<int:prescription_id>/images/', views.get_prescription_images, name='get-prescription-images'),
+    path('prescriptions/<int:pk>/', views.prescription_detail, name='prescription-detail'),
+    path('prescriptions/no-images/', views.prescriptions_without_images, name='prescriptions-no-images'),
+
 ]
 

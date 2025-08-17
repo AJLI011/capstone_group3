@@ -38,6 +38,8 @@ from .serializers import (
     OnlineOrderLogDetailsSerializer,InStoreSalesTransactionSerializer
 )
 
+from .models import Prescription, PrescriptionImage
+from .serializers import PrescriptionSerializer, PrescriptionImageSerializer
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
@@ -1611,3 +1613,57 @@ class OnlineSalesReportView(APIView):
             },
             'sales_report': formatted_sales
         })
+
+# =================== PRESCRIPTION VIEWS ===================
+
+# Create + List Prescriptions
+@api_view(['GET', 'POST'])
+def prescription_list_create(request):
+    if request.method == 'GET':
+        prescriptions = Prescription.objects.all().order_by('-created_at')
+        serializer = PrescriptionSerializer(prescriptions, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = PrescriptionSerializer(data=request.data)
+        if serializer.is_valid():
+            prescription = serializer.save()
+            return Response(PrescriptionSerializer(prescription).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Upload an image for a prescription
+@api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+def upload_prescription_image(request, prescription_id):
+    prescription = get_object_or_404(Prescription, id=prescription_id)
+
+    # Pass the prescription object when saving
+    serializer = PrescriptionImageSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(prescription=prescription)  # <-- attach it here
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+# Get all images for a prescription
+@api_view(['GET'])
+def get_prescription_images(request, prescription_id):
+    prescription = get_object_or_404(Prescription, id=prescription_id)
+    images = prescription.images.all()
+    serializer = PrescriptionImageSerializer(images, many=True)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+def prescription_detail(request, pk):
+    prescription = get_object_or_404(Prescription, id=pk)
+    serializer = PrescriptionSerializer(prescription)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+def prescriptions_without_images(request):
+    prescriptions = Prescription.objects.filter(images__isnull=True).order_by('-created_at')
+    serializer = PrescriptionSerializer(prescriptions, many=True)
+    return Response(serializer.data)
+

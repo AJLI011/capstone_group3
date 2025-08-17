@@ -284,20 +284,39 @@ class InStoreOrderApproval(models.Model):
     def __str__(self):
         return f"Order #{self.order.id} approved by {self.cashier.name if self.cashier else 'Unknown'}"
 
-# Models for Prescription
+# =================== NEW MODELS FOR PRESCRIPTIONS ===================
+
 class Prescription(models.Model):
     class Meta:
         db_table = 'prescriptions_tbl'
 
-    in_store_order = models.ForeignKey('InStoreOrder', on_delete=models.SET_NULL, null=True, blank=True, related_name='prescriptions')
-    online_order = models.ForeignKey('OnlineOrder', on_delete=models.SET_NULL, null=True, blank=True, related_name='prescriptions')
-    staff = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, related_name='uploaded_prescriptions')
-    prescription_image = models.ImageField(upload_to='prescriptions/')
+    ORDER_TYPE_CHOICES = [
+        ('instore', 'In-Store'),
+        ('online', 'Online'),
+    ]
+
+    staff = models.ForeignKey('Staff', on_delete=models.CASCADE, related_name='prescriptions')
+    order_type = models.CharField(max_length=10, choices=ORDER_TYPE_CHOICES)
+    in_store_order = models.ForeignKey('InStoreOrder', on_delete=models.CASCADE, null=True, blank=True, related_name='prescriptions')
+    online_order = models.ForeignKey('OnlineOrder', on_delete=models.CASCADE, null=True, blank=True, related_name='prescriptions')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        if self.order_type == 'instore' and self.in_store_order:
+            return f"Prescription for InStoreOrder #{self.in_store_order.id}"
+        elif self.order_type == 'online' and self.online_order:
+            return f"Prescription for OnlineOrder #{self.online_order.id}"
+        return f"Prescription #{self.id}"
+
+
+class PrescriptionImage(models.Model):
+    class Meta:
+        db_table = 'prescription_images_tbl'
+
+    prescription = models.ForeignKey('Prescription', on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='prescriptions/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        if self.in_store_order:
-            return f"Prescription for In-Store Order #{self.in_store_order.id}"
-        elif self.online_order:
-            return f"Prescription for Online Order #{self.online_order.id}"
-        return f"Prescription (ID: {self.id})"
+        return f"Image for Prescription #{self.prescription.id}"
+

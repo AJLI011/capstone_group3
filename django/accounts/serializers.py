@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog, OnlineOrder, OnlineOrderItem, OrderLog
-
+from .models import Prescription, PrescriptionImage
 from django.contrib.auth.hashers import make_password
 from decimal import Decimal
 from datetime import date
@@ -821,3 +821,91 @@ class InStoreSalesTransactionSerializer(serializers.ModelSerializer):
         if obj.is_pwd:
             return obj.total_amount_before_discount - obj.total_amount_after_discount
         return Decimal('0.00')
+
+
+# =================== PRESCRIPTION SERIALIZERS ===================
+from .models import InStoreOrder, InStoreOrderItem, OnlineOrder, OnlineOrderItem
+
+class PrescriptionInStoreOrderItemSerializer(serializers.ModelSerializer):
+    medicine_name = serializers.CharField(source='inventory_id.medicine.name', read_only=True)
+    generic_name = serializers.CharField(source='inventory_id.medicine.generic_name', read_only=True)
+    is_promo = serializers.BooleanField(source='inventory_id.is_promo', read_only=True)
+
+    class Meta:
+        model = InStoreOrderItem
+        fields = ['id', 'medicine_name', 'generic_name', 'quantity_sold', 'free_quantity_given', 'price_at_sale', 'is_promo']
+
+
+class PrescriptionInStoreOrderSerializer(serializers.ModelSerializer):
+    staff_name = serializers.CharField(source='staff.name', read_only=True)
+    items = PrescriptionInStoreOrderItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = InStoreOrder
+        fields = [
+            'id',
+            'staff_name',
+            'date_created',
+            'status',
+            'is_pwd',
+            'total_amount_before_discount',
+            'total_amount_after_discount',
+            'items',
+        ]
+
+
+class PrescriptionOnlineOrderItemSerializer(serializers.ModelSerializer):
+    medicine_name = serializers.CharField(source='inventory_id.medicine.name', read_only=True)
+    generic_name = serializers.CharField(source='inventory_id.medicine.generic_name', read_only=True)
+    is_promo = serializers.BooleanField(source='inventory_id.is_promo', read_only=True)
+
+    class Meta:
+        model = OnlineOrderItem
+        fields = ['id', 'medicine_name', 'generic_name', 'quantity_sold', 'free_quantity_given', 'price_at_sale', 'is_promo']
+
+
+class PrescriptionOnlineOrderSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source='customer.name', read_only=True)
+    items = PrescriptionOnlineOrderItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = OnlineOrder
+        fields = [
+            'id',
+            'customer_name',
+            'date_created',
+            'status',
+            'is_pwd',
+            'total_amount_before_discount',
+            'total_amount_after_discount',
+            'pickup_schedule',
+            'items',
+        ]
+
+
+class PrescriptionImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PrescriptionImage
+        fields = ['id', 'image', 'uploaded_at']
+
+
+class PrescriptionSerializer(serializers.ModelSerializer):
+    images = PrescriptionImageSerializer(many=True, read_only=True)
+    in_store_order_details = PrescriptionInStoreOrderSerializer(source='in_store_order', read_only=True)
+    online_order_details = PrescriptionOnlineOrderSerializer(source='online_order', read_only=True)
+    staff_name = serializers.CharField(source='staff.name', read_only=True)
+
+    class Meta:
+        model = Prescription
+        fields = [
+            'id',
+            'staff',
+            'staff_name',
+            'order_type',
+            'in_store_order',
+            'online_order',
+            'in_store_order_details',
+            'online_order_details',
+            'created_at',
+            'images',
+        ]
