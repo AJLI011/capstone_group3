@@ -837,7 +837,9 @@ class InStoreSalesTransactionSerializer(serializers.ModelSerializer):
         if obj.is_pwd:
             return obj.total_amount_before_discount - obj.total_amount_after_discount
         return Decimal('0.00')
-#---presc
+
+
+#---presc---------------------------------------
 # =====================================
 # PRESCRIPTION VIEW SERIALIZERS
 
@@ -881,9 +883,6 @@ class PrescriptionOrderSerializer(serializers.ModelSerializer):
         representation['discount_amount'] = "{:.2f}".format(discount)
         
         return representation
-
-
-# In your serializers.py file, please replace the CombinedPrescriptionSerializer class with this.
 
 class CombinedPrescriptionSerializer(serializers.ModelSerializer):
     order_id = serializers.SerializerMethodField()

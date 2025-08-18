@@ -284,7 +284,7 @@ class InStoreOrderApproval(models.Model):
     def __str__(self):
         return f"Order #{self.order.id} approved by {self.cashier.name if self.cashier else 'Unknown'}"
     
-#--presc
+#--presc-----------
 # Models for Prescription
 class Prescription(models.Model):
     class Meta:

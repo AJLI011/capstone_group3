@@ -62,7 +62,7 @@ urlpatterns = [
     #Inventory Logs
     path('inventory-logs/', inventory_logs, name='inventory_logs'),
     
-    #Sales Function (instore)
+    #Sales Function (instore) --------- check yung views and serializers nito
     path('sales/barcode/<str:barcode>/', views.get_item_by_barcode, name='get_item_by_barcode'),
     path('sales/process/', views.process_instore_order, name='process_instore_order'),
 
@@ -87,12 +87,12 @@ urlpatterns = [
     # Order Logs
     path('order-logs/', views.order_logs_list_view, name='order-logs'),
 
-    # Online Orders
+    # Online Orders ---------- this as well for prescription
     path('customer/<str:customer_id>/online-orders/', views.get_online_customer_orders, name='get_online_customer_orders'),
     path('customer/cancel-online-order/<int:order_id>/', views.cancel_online_order, name='cancel_online_order'),
     path('customer/online-orders/create/', views.create_online_order, name='create_online_order'),
     
-    #Staff Online Orders
+    #Staff Online Orders -------- this as well
     path('staff/online-orders/', views.get_pending_online_orders, name='staff-pending-orders'),
     path('staff/confirm-online-order/<int:orderId>/', views.confirm_online_order, name='staff-confirm-order'),
 
@@ -118,7 +118,6 @@ urlpatterns = [
     path('online-sales-report/', OnlineSalesReportView.as_view(), name='online-sales-report'),
 
     # ─────────── PRESCRIPTION SALES VIEW ───────────
-    #path('pending-prescriptions/', views.list_pending_prescription_orders, name='list_pending_prescription_orders'),
     path('prescriptions/pending/', views.list_all_pending_prescriptions, name='list_all_pending_prescriptions'),
 
 ]
