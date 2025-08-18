@@ -116,5 +116,10 @@ urlpatterns = [
    
     #Online Sales Report
     path('online-sales-report/', OnlineSalesReportView.as_view(), name='online-sales-report'),
+
+    # ─────────── PRESCRIPTION SALES VIEW ───────────
+    path('pending-prescriptions/', views.list_pending_prescription_orders, name='list_pending_prescription_orders'),
+
+
 ]
 

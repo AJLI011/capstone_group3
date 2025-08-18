@@ -26,10 +26,19 @@ from django.utils.timezone import now
 from django.db.models import Sum
 from django.http import JsonResponse
 
+from rest_framework import status
+from rest_framework.decorators import api_view, authentication_classes, permission_classes # Make sure this line is correct
+from rest_framework.response import Response
+from rest_framework.permissions import AllowAny # Make sure this line is correct
+from .serializers import PrescriptionOrderSerializer
+from .models import InStoreOrder, InStoreOrderItem, Prescription
+
+
 
 
 from .models import (
-    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, OnlineOrder, OnlineOrderItem, InStoreOrderApproval
+    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, OnlineOrder, OnlineOrderItem, InStoreOrderApproval,
+    Prescription
 )
 from .serializers import (
     CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer,
@@ -39,7 +48,7 @@ from .serializers import (
     InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer, CustomerMedicineSerializer,
     EmployeeLogSerializer, CashierInStoreOrderSerializer, InStoreOrderItemSerializer, OrderLogSerializer, CustomerPromoMedicineDetailSerializer,
     CustomerMedicineDetailSerializer, OnlineOrderItemReadSerializer, OnlineOrderListSerializer, OnlineOrderItemCreateSerializer, OnlineOrderCreateSerializer,
-    OnlineOrderLogDetailsSerializer,InStoreSalesTransactionSerializer
+    OnlineOrderLogDetailsSerializer,InStoreSalesTransactionSerializer, PrescriptionOrderSerializer
 )
 
 
@@ -1638,3 +1647,82 @@ class OnlineSalesReportView(APIView):
             },
             'sales_report': formatted_sales
         })
+
+#---presc
+# ─────────── PRESCRIPTION SALES VIEW ───────────
+@api_view(['GET'])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def list_pending_prescription_orders(request):
+    """
+    API endpoint to retrieve all pending in-store orders that require a prescription.
+    """
+    # Find all pending Prescription records.
+    # Use select_related and prefetch_related for efficient fetching of related data.
+    pending_prescriptions = Prescription.objects.filter(
+        status='pending'
+    ).select_related(
+        'in_store_order__staff'
+    ).prefetch_related(
+        'in_store_order__items__inventory_id__medicine'
+    )
+
+    # Use a serializer to format the data for the response
+    serializer = PrescriptionOrderSerializer(pending_prescriptions, many=True)
+    
+    return Response(serializer.data, status=status.HTTP_200_OK)
+# =====================================
+# PRESCRIPTION VIEW SERIALIZERS
+
+class PrescriptionItemSerializer(serializers.ModelSerializer):
+    medicine_name = serializers.SerializerMethodField()
+    is_promo = serializers.SerializerMethodField()
+    requires_prescription = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InStoreOrderItem
+        fields = ['medicine_name', 'quantity_sold', 'free_quantity_given', 'price_at_sale', 'is_promo', 'requires_prescription']
+
+    def get_medicine_name(self, obj):
+        return obj.inventory_id.medicine.name if obj.inventory_id and obj.inventory_id.medicine else 'N/A'
+
+    def get_is_promo(self, obj):
+        return obj.inventory_id.is_promo if obj.inventory_id else False
+
+    def get_requires_prescription(self, obj):
+        return obj.inventory_id.medicine.requires_prescription if obj.inventory_id and obj.inventory_id.medicine else False
+
+
+class PrescriptionOrderSerializer(serializers.ModelSerializer):
+    staff_name = serializers.SerializerMethodField()
+    order_id = serializers.IntegerField(source='in_store_order.id', read_only=True)
+    order_items = PrescriptionItemSerializer(source='in_store_order.items', many=True, read_only=True)
+    is_pwd = serializers.BooleanField(source='in_store_order.is_pwd', read_only=True)
+
+    class Meta:
+        model = Prescription
+        fields = ['id', 'order_id', 'staff_name', 'order_items', 'is_pwd', 'status', 'prescription_image', 'date_uploaded']
+
+    def get_staff_name(self, obj):
+        return obj.in_store_order.staff.name if obj.in_store_order and obj.in_store_order.staff else 'N/A'
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        
+        # Calculate totals on the fly
+        subtotal = sum(
+            float(item['quantity_sold']) * float(item['price_at_sale']) 
+            for item in representation['order_items']
+        )
+        
+        discount = 0
+        if representation['is_pwd']:
+            discount = subtotal * 0.20
+            
+        total = subtotal - discount
+        
+        representation['total_amount_before_discount'] = "{:.2f}".format(subtotal)
+        representation['total_amount_after_discount'] = "{:.2f}".format(total)
+        representation['discount_amount'] = "{:.2f}".format(discount)
+        
+        return representation

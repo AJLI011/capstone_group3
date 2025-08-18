@@ -11,6 +11,8 @@ import 'staff_features/online_orders/online_orders_staff_page.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+import 'staff_features/prescription/prescription_staff.dart';
+
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
@@ -238,6 +240,10 @@ class _StaffViewState extends State<StaffView> with SingleTickerProviderStateMix
                                          () => _open(EditStaffProfilePage(staffId: widget.staffId))), 
                                         _drawerItem(Icons.vpn_key, 'Change Password', 
                                          () => _open(ChangeStaffPasswordPage(staffId: widget.staffId))),
+                                        _drawerItem(Icons.receipt_long, 'Prescriptions',
+                                         () => _open(const PrescriptionsStaff())),
+
+                                         
                                       ],
                                     ),
                                   ),

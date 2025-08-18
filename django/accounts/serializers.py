@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog, OnlineOrder, OnlineOrderItem, OrderLog
+from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog, OnlineOrder, OnlineOrderItem, OrderLog, Prescription
 
 from django.contrib.auth.hashers import make_password
 from decimal import Decimal
@@ -456,14 +456,12 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
                 # Create the order with a 'pending' status (default)
                 order = InStoreOrder.objects.create(staff=staff, is_pwd=is_pwd)
 
-                # Get all available inventory batches for the requested medicines
                 all_batches = Inventory.objects.filter(
                     medicine__in=[item['medicine_id'] for item in items_data],
                     quantity__gt=0,
                     exp_date__gt=date.today()
                 ).order_by('exp_date')
 
-                # Create a map for quick batch lookup
                 batch_map = {batch.id: batch for batch in all_batches}
                 
                 order_items_to_create = []
@@ -474,12 +472,10 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
                     free_quantity_to_give = item_data['free_quantity_given']
                     total_to_deduct = quantity_to_sell + free_quantity_to_give
 
-                    # Get batches for this specific medicine
                     available_batches = [
                         batch for batch in all_batches if batch.medicine_id == medicine.id
                     ]
 
-                    # Perform a dry run to check if enough stock exists
                     current_deducted = 0
                     for batch in available_batches:
                         can_deduct_from_batch = min(
@@ -495,7 +491,6 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
                             f"Available: {current_deducted}"
                         )
                     
-                    # Create the order items without touching inventory
                     current_allocated_sold = 0
                     current_allocated_free = 0
 
@@ -505,14 +500,12 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
                         
                         available_in_batch = batch.quantity
                         
-                        # Allocate sold quantity first
                         sold_to_allocate = min(
                             quantity_to_sell - current_allocated_sold,
                             available_in_batch
                         )
                         available_in_batch -= sold_to_allocate
                         
-                        # Allocate free quantity next
                         free_to_allocate = min(
                             free_quantity_to_give - current_allocated_free,
                             available_in_batch
@@ -531,11 +524,22 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
                         current_allocated_sold += sold_to_allocate
                         current_allocated_free += free_to_allocate
 
-                    # Add to the total before discount
                     total_before += quantity_to_sell * medicine.price
 
                 # Create all order items in a single bulk operation
                 InStoreOrderItem.objects.bulk_create(order_items_to_create)
+
+                # Now, with the order items created, check for prescriptions
+                requires_prescription = InStoreOrderItem.objects.filter(
+                    order=order,
+                    inventory_id__medicine__requires_prescription=True
+                ).exists()
+
+                if requires_prescription:
+                    Prescription.objects.create(
+                        in_store_order=order,
+                        status='pending'
+                    )
 
                 # Calculate and update totals for the order
                 discount = total_before * Decimal('0.20') if is_pwd else Decimal('0.00')
@@ -821,3 +825,47 @@ class InStoreSalesTransactionSerializer(serializers.ModelSerializer):
         if obj.is_pwd:
             return obj.total_amount_before_discount - obj.total_amount_after_discount
         return Decimal('0.00')
+#---presc
+# =====================================
+# PRESCRIPTION VIEW SERIALIZERS
+
+class PrescriptionItemSerializer(serializers.ModelSerializer):
+    medicine_name = serializers.CharField(source='inventory_id.medicine.name', read_only=True)
+    is_promo = serializers.BooleanField(source='inventory_id.is_promo', read_only=True)
+    requires_prescription = serializers.BooleanField(source='inventory_id.medicine.requires_prescription', read_only=True)
+
+    class Meta:
+        model = InStoreOrderItem
+        fields = ['medicine_name', 'quantity_sold', 'free_quantity_given', 'price_at_sale', 'is_promo', 'requires_prescription']
+
+
+class PrescriptionOrderSerializer(serializers.ModelSerializer):
+    staff_name = serializers.CharField(source='in_store_order.staff.name', read_only=True)
+    order_id = serializers.IntegerField(source='in_store_order.id', read_only=True)
+    order_items = PrescriptionItemSerializer(source='in_store_order.items', many=True, read_only=True)
+    is_pwd = serializers.BooleanField(source='in_store_order.is_pwd', read_only=True)
+
+    class Meta:
+        model = Prescription
+        fields = ['id', 'order_id', 'staff_name', 'order_items', 'is_pwd', 'status', 'prescription_image', 'date_uploaded']
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        
+        # Calculate totals on the fly
+        subtotal = sum(
+            item['quantity_sold'] * item['price_at_sale'] 
+            for item in representation['order_items']
+        )
+        
+        discount = 0
+        if representation['is_pwd']:
+            discount = subtotal * 0.20
+            
+        total = subtotal - discount
+        
+        representation['total_amount_before_discount'] = "{:.2f}".format(subtotal)
+        representation['total_amount_after_discount'] = "{:.2f}".format(total)
+        representation['discount_amount'] = "{:.2f}".format(discount)
+        
+        return representation

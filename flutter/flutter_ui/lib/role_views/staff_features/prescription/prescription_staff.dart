@@ -1,0 +1,110 @@
+// prescriptions_staff.dart
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+class PrescriptionsStaff extends StatefulWidget {
+  const PrescriptionsStaff({super.key});
+
+  @override
+  State<PrescriptionsStaff> createState() => _PrescriptionsStaffState();
+}
+
+class _PrescriptionsStaffState extends State<PrescriptionsStaff> {
+  late Future<List<dynamic>> _pendingPrescriptions;
+  
+  // This should be your base API URL
+  final String apiUrl = "http://10.0.2.2:8000/api/pending-prescriptions/";
+
+  @override
+  void initState() {
+    super.initState();
+    _pendingPrescriptions = _fetchPendingPrescriptions();
+  }
+
+  Future<String?> _getAuthToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('auth_token'); // Make sure you save the token with this key
+  }
+
+  Future<List<dynamic>> _fetchPendingPrescriptions() async {
+    final token = await _getAuthToken();
+    // Temporarily disable token check for testing purposes
+    // if (token == null) {
+    //   throw Exception('Authentication token not found');
+    // }
+
+    final response = await http.get(
+      Uri.parse(apiUrl),
+      headers: {
+        'Content-Type': 'application/json',
+        // Temporarily disable sending the token for testing
+        // 'Authorization': 'Token $token', 
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized: Invalid or expired token');
+    } else {
+      throw Exception('Failed to load pending prescriptions: ${response.statusCode}');
+    }
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Pending Prescriptions'),
+        backgroundColor: const Color(0xFF5C7C9A),
+        foregroundColor: Colors.white,
+      ),
+      body: FutureBuilder<List<dynamic>>(
+        future: _pendingPrescriptions,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('No pending prescriptions found.'));
+          } else {
+            return ListView.builder(
+              itemCount: snapshot.data!.length,
+              itemBuilder: (context, index) {
+                final order = snapshot.data![index];
+                final orderId = order['order_id'];
+                final staffName = order['staff_name'];
+                final date = order['date_uploaded'];
+                // Correctly get the final price with discount applied
+                final totalAmount = order['total_amount_after_discount'];
+                
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: ListTile(
+                    title: Text('Order #$orderId'),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Staff: $staffName'),
+                        Text('Date: ${date.substring(0, 10)}'),
+                        // Display the total amount with discount
+                        Text('Total: ₱$totalAmount'),
+                      ],
+                    ),
+                    trailing: const Icon(Icons.arrow_forward_ios),
+                    onTap: () {
+                      // TODO: Navigate to a detail screen to view the prescription image and items.
+                    },
+                  ),
+                );
+              },
+            );
+          }
+        },
+      ),
+    );
+  }
+}

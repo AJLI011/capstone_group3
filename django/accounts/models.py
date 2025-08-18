@@ -283,3 +283,17 @@ class InStoreOrderApproval(models.Model):
 
     def __str__(self):
         return f"Order #{self.order.id} approved by {self.cashier.name if self.cashier else 'Unknown'}"
+    
+#--presc
+# Models for Prescription
+class Prescription(models.Model):
+    class Meta:
+        db_table = 'prescriptions_tbl'
+
+    in_store_order = models.OneToOneField('InStoreOrder', on_delete=models.CASCADE, related_name='prescription_required')
+    prescription_image = models.ImageField(upload_to='prescriptions/', blank=True, null=True)
+    status = models.CharField(max_length=20, default='pending')
+    date_uploaded = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Prescription for Order #{self.in_store_order.id}"
