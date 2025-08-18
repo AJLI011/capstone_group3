@@ -62,7 +62,7 @@ urlpatterns = [
     #Inventory Logs
     path('inventory-logs/', inventory_logs, name='inventory_logs'),
     
-    #Sales Function
+    #Sales Function (instore)
     path('sales/barcode/<str:barcode>/', views.get_item_by_barcode, name='get_item_by_barcode'),
     path('sales/process/', views.process_instore_order, name='process_instore_order'),
 
@@ -118,8 +118,8 @@ urlpatterns = [
     path('online-sales-report/', OnlineSalesReportView.as_view(), name='online-sales-report'),
 
     # ─────────── PRESCRIPTION SALES VIEW ───────────
-    path('pending-prescriptions/', views.list_pending_prescription_orders, name='list_pending_prescription_orders'),
-
+    #path('pending-prescriptions/', views.list_pending_prescription_orders, name='list_pending_prescription_orders'),
+    path('prescriptions/pending/', views.list_all_pending_prescriptions, name='list_all_pending_prescriptions'),
 
 ]
 

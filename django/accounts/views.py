@@ -33,6 +33,12 @@ from rest_framework.permissions import AllowAny # Make sure this line is correct
 from .serializers import PrescriptionOrderSerializer
 from .models import InStoreOrder, InStoreOrderItem, Prescription
 
+from .serializers import CombinedPrescriptionSerializer
+from django.db.models import Q
+from rest_framework.decorators import authentication_classes, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+
 
 
 
@@ -1073,6 +1079,7 @@ def get_pending_online_orders(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+# In views.py
 @api_view(['PUT'])
 def confirm_online_order(request, orderId):
     """
@@ -1093,6 +1100,15 @@ def confirm_online_order(request, orderId):
                 # Update the order status
                 order.status = 'ready for pickup'
                 order.save()
+
+                # NEW: Check for and update related Prescription status
+                try:
+                    prescription = Prescription.objects.get(online_order=order, status='pending')
+                    prescription.status = 'ready for pickup'
+                    prescription.save()
+                except Prescription.DoesNotExist:
+                    # No prescription exists for this order, which is fine
+                    pass
 
                 # NEW: Create a log entry for the confirmed online order
                 OrderLog.objects.create(
@@ -1121,7 +1137,7 @@ def confirm_online_order(request, orderId):
             {"detail": f"An unexpected error occurred: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
+        
 # Cashier Apply Discount
 logger = logging.getLogger(__name__)
 
@@ -1726,3 +1742,26 @@ class PrescriptionOrderSerializer(serializers.ModelSerializer):
         representation['discount_amount'] = "{:.2f}".format(discount)
         
         return representation
+
+# Add this new view function
+@api_view(['GET'])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def list_all_pending_prescriptions(request):
+    """
+    API endpoint to retrieve all pending in-store prescriptions and 
+    'ready for pickup' online prescriptions for staff.
+    """
+    pending_prescriptions = Prescription.objects.filter(
+        Q(status='pending') | Q(status='ready for pickup')
+    ).select_related(
+        'in_store_order__staff', 
+        'online_order__customer'
+    ).prefetch_related(
+        'in_store_order__items__inventory_id__medicine',
+        'online_order__items__inventory_id__medicine'
+    ).order_by('-date_uploaded')
+
+    serializer = CombinedPrescriptionSerializer(pending_prescriptions, many=True)
+    
+    return Response(serializer.data, status=status.HTTP_200_OK)

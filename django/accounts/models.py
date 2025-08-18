@@ -290,10 +290,17 @@ class Prescription(models.Model):
     class Meta:
         db_table = 'prescriptions_tbl'
 
-    in_store_order = models.OneToOneField('InStoreOrder', on_delete=models.CASCADE, related_name='prescription_required')
+    # Changed from OneToOneField to ForeignKey and added a new one for online orders
+    in_store_order = models.ForeignKey('InStoreOrder', on_delete=models.SET_NULL, related_name='prescription_required', null=True, blank=True)
+    online_order = models.ForeignKey('OnlineOrder', on_delete=models.SET_NULL, related_name='prescription_required', null=True, blank=True)
+    
     prescription_image = models.ImageField(upload_to='prescriptions/', blank=True, null=True)
     status = models.CharField(max_length=20, default='pending')
     date_uploaded = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
-        return f"Prescription for Order #{self.in_store_order.id}"
+        if self.in_store_order:
+            return f"Prescription for In-store Order #{self.in_store_order.id}"
+        elif self.online_order:
+            return f"Prescription for Online Order #{self.online_order.id}"
+        return f"Prescription for an unknown order"

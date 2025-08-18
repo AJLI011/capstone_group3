@@ -702,6 +702,7 @@ class OnlineOrderCreateSerializer(serializers.ModelSerializer):
         
         total_before = Decimal('0.00')
         order_items_to_create = []
+        is_prescription_required = False # Flag to check if any item needs a prescription
 
         try:
             with transaction.atomic():
@@ -710,6 +711,10 @@ class OnlineOrderCreateSerializer(serializers.ModelSerializer):
                     quantity_sold_initial = item_data['quantity_sold']
                     free_quantity_given_initial = item_data.get('free_quantity_given', 0)
                     is_promo = item_data['is_promo']
+
+                    # Check if any medicine in the order requires a prescription
+                    if medicine.requires_prescription:
+                        is_prescription_required = True
                     
                     # Prepare the order item without affecting inventory
                     try:
@@ -756,6 +761,13 @@ class OnlineOrderCreateSerializer(serializers.ModelSerializer):
 
                 # Bulk create order items
                 OnlineOrderItem.objects.bulk_create(order_items_to_create)
+
+                # NEW LOGIC: Create a prescription if required
+                if is_prescription_required:
+                    Prescription.objects.create(
+                        online_order=order,
+                        status='pending'
+                    )
 
                 return order
         except Exception as e:
@@ -869,3 +881,88 @@ class PrescriptionOrderSerializer(serializers.ModelSerializer):
         representation['discount_amount'] = "{:.2f}".format(discount)
         
         return representation
+
+
+# In your serializers.py file, please replace the CombinedPrescriptionSerializer class with this.
+
+class CombinedPrescriptionSerializer(serializers.ModelSerializer):
+    order_id = serializers.SerializerMethodField()
+    order_type = serializers.SerializerMethodField()
+    staff_or_customer_name = serializers.SerializerMethodField()
+    total_amount_after_discount = serializers.SerializerMethodField()
+    prescription_image_url = serializers.SerializerMethodField()
+    discount_amount = serializers.SerializerMethodField()
+    total_amount_before_discount = serializers.SerializerMethodField()
+    is_pwd = serializers.SerializerMethodField()
+    order_items = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Prescription
+        fields = [
+            'id', 'order_id', 'prescription_image_url', 'status', 'date_uploaded',
+            'order_type', 'staff_or_customer_name', 'total_amount_after_discount',
+            'discount_amount', 'total_amount_before_discount', 'is_pwd', 'order_items'
+        ]
+
+    def get_order_id(self, obj):
+        if obj.in_store_order_id:
+            return obj.in_store_order_id
+        return obj.online_order_id
+
+    def get_order_type(self, obj):
+        if obj.in_store_order_id:
+            return 'in_store'
+        return 'online'
+
+    def get_staff_or_customer_name(self, obj):
+        if obj.in_store_order:
+            return obj.in_store_order.staff.name
+        elif obj.online_order:
+            return obj.online_order.customer.name
+        return None
+    
+    def get_total_amount_after_discount(self, obj):
+        if obj.in_store_order:
+            return obj.in_store_order.total_amount_after_discount
+        elif obj.online_order:
+            return obj.online_order.total_amount_after_discount
+        return None
+
+    def get_prescription_image_url(self, obj):
+        if obj.prescription_image:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.prescription_image.url)
+        return None
+
+    def get_discount_amount(self, obj):
+        if obj.in_store_order:
+            return obj.in_store_order.total_amount_before_discount - obj.in_store_order.total_amount_after_discount
+        elif obj.online_order:
+            return obj.online_order.total_amount_before_discount - obj.online_order.total_amount_after_discount
+        return 0
+
+    def get_total_amount_before_discount(self, obj):
+        if obj.in_store_order:
+            return obj.in_store_order.total_amount_before_discount
+        elif obj.online_order:
+            return obj.online_order.total_amount_before_discount
+        return 0
+
+    def get_is_pwd(self, obj):
+        """
+        Retrieves the is_pwd status from the associated order.
+        """
+        if obj.in_store_order:
+            return obj.in_store_order.is_pwd
+        elif obj.online_order:
+            return obj.online_order.is_pwd
+        return False
+        
+    def get_order_items(self, obj):
+        if obj.in_store_order:
+            items = InStoreOrderItem.objects.filter(order=obj.in_store_order)
+            return InStoreOrderItemSerializer(items, many=True, context=self.context).data
+        elif obj.online_order:
+            items = OnlineOrderItem.objects.filter(order=obj.online_order)
+            return OnlineOrderItemReadSerializer(items, many=True, context=self.context).data
+        return []

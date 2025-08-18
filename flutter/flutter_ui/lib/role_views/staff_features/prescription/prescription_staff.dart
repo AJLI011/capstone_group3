@@ -1,3 +1,5 @@
+// In your prescriptions_staff.dart file
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -15,7 +17,7 @@ class _PrescriptionsStaffState extends State<PrescriptionsStaff> {
   late Future<List<dynamic>> _pendingPrescriptions;
   
   // This should be your base API URL
-  final String apiUrl = "http://10.0.2.2:8000/api/pending-prescriptions/";
+  final String apiUrl = "http://10.0.2.2:8000/api/prescriptions/pending/";
 
   @override
   void initState() {
@@ -74,31 +76,39 @@ class _PrescriptionsStaffState extends State<PrescriptionsStaff> {
             return ListView.builder(
               itemCount: snapshot.data!.length,
               itemBuilder: (context, index) {
-                final order = snapshot.data![index];
-                final orderId = order['order_id'];
-                final staffName = order['staff_name'];
-                final date = order['date_uploaded'];
-                final totalAmount = order['total_amount_after_discount'];
+                final prescription = snapshot.data![index];
+                final orderId = prescription['order_id'];
+                final orderType = prescription['order_type'];
+                final name = prescription['staff_or_customer_name'];
+                final date = prescription['date_uploaded'];
+                final totalAmount = prescription['total_amount_after_discount'];
                 
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: ListTile(
-                    title: Text('Order #$orderId'),
+                    // Distinguish order type in the title
+                    title: Text(
+                      orderType == 'in_store' ? 'In-store Order #$orderId' : 'Online Order #$orderId',
+                    ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Staff: $staffName'),
+                        // Conditionally display 'Staff' or 'Customer' based on order type
+                        if (orderType == 'in_store')
+                          Text('Staff: ${name ?? 'N/A'}')
+                        else
+                          Text('Customer: ${name ?? 'N/A'}'),
                         Text('Date: ${date.substring(0, 10)}'),
                         Text('Total: ₱$totalAmount'),
                       ],
                     ),
                     trailing: const Icon(Icons.arrow_forward_ios),
                     onTap: () {
-                      // Navigate to the details screen, passing the order data
+                      // Navigate to the details screen, passing the prescription data
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => PrescriptionDetailsStaff(order: order),
+                          builder: (context) => PrescriptionDetailsStaff(prescription: prescription),
                         ),
                       );
                     },
