@@ -1,8 +1,8 @@
-// prescriptions_staff.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'prescription_details_staff.dart'; // Import the new details screen
 
 class PrescriptionsStaff extends StatefulWidget {
   const PrescriptionsStaff({super.key});
@@ -78,7 +78,6 @@ class _PrescriptionsStaffState extends State<PrescriptionsStaff> {
                 final orderId = order['order_id'];
                 final staffName = order['staff_name'];
                 final date = order['date_uploaded'];
-                // Correctly get the final price with discount applied
                 final totalAmount = order['total_amount_after_discount'];
                 
                 return Card(
@@ -90,13 +89,18 @@ class _PrescriptionsStaffState extends State<PrescriptionsStaff> {
                       children: [
                         Text('Staff: $staffName'),
                         Text('Date: ${date.substring(0, 10)}'),
-                        // Display the total amount with discount
                         Text('Total: ₱$totalAmount'),
                       ],
                     ),
                     trailing: const Icon(Icons.arrow_forward_ios),
                     onTap: () {
-                      // TODO: Navigate to a detail screen to view the prescription image and items.
+                      // Navigate to the details screen, passing the order data
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PrescriptionDetailsStaff(order: order),
+                        ),
+                      );
                     },
                   ),
                 );
