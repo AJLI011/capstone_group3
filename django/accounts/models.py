@@ -284,7 +284,7 @@ class InStoreOrderApproval(models.Model):
     def __str__(self):
         return f"Order #{self.order.id} approved by {self.cashier.name if self.cashier else 'Unknown'}"
     
-#--presc-----------
+#--presc
 # Models for Prescription
 class Prescription(models.Model):
     class Meta:
@@ -294,7 +294,7 @@ class Prescription(models.Model):
     in_store_order = models.ForeignKey('InStoreOrder', on_delete=models.SET_NULL, related_name='prescription_required', null=True, blank=True)
     online_order = models.ForeignKey('OnlineOrder', on_delete=models.SET_NULL, related_name='prescription_required', null=True, blank=True)
     
-    prescription_image = models.ImageField(upload_to='prescriptions/', blank=True, null=True)
+    # The prescription_image field is removed here
     status = models.CharField(max_length=20, default='pending')
     date_uploaded = models.DateTimeField(auto_now_add=True)
     
@@ -304,3 +304,15 @@ class Prescription(models.Model):
         elif self.online_order:
             return f"Prescription for Online Order #{self.online_order.id}"
         return f"Prescription for an unknown order"
+
+# New model to handle multiple prescription images
+class PrescriptionImage(models.Model):
+    class Meta:
+        db_table = 'prescription_images_tbl'
+
+    prescription = models.ForeignKey('Prescription', on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='prescriptions/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Image for Prescription #{self.prescription.id}"

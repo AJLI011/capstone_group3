@@ -1,6 +1,9 @@
 from rest_framework import serializers
-from .models import Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog, OnlineOrder, OnlineOrderItem, OrderLog, Prescription
-
+from .models import (
+    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, 
+InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog, OnlineOrder, OnlineOrderItem, OrderLog, Prescription,
+PrescriptionImage
+)
 from django.contrib.auth.hashers import make_password
 from decimal import Decimal
 from datetime import date
@@ -843,6 +846,11 @@ class InStoreSalesTransactionSerializer(serializers.ModelSerializer):
 # =====================================
 # PRESCRIPTION VIEW SERIALIZERS
 
+class PrescriptionImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PrescriptionImage
+        fields = ['image']
+
 class PrescriptionItemSerializer(serializers.ModelSerializer):
     medicine_name = serializers.CharField(source='inventory_id.medicine.name', read_only=True)
     is_promo = serializers.BooleanField(source='inventory_id.is_promo', read_only=True)
@@ -858,10 +866,11 @@ class PrescriptionOrderSerializer(serializers.ModelSerializer):
     order_id = serializers.IntegerField(source='in_store_order.id', read_only=True)
     order_items = PrescriptionItemSerializer(source='in_store_order.items', many=True, read_only=True)
     is_pwd = serializers.BooleanField(source='in_store_order.is_pwd', read_only=True)
+    images = PrescriptionImageSerializer(many=True, read_only=True) # New field to handle multiple images
 
     class Meta:
         model = Prescription
-        fields = ['id', 'order_id', 'staff_name', 'order_items', 'is_pwd', 'status', 'prescription_image', 'date_uploaded']
+        fields = ['id', 'order_id', 'staff_name', 'order_items', 'is_pwd', 'status', 'images', 'date_uploaded']
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
@@ -889,7 +898,7 @@ class CombinedPrescriptionSerializer(serializers.ModelSerializer):
     order_type = serializers.SerializerMethodField()
     staff_or_customer_name = serializers.SerializerMethodField()
     total_amount_after_discount = serializers.SerializerMethodField()
-    prescription_image_url = serializers.SerializerMethodField()
+    images = PrescriptionImageSerializer(many=True, read_only=True) # New field for multiple images
     discount_amount = serializers.SerializerMethodField()
     total_amount_before_discount = serializers.SerializerMethodField()
     is_pwd = serializers.SerializerMethodField()
@@ -898,7 +907,7 @@ class CombinedPrescriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Prescription
         fields = [
-            'id', 'order_id', 'prescription_image_url', 'status', 'date_uploaded',
+            'id', 'order_id', 'images', 'status', 'date_uploaded',
             'order_type', 'staff_or_customer_name', 'total_amount_after_discount',
             'discount_amount', 'total_amount_before_discount', 'is_pwd', 'order_items'
         ]
@@ -925,12 +934,6 @@ class CombinedPrescriptionSerializer(serializers.ModelSerializer):
             return obj.in_store_order.total_amount_after_discount
         elif obj.online_order:
             return obj.online_order.total_amount_after_discount
-        return None
-
-    def get_prescription_image_url(self, obj):
-        if obj.prescription_image:
-            request = self.context.get('request')
-            return request.build_absolute_uri(obj.prescription_image.url)
         return None
 
     def get_discount_amount(self, obj):

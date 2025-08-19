@@ -113,12 +113,13 @@ urlpatterns = [
     # Online Sales Transaction
     path('manager/completed-online-orders/', views.completed_online_orders_report, name='completed-online-orders-report'),
     path('cashier/completed-online-orders/', views.completed_online_orders_report, name='cashier-online-orders-report'),
-   
+    
     #Online Sales Report
     path('online-sales-report/', OnlineSalesReportView.as_view(), name='online-sales-report'),
 
     # ─────────── PRESCRIPTION SALES VIEW ───────────
     path('prescriptions/pending/', views.list_all_pending_prescriptions, name='list_all_pending_prescriptions'),
-
+    
+    # New URL for image uploads
+    path('prescriptions/<int:pk>/upload-images/', views.upload_prescription_images, name='upload-prescription-images'),
 ]
-

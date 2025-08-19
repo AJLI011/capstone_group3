@@ -1,60 +1,41 @@
 import uuid
-from django.core.mail import send_mail
-from django.conf import settings
-from django.shortcuts import render
-from django.contrib.auth.hashers import check_password, make_password
-from rest_framework import serializers
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.decorators import parser_classes
-from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.views import APIView
-from rest_framework import generics
-from datetime import date, timedelta, datetime
-from django.http import JsonResponse, HttpResponseNotFound, HttpResponse
-from django.db.models import F, Prefetch, DecimalField
-from django.utils.timezone import now
-from django.core.management import call_command
-from django.db import transaction
-from django.shortcuts import get_object_or_404
-from decimal import Decimal
 import logging
+from datetime import date, timedelta, datetime
+from decimal import Decimal
+
+from django.db import transaction
+from django.conf import settings
+from django.core.mail import send_mail
+from django.core.management import call_command
+from django.http import JsonResponse, HttpResponseNotFound, HttpResponse
+from django.shortcuts import render, get_object_or_404
 from django.utils import timezone
-#ADDED THESE 3 TO AUTOMATICALLY REMOVE EXPIRED MEDS REAL-TIME
-from django.utils.timezone import now 
-from django.db.models import Sum
-from django.http import JsonResponse
+from django.db.models import F, Prefetch, DecimalField, Sum, Q
+from django.contrib.auth.hashers import check_password, make_password
 
-from rest_framework import status
-from rest_framework.decorators import api_view, authentication_classes, permission_classes # Make sure this line is correct
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny # Make sure this line is correct
-from .serializers import PrescriptionOrderSerializer
-from .models import InStoreOrder, InStoreOrderItem, Prescription
-
-from .serializers import CombinedPrescriptionSerializer
-from django.db.models import Q
-from rest_framework.decorators import authentication_classes, permission_classes
+from rest_framework import serializers, status, generics
+from rest_framework.decorators import api_view, authentication_classes, permission_classes, parser_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-
-
-
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.views import APIView
 
 from .models import (
-    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, OnlineOrder, OnlineOrderItem, InStoreOrderApproval,
-    Prescription
+    Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, 
+    InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, 
+    OnlineOrder, OnlineOrderItem, InStoreOrderApproval, Prescription, PrescriptionImage
 )
 from .serializers import (
     CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer,
-    InventoryDashboardSerializer, MedicineSerializer, 
-    InventoryCreateSerializer, InventorySerializer, InventoryListSerializer, 
-    InventoryBatchDetailSerializer, TotalQuantitySerializer, InventoryLogSerializer,
-    InStoreOrderSerializer, MedicineInventorySerializer, PromoMedicineSerializer, CustomerMedicineSerializer,
-    EmployeeLogSerializer, CashierInStoreOrderSerializer, InStoreOrderItemSerializer, OrderLogSerializer, CustomerPromoMedicineDetailSerializer,
-    CustomerMedicineDetailSerializer, OnlineOrderItemReadSerializer, OnlineOrderListSerializer, OnlineOrderItemCreateSerializer, OnlineOrderCreateSerializer,
-    OnlineOrderLogDetailsSerializer,InStoreSalesTransactionSerializer, PrescriptionOrderSerializer
+    InventoryDashboardSerializer, MedicineSerializer, InventoryCreateSerializer, 
+    InventorySerializer, InventoryListSerializer, InventoryBatchDetailSerializer, 
+    TotalQuantitySerializer, InventoryLogSerializer, InStoreOrderSerializer, 
+    MedicineInventorySerializer, PromoMedicineSerializer, CustomerMedicineSerializer,
+    EmployeeLogSerializer, CashierInStoreOrderSerializer, InStoreOrderItemSerializer, 
+    OrderLogSerializer, CustomerPromoMedicineDetailSerializer, CustomerMedicineDetailSerializer, 
+    OnlineOrderItemReadSerializer, OnlineOrderListSerializer, OnlineOrderItemCreateSerializer, 
+    OnlineOrderCreateSerializer, OnlineOrderLogDetailsSerializer, InStoreSalesTransactionSerializer, 
+    PrescriptionOrderSerializer, CombinedPrescriptionSerializer, PrescriptionImageSerializer
 )
 
 
@@ -1665,7 +1646,6 @@ class OnlineSalesReportView(APIView):
         })
 
 #---presc-----------------------------------
-# ─────────── PRESCRIPTION SALES VIEW ───────────
 @api_view(['GET'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -1687,61 +1667,6 @@ def list_pending_prescription_orders(request):
     serializer = PrescriptionOrderSerializer(pending_prescriptions, many=True)
     
     return Response(serializer.data, status=status.HTTP_200_OK)
-# =====================================
-# PRESCRIPTION VIEW SERIALIZERS
-
-class PrescriptionItemSerializer(serializers.ModelSerializer):
-    medicine_name = serializers.SerializerMethodField()
-    is_promo = serializers.SerializerMethodField()
-    requires_prescription = serializers.SerializerMethodField()
-
-    class Meta:
-        model = InStoreOrderItem
-        fields = ['medicine_name', 'quantity_sold', 'free_quantity_given', 'price_at_sale', 'is_promo', 'requires_prescription']
-
-    def get_medicine_name(self, obj):
-        return obj.inventory_id.medicine.name if obj.inventory_id and obj.inventory_id.medicine else 'N/A'
-
-    def get_is_promo(self, obj):
-        return obj.inventory_id.is_promo if obj.inventory_id else False
-
-    def get_requires_prescription(self, obj):
-        return obj.inventory_id.medicine.requires_prescription if obj.inventory_id and obj.inventory_id.medicine else False
-
-
-class PrescriptionOrderSerializer(serializers.ModelSerializer):
-    staff_name = serializers.SerializerMethodField()
-    order_id = serializers.IntegerField(source='in_store_order.id', read_only=True)
-    order_items = PrescriptionItemSerializer(source='in_store_order.items', many=True, read_only=True)
-    is_pwd = serializers.BooleanField(source='in_store_order.is_pwd', read_only=True)
-
-    class Meta:
-        model = Prescription
-        fields = ['id', 'order_id', 'staff_name', 'order_items', 'is_pwd', 'status', 'prescription_image', 'date_uploaded']
-
-    def get_staff_name(self, obj):
-        return obj.in_store_order.staff.name if obj.in_store_order and obj.in_store_order.staff else 'N/A'
-
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        
-        # Calculate totals on the fly
-        subtotal = sum(
-            float(item['quantity_sold']) * float(item['price_at_sale']) 
-            for item in representation['order_items']
-        )
-        
-        discount = 0
-        if representation['is_pwd']:
-            discount = subtotal * 0.20
-            
-        total = subtotal - discount
-        
-        representation['total_amount_before_discount'] = "{:.2f}".format(subtotal)
-        representation['total_amount_after_discount'] = "{:.2f}".format(total)
-        representation['discount_amount'] = "{:.2f}".format(discount)
-        
-        return representation
 
 # Add this new view function
 @api_view(['GET'])
@@ -1765,3 +1690,31 @@ def list_all_pending_prescriptions(request):
     serializer = CombinedPrescriptionSerializer(pending_prescriptions, many=True)
     
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+# ─────────── NEW VIEW FOR IMAGE UPLOAD ───────────
+@api_view(['POST'])
+@authentication_classes([])
+@permission_classes([AllowAny])
+@parser_classes([MultiPartParser, FormParser])
+def upload_prescription_images(request, pk):
+    """
+    API endpoint to upload multiple images for a specific prescription.
+    """
+    try:
+        prescription = Prescription.objects.get(pk=pk)
+    except Prescription.DoesNotExist:
+        return Response({'error': 'Prescription not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    images = request.FILES.getlist('images')
+
+    if not images:
+        return Response({'error': 'No images were uploaded.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    for image_file in images:
+        PrescriptionImage.objects.create(prescription=prescription, image=image_file)
+
+    # You can return a simple success message or the updated prescription object
+    return Response({'message': f'Successfully uploaded {len(images)} images for Prescription ID: {pk}.'}, status=status.HTTP_201_CREATED)
+
+# I've assumed all your serializers (PrescriptionItemSerializer, PrescriptionOrderSerializer, CombinedPrescriptionSerializer, etc.)
+# are correctly defined in a separate serializers.py file and have been updated as we discussed.
