@@ -385,6 +385,19 @@ class CustomerMedicineDetailSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.image.url)
         return ""
 
+
+
+
+
+
+
+
+
+
+
+#========================================================================
+#EDITED PART KOOOO, DONT FORGET TO INCLUDE from django.utils import timezone sa taas
+
     def get_quantity(self, obj):
         # local import of Inventory avoids circular import problems
         from .models import Inventory
@@ -399,6 +412,19 @@ class CustomerMedicineDetailSerializer(serializers.ModelSerializer):
 
     def get_stock_status(self, obj):
         return "In Stock" if self.get_quantity(obj) > 0 else "Out of Stock"
+
+
+
+#================================================================================
+
+
+
+
+
+
+
+
+
 
 
 # Employee Logs serializer
