@@ -118,8 +118,13 @@ urlpatterns = [
     path('online-sales-report/', OnlineSalesReportView.as_view(), name='online-sales-report'),
 
     # ─────────── PRESCRIPTION SALES VIEW ───────────
+    #--------STAFF PESCRIPTION VIEWS----------
     path('prescriptions/pending/', views.list_all_pending_prescriptions, name='list_all_pending_prescriptions'),
     
     # New URL for image uploads
     path('prescriptions/<int:pk>/upload-images/', views.upload_prescription_images, name='upload-prescription-images'),
+    
+    #--------CASHIER PRESCRIPTION VIEWS--------
+    path('prescriptions/cashier/', views.list_cashier_prescriptions, name='list_cashier_prescriptions'),
+
 ]

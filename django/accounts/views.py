@@ -38,6 +38,13 @@ from .serializers import (
     PrescriptionOrderSerializer, CombinedPrescriptionSerializer, PrescriptionImageSerializer
 )
 
+from rest_framework.decorators import api_view, authentication_classes, permission_classes, parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework import status
+from django.db.models import Q
+from .models import Prescription, PrescriptionImage
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
@@ -1646,6 +1653,7 @@ class OnlineSalesReportView(APIView):
         })
 
 #---presc-----------------------------------
+# ─────────── STAFF PRESCRIPTION VIEWS ───────────
 @api_view(['GET'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -1671,7 +1679,6 @@ def list_pending_prescription_orders(request):
     
     return Response(serializer.data, status=status.HTTP_200_OK)
 
-# Add this new view function
 @api_view(['GET'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -1720,5 +1727,25 @@ def upload_prescription_images(request, pk):
     # You can return a simple success message or the updated prescription object
     return Response({'message': f'Successfully uploaded {len(images)} images for Prescription ID: {pk}.'}, status=status.HTTP_201_CREATED)
 
-# I've assumed all your serializers (PrescriptionItemSerializer, PrescriptionOrderSerializer, CombinedPrescriptionSerializer, etc.)
-# are correctly defined in a separate serializers.py file and have been updated as we discussed.
+# ─────────── CASHIER PRESCRIPTION VIEWS ───────────
+@api_view(['GET'])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def list_cashier_prescriptions(request):
+    """
+    API endpoint for cashiers to view prescription orders that already have images.
+    """
+    # Filter for prescriptions that have at least one associated image.
+    cashier_prescriptions = Prescription.objects.filter(
+        images__isnull=False
+    ).select_related(
+        'in_store_order__staff', 
+        'online_order__customer'
+    ).prefetch_related(
+        'in_store_order__items__inventory_id__medicine',
+        'online_order__items__inventory_id__medicine'
+    ).distinct().order_by('-date_uploaded')
+
+    serializer = CombinedPrescriptionSerializer(cashier_prescriptions, many=True)
+    
+    return Response(serializer.data, status=status.HTTP_200_OK)

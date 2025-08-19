@@ -11,6 +11,8 @@ import 'cashier_features/online_orders/online_orders_cashier_page.dart'; // Impo
 import 'cashier_features/instore_sales_transaction-c/instore_transaction.dart';
 import 'cashier_features/online_sales_transaction/cashier_online_transaction.dart'; // Import for the new page
 
+import 'cashier_features/prescription/prescription_cashier.dart';
+
 // Import for the new page  
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
@@ -241,6 +243,8 @@ class _CashierViewState extends State<CashierView> with SingleTickerProviderStat
                                             () => _open(EditCashierProfilePage(staffId: widget.staffId))),
                                         _drawerItem(Icons.lock, 'Change Password',
                                             () => _open(ChangeCashierPasswordPage(staffId: widget.staffId))),
+                                        _drawerItem(Icons.receipt_long, 'Prescriptions',
+                                         () => _open(const PrescriptionsCashier())),
                                         
                                       ],
                                     ),
