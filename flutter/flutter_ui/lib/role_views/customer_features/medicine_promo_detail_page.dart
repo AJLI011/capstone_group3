@@ -71,7 +71,8 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(medicineData!['name']),
-        backgroundColor: const Color(0xFF003B63),
+        backgroundColor: const Color.fromARGB(255, 10, 84, 182),
+        foregroundColor: Colors.white,
       ),
       body: Stack(
         children: [
@@ -117,6 +118,15 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                         style: const TextStyle(
                           fontSize: 18,
                           color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 4), // Add spacing for dosage form
+                      Text(
+                        medicineData!['dosage_form'] ?? 'Dosage form not specified',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.black54,
+                          fontStyle: FontStyle.italic,
                         ),
                       ),
                       const SizedBox(height: 16),

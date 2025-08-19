@@ -65,7 +65,7 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('View Specific Medicine'),
+        title: Text(medicineData!['name']),
         backgroundColor: const Color.fromARGB(255, 10, 84, 182),
         foregroundColor: Colors.white,
       ),
