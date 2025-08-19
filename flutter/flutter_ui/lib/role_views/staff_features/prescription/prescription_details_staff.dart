@@ -61,11 +61,11 @@ class _PrescriptionDetailsStaffState extends State<PrescriptionDetailsStaff> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Images uploaded successfully!')),
         );
-        // Clear selected images after successful upload
-        setState(() {
-          _selectedImages.clear();
-        });
-        // TODO: You may want to refresh the page here to show the newly uploaded images from the server
+        
+        // Pop the current screen to go back to the list of pending prescriptions.
+        // This will trigger the list refresh on the previous screen.
+        Navigator.pop(context);
+        
       } else {
         // Handle upload failure
         ScaffoldMessenger.of(context).showSnackBar(

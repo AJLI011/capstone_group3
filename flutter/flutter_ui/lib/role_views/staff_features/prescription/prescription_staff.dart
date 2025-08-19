@@ -34,7 +34,7 @@ class _PrescriptionsStaffState extends State<PrescriptionsStaff> {
     final token = await _getAuthToken();
     // Temporarily disable token check for testing purposes
     // if (token == null) {
-    //   throw Exception('Authentication token not found');
+    //   throw Exception('Authentication token not found');
     // }
 
     final response = await http.get(
@@ -103,14 +103,19 @@ class _PrescriptionsStaffState extends State<PrescriptionsStaff> {
                       ],
                     ),
                     trailing: const Icon(Icons.arrow_forward_ios),
-                    onTap: () {
-                      // Navigate to the details screen, passing the prescription data
-                      Navigator.push(
+                    onTap: () async {
+                      // Navigate to the details screen and wait for the user to come back
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => PrescriptionDetailsStaff(prescription: prescription),
                         ),
                       );
+                      
+                      // When the user returns, re-fetch the list to refresh the UI
+                      setState(() {
+                        _pendingPrescriptions = _fetchPendingPrescriptions();
+                      });
                     },
                   ),
                 );

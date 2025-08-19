@@ -1652,11 +1652,14 @@ class OnlineSalesReportView(APIView):
 def list_pending_prescription_orders(request):
     """
     API endpoint to retrieve all pending in-store orders that require a prescription.
+    This version only shows prescriptions that do not have images yet.
     """
     # Find all pending Prescription records.
     # Use select_related and prefetch_related for efficient fetching of related data.
     pending_prescriptions = Prescription.objects.filter(
         status='pending'
+    ).filter(
+        images__isnull=True
     ).select_related(
         'in_store_order__staff'
     ).prefetch_related(
@@ -1676,9 +1679,10 @@ def list_all_pending_prescriptions(request):
     """
     API endpoint to retrieve all pending in-store prescriptions and 
     'ready for pickup' online prescriptions for staff.
+    This version only shows prescriptions that do not have images yet.
     """
     pending_prescriptions = Prescription.objects.filter(
-        Q(status='pending') | Q(status='ready for pickup')
+        (Q(status='pending') | Q(status='ready for pickup')) & Q(images__isnull=True)
     ).select_related(
         'in_store_order__staff', 
         'online_order__customer'
