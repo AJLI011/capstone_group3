@@ -376,6 +376,7 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
             ? null
             : BottomNavigationBar(
                 backgroundColor: const Color(0xFF002B64),
+                elevation: 0.0,
                 selectedItemColor: Colors.white,
                 unselectedItemColor: Colors.white70,
                 currentIndex: _currentIndex,

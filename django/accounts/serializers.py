@@ -7,6 +7,7 @@ from datetime import date
 from django.db import transaction
 from django.db.models import F, Sum
 from django.utils.timezone import now
+from django.utils import timezone
 
 
 
@@ -387,9 +388,12 @@ class CustomerMedicineDetailSerializer(serializers.ModelSerializer):
     def get_quantity(self, obj):
         # local import of Inventory avoids circular import problems
         from .models import Inventory
+        today = timezone.now().date()
         total = Inventory.objects.filter(
             medicine=obj,
-            is_promo=False
+            is_promo=False,
+            # This is the line you need to change:
+            exp_date__gt=today
         ).aggregate(total=Sum('quantity'))['total']
         return total or 0
 
