@@ -313,16 +313,20 @@ class CustomerPromoMedicineDetailSerializer(serializers.ModelSerializer):
         return ""
 
     def get_quantity(self, obj):
+        # local import of Inventory avoids circular import problems
         from .models import Inventory
-        # sum only promo inventory batches of this medicine
+        today = timezone.now().date()
         total = Inventory.objects.filter(
             medicine=obj,
-            is_promo=True
+            is_promo=False,
+            # This is the line you need to change:
+            exp_date__gt=today
         ).aggregate(total=Sum('quantity'))['total']
         return total or 0
 
     def get_stock_status(self, obj):
         return "In Stock" if self.get_quantity(obj) > 0 else "Out of Stock"
+    
 
     def get_start_date(self, obj):
         from .models import Promo

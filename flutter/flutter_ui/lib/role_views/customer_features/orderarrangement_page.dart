@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart'; // ADDED: Import for Provider
 import 'success_page.dart';
 import 'cart_service.dart';
-import 'my_orders_page.dart';
+//import 'my_orders_page.dart';
 
 class OrderArrangementPage extends StatelessWidget {
   final DateTime pickupSchedule;
