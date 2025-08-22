@@ -8,10 +8,9 @@ import '../role_views/manager_view.dart';
 import '../role_views/cashier_view.dart';
 import '../role_views/staff_view.dart';
 import 'forgot_password.dart';
+import 'login_customer.dart'; // Import to navigate back
 
 // Use dart-define to change base URL for different environments.
-// Example for production build:
-// flutter build apk --release --dart-define=API_BASE=https://api.yoursite.com
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
   defaultValue: 'http://10.0.2.2:8000',
@@ -59,7 +58,6 @@ class _LoginStaffState extends State<LoginStaff> {
           final role = data['role'];
           final int staffId = data['id'];
 
-          // Save session in SharedPreferences
           final prefs = await SharedPreferences.getInstance();
           await prefs.setBool('is_logged_in', true);
           await prefs.setString('role', role);
@@ -67,7 +65,6 @@ class _LoginStaffState extends State<LoginStaff> {
           await prefs.setString('name', data['name'] ?? '');
           await prefs.setString('email', data['email'] ?? '');
 
-          // Create employee log for login
           _postEmployeeLog(staffId, 'login');
 
           Widget destination;
@@ -102,7 +99,8 @@ class _LoginStaffState extends State<LoginStaff> {
           });
         }
       } else {
-        setState(() => errorMsg = 'Invalid email or password');
+        final errorData = json.decode(response.body);
+        setState(() => errorMsg = errorData['error'] ?? 'Invalid email or password');
       }
     } catch (e) {
       setState(() {
@@ -121,9 +119,7 @@ class _LoginStaffState extends State<LoginStaff> {
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'staff': staffId, 'action': action}),
       );
-
       if (logResp.statusCode != 201 && logResp.statusCode != 200) {
-        // optional: non-fatal, but print for debugging
         print('Employee log POST failed: ${logResp.statusCode} ${logResp.body}');
       }
     } catch (e) {
@@ -131,7 +127,6 @@ class _LoginStaffState extends State<LoginStaff> {
     }
   }
 
-  // Call this from any logout button in your app to record logout and clear session.
   Future<void> logout() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -156,50 +151,118 @@ class _LoginStaffState extends State<LoginStaff> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    // FIX: Wrapped the content in a Scaffold to provide the Material context
+    return Scaffold(
+      body: Stack(
         children: [
-          TextField(
-            controller: emailController,
-            decoration: const InputDecoration(labelText: 'Staff Email'),
+          // Background Image
+          Positioned.fill(
+            child: Image.asset(
+              'assets/bg-login.jpg',
+              fit: BoxFit.cover,
+            ),
           ),
-          TextField(
-            controller: passwordController,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Password'),
-          ),
-          const SizedBox(height: 10),
-          ElevatedButton(
-            onPressed: isLoading ? null : loginStaff,
-            child: isLoading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Login'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ForgotPasswordScreen(),
-                ),
-              );
-            },
-            child: const Text('Forgot Password?'),
-          ),
-          if (errorMsg.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                errorMsg,
-                style: const TextStyle(color: Colors.red),
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 20.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 50),
+                  // Logo
+                  Image.asset(
+                    'assets/logo.png',
+                    height: 200,
+                    width: 200,
+                  ),
+                  const SizedBox(height: 20),
+                  // Staff Login Fields
+                  TextField(
+                    controller: emailController,
+                    decoration: InputDecoration(
+                      hintText: 'Email',
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30.0),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: passwordController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      hintText: 'Password',
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30.0),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ForgotPasswordScreen(),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Forgot Password?',
+                          style: TextStyle(color: Colors.black54),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: isLoading ? null : loginStaff,
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30.0),
+                      ),
+                      minimumSize: const Size.fromHeight(50),
+                      backgroundColor: const Color.fromRGBO(71, 102, 137, 1),
+                    ),
+                    child: isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            'Login',
+                            style: TextStyle(fontSize: 16, color: Colors.white),
+                          ),
+                  ),
+                  if (errorMsg.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        errorMsg,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  const SizedBox(height: 20),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const LoginCustomer(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'Customer? Click here',
+                      style: TextStyle(color: Colors.black54),
+                    ),
+                  ),
+                ],
               ),
             ),
+          ),
         ],
       ),
     );

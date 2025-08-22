@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-import '../main.dart'; // ToggleLoginScreen
+import '../login_function/login_customer.dart'; // UPDATED: Changed import from main.dart to login_customer.dart
 import 'admin_features/customer/customer_management.dart';
 import 'admin_features/suppliers/supplier_list.dart';
 import 'admin_features/employees/employees_management.dart';
@@ -86,7 +86,6 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // Try to get staffId from prefs first, otherwise fall back to widget.staffId
       int staffIdToUse;
       final int? prefsStaffId = prefs.getInt('staff_id');
       if (prefsStaffId != null) {
@@ -95,20 +94,19 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
         staffIdToUse = widget.staffId;
       }
 
-      // Attempt to send logout log regardless of whether prefs had the id
       try {
         await _postEmployeeLog(staffIdToUse, 'logout');
       } catch (e) {
         debugPrint('Error posting logout log: $e');
       }
 
-      // Clear saved session
       await prefs.clear();
 
       if (!mounted) return;
+      // FIX: Navigate to LoginCustomer() instead of the removed ToggleLoginScreen()
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const ToggleLoginScreen()),
+        MaterialPageRoute(builder: (_) => const LoginCustomer()),
         (_) => false,
       );
     } catch (e) {
@@ -116,9 +114,10 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
       if (!mounted) return;
+      // FIX: Also navigate to LoginCustomer() in the catch block
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const ToggleLoginScreen()),
+        MaterialPageRoute(builder: (_) => const LoginCustomer()),
         (_) => false,
       );
     }
@@ -148,7 +147,6 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
     }
   }
 
-  // Open a page from the drawer; reload info if page returns true
   void _open(Widget page) async {
     _toggleMenu();
     final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
@@ -173,7 +171,6 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
       child: Scaffold(
         body: Stack(
           children: [
-            // Main background and UI
             Container(
               decoration: const BoxDecoration(
                 image: DecorationImage(
@@ -184,7 +181,6 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
               child: SafeArea(
                 child: Stack(
                   children: [
-                    // Welcome text at top-left, slightly higher, black color
                     Positioned(
                       top: screenH * 0.06,
                       left: 20,
@@ -210,8 +206,6 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
                         ],
                       ),
                     ),
-
-                    // Menu button top-right, visible without AppBar
                     Positioned(
                       top: 8,
                       right: 8,
@@ -224,8 +218,6 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
                 ),
               ),
             ),
-
-            // Sliding drawer
             AnimatedBuilder(
               animation: _ctrl,
               builder: (_, __) {
@@ -279,7 +271,6 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
                                             () => _open(EditAdminProfilePage(staffId: widget.staffId))),
                                         _drawerItem(Icons.lock, 'Change Password',
                                             () => _open(ChangeAdminPasswordPage(staffId: widget.staffId))),
-                                        
                                       ],
                                     ),
                                   ),

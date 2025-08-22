@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../main.dart';
+import '../login_function/login_customer.dart'; // UPDATED: Changed import from main.dart to login_customer.dart
 import 'customer_features/promo_grid_view.dart';
 import 'customer_features/medicine_view.dart';
 import 'customer_features/edit_profile/edit_customer_profile.dart';
@@ -82,7 +82,6 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
 
   void _onItemTapped(int index) {
     if (_isMenuOpen) {
-      // Close the menu if a bottom nav item is tapped
       _toggleMenu();
     }
     setState(() {
@@ -95,9 +94,10 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
     await prefs.clear();
 
     if (!mounted) return;
+    // FIX: Navigate to LoginCustomer() instead of the removed ToggleLoginScreen()
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => const ToggleLoginScreen()),
+      MaterialPageRoute(builder: (context) => const LoginCustomer()),
       (route) => false,
     );
   }

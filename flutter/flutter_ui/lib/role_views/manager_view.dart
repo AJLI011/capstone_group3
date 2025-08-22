@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_ui/role_views/manager_features/expiration_dashboard/expiry_dashboard_view.dart';
 import 'package:flutter_ui/role_views/manager_features/online_sales_report/online_sales_report_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../main.dart'; // ToggleLoginScreen
+import '../login_function/login_customer.dart'; // UPDATED: Changed import to LoginCustomer
 
 // You'll need to create these placeholder pages for ManagerView features later
 import 'manager_features/medicines_list/medicines_list_view.dart';
@@ -122,7 +122,7 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const ToggleLoginScreen()),
+        MaterialPageRoute(builder: (_) => const LoginCustomer()), // Corrected widget
         (_) => false,
       );
     } catch (e) {
@@ -133,7 +133,7 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const ToggleLoginScreen()),
+        MaterialPageRoute(builder: (_) => const LoginCustomer()), // Corrected widget
         (_) => false,
       );
     }
@@ -238,38 +238,38 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                                     child: Column(
                                       children: [
                                         _drawerItem(Icons.inventory_outlined, 'Inventory',
-                                          () => _open(const InventoryGridScreen())),
+                                            () => _open(const InventoryGridScreen())),
                                         _drawerItem(Icons.shelves, 'Restock',
-                                          () => _open(const RestockBarcodeScreen())),
+                                            () => _open(const RestockBarcodeScreen())),
                                         _drawerItem(Icons.store, 'In Store Sales Transaction',
-                                         () => _open(const InStoreTransactionPage())),
-                                        _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction', 
+                                           () => _open(const InStoreTransactionPage())),
+                                        _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction',
                                         () => _open(const OnlineOrdersReportPage())),
                                         _drawerItem(Icons.priority_high, 'Expiry',
-                                          () => _open(const ExpiryDashboardView())),
+                                            () => _open(const ExpiryDashboardView())),
                                         _drawerItem(Icons.assignment_return, 'Return Medicines',
-                                          () => _open(const ReturnMedicinePage())),
+                                            () => _open(const ReturnMedicinePage())),
                                         _drawerItem(Icons.local_offer, 'Promo Medicines',
-                                          () => _open(const PromoMedicinePage())),
+                                            () => _open(const PromoMedicinePage())),
 
 
 
                                         _drawerItem(Icons.point_of_sale, 'In Store Sales Report',
-                                          () => _open(const InStoreSalesReportPage())),
-                                        _drawerItem(Icons.trending_up, 'Online Sales Report', 
-                                          () => _open(const OnlineSalesReportPage())),
+                                            () => _open(const InStoreSalesReportPage())),
+                                        _drawerItem(Icons.trending_up, 'Online Sales Report',
+                                            () => _open(const OnlineSalesReportPage())),
                                         _drawerItem(Icons.insights, 'Demand Forecast', () {}),
                                         _drawerItem(Icons.shopping_cart, 'Purchase Request', () {}),
                                         _drawerItem(Icons.list_alt, 'Medicine List',
-                                          () => _open(const MedicineListView())),
+                                            () => _open(const MedicineListView())),
                                         _drawerItem(Icons.history, 'Inventory Logs',
-                                          () => _open(const InventoryLogsPage())),
+                                            () => _open(const InventoryLogsPage())),
                                         _drawerItem(Icons.receipt_long, 'Order Logs',
-                                          () => _open(const OrderLogsScreen())),
+                                            () => _open(const OrderLogsScreen())),
                                         _drawerItem(Icons.person_outline, 'Edit Profile',
-                                          () => _open(EditManagerProfilePage(staffId: widget.staffId))),
+                                            () => _open(EditManagerProfilePage(staffId: widget.staffId))),
                                         _drawerItem(Icons.vpn_key, 'Change Password',
-                                          () => _open(ChangeManagerPasswordPage(staffId: widget.staffId))),
+                                            () => _open(ChangeManagerPasswordPage(staffId: widget.staffId))),
                                       ],
                                     ),
                                   ),

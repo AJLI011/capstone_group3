@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../main.dart'; // ToggleLoginScreen
+import '../login_function/login_customer.dart'; 
 import 'staff_features/edit_profile/edit_staff_profile.dart';
 import 'staff_features/change_password/change_staff_password.dart';
 import 'manager_features/inventory/inventory_grid_screen.dart';
@@ -112,7 +112,7 @@ class _StaffViewState extends State<StaffView> with SingleTickerProviderStateMix
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const ToggleLoginScreen()),
+        MaterialPageRoute(builder: (_) => const LoginCustomer()),
         (_) => false,
       );
     } catch (e) {
@@ -123,7 +123,7 @@ class _StaffViewState extends State<StaffView> with SingleTickerProviderStateMix
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const ToggleLoginScreen()),
+        MaterialPageRoute(builder: (_) => const LoginCustomer()),
         (_) => false,
       );
     }

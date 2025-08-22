@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+// Use dart-define to override in different environments
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000',
+);
+
 class RegisterCustomer extends StatefulWidget {
   const RegisterCustomer({super.key});
 
@@ -10,7 +16,7 @@ class RegisterCustomer extends StatefulWidget {
 }
 
 class _RegisterCustomerState extends State<RegisterCustomer> {
-  final nameController     = TextEditingController();
+  final nameController    = TextEditingController();
   final emailController    = TextEditingController();
   final passwordController = TextEditingController();
   final contactController  = TextEditingController();
@@ -26,7 +32,8 @@ class _RegisterCustomerState extends State<RegisterCustomer> {
       successMsg = '';
     });
 
-    final url = Uri.parse('http://10.0.2.2:8000/api/register/');
+    // MODIFIED: Use the API_BASE constant for consistency
+    final url = Uri.parse('$API_BASE/api/register/');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -34,7 +41,7 @@ class _RegisterCustomerState extends State<RegisterCustomer> {
         'name'        : nameController.text.trim(),
         'email'       : emailController.text.trim(),
         'password'    : passwordController.text.trim(),
-        'contact_num' : contactController.text.trim(),   // ← new field
+        'contact_num' : contactController.text.trim(),
       }),
     );
 
@@ -56,33 +63,74 @@ class _RegisterCustomerState extends State<RegisterCustomer> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    return SingleChildScrollView(
       child: Column(
         children: [
+          // MODIFIED: Styled TextField with rounded border and hint text
           TextField(
             controller: nameController,
-            decoration: const InputDecoration(labelText: 'Full Name'),
+            decoration: InputDecoration(
+              hintText: 'Full Name',
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(30.0),
+              ),
+            ),
           ),
+          const SizedBox(height: 16),
+          // MODIFIED: Styled TextField
           TextField(
             controller: emailController,
-            decoration: const InputDecoration(labelText: 'Email'),
+            decoration: InputDecoration(
+              hintText: 'Email',
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(30.0),
+              ),
+            ),
           ),
+          const SizedBox(height: 16),
+          // MODIFIED: Styled TextField
           TextField(
             controller: passwordController,
             obscureText: true,
-            decoration: const InputDecoration(labelText: 'Password'),
+            decoration: InputDecoration(
+              hintText: 'Password',
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(30.0),
+              ),
+            ),
           ),
+          const SizedBox(height: 16),
+          // MODIFIED: Styled TextField
           TextField(
             controller: contactController,
-            decoration: const InputDecoration(labelText: 'Contact Number'),
+            decoration: InputDecoration(
+              hintText: 'Contact Number',
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(30.0),
+              ),
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 20),
+          // MODIFIED: Styled ElevatedButton to match login button
           ElevatedButton(
             onPressed: isLoading ? null : registerCustomer,
+            style: ElevatedButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30.0),
+              ),
+              minimumSize: const Size.fromHeight(50),
+              backgroundColor: const Color.fromRGBO(71, 102, 137, 1),
+            ),
             child: isLoading
-                ? const CircularProgressIndicator()
-                : const Text('Register'),
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text(
+                    'Register',
+                    style: TextStyle(fontSize: 16, color: Colors.white),
+                  ),
           ),
           if (successMsg.isNotEmpty)
             Padding(

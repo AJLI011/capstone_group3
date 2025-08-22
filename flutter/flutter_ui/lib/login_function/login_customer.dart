@@ -6,6 +6,7 @@ import 'forgot_password.dart';
 import '../role_views/customer_view.dart';
 import 'register_customer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'login_staff.dart';
 
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
@@ -25,30 +26,82 @@ class _LoginCustomerState extends State<LoginCustomer> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        ToggleButtons(
-          isSelected: [!showRegister, showRegister],
-          onPressed: (index) {
-            setState(() => showRegister = index == 1);
-          },
-          children: const [
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Text('Login'),
+    // FIX: Wrapped the entire Stack in a Scaffold to provide the Material context.
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Layer 1: The full-screen background image
+          Positioned.fill(
+            child: Image.asset(
+              'assets/bg-login.jpg',
+              fit: BoxFit.cover,
             ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Text('Register'),
+          ),
+          
+          // Layer 2: The scrollable content for the entire screen
+          SafeArea(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 20.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 50),
+                    // The logo
+                    Image.asset(
+                      'assets/logo.png',
+                      height: 200,
+                      width: 200,
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // The original login/register toggle buttons
+                    ToggleButtons(
+                      isSelected: [!showRegister, showRegister],
+                      onPressed: (index) {
+                        setState(() => showRegister = index == 1);
+                      },
+                      children: const [
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('Login'),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('Register'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // The login or register form based on the state
+                    showRegister
+                        ? const RegisterCustomer()
+                        : const CustomerLoginForm(),
+                    
+                    // The "Staff?" button is now inside the scrollable view
+                    const SizedBox(height: 20),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LoginStaff(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        'Staff? Click here',
+                        style: TextStyle(color: Colors.black54),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        // Removed the Expanded widget here
-        showRegister
-            ? const RegisterCustomer()
-            : const CustomerLoginForm(),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -122,49 +175,76 @@ class _CustomerLoginFormState extends State<CustomerLoginForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        // The key change to align the fields at the top
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          TextField(
-            controller: emailController,
-            decoration: const InputDecoration(labelText: 'Email'),
+    return Column(
+      children: [
+        TextField(
+          controller: emailController,
+          decoration: InputDecoration(
+            hintText: 'Email',
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30.0),
+            ),
           ),
-          TextField(
-            controller: passwordController,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Password'),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: passwordController,
+          obscureText: true,
+          decoration: InputDecoration(
+            hintText: 'Password',
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30.0),
+            ),
           ),
-          const SizedBox(height: 10),
-          ElevatedButton(
-            onPressed: isLoading ? null : loginCustomer,
-            child: isLoading
-                ? const CircularProgressIndicator()
-                : const Text('Login'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ForgotPasswordScreen(),
-                ),
-              );
-            },
-            child: const Text('Forgot Password?'),
-          ),
-          if (errorMsg.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                errorMsg,
-                style: const TextStyle(color: Colors.red),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ForgotPasswordScreen(),
+                  ),
+                );
+              },
+              child: const Text(
+                'Forgot Password?',
+                style: TextStyle(color: Colors.black54),
               ),
             ),
-        ],
-      ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        ElevatedButton(
+          onPressed: isLoading ? null : loginCustomer,
+          style: ElevatedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30.0),
+            ),
+            minimumSize: const Size.fromHeight(50),
+            backgroundColor: const Color.fromRGBO(71, 102, 137, 1),
+          ),
+          child: isLoading
+              ? const CircularProgressIndicator(color: Colors.white)
+              : const Text(
+                  'Login',
+                  style: TextStyle(fontSize: 16, color: Colors.white),
+                ),
+        ),
+        if (errorMsg.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              errorMsg,
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+      ],
     );
   }
 }

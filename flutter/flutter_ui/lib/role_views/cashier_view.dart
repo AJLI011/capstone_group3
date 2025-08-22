@@ -3,17 +3,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-import '../main.dart'; // ToggleLoginScreen
+import '../login_function/login_customer.dart'; // UPDATED: Changed import to LoginCustomer
 import 'cashier_features/edit_profile/edit_cashier_profile.dart'; // Import for the new page
 import 'cashier_features/change_password/change_cashier_password.dart'; // Import for the new page
-import 'cashier_features/pending_orders/pending_orders.dart'; 
+import 'cashier_features/pending_orders/pending_orders.dart';
 import 'cashier_features/online_orders/online_orders_cashier_page.dart'; // Import for the new page
 import 'cashier_features/instore_sales_transaction-c/instore_transaction.dart';
 import 'cashier_features/online_sales_transaction/cashier_online_transaction.dart'; // Import for the new page
 
 import 'cashier_features/prescription/prescription_cashier.dart';
 
-// Import for the new page  
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
@@ -77,7 +76,6 @@ class _CashierViewState extends State<CashierView> with SingleTickerProviderStat
       );
 
       if (resp.statusCode != 201 && resp.statusCode != 200) {
-        // Non-fatal, but print for debugging in dev
         if (!mounted) return;
         debugPrint('Employee log POST failed: ${resp.statusCode} ${resp.body}');
       }
@@ -90,7 +88,6 @@ class _CashierViewState extends State<CashierView> with SingleTickerProviderStat
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // Try to get staffId from prefs first, otherwise fall back to widget.staffId
       int staffIdToUse;
       final int? prefsStaffId = prefs.getInt('staff_id');
       if (prefsStaffId != null) {
@@ -99,32 +96,30 @@ class _CashierViewState extends State<CashierView> with SingleTickerProviderStat
         staffIdToUse = widget.staffId;
       }
 
-      // Attempt to send logout log regardless of whether prefs had the id
       try {
         await _postEmployeeLog(staffIdToUse, 'logout');
       } catch (e) {
-        // ignore and continue with clearing prefs / navigation
         debugPrint('Error posting logout log: $e');
       }
 
-      // Clear saved session
       await prefs.clear();
 
       if (!mounted) return;
+      // FIX: Navigate to LoginCustomer() instead of the removed ToggleLoginScreen()
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const ToggleLoginScreen()),
+        MaterialPageRoute(builder: (_) => const LoginCustomer()),
         (_) => false,
       );
     } catch (e) {
       debugPrint('Logout error: $e');
-      // still attempt to clear prefs and navigate away
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
       if (!mounted) return;
+      // FIX: Also navigate to LoginCustomer() in the catch block
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const ToggleLoginScreen()),
+        MaterialPageRoute(builder: (_) => const LoginCustomer()),
         (_) => false,
       );
     }
@@ -154,14 +149,12 @@ class _CashierViewState extends State<CashierView> with SingleTickerProviderStat
     }
   }
 
-  // In cashier_view.dart
   void _open(Widget page) async {
     _toggleMenu();
     final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
 
-    // If the popped page sent a 'true' result, it means an update occurred
     if (result == true) {
-      _loadStaffInfo(); // Reload staff info from SharedPreferences
+      _loadStaffInfo();
     }
   }
 
@@ -244,8 +237,7 @@ class _CashierViewState extends State<CashierView> with SingleTickerProviderStat
                                         _drawerItem(Icons.lock, 'Change Password',
                                             () => _open(ChangeCashierPasswordPage(staffId: widget.staffId))),
                                         _drawerItem(Icons.receipt_long, 'Prescriptions',
-                                         () => _open(const PrescriptionsCashier())),
-                                        
+                                           () => _open(const PrescriptionsCashier())),
                                       ],
                                     ),
                                   ),

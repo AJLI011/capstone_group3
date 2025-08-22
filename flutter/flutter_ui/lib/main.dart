@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:provider/provider.dart'; // ADDED: Import provider package
+import 'package:provider/provider.dart';
 
 import 'login_function/login_customer.dart';
 import 'login_function/login_staff.dart';
@@ -10,14 +10,14 @@ import 'role_views/manager_view.dart';
 import 'role_views/cashier_view.dart';
 import 'role_views/staff_view.dart';
 import 'role_views/customer_view.dart';
-import 'role_views/customer_features/cart_service.dart'; // ADDED: Import CartService
+import 'role_views/customer_features/cart_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final startScreen = await _getStartScreen();
 
   runApp(
-    ChangeNotifierProvider( // ADDED: Wrap your app with ChangeNotifierProvider
+    ChangeNotifierProvider(
       create: (context) => CartService(),
       child: MyApp(startScreen),
     ),
@@ -28,9 +28,10 @@ Future<Widget> _getStartScreen() async {
   final prefs = await SharedPreferences.getInstance();
   final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
   final role = prefs.getString('role');
-  final staffId = prefs.getInt('staff_id'); // Correctly retrieving staffId
+  final staffId = prefs.getInt('staff_id');
+  final customerId = prefs.getInt('customerId');
 
-  print('SharedPref: is_logged_in=$isLoggedIn, role=$role, staff_id=$staffId');
+  print('SharedPref: is_logged_in=$isLoggedIn, role=$role, staff_id=$staffId, customerId=$customerId');
 
   if (isLoggedIn && role != null) {
     switch (role) {
@@ -43,7 +44,6 @@ Future<Widget> _getStartScreen() async {
         }
         break;
       case 'cashier':
-        // FIX IS HERE: Check for staffId and pass it to the CashierView
         if (staffId != null) {
           return CashierView(staffId: staffId);
         }
@@ -56,8 +56,8 @@ Future<Widget> _getStartScreen() async {
     }
   }
 
-  // If not logged in, or if staffId is missing for admin/manager, go to login
-  return const ToggleLoginScreen();
+  // If not logged in, or if session data is incomplete, default to the customer login screen.
+  return const LoginCustomer();
 }
 
 class MyApp extends StatelessWidget {
@@ -75,40 +75,5 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class ToggleLoginScreen extends StatefulWidget {
-  const ToggleLoginScreen({super.key});
-
-  @override
-  State<ToggleLoginScreen> createState() => _ToggleLoginScreenState();
-}
-
-class _ToggleLoginScreenState extends State<ToggleLoginScreen> {
-  bool showCustomerLogin = true;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
-      body: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TextButton(
-                onPressed: () => setState(() => showCustomerLogin = true),
-                child: const Text('Customer'),
-              ),
-              TextButton(
-                onPressed: () => setState(() => showCustomerLogin = false),
-                child: const Text('Staff? Click here'),
-              ),
-            ],
-          ),
-          Expanded(
-            child: showCustomerLogin ? const LoginCustomer() : const LoginStaff(),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// REMOVED: The ToggleLoginScreen widget is no longer needed.
+// The LoginCustomer and LoginStaff screens now handle the navigation between them.
