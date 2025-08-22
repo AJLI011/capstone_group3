@@ -22,8 +22,6 @@ class LoginCustomer extends StatefulWidget {
 }
 
 class _LoginCustomerState extends State<LoginCustomer> {
-  bool showRegister = false;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -61,30 +59,8 @@ class _LoginCustomerState extends State<LoginCustomer> {
                           ),
                           const SizedBox(height: 20),
 
-                          // Toggle login/register
-                          ToggleButtons(
-                            isSelected: [!showRegister, showRegister],
-                            onPressed: (index) {
-                              setState(() => showRegister = index == 1);
-                            },
-                            children: const [
-                              Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 12),
-                                child: Text('Login'),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 12),
-                                child: Text('Register'),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Either Login or Register form
-                          showRegister
-                              ? const RegisterCustomer()
-                              : const CustomerLoginForm(),
-
+                          // Only login form (no toggle anymore)
+                          const CustomerLoginForm(),
                           const SizedBox(height: 20),
 
                           // Staff login
@@ -210,16 +186,28 @@ class _CustomerLoginFormState extends State<CustomerLoginForm> {
           ),
         ),
         const SizedBox(height: 10),
+
+        // Register (left) + Forgot Password (right)
         Row(
-          mainAxisAlignment: MainAxisAlignment.end,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             TextButton(
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const ForgotPasswordScreen(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const RegisterCustomer()),
+                );
+              },
+              child: const Text(
+                'Register',
+                style: TextStyle(color: Colors.black54),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
                 );
               },
               child: const Text(
@@ -230,6 +218,8 @@ class _CustomerLoginFormState extends State<CustomerLoginForm> {
           ],
         ),
         const SizedBox(height: 20),
+
+        // Login button
         ElevatedButton(
           onPressed: isLoading ? null : loginCustomer,
           style: ElevatedButton.styleFrom(
@@ -246,6 +236,8 @@ class _CustomerLoginFormState extends State<CustomerLoginForm> {
                   style: TextStyle(fontSize: 16, color: Colors.white),
                 ),
         ),
+
+        // Error message
         if (errorMsg.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 8),

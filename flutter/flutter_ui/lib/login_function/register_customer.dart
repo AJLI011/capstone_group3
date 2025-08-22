@@ -2,12 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-// Use dart-define to override in different environments
-const String API_BASE = String.fromEnvironment(
-  'API_BASE',
-  defaultValue: 'http://10.0.2.2:8000',
-);
-
 class RegisterCustomer extends StatefulWidget {
   const RegisterCustomer({super.key});
 
@@ -16,7 +10,9 @@ class RegisterCustomer extends StatefulWidget {
 }
 
 class _RegisterCustomerState extends State<RegisterCustomer> {
-  final nameController    = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
+  final nameController     = TextEditingController();
   final emailController    = TextEditingController();
   final passwordController = TextEditingController();
   final contactController  = TextEditingController();
@@ -32,8 +28,7 @@ class _RegisterCustomerState extends State<RegisterCustomer> {
       successMsg = '';
     });
 
-    // MODIFIED: Use the API_BASE constant for consistency
-    final url = Uri.parse('$API_BASE/api/register/');
+    final url = Uri.parse('http://10.0.2.2:8000/api/register/');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -55,94 +50,90 @@ class _RegisterCustomerState extends State<RegisterCustomer> {
         passwordController.clear();
         contactController.clear();
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(successMsg), backgroundColor: Colors.green),
+      );
     } else {
       final data = json.decode(response.body);
       setState(() => errorMsg = data.toString());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          // MODIFIED: Styled TextField with rounded border and hint text
-          TextField(
-            controller: nameController,
-            decoration: InputDecoration(
-              hintText: 'Full Name',
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30.0),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // MODIFIED: Styled TextField
-          TextField(
-            controller: emailController,
-            decoration: InputDecoration(
-              hintText: 'Email',
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30.0),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // MODIFIED: Styled TextField
-          TextField(
-            controller: passwordController,
-            obscureText: true,
-            decoration: InputDecoration(
-              hintText: 'Password',
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30.0),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // MODIFIED: Styled TextField
-          TextField(
-            controller: contactController,
-            decoration: InputDecoration(
-              hintText: 'Contact Number',
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30.0),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          // MODIFIED: Styled ElevatedButton to match login button
-          ElevatedButton(
-            onPressed: isLoading ? null : registerCustomer,
-            style: ElevatedButton.styleFrom(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30.0),
-              ),
-              minimumSize: const Size.fromHeight(50),
-              backgroundColor: const Color.fromRGBO(71, 102, 137, 1),
-            ),
-            child: isLoading
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text(
-                    'Register',
-                    style: TextStyle(fontSize: 16, color: Colors.white),
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top bar with back button + Register text
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, size: 28),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
                   ),
-          ),
-          if (successMsg.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(successMsg, style: const TextStyle(color: Colors.green)),
+                  const SizedBox(width: 8),
+                  const Text(
+                    "Register",
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          if (errorMsg.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(errorMsg, style: const TextStyle(color: Colors.red)),
+
+            // Registration form
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: nameController,
+                        decoration: const InputDecoration(labelText: "Name"),
+                      ),
+                      TextFormField(
+                        controller: emailController,
+                        decoration: const InputDecoration(labelText: "Email"),
+                      ),
+                      TextFormField(
+                        controller: contactController,
+                        decoration: const InputDecoration(labelText: "Contact Number"),
+                      ),
+                      TextFormField(
+                        controller: passwordController,
+                        decoration: const InputDecoration(labelText: "Password"),
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: isLoading ? null : registerCustomer,
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(50),
+                        ),
+                        child: isLoading
+                            ? const CircularProgressIndicator()
+                            : const Text("Register"),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }

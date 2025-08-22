@@ -45,31 +45,69 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Forgot Password')),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
+      body: SafeArea( // ✅ match Register screen
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
+            // Top Row with Back Button + Title
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, size: 28),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    "Forgot Password",
+                    style: TextStyle(
+                      fontSize: 22, // ✅ same as Register
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: isLoading ? null : sendResetLink,
-              child: isLoading
-                  ? const CircularProgressIndicator()
-                  : const Text('Send Reset Link'),
-            ),
-            if (message.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 20),
-                child: Text(
-                  message,
-                  style: TextStyle(
-                      color: message.contains('sent') ? Colors.green : Colors.red),
+
+            // Email Input + Button
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: emailController,
+                      decoration: const InputDecoration(labelText: 'Email'),
+                    ),
+                    const SizedBox(height: 20),
+
+                    ElevatedButton(
+                      onPressed: isLoading ? null : sendResetLink,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(50), // ✅ consistency
+                      ),
+                      child: isLoading
+                          ? const CircularProgressIndicator()
+                          : const Text('Send Reset Link'),
+                    ),
+
+                    if (message.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 20),
+                        child: Text(
+                          message,
+                          style: TextStyle(
+                            color: message.contains('sent')
+                                ? Colors.green
+                                : Colors.red,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-              )
+              ),
+            ),
           ],
         ),
       ),
