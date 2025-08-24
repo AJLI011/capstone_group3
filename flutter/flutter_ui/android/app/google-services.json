@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "7446402918",
+    "project_id": "capstone-dedd4",
+    "storage_bucket": "capstone-dedd4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:7446402918:android:3bd543a6386b7a3ebe5aa7",
+        "android_client_info": {
+          "package_name": "com.example.flutter_ui"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB5Zhkp9DJHh-GjHosL1Owuw4UJY0rcNco"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

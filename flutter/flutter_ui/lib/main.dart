@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 
+// ✅ Firebase imports
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+// ✅ Local notifications import
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
 import 'login_function/login_customer.dart';
 import 'login_function/login_staff.dart';
 
@@ -12,8 +19,19 @@ import 'role_views/staff_view.dart';
 import 'role_views/customer_view.dart';
 import 'role_views/customer_features/cart_service.dart';
 
+// ✅ Global instance for local notifications
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ Initialize Firebase before running app
+  await Firebase.initializeApp();
+
+  // ✅ Optional: Set up FCM background handler
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
   final startScreen = await _getStartScreen();
 
   runApp(
@@ -22,6 +40,12 @@ void main() async {
       child: MyApp(startScreen),
     ),
   );
+}
+
+// ✅ Background notification handler
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print("Handling a background message: ${message.messageId}");
 }
 
 Future<Widget> _getStartScreen() async {
@@ -66,6 +90,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Request FCM token + permissions when app starts
+    _initFCM();
+
     return MaterialApp(
       title: 'Capstone App',
       debugShowCheckedModeBanner: false,
@@ -73,7 +100,59 @@ class MyApp extends StatelessWidget {
       home: startScreen,
     );
   }
-}
 
-// REMOVED: The ToggleLoginScreen widget is no longer needed.
-// The LoginCustomer and LoginStaff screens now handle the navigation between them.
+  // ✅ Initialize FCM, request permissions, and listen for foreground messages
+  void _initFCM() async {
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+    // 🔔 Request notification permission (iOS + Android 13+)
+    NotificationSettings settings = await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    print("🔔 User granted permission: ${settings.authorizationStatus}");
+
+    // ✅ Get device FCM token
+    String? token = await messaging.getToken();
+    print("🔑 FCM Token: $token");
+
+    // ✅ Initialize local notifications
+    const AndroidInitializationSettings androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initSettings =
+        InitializationSettings(android: androidSettings);
+    await flutterLocalNotificationsPlugin.initialize(initSettings);
+
+    // ✅ Listen for foreground messages and show visible notification
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      print('📩 Foreground message received: '
+          'Title: ${message.notification?.title}, '
+          'Body: ${message.notification?.body}');
+
+      // Show popup notification
+      RemoteNotification? notification = message.notification;
+      if (notification != null) {
+        const AndroidNotificationDetails androidDetails =
+            AndroidNotificationDetails(
+          'foreground_channel', // channel id
+          'Foreground Notifications', // channel name
+          channelDescription: 'This channel is for foreground messages',
+          importance: Importance.max,
+          priority: Priority.high,
+        );
+        const NotificationDetails platformDetails =
+            NotificationDetails(android: androidDetails);
+
+        await flutterLocalNotificationsPlugin.show(
+          notification.hashCode,
+          notification.title,
+          notification.body,
+          platformDetails,
+        );
+      }
+    });
+
+    // TODO: Send token to Django backend for customers
+  }
+}
