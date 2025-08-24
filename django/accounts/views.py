@@ -506,7 +506,7 @@ def get_batch_details(request, medicine_id):
 
     batches = Inventory.objects.filter(
         medicine__id=medicine_id,
-        exp_date__gte=today  # ✅ Only batches expiring today or later
+        exp_date__gt=today  # ✅ Only batches expiring today or later
     )
 
     if not batches.exists():
@@ -523,7 +523,7 @@ def total_quantities(request):
     # Group by medicine and sum only unexpired batches
     inventory_totals = (
         Inventory.objects
-        .filter(exp_date__gte=today)  # ✅ exclude expired
+        .filter(exp_date__gt=today)  # ✅ exclude expired
         .values(
             'medicine_id',
             'medicine__name',
