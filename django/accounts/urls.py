@@ -126,5 +126,9 @@ urlpatterns = [
     
     #--------CASHIER PRESCRIPTION VIEWS--------
     path('prescriptions/cashier/', views.list_cashier_prescriptions, name='list_cashier_prescriptions'),
+    
+    # ----------------- Customer FCM Token -----------------
+    path('customer/save-fcm-token/', views.save_customer_fcm_token, name='save_customer_fcm_token'),
+
 
 ]

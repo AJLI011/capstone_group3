@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, 
 InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog, OnlineOrder, OnlineOrderItem, OrderLog, Prescription,
-PrescriptionImage
+PrescriptionImage, CustomerFCMToken
 )
 from django.contrib.auth.hashers import make_password
 from decimal import Decimal
@@ -972,3 +972,12 @@ class CombinedPrescriptionSerializer(serializers.ModelSerializer):
             items = OnlineOrderItem.objects.filter(order=obj.online_order)
             return OnlineOrderItemReadSerializer(items, many=True, context=self.context).data
         return []
+    
+#-----PUSH NOTIF
+
+class CustomerFCMTokenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerFCMToken
+        fields = ['id', 'customer', 'token', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+

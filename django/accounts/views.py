@@ -46,6 +46,22 @@ from rest_framework import status
 from django.db.models import Q
 from .models import Prescription, PrescriptionImage
 
+from django.db import transaction
+from django.db.models import Prefetch
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+
+from .models import Staff, OnlineOrder, OnlineOrderItem, Prescription, OrderLog, CustomerFCMToken
+from .serializers import OnlineOrderListSerializer
+from backend.firebase import send_fcm_notification  # <-- our Firebase helper function
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import CustomerFCMToken, Customer
+
+
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
 
@@ -1042,7 +1058,30 @@ def cancel_online_order(request, order_id):
         print(f"[CANCEL ORDER ERROR] {e}")
         return Response({"detail": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Cashier and Staff Confirm Online Order
+# -------------------------------
+# Get Pending Online Orders
+# -------------------------------
 @api_view(['GET'])
 def get_pending_online_orders(request):
     """
@@ -1067,12 +1106,15 @@ def get_pending_online_orders(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-# In views.py
+# -------------------------------
+# Confirm Online Order
+# -------------------------------
 @api_view(['PUT'])
 def confirm_online_order(request, orderId):
     """
     API view for staff to confirm a pending online order.
     Changes the status from 'pending' to 'ready for pickup'.
+    Sends a push notification to the customer if token exists.
     """
     try:
         staff_id = request.data.get('staff_id')
@@ -1089,22 +1131,36 @@ def confirm_online_order(request, orderId):
                 order.status = 'ready for pickup'
                 order.save()
 
-                # NEW: Check for and update related Prescription status
+                # Check for and update related Prescription status
                 try:
                     prescription = Prescription.objects.get(online_order=order, status='pending')
                     prescription.status = 'ready for pickup'
                     prescription.save()
                 except Prescription.DoesNotExist:
-                    # No prescription exists for this order, which is fine
                     pass
 
-                # NEW: Create a log entry for the confirmed online order
+                # Create a log entry for the confirmed online order
                 OrderLog.objects.create(
                     staff_user=staff_user,
                     online_order=order,
                     action_type='online_confirmed',
                     description=f'Online order confirmed by staff member {staff_user.name} ({staff_user.role}).'
                 )
+
+                # -------------------------------
+                # Send push notification to customer
+                # -------------------------------
+                token_obj = CustomerFCMToken.objects.filter(customer=order.customer).first()
+                if token_obj:
+                    try:
+                        # ✅ CORRECTED: Use .token instead of .fcm_token
+                        send_fcm_notification(
+                            token=token_obj.token, 
+                            title="Your order is ready for pickup",
+                            body=f"Hi {order.customer.name}, your order has been confirmed."
+                        )
+                    except Exception as e:
+                        print(f"[FCM SEND ERROR] {e}")
 
                 return Response(
                     {"detail": "Online order confirmed successfully."},
@@ -1126,6 +1182,25 @@ def confirm_online_order(request, orderId):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
         
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+                
 # Cashier Apply Discount
 logger = logging.getLogger(__name__)
 
@@ -1749,3 +1824,44 @@ def list_cashier_prescriptions(request):
     serializer = CombinedPrescriptionSerializer(cashier_prescriptions, many=True)
     
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+#-----PUSH NOTIF
+# -------------------------------
+# Save Customer FCM Token
+# -------------------------------
+@api_view(['POST'])
+def save_customer_fcm_token(request):
+    """
+    Save or update the FCM token for a customer.
+    """
+    try:
+        fcm_token = request.data.get('fcm_token')
+        customer_id = request.data.get('customer_id')
+
+        if not fcm_token or not customer_id:
+            return Response(
+                {'error': 'FCM token and Customer ID are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            customer_instance = Customer.objects.get(id=customer_id)
+        except Customer.DoesNotExist:
+            return Response({'error': 'Customer not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # ✅ CORRECTED LOGIC: Use 'token' as the lookup key, and update the 'customer'
+        token_obj, created = CustomerFCMToken.objects.update_or_create(
+            token=fcm_token,  # Lookup by token
+            defaults={'customer': customer_instance}, # Update the customer
+        )
+
+        if created:
+            return Response({'detail': 'FCM token created successfully.'}, status=status.HTTP_201_CREATED)
+        else:
+            return Response({'detail': 'FCM token updated successfully.'}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print(f"[SAVE FCM TOKEN ERROR] {e}")
+        return Response({'error': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

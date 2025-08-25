@@ -5,13 +5,9 @@ import 'package:provider/provider.dart';
 // ✅ Firebase imports
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-
-// ✅ Local notifications import
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // <-- NEW CODE
 
 import 'login_function/login_customer.dart';
-import 'login_function/login_staff.dart';
-
 import 'role_views/admin_view.dart';
 import 'role_views/manager_view.dart';
 import 'role_views/cashier_view.dart';
@@ -19,9 +15,66 @@ import 'role_views/staff_view.dart';
 import 'role_views/customer_view.dart';
 import 'role_views/customer_features/cart_service.dart';
 
-// ✅ Global instance for local notifications
+// <-- NEW CODE
+// ✅ Define a channel for Android notifications
+const AndroidNotificationChannel channel = AndroidNotificationChannel(
+  'high_importance_channel', // id
+  'High Importance Notifications', // title
+  description: 'This channel is used for important notifications.', // description
+  importance: Importance.high,
+);
+
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
+
+// ✅ Background notification handler
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print("Handling a background message: ${message.messageId}");
+}
+
+// ✅ New function to handle permissions and foreground notifications <-- NEW CODE
+void setupFirebaseMessaging() async {
+  // 1. Request notification permissions
+  NotificationSettings settings = await FirebaseMessaging.instance.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+  print('User granted permission: ${settings.authorizationStatus}');
+
+  // 2. Create the Android notification channel
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
+
+  // 3. Handle foreground notifications
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    print('Got a message whilst in the foreground!');
+    print('Message data: ${message.data}');
+
+    RemoteNotification? notification = message.notification;
+    AndroidNotification? android = message.notification?.android;
+
+    if (notification != null && android != null) {
+      flutterLocalNotificationsPlugin.show(
+        notification.hashCode,
+        notification.title,
+        notification.body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            channel.id,
+            channel.name,
+            channelDescription: channel.description,
+            icon: 'launch_background',
+          ),
+        ),
+      );
+    }
+  });
+}
+// END OF NEW CODE -->
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,8 +82,11 @@ void main() async {
   // ✅ Initialize Firebase before running app
   await Firebase.initializeApp();
 
-  // ✅ Optional: Set up FCM background handler
+  // ✅ Set up FCM background handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // ✅ Call the new setup function <-- NEW CODE
+  setupFirebaseMessaging(); 
 
   final startScreen = await _getStartScreen();
 
@@ -40,12 +96,6 @@ void main() async {
       child: MyApp(startScreen),
     ),
   );
-}
-
-// ✅ Background notification handler
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-  print("Handling a background message: ${message.messageId}");
 }
 
 Future<Widget> _getStartScreen() async {
@@ -63,14 +113,10 @@ Future<Widget> _getStartScreen() async {
         if (staffId != null) return AdminView(staffId: staffId);
         break;
       case 'manager':
-        if (staffId != null) {
-          return ManagerView(staffId: staffId);
-        }
+        if (staffId != null) return ManagerView(staffId: staffId);
         break;
       case 'cashier':
-        if (staffId != null) {
-          return CashierView(staffId: staffId);
-        }
+        if (staffId != null) return CashierView(staffId: staffId);
         break;
       case 'staff':
         if (staffId != null) return StaffView(staffId: staffId);
@@ -90,69 +136,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Request FCM token + permissions when app starts
-    _initFCM();
-
     return MaterialApp(
       title: 'Capstone App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.blue),
       home: startScreen,
     );
-  }
-
-  // ✅ Initialize FCM, request permissions, and listen for foreground messages
-  void _initFCM() async {
-    FirebaseMessaging messaging = FirebaseMessaging.instance;
-
-    // 🔔 Request notification permission (iOS + Android 13+)
-    NotificationSettings settings = await messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-    print("🔔 User granted permission: ${settings.authorizationStatus}");
-
-    // ✅ Get device FCM token
-    String? token = await messaging.getToken();
-    print("🔑 FCM Token: $token");
-
-    // ✅ Initialize local notifications
-    const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const InitializationSettings initSettings =
-        InitializationSettings(android: androidSettings);
-    await flutterLocalNotificationsPlugin.initialize(initSettings);
-
-    // ✅ Listen for foreground messages and show visible notification
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      print('📩 Foreground message received: '
-          'Title: ${message.notification?.title}, '
-          'Body: ${message.notification?.body}');
-
-      // Show popup notification
-      RemoteNotification? notification = message.notification;
-      if (notification != null) {
-        const AndroidNotificationDetails androidDetails =
-            AndroidNotificationDetails(
-          'foreground_channel', // channel id
-          'Foreground Notifications', // channel name
-          channelDescription: 'This channel is for foreground messages',
-          importance: Importance.max,
-          priority: Priority.high,
-        );
-        const NotificationDetails platformDetails =
-            NotificationDetails(android: androidDetails);
-
-        await flutterLocalNotificationsPlugin.show(
-          notification.hashCode,
-          notification.title,
-          notification.body,
-          platformDetails,
-        );
-      }
-    });
-
-    // TODO: Send token to Django backend for customers
   }
 }

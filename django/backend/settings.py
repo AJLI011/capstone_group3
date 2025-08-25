@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+# import firebase_admin
+# from firebase_admin import credentials, messaging
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -144,3 +146,12 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'group3pharmapup@gmail.com'
 EMAIL_HOST_PASSWORD = 'ggxbxgoyhqpgxgxx'  # your 16-char app password, no spaces
+
+# Initialize Firebase Admin SDK
+# Make sure the JSON file is in the same directory as settings.py
+# try:
+#     cred = credentials.Certificate(BASE_DIR / 'capstone-dedd4-firebase-adminsdk-fbsvc-69e67e0cac.json')
+#     firebase_admin.initialize_app(cred)
+#     print("Firebase Admin SDK initialized successfully!")
+# except Exception as e:
+#     print(f"Error initializing Firebase Admin SDK: {e}")
