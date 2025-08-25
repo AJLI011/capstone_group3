@@ -12,4 +12,7 @@ build/
 .idea/
 .vscode/
 
+# Firebase Service Account Key
+/django/backend/capstone-dedd4-firebase-adminsdk-fbsvc-69e67e0cac.json
+
 
