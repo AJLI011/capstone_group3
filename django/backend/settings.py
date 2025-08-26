@@ -25,9 +25,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-5)i5x4*mpiskxl*u^xkr$6*a^du_=b5knz+gpx-u2sby9bw%aq'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['10.0.0.2', 'localhost', '*', '127.0.0.1:8000']
+ALLOWED_HOSTS = ['10.0.0.2', 'localhost', '127.0.0.1', 'bluewhitepharmacs.pythonanywhere.com']
 
 
 # Application definition
@@ -80,14 +80,15 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# settings.py
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'capstone_db',
-        'USER': 'root',
-        'PASSWORD': 'admin123',
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
+        'NAME': 'BlueWhitePharmacs$default',
+        'USER': 'BlueWhitePharmacs',
+        'PASSWORD': 'admintest1',
+        'HOST': 'bluewhitepharmacy.mysql.pythonanywhere-services.com',
     }
 }
 
