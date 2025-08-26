@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import 'cart_service.dart';
 import 'package:intl/intl.dart';
 import 'orderarrangement_page.dart';
-import 'package:http/http.dart' as http; // ADDED: Import http package
-import 'dart:convert'; // ADDED: Import for JSON decoding
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class CheckoutPage extends StatefulWidget {
   final int customerId;
@@ -17,16 +17,15 @@ class CheckoutPage extends StatefulWidget {
 class _CheckoutPageState extends State<CheckoutPage> {
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
-  bool _isPwd = false; // ADDED: State variable to store PWD status
-  bool _isLoading = true; // ADDED: State variable for loading status
+  bool _isPwd = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchCustomerData(); // ADDED: Fetch customer data on initialization
+    _fetchCustomerData();
   }
 
-  // ADDED: Function to fetch customer details from the API
   Future<void> _fetchCustomerData() async {
     setState(() {
       _isLoading = true;
@@ -40,10 +39,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
         setState(() {
-          _isPwd = data['is_pwd'] ?? false; // Safely get the is_pwd value
+          _isPwd = data['is_pwd'] ?? false;
         });
       } else {
-        // Handle error if customer data cannot be fetched
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to fetch customer data: ${response.statusCode}'),
@@ -65,7 +63,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
   }
 
-  // ADDED: Function to show a confirmation dialog before removing an item
   void _confirmRemoveItem(BuildContext context, CartService cartService, int index) {
     showDialog(
       context: context,
@@ -76,14 +73,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
               },
               child: const Text("Cancel"),
             ),
             TextButton(
               onPressed: () {
                 cartService.removeItem(index);
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
               },
               child: const Text("Remove", style: TextStyle(color: Colors.red)),
             ),
@@ -98,17 +95,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Check Out"),
-        backgroundColor: const Color.fromARGB(255, 10, 84, 182),// changed color to match
-        foregroundColor: Colors.white, // changed font color
+        backgroundColor: const Color.fromARGB(255, 10, 84, 182),
+        foregroundColor: Colors.white,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator()) // Show loading indicator
+          ? const Center(child: CircularProgressIndicator())
           : Consumer<CartService>(
               builder: (context, cartService, child) {
                 final cartItems = cartService.items;
 
-                // Rest of the UI remains the same...
-                // ...
                 return Column(
                   children: [
                     Expanded(
@@ -136,16 +131,30 @@ class _CheckoutPageState extends State<CheckoutPage> {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(
-                                    item.image,
-                                    width: 70,
-                                    height: 70,
-                                    fit: BoxFit.cover,
+                                // Use a fixed-size container for the image
+                                SizedBox(
+                                  width: 70,
+                                  height: 70,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(
+                                      item.image,
+                                      fit: BoxFit.cover,
+                                      // errorBuilder: Show a placeholder if the image fails to load
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Container(
+                                          color: Colors.grey[200],
+                                          child: const Center(
+                                            child: Icon(Icons.broken_image, color: Colors.red, size: 40),
+                                          ),
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 10),
+
+                                // Item details (expanded to fill space)
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,7 +183,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                         ),
                                       ),
                                       const SizedBox(height: 4),
-                                      // Display Promo Quantity if applicable
                                       if (item.promoQuantity > 0)
                                         Text(
                                           "Promo: ${item.promoQuantity}",
@@ -187,8 +195,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                     ],
                                   ),
                                 ),
-                                Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+
+                                // Quantity controls and remove button
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     IconButton(
                                       icon: const Icon(Icons.remove_circle_outline, color: Colors.blue),
@@ -206,14 +216,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                         cartService.increaseQuantity(index);
                                       },
                                     ),
+                                    IconButton(
+                                      icon: const Icon(Icons.close, color: Colors.red),
+                                      onPressed: () {
+                                        _confirmRemoveItem(context, cartService, index);
+                                      },
+                                    ),
                                   ],
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.close, color: Colors.red),
-                                  onPressed: () {
-                                    // MODIFIED: Call the confirmation dialog function instead of directly removing the item
-                                    _confirmRemoveItem(context, cartService, index);
-                                  },
                                 ),
                               ],
                             ),
@@ -222,6 +231,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       ),
                     ),
                     Container(
+                      // Your existing order summary and button section
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: const BoxDecoration(
@@ -261,7 +271,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          // Pickup date and time selectors
                           Row(
                             children: [
                               Expanded(
@@ -269,9 +278,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                   onPressed: pickDate,
                                   style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade900),
                                   child: Text(
-                                    selectedDate == null
-                                        ? "MM / DD / YYYY"
-                                        : DateFormat('MM / dd / yyyy').format(selectedDate!),
+                                    selectedDate == null ? "MM / DD / YYYY" : DateFormat('MM / dd / yyyy').format(selectedDate!),
                                     style: const TextStyle(color: Colors.white),
                                   ),
                                 ),
@@ -282,9 +289,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                   onPressed: pickTime,
                                   style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade900),
                                   child: Text(
-                                    selectedTime == null
-                                        ? "HH : MM"
-                                        : selectedTime!.format(context),
+                                    selectedTime == null ? "HH : MM" : selectedTime!.format(context),
                                     style: const TextStyle(color: Colors.white),
                                   ),
                                 ),
@@ -308,7 +313,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                     ),
                                   );
                                 } else {
-                                  // Combine the selected date and time into a single DateTime object
                                   final DateTime pickupDateTime = DateTime(
                                     selectedDate!.year,
                                     selectedDate!.month,
@@ -323,7 +327,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                       builder: (_) => OrderArrangementPage(
                                         pickupSchedule: pickupDateTime,
                                         customerId: widget.customerId,
-                                        isPwd: _isPwd, // CORRECTION: Pass the fetched _isPwd value
+                                        isPwd: _isPwd,
                                       ),
                                     ),
                                   );
@@ -343,11 +347,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
+  // Your existing pickDate and pickTime functions
   Future<void> pickDate() async {
     final now = DateTime.now();
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: now,
+      initialEntryMode: DatePickerEntryMode.calendarOnly,
       firstDate: now,
       lastDate: now.add(const Duration(days: 30)),
     );
