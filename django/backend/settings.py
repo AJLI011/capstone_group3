@@ -87,7 +87,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'BlueWhitePharmacs$default',
         'USER': 'BlueWhitePharmacs',
-        'PASSWORD': 'admintest1',
+        'PASSWORD': 'group3pup',
         'HOST': 'bluewhitepharmacy.mysql.pythonanywhere-services.com',
     }
 }
