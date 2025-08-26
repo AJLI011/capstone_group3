@@ -88,7 +88,7 @@ DATABASES = {
         'NAME': 'BlueWhitePharmacs$default',
         'USER': 'BlueWhitePharmacs',
         'PASSWORD': 'group3pup',
-        'HOST': 'bluewhitepharmacs.mysql.pythonanywhere-services.com',
+        'HOST': 'bluewhitepharmacy.mysql.pythonanywhere-services.com',
     }
 }
 
