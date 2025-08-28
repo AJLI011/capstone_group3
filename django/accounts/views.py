@@ -20,6 +20,8 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
 
+from django.utils.timezone import now
+
 from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, 
     InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, 
@@ -44,7 +46,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Q
-from .models import Prescription, PrescriptionImage
+from .models import Prescription
+
+from .sms_utility import send_sms #FOR SMS
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
@@ -506,24 +510,24 @@ def get_batch_details(request, medicine_id):
 
     batches = Inventory.objects.filter(
         medicine__id=medicine_id,
-        exp_date__gt=today  # ✅ Only batches expiring today or later
+        exp_date__gt=today   # strictly greater than today → exclude expired
     )
 
     if not batches.exists():
-        return Response({'message': 'No batches found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'message': 'No active batches found.'}, status=status.HTTP_404_NOT_FOUND)
 
     serializer = InventoryBatchDetailSerializer(batches, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
-# for total quantity
+
+# ✅ Total quantities (all medicines) — exclude expired
 @api_view(['GET'])
 def total_quantities(request):
-    today = now().date()
+    today = timezone.now().date()
 
-    # Group by medicine and sum only unexpired batches
     inventory_totals = (
         Inventory.objects
-        .filter(exp_date__gt=today)  # ✅ exclude expired
+        .filter(exp_date__gt=today)  # strictly greater than today → exclude expired
         .values(
             'medicine_id',
             'medicine__name',
@@ -1749,3 +1753,42 @@ def list_cashier_prescriptions(request):
     serializer = CombinedPrescriptionSerializer(cashier_prescriptions, many=True)
     
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+# ─────────── MANAGER EXPIRATION NOTIFICATION ───────────
+@api_view(['POST'])
+def check_expired_and_notify_manager(request):
+    """
+    Checks for expired medicines and sends an SMS notification to the manager if any are found.
+    """
+    # This check is removed for the quick fix
+    # if not request.user.is_authenticated or not request.user.is_manager:
+    #     return Response({'error': 'You do not have permission to perform this action.'}, status=status.HTTP_403_FORBIDDEN)
+    
+    # Get the Staff profile of the manager with the correct role (adjust this to match your model)
+    try:
+        manager_profile = Staff.objects.get(role='manager')
+        manager_number = manager_profile.contact_num
+    except Staff.DoesNotExist:
+        return Response({'error': 'Staff profile for manager not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    today = date.today()
+    expired_items = Inventory.objects.filter(exp_date__lte=today, quantity__gt=0).select_related('medicine')
+
+    if expired_items.exists():
+        message_lines = ["EXPIRATION ALERT"]
+        message_lines.append("The following medicines have expired:")
+        
+        for item in expired_items:
+            # Added the batch number to the message content
+            message_lines.append(f"  * {item.medicine.name} (Batch: {item.batch_num}, Qty: {item.quantity})")
+            
+        message = "\n".join(message_lines)
+        
+        success, response_data = send_sms(manager_number, message)
+        
+        if success:
+            return Response({'message': 'Manager notified of expired stocks via SMS.', 'sms_response': response_data}, status=status.HTTP_200_OK)
+        else:
+            return Response({'message': 'Failed to send SMS notification.', 'sms_response': response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return Response({'message': 'No expired medicines found. No SMS sent.'}, status=status.HTTP_200_OK)

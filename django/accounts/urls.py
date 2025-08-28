@@ -8,6 +8,7 @@ from .views import delete_expired_batch, remove_promo, get_customer_medicines
 from .views import inventory_logs, PromoMedicineView, PromoMedicineDetailView, get_customer_medicine_detail
 from .views import InStoreSalesReportView
 from .views import OnlineSalesReportView
+from .views import check_expired_and_notify_manager
 
 
 urlpatterns = [
@@ -126,5 +127,8 @@ urlpatterns = [
     
     #--------CASHIER PRESCRIPTION VIEWS--------
     path('prescriptions/cashier/', views.list_cashier_prescriptions, name='list_cashier_prescriptions'),
+
+    #---MANAGER EXPIRATION SMS NOTIF----
+    path('check-expired/', check_expired_and_notify_manager, name='check_expired_and_notify_manager'),
 
 ]
