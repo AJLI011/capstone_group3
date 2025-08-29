@@ -17,7 +17,7 @@ class _PrescriptionsStaffState extends State<PrescriptionsStaff> {
   late Future<List<dynamic>> _pendingPrescriptions;
   
   // This should be your base API URL
-  final String apiUrl = "http://10.0.2.2:8000/api/prescriptions/pending/";
+  final String apiUrl = "http://jallybee.pythonanywhere.com/api/prescriptions/pending/";
 
   @override
   void initState() {

@@ -19,7 +19,7 @@ class _ExpiredStockStaffPageState extends State<ExpiredStockStaffPage> {
   }
 
   Future<void> fetchExpiredStocks() async {
-    final String url = 'http://10.0.2.2:8000/api/medicines/expired/';
+    final String url = 'http://jallybee.pythonanywhere.com/api/medicines/expired/';
 
     try {
       final response = await http.get(Uri.parse(url));

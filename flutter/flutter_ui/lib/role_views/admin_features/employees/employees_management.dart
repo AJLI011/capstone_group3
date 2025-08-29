@@ -21,7 +21,7 @@ class _EmployeesManagementPageState extends State<EmployeesManagementPage> {
   }
 
   Future<void> fetchEmployees() async {
-    final response = await http.get(Uri.parse('http://10.0.2.2:8000/api/staff/'));
+    final response = await http.get(Uri.parse('http://jallybee.pythonanywhere.com/api/staff/'));
     if (response.statusCode == 200) {
       final List<dynamic> fetchedEmployees = json.decode(response.body);
       setState(() {
@@ -38,7 +38,7 @@ class _EmployeesManagementPageState extends State<EmployeesManagementPage> {
   }
 
   Future<void> deleteEmployee(int id) async {
-    final response = await http.delete(Uri.parse('http://10.0.2.2:8000/api/staff/$id/'));
+    final response = await http.delete(Uri.parse('http://jallybee.pythonanywhere.com/api/staff/$id/'));
     if (response.statusCode == 204) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted successfully')));
@@ -176,8 +176,8 @@ class _EmployeeFormState extends State<EmployeeForm> {
 
     final isEdit = widget.employee != null;
     final url = isEdit
-        ? 'http://10.0.2.2:8000/api/staff/${widget.employee!['id']}/'
-        : 'http://10.0.2.2:8000/api/staff/';
+        ? 'http://jallybee.pythonanywhere.com/api/staff/${widget.employee!['id']}/'
+        : 'http://jallybee.pythonanywhere.com/api/staff/';
 
     final data = {
       'name': nameController.text,

@@ -24,7 +24,7 @@ class _ReturnMedicinePageState extends State<ReturnMedicinePage> {
   }
 
 void fetchExpiredMedicines() async {
-  final response = await http.get(Uri.parse('http://10.0.2.2:8000/api/medicines/expired/'));
+  final response = await http.get(Uri.parse('http://jallybee.pythonanywhere.com/api/medicines/expired/'));
   if (response.statusCode == 200) {
     setState(() {
       expiredMedicines = jsonDecode(response.body);
@@ -58,7 +58,7 @@ Future<void> markAsReturned(int inventoryId, int index) async {
 
   if (confirmed != true) return;
 
-  final String deleteUrl = 'http://10.0.2.2:8000/api/medicines/delete/$inventoryId/';
+  final String deleteUrl = 'http://jallybee.pythonanywhere.com/api/medicines/delete/$inventoryId/';
 
   try {
     // ✅ Get staff_id from SharedPreferences
@@ -74,7 +74,7 @@ Future<void> markAsReturned(int inventoryId, int index) async {
 
     // ✅ Include staff_id as query param in the DELETE request
     final String deleteUrl =
-        'http://10.0.2.2:8000/api/medicines/delete/$inventoryId/?staff_id=$staffId';
+        'http://jallybee.pythonanywhere.com/api/medicines/delete/$inventoryId/?staff_id=$staffId';
 
     final response = await http.delete(Uri.parse(deleteUrl));
     if (response.statusCode == 200 || response.statusCode == 204) {

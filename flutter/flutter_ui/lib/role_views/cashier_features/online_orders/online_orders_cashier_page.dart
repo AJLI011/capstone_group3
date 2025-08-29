@@ -338,7 +338,7 @@ class CashierOnlineOrdersPage extends StatefulWidget {
 
 class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final String _baseUrl = 'http://10.0.2.2:8000';
+  final String _baseUrl = 'http://jallybee.pythonanywhere.com';
   DateTime? _selectedDate;
   List<dynamic> _allOrders = [];
   bool _isLoading = true;

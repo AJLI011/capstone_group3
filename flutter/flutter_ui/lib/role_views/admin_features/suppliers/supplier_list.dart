@@ -12,7 +12,7 @@ class SupplierListPage extends StatefulWidget {
 
 class _SupplierListPageState extends State<SupplierListPage> {
   List<dynamic> suppliers = [];
-  final String apiUrl = 'http://10.0.2.2:8000/api/suppliers/';
+  final String apiUrl = 'http://jallybee.pythonanywhere.com/api/suppliers/';
   final String token = 'YOUR_ADMIN_TOKEN_HERE'; // Replace with actual token
 
   @override

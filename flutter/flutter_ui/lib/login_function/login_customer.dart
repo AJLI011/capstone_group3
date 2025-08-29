@@ -11,7 +11,7 @@ import 'login_staff.dart';
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://10.0.2.2:8000',
+  defaultValue: 'http://jallybee.pythonanywhere.com',
 );
 
 class LoginCustomer extends StatefulWidget {

@@ -70,7 +70,7 @@ class _MedicineViewState extends State<MedicineView> {
       _isLoading = true;
     });
     
-    String url = 'http://10.0.2.2:8000/api/customer/medicines/';
+    String url = 'http://jallybee.pythonanywhere.com/api/customer/medicines/';
     if (widget.selectedCategory != 'all') {
       url += '?category=${widget.selectedCategory}';
     }

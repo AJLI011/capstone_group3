@@ -12,7 +12,7 @@ class PendingOrdersScreen extends StatefulWidget {
 }
 
 class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
-  static const String _baseUrl = "http://10.0.2.2:8000";
+  static const String _baseUrl = "http://jallybee.pythonanywhere.com";
 
   late Future<List<InStoreOrder>> _pendingOrders;
 
