@@ -1,11 +1,15 @@
+// main.dart
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 
+import 'dart:io'; // <-- ADDED THIS IMPORT
+
 // ✅ Firebase imports
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // <-- NEW CODE
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'login_function/login_customer.dart';
 import 'role_views/admin_view.dart';
@@ -15,7 +19,17 @@ import 'role_views/staff_view.dart';
 import 'role_views/customer_view.dart';
 import 'role_views/customer_features/cart_service.dart';
 
-// <-- NEW CODE
+// ✅ Custom class to handle SSL certificate validation on Android
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) =>
+          host == 'aaron.pythonanywhere.com';
+  }
+}
+// <-- END OF ADDED CODE
+
 // ✅ Define a channel for Android notifications
 const AndroidNotificationChannel channel = AndroidNotificationChannel(
   'high_importance_channel', // id
@@ -33,7 +47,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print("Handling a background message: ${message.messageId}");
 }
 
-// ✅ New function to handle permissions and foreground notifications <-- NEW CODE
+// ✅ New function to handle permissions and foreground notifications
 void setupFirebaseMessaging() async {
   // 1. Request notification permissions
   NotificationSettings settings = await FirebaseMessaging.instance.requestPermission(
@@ -79,13 +93,15 @@ void setupFirebaseMessaging() async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  HttpOverrides.global = MyHttpOverrides(); // <-- ADDED THIS LINE
+
   // ✅ Initialize Firebase before running app
   await Firebase.initializeApp();
 
   // ✅ Set up FCM background handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // ✅ Call the new setup function <-- NEW CODE
+  // ✅ Call the new setup function
   setupFirebaseMessaging(); 
 
   final startScreen = await _getStartScreen();
