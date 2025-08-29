@@ -83,7 +83,7 @@ class InStoreTransactionPage extends StatefulWidget {
 
 class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
   late Future<List<InStoreTransaction>> _transactionsFuture;
-  final String _apiUrl = 'http://10.0.2.2:8000/api/in-store-transactions/';
+  final String _apiUrl = 'https://aaron.pythonanywhere.com/api/in-store-transactions/';
 
   DateTime? _selectedDate;
   bool _isLoading = false;

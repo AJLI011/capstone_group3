@@ -25,7 +25,7 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
   }
 
   Future<void> fetchMedicineDetail() async {
-    final url = 'http://10.0.2.2:8000/api/medicine/promos/${widget.medicineId}/';
+    final url = 'https://aaron.pythonanywhere.com/api/medicine/promos/${widget.medicineId}/';
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {

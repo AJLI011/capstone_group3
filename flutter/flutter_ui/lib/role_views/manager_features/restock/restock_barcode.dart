@@ -55,7 +55,7 @@ class _RestockBarcodeScreenState extends State<RestockBarcodeScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:8000/api/medicines/barcode/$barcode/'),
+        Uri.parse('https://aaron.pythonanywhere.com/api/medicines/barcode/$barcode/'),
       );
 
       if (response.statusCode == 200) {

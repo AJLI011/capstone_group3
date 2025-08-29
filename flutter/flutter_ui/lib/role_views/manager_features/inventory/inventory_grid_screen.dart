@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class InventoryApiService {
-  static const String inventoryUrl = 'http://10.0.2.2:8000/api/inventory/';
+  static const String inventoryUrl = 'https://aaron.pythonanywhere.com/api/inventory/';
 
   static Future<List<TotalQuantity>> fetchInventoryItems() async {
     try {
@@ -25,7 +25,7 @@ class InventoryApiService {
   static Future<void> syncTotalQuantities() async {
     try {
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:8000/api/inventory/total-quantities'),
+        Uri.parse('https://aaron.pythonanywhere.com/api/inventory/total-quantities'),
       );
       if (response.statusCode == 200) {
         print('✅ Total quantity synced');
