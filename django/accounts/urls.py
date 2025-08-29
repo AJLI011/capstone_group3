@@ -129,6 +129,9 @@ urlpatterns = [
     
     # ----------------- Customer FCM Token -----------------
     path('customer/save-fcm-token/', views.save_customer_fcm_token, name='save_customer_fcm_token'),
+    
+    #--------for DASHBOARD
+    path('sales/total-earnings/', views.total_combined_earnings, name='total_combined_earnings'),
 
 
 ]

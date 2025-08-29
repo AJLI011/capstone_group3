@@ -62,6 +62,10 @@ from rest_framework.response import Response
 from .models import CustomerFCMToken, Customer
 from django.utils.timezone import now
 
+from django.db.models import Sum
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .models import InStoreOrder, OnlineOrder
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
@@ -1866,3 +1870,24 @@ def save_customer_fcm_token(request):
     except Exception as e:
         print(f"[SAVE FCM TOKEN ERROR] {e}")
         return Response({'error': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+#----FOR DASHBOARD
+
+@api_view(['GET'])
+def total_combined_earnings(request):
+    """
+    Calculates the total earnings from both approved in-store and online orders.
+    """
+    # Sum the total_amount_after_discount for all approved in-store orders
+    in_store_total = InStoreOrder.objects.filter(status__iexact='approved').aggregate(
+        total=Sum('total_amount_after_discount')
+    )['total'] or 0
+
+    # Corrected: Sum the 'total_amount_after_discount' for all completed online orders
+    online_total = OnlineOrder.objects.filter(status__iexact='completed').aggregate(
+        total=Sum('total_amount_after_discount')
+    )['total'] or 0
+
+    combined_total = in_store_total + online_total
+
+    return Response({'total_earnings': combined_total})
