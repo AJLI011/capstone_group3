@@ -8,7 +8,6 @@ from .views import delete_expired_batch, remove_promo, get_customer_medicines
 from .views import inventory_logs, PromoMedicineView, PromoMedicineDetailView, get_customer_medicine_detail
 from .views import InStoreSalesReportView
 from .views import OnlineSalesReportView
-from .views import check_expired_and_notify_manager
 
 
 urlpatterns = [
@@ -45,7 +44,7 @@ urlpatterns = [
     path('inventory/add/', InventoryCreateView.as_view(), name='inventory-add'), # Changed URL path and view class
     path('inventory/', get_inventory_list, name='inventory-list'), # Changed URL path and view function
     path('medicines/barcode/<str:barcode>/', views.get_medicine_by_barcode, name='get-medicine-by-barcode'),
-    path('inventory/total-quantities/', views.total_quantities, name='total_quantities'), #EDITED api/inventory
+    path('api/inventory/total-quantities/', views.total_quantities, name='total_quantities'),
     path('inventory/batches/<int:medicine_id>/', views.get_batch_details, name='inventory-batch-details'),
 
     # Expiration tracking
@@ -63,7 +62,7 @@ urlpatterns = [
     #Inventory Logs
     path('inventory-logs/', inventory_logs, name='inventory_logs'),
     
-    #Sales Function (instore) --------- check yung views and serializers nito
+    #Sales Function
     path('sales/barcode/<str:barcode>/', views.get_item_by_barcode, name='get_item_by_barcode'),
     path('sales/process/', views.process_instore_order, name='process_instore_order'),
 
@@ -88,12 +87,12 @@ urlpatterns = [
     # Order Logs
     path('order-logs/', views.order_logs_list_view, name='order-logs'),
 
-    # Online Orders ---------- this as well for prescription
+    # Online Orders
     path('customer/<str:customer_id>/online-orders/', views.get_online_customer_orders, name='get_online_customer_orders'),
     path('customer/cancel-online-order/<int:order_id>/', views.cancel_online_order, name='cancel_online_order'),
     path('customer/online-orders/create/', views.create_online_order, name='create_online_order'),
     
-    #Staff Online Orders -------- this as well
+    #Staff Online Orders
     path('staff/online-orders/', views.get_pending_online_orders, name='staff-pending-orders'),
     path('staff/confirm-online-order/<int:orderId>/', views.confirm_online_order, name='staff-confirm-order'),
 
@@ -114,21 +113,8 @@ urlpatterns = [
     # Online Sales Transaction
     path('manager/completed-online-orders/', views.completed_online_orders_report, name='completed-online-orders-report'),
     path('cashier/completed-online-orders/', views.completed_online_orders_report, name='cashier-online-orders-report'),
-    
+   
     #Online Sales Report
     path('online-sales-report/', OnlineSalesReportView.as_view(), name='online-sales-report'),
-
-    # ─────────── PRESCRIPTION SALES VIEW ───────────
-    #--------STAFF PESCRIPTION VIEWS----------
-    path('prescriptions/pending/', views.list_all_pending_prescriptions, name='list_all_pending_prescriptions'),
-    
-    # New URL for image uploads
-    path('prescriptions/<int:pk>/upload-images/', views.upload_prescription_images, name='upload-prescription-images'),
-    
-    #--------CASHIER PRESCRIPTION VIEWS--------
-    path('prescriptions/cashier/', views.list_cashier_prescriptions, name='list_cashier_prescriptions'),
-
-    #---MANAGER EXPIRATION SMS NOTIF----
-    path('check-expired/', check_expired_and_notify_manager, name='check_expired_and_notify_manager'),
-
 ]
+
