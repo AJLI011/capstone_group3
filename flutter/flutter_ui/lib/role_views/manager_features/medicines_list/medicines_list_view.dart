@@ -95,7 +95,7 @@ class _MedicineListViewState extends State<MedicineListView> {
 
   Future<List<Medicine>> fetchMedicines() async {
     final response = await http.get(
-      Uri.parse('http://jallybee.pythonanywhere.com/api/medicines/'),
+      Uri.parse('http://10.0.2.2:8000/api/medicines/'),
     );
 
     if (response.statusCode == 200) {
@@ -148,7 +148,7 @@ class _MedicineListViewState extends State<MedicineListView> {
     final staffId = prefs.getInt('staff_id'); // assumes it's saved during login
 
     // ✅ Attach staff_id as query parameter
-    final uri = Uri.parse('http://jallybee.pythonanywhere.com/api/medicines/$id/?staff_id=$staffId');
+    final uri = Uri.parse('http://10.0.2.2:8000/api/medicines/$id/?staff_id=$staffId');
 
     // ❌ The original code used a hardcoded Uri.parse here instead of the 'uri' variable.
     final response = await http.delete(uri); // Corrected line

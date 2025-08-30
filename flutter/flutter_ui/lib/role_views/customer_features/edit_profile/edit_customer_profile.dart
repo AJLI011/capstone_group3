@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://jallybee.pythonanywhere.com',
+  defaultValue: 'http://10.0.2.2:8000',
 );
 
 class EditCustomerProfilePage extends StatefulWidget {

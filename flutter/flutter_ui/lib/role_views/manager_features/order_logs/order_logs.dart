@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'dart:developer';
 
-const String _baseUrl = 'http://jallybee.pythonanywhere.com/api';
+const String _baseUrl = 'http://10.0.2.2:8000/api';
 
 // NEW: Data model for OnlineOrderItem
 class OnlineOrderItem {

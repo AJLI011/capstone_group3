@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://jallybee.pythonanywhere.com',
+  defaultValue: 'http://10.0.2.2:8000',
 );
 
 class EmployeeLogsPage extends StatefulWidget {

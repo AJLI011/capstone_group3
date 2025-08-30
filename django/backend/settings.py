@@ -82,10 +82,11 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'jallybee$default',
-        'USER': 'jallybee',
-        'PASSWORD': 'admin1234!',
-        'HOST': 'jallybee.mysql.pythonanywhere-services.com',
+        'NAME': 'capstone.db',
+        'USER': 'root',
+        'PASSWORD': 'jermeyn12345',
+        'HOST': '127.0.0.1',
+        'PORT': '3306',
     }
 }
 

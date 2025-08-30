@@ -46,7 +46,7 @@ class BatchDetail {
 class InventoryApiService {
   static Future<List<BatchDetail>> fetchBatchDetails(int medicineId) async {
     final String batchDetailsUrl =
-        'http://jallybee.pythonanywhere.com/api/inventory/batches/$medicineId/';
+        'http://10.0.2.2:8000/api/inventory/batches/$medicineId/';
 
     try {
       final response = await http.get(Uri.parse(batchDetailsUrl));

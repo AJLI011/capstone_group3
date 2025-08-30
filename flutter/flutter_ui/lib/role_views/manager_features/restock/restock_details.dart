@@ -138,7 +138,7 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
 
     print('Submitting restock data: $restockData');
 
-    final url = Uri.parse('http://jallybee.pythonanywhere.com/api/inventory/add/'); 
+    final url = Uri.parse('http://10.0.2.2:8000/api/inventory/add/'); 
     
     final response = await http.post(
       url,
@@ -190,7 +190,7 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
       final cleanImageUrl = imageUrlFromWidget.startsWith('/')
           ? imageUrlFromWidget
           : '/$imageUrlFromWidget';
-      fullImageUrl = 'http://jallybee.pythonanywhere.com$cleanImageUrl';
+      fullImageUrl = 'http://10.0.2.2:8000$cleanImageUrl';
     }
 
     return PopScope(
