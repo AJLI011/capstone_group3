@@ -12,10 +12,11 @@ from django.shortcuts import render, get_object_or_404
 from django.utils import timezone
 from django.db.models import F, Prefetch, DecimalField, Sum, Q
 from django.contrib.auth.hashers import check_password, make_password
+from django.db.models import Count
 
 from rest_framework import serializers, status, generics
 from rest_framework.decorators import api_view, authentication_classes, permission_classes, parser_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
@@ -23,7 +24,8 @@ from rest_framework.views import APIView
 from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, 
     InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, 
-    OnlineOrder, OnlineOrderItem, InStoreOrderApproval, Prescription, PrescriptionImage
+    OnlineOrder, OnlineOrderItem, InStoreOrderApproval, Prescription, PrescriptionImage,
+    CustomerFCMToken
 )
 from .serializers import (
     CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer,
@@ -35,38 +37,11 @@ from .serializers import (
     OrderLogSerializer, CustomerPromoMedicineDetailSerializer, CustomerMedicineDetailSerializer, 
     OnlineOrderItemReadSerializer, OnlineOrderListSerializer, OnlineOrderItemCreateSerializer, 
     OnlineOrderCreateSerializer, OnlineOrderLogDetailsSerializer, InStoreSalesTransactionSerializer, 
-    PrescriptionOrderSerializer, CombinedPrescriptionSerializer, PrescriptionImageSerializer
+    PrescriptionOrderSerializer, CombinedPrescriptionSerializer, PrescriptionImageSerializer,
+    LowStockSerializer
 )
 
-from rest_framework.decorators import api_view, authentication_classes, permission_classes, parser_classes
-from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
-from rest_framework import status
-from django.db.models import Q
-from .models import Prescription, PrescriptionImage
-
-from django.db import transaction
-from django.db.models import Prefetch
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
-
-from .models import Staff, OnlineOrder, OnlineOrderItem, Prescription, OrderLog, CustomerFCMToken
-from .serializers import OnlineOrderListSerializer
-from backend.firebase import send_fcm_notification  # <-- our Firebase helper function
-
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from .models import CustomerFCMToken, Customer
-from django.utils.timezone import now
-
-from django.db.models import Sum
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from .models import InStoreOrder, OnlineOrder
-
+from backend.firebase import send_fcm_notification
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
 
@@ -1873,6 +1848,7 @@ def save_customer_fcm_token(request):
     
 #----FOR DASHBOARD
 
+# total summary of earning (both online and instore)
 @api_view(['GET'])
 def total_combined_earnings(request):
     """
@@ -1891,3 +1867,28 @@ def total_combined_earnings(request):
     combined_total = in_store_total + online_total
 
     return Response({'total_earnings': combined_total})
+
+# for low stocks:
+@api_view(['GET'])
+def low_stock_list(request):
+    """
+    Returns a list of medicines with a total quantity at or below their restock quantity.
+    """
+    # This query directly filters the TotalQuantity table and compares its total_quantity
+    # to the related Medicine's restock_quantity using an F expression.
+    low_stock_medicines = TotalQuantity.objects.filter(
+        total_quantity__lte=F('medicine__restock_quantity')
+    ).select_related('medicine')
+    
+    # Use the serializer to format the data
+    serializer = LowStockSerializer(low_stock_medicines, many=True)
+    return Response(serializer.data)
+
+#total count
+@api_view(['GET'])
+def total_medicine_count(request):
+    """
+    Returns the total number of medicines in the database.
+    """
+    total_count = Medicine.objects.count()
+    return Response({'total_count': total_count})

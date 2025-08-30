@@ -132,6 +132,8 @@ urlpatterns = [
     
     #--------for DASHBOARD
     path('sales/total-earnings/', views.total_combined_earnings, name='total_combined_earnings'),
+    path('medicines/low-stock/', views.low_stock_list, name='low_stock_list'),
+    path('medicines/total/', views.total_medicine_count, name='total-medicines'),
 
 
 ]

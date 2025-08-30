@@ -70,10 +70,7 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
     try {
       final responses = await Future.wait([
         http.get(Uri.parse('$API_BASE/api/medicines/total/')),
-        // --- START OF CHANGE ---
-        // Calling the new combined endpoint for total earnings
         http.get(Uri.parse('$API_BASE/api/sales/total-earnings/')),
-        // --- END OF CHANGE ---
         http.get(Uri.parse('$API_BASE/api/medicines/good-stock/')),
         http.get(Uri.parse('$API_BASE/api/medicines/expiring-soon/')),
         http.get(Uri.parse('$API_BASE/api/medicines/expired/')),
@@ -86,7 +83,6 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
           totalMedicineCount = json.decode(responses[0].body)['total_count'];
         }
         if (responses[1].statusCode == 200) {
-          // The new endpoint returns 'total_earnings' instead of 'total_revenue'
           totalEarned = (json.decode(responses[1].body)['total_earnings'] as num).toDouble();
         }
         if (responses[2].statusCode == 200) {
@@ -494,21 +490,47 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
   }
 
   Widget _buildLowStockList() {
-    if (lowStockItems.isEmpty) {
-      return const Text('No low stock items found.', style: TextStyle(color: Colors.grey));
+    // Filter out items with a quantity of 0 or less
+    final filteredLowStockItems = lowStockItems.where((item) => (item['total_quantity'] ?? 0) > 0).toList();
+
+    if (filteredLowStockItems.isEmpty) {
+      return const Text(
+        'No low stock items found.',
+        style: TextStyle(color: Colors.grey),
+      );
     }
-    return Column(
-      children: lowStockItems.map((item) {
-        return Card(
-          elevation: 2,
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            leading: const Icon(Icons.medication_outlined, color: Colors.red),
-            title: Text(item['name']),
-            trailing: Text('Quantity: ${item['quantity']}'),
-          ),
-        );
-      }).toList(),
+    return SizedBox(
+      height: 200,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.shade400, width: 1.5),
+        ),
+        padding: const EdgeInsets.all(8.0),
+        child: ListView.builder(
+          itemCount: filteredLowStockItems.length,
+          itemBuilder: (context, index) {
+            final item = filteredLowStockItems[index];
+            return Card(
+              elevation: 2,
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                leading: const Icon(Icons.warning_amber, color: Colors.orange),
+                title: Text(item['name']),
+                subtitle: Text('Generic: ${item['generic_name'] ?? 'N/A'}'),
+                trailing: Text(
+                  'Qty: ${item['total_quantity']}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 
