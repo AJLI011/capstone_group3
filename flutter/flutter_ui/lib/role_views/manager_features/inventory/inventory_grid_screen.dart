@@ -170,13 +170,24 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
                     },
                   ),
                 ),
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  onPressed: () {},
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF396AAB),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
+                  ),
+                  child: const Text('Promo'),
+                ),
               ],
             ),
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: _filteredItems.isEmpty
-                ? const Center(child: Text('No medicines available.'))
+            child: _items.isEmpty
+                ? const Center(child: CircularProgressIndicator())
                 : GridView.builder(
                     padding: const EdgeInsets.all(12),
                     gridDelegate:
