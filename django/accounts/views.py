@@ -47,7 +47,6 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Q
 from .models import Prescription
-from django.db.models.functions import Coalesce #FOR TOTAL QUANTITY
 
 from .sms_utility import send_sms #FOR SMS
 
@@ -125,7 +124,7 @@ def forgot_password(request):
     token = str(uuid.uuid4())
     reset_tokens[token] = {'email': email, 'user_type': user_type}
 
-    reset_link = f'http://127.0.0.1:8000/reset-password/{token}/'
+    reset_link = f'http://jallybee.pythonanywhere.com/reset-password/{token}/'
 
     subject = 'Reset your password'
     message = f'Click the link below to reset your password:\n\n{reset_link}'
@@ -472,42 +471,13 @@ class InventoryCreateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-#-----OLD VERSION-
-#@api_view(['GET'])
-#def get_inventory_list(request):
- #   clean_expired_promos()
-  #  queryset = TotalQuantity.objects.select_related('medicine').all()
-   # serializer = InventoryListSerializer(queryset, many=True, context={'request': request})
-    #return Response(serializer.data)
 
-#---NEW VERSION----
 @api_view(['GET'])
 def get_inventory_list(request):
-    """
-    API view to get a list of all medicines with their total quantity,
-    excluding expired batches.
-    """
     clean_expired_promos()
-
-    today = date.today()
-
-    inventory_items = Medicine.objects.annotate(
-        total_quantity=Coalesce(
-            Sum('batch__quantity', filter=Q(batch__exp_date__gte=today)),
-            0,
-        )
-    ).filter(
-        total_quantity__gt=0
-    ).values(
-        'medicine_id',
-        'name',
-        'generic_name',
-        'image',
-        'category',
-        'total_quantity'
-    ).order_by('name')
-
-    return JsonResponse(list(inventory_items), safe=False)
+    queryset = TotalQuantity.objects.select_related('medicine').all()
+    serializer = InventoryListSerializer(queryset, many=True, context={'request': request})
+    return Response(serializer.data)
 
 @api_view(['GET'])
 def get_medicine_by_barcode(request, barcode):
@@ -518,8 +488,6 @@ def get_medicine_by_barcode(request, barcode):
 
     serializer = MedicineSerializer(medicine)
     return Response(serializer.data)
-
-
 
 ####### FOR INVENTORY 
 # main inventory screen - with total qty
