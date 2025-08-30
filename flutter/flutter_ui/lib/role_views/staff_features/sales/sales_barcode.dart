@@ -20,8 +20,12 @@ class SalesBarcodeScreen extends StatefulWidget {
 }
 
 class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
-  final MobileScannerController cameraController = MobileScannerController();
+  final MobileScannerController cameraController = MobileScannerController(
+    detectionSpeed: DetectionSpeed.normal,
+    torchEnabled: false,
+  );
   bool _isTorchOn = false;
+  CameraFacing _currentCameraFacing = CameraFacing.back;
   bool _isScanning = false;
 
   @override
@@ -36,7 +40,7 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
     cameraController.stop();
 
     try {
-      final response = await http.get(Uri.parse('http://10.0.2.2:8000/api/sales/barcode/$barcode/'));
+      final response = await http.get(Uri.parse('http://aaron.pythonanywhere.com/api/sales/barcode/$barcode/'));
 
       if (response.statusCode == 200) {
         // The API now returns a list of batches, not a single item.
@@ -85,10 +89,26 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
         foregroundColor: Colors.white, // Updated color for font and icon
         actions: [
           IconButton(
-            icon: Icon(_isTorchOn ? Icons.flash_on : Icons.flash_off),
+            icon: Icon(
+              _isTorchOn ? Icons.flash_on : Icons.flash_off,
+              color: _isTorchOn ? Colors.yellow : Colors.grey,
+            ),
             onPressed: () async {
               await cameraController.toggleTorch();
-              setState(() => _isTorchOn = !_isTorchOn);
+              setState(() => _isTorchOn = cameraController.torchEnabled);
+            },
+          ),
+          IconButton(
+            icon: Icon(
+              _currentCameraFacing == CameraFacing.front
+                  ? Icons.camera_front
+                  : Icons.camera_rear,
+            ),
+            onPressed: () async {
+              await cameraController.switchCamera();
+              setState(() {
+                _currentCameraFacing = cameraController.facing;
+              });
             },
           ),
         ],
@@ -96,8 +116,9 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
       body: MobileScanner(
         controller: cameraController,
         onDetect: (capture) {
-          final code = capture.barcodes.first.rawValue;
-          if (code != null) {
+          final List<Barcode> barcodes = capture.barcodes;
+          if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
+            final String code = barcodes.first.rawValue!;
             _onBarcodeDetected(code);
           }
         },
