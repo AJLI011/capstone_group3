@@ -2,7 +2,8 @@ from rest_framework import serializers
 from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, 
 InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog, OnlineOrder, OnlineOrderItem, OrderLog, Prescription,
-PrescriptionImage, CustomerFCMToken
+PrescriptionImage, CustomerFCMToken, TotalQuantity, Medicine
+
 )
 from django.contrib.auth.hashers import make_password
 from decimal import Decimal
@@ -10,6 +11,7 @@ from datetime import date
 from django.db import transaction
 from django.db.models import F, Sum
 from django.utils.timezone import now
+
 
 
 
@@ -981,3 +983,19 @@ class CustomerFCMTokenSerializer(serializers.ModelSerializer):
         fields = ['id', 'customer', 'token', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
+
+
+
+
+
+
+#-----dashboard 
+#low stocks & totalqty
+
+class LowStockSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='medicine.name')
+    generic_name = serializers.CharField(source='medicine.generic_name')
+    
+    class Meta:
+        model = TotalQuantity
+        fields = ['name', 'generic_name', 'total_quantity']
