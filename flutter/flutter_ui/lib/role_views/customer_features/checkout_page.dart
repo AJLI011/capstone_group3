@@ -65,41 +65,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
   }
 
-  // ADDED: Function to show a confirmation dialog before removing an item
-  void _confirmRemoveItem(BuildContext context, CartService cartService, int index) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Remove Item"),
-          content: const Text("Are you sure you want to remove this item from your cart?"),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-              },
-              child: const Text("Cancel"),
-            ),
-            TextButton(
-              onPressed: () {
-                cartService.removeItem(index);
-                Navigator.of(context).pop(); // Close the dialog
-              },
-              child: const Text("Remove", style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Check Out"),
-        backgroundColor: const Color.fromARGB(255, 10, 84, 182),// changed color to match
-        foregroundColor: Colors.white, // changed font color
+        backgroundColor: Colors.blue,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator()) // Show loading indicator
@@ -211,8 +182,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                 IconButton(
                                   icon: const Icon(Icons.close, color: Colors.red),
                                   onPressed: () {
-                                    // MODIFIED: Call the confirmation dialog function instead of directly removing the item
-                                    _confirmRemoveItem(context, cartService, index);
+                                    cartService.removeItem(index);
                                   },
                                 ),
                               ],
