@@ -69,15 +69,11 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
     {'value': 'antiparasitics', 'label': 'Antiparasitics'},
   ];
 
+//-------NEW EDITED TO SYNC FASTER--------
   @override
   void initState() {
     super.initState();
-    syncAndLoadInventory();
-  }
-
-  Future<void> syncAndLoadInventory() async {
-    await InventoryApiService.syncTotalQuantities();
-    await loadInventory();
+    loadInventory(); // We now only need to call this function
   }
 
   Future<void> loadInventory() async {

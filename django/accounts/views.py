@@ -47,6 +47,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Q
 from .models import Prescription
+from django.db.models.functions import Coalesce #FOR TOTAL QUANTITY
 
 from .sms_utility import send_sms #FOR SMS
 
@@ -471,13 +472,47 @@ class InventoryCreateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+#-----OLD VERSION-
+#@api_view(['GET'])
+#def get_inventory_list(request):
+ #   clean_expired_promos()
+  #  queryset = TotalQuantity.objects.select_related('medicine').all()
+   # serializer = InventoryListSerializer(queryset, many=True, context={'request': request})
+    #return Response(serializer.data)
 
+#---NEW VERSION----
 @api_view(['GET'])
 def get_inventory_list(request):
-    clean_expired_promos()
-    queryset = TotalQuantity.objects.select_related('medicine').all()
-    serializer = InventoryListSerializer(queryset, many=True, context={'request': request})
-    return Response(serializer.data)
+    """
+    API view to get a list of all medicines with their total quantity,
+    excluding expired batches.
+    """
+    # Assuming clean_expired_promos() is defined elsewhere
+    # and performs a necessary action.
+    clean_expired_promos() 
+    
+    today = date.today()
+    
+    # Use Django's ORM to perform an efficient query
+    # We group by medicine and sum the quantities of unexpired batches.
+    inventory_items = Medicine.objects.annotate(
+        total_quantity=Coalesce(
+            Sum('batch__quantity', filter=F('batch__exp_date') >= today),
+            0,
+        )
+    ).filter(
+        total_quantity__gt=0 # Filter out items with zero or negative total quantity
+    ).values(
+        'medicine_id',
+        'name',
+        'generic_name',
+        'image',
+        'category',
+        'total_quantity'
+    ).order_by('name')
+
+    # Since the query now returns a list of dictionaries, we can directly return a JsonResponse
+    return JsonResponse(list(inventory_items), safe=False)
 
 @api_view(['GET'])
 def get_medicine_by_barcode(request, barcode):
@@ -488,6 +523,8 @@ def get_medicine_by_barcode(request, barcode):
 
     serializer = MedicineSerializer(medicine)
     return Response(serializer.data)
+
+
 
 ####### FOR INVENTORY 
 # main inventory screen - with total qty
