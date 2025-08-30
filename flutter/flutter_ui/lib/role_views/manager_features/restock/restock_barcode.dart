@@ -25,21 +25,9 @@ class _RestockBarcodeScreenState extends State<RestockBarcodeScreen> {
   @override
   void initState() {
     super.initState();
-    cameraController.start().then((_) {
-      if (mounted) {
-        setState(() {
-          _isTorchOn = cameraController.torchEnabled;
-          _currentCameraFacing = cameraController.facing;
-        });
-      }
-    }).catchError((error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to start camera: $error')),
-        );
-        Navigator.of(context).pop();
-      }
-    });
+    // No manual start() call is needed here.
+    // The MobileScanner widget handles it automatically.
+    // You can initialize local state based on the controller properties.
   }
 
   @override
@@ -55,7 +43,7 @@ class _RestockBarcodeScreenState extends State<RestockBarcodeScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://jallybee.pythonanywhere.com/api/medicines/barcode/$barcode/'),
+        Uri.parse('https://jallybee.pythonanywhere.com/api/medicines/barcode/$barcode/'),
       );
 
       if (response.statusCode == 200) {
