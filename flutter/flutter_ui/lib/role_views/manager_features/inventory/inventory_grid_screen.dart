@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class InventoryApiService {
-  static const String inventoryUrl = 'https://aaron.pythonanywhere.com/api/inventory/';
+  static const String inventoryUrl = 'http://aaron.pythonanywhere.com/api/inventory/';
 
   static Future<List<TotalQuantity>> fetchInventoryItems() async {
     try {
@@ -25,7 +25,7 @@ class InventoryApiService {
   static Future<void> syncTotalQuantities() async {
     try {
       final response = await http.get(
-        Uri.parse('https://aaron.pythonanywhere.com/api/inventory/total-quantities'),
+        Uri.parse('http://aaron.pythonanywhere.com/api/inventory/total-quantities'),
       );
       if (response.statusCode == 200) {
         print('✅ Total quantity synced');
@@ -170,24 +170,13 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
                     },
                   ),
                 ),
-                const SizedBox(width: 10),
-                ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF396AAB),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                  ),
-                  child: const Text('Promo'),
-                ),
               ],
             ),
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: _items.isEmpty
-                ? const Center(child: CircularProgressIndicator())
+            child: _filteredItems.isEmpty
+                ? const Center(child: Text('No medicines available.'))
                 : GridView.builder(
                     padding: const EdgeInsets.all(12),
                     gridDelegate:
