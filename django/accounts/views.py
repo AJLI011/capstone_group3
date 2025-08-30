@@ -487,21 +487,17 @@ def get_inventory_list(request):
     API view to get a list of all medicines with their total quantity,
     excluding expired batches.
     """
-    # Assuming clean_expired_promos() is defined elsewhere
-    # and performs a necessary action.
-    clean_expired_promos() 
-    
+    clean_expired_promos()
+
     today = date.today()
-    
-    # Use Django's ORM to perform an efficient query
-    # We group by medicine and sum the quantities of unexpired batches.
+
     inventory_items = Medicine.objects.annotate(
         total_quantity=Coalesce(
-            Sum('batch__quantity', filter=F('batch__exp_date') >= today),
+            Sum('batch__quantity', filter=Q(batch__exp_date__gte=today)),
             0,
         )
     ).filter(
-        total_quantity__gt=0 # Filter out items with zero or negative total quantity
+        total_quantity__gt=0
     ).values(
         'medicine_id',
         'name',
@@ -511,7 +507,6 @@ def get_inventory_list(request):
         'total_quantity'
     ).order_by('name')
 
-    # Since the query now returns a list of dictionaries, we can directly return a JsonResponse
     return JsonResponse(list(inventory_items), safe=False)
 
 @api_view(['GET'])
