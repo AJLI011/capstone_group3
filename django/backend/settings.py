@@ -84,7 +84,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'capstone_db',
         'USER': 'root',
-        'PASSWORD': 'jermeyn12345',
+        'PASSWORD': 'Fixthebreak_99',
         'HOST': '127.0.0.1',
         'PORT': '3306',
     }

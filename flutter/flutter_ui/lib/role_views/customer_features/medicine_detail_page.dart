@@ -65,17 +65,16 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('View Specific Medicine'),
-        backgroundColor: const Color(0xFF003B63),
+        title: Text(medicineData!['name']),
+        backgroundColor: const Color.fromARGB(255, 10, 84, 182),
+        foregroundColor: Colors.white,
       ),
       body: Stack(
         children: [
-          // Scrollable Content
           SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Image Section
                 Container(
                   color: Colors.white,
                   height: 300,
@@ -89,7 +88,6 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                         )
                       : Image.asset('assets/placeholder.png', fit: BoxFit.contain),
                 ),
-                // Information Section
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
                   decoration: const BoxDecoration(
@@ -114,8 +112,16 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                           color: Colors.grey,
                         ),
                       ),
+                      const SizedBox(height: 4), // Add spacing for dosage form
+                      Text(
+                        medicineData!['dosage_form'] ?? 'Dosage form not specified',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.black54,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
                       const SizedBox(height: 16),
-                      // Price, In Stock & Quantity
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -151,7 +157,6 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      // Prescription Required
                       if (prescriptionRequired)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -169,14 +174,13 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                             ),
                           ),
                         ),
-                      const SizedBox(height: 200), // Placeholder to prevent bottom overlap
+                      const SizedBox(height: 200),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-          // Bottom fixed bar with Quantity Selector and Add to Cart button
           Positioned(
             bottom: 0,
             left: 0,
@@ -196,7 +200,6 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Quantity Selector
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.grey.shade200,
@@ -223,7 +226,6 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                       ],
                     ),
                   ),
-                  // Add to Cart Button
                   ElevatedButton.icon(
                     onPressed: availableQuantity > 0
                         ? () {
