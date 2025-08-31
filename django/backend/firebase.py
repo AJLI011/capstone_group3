@@ -36,5 +36,13 @@ def send_fcm_notification(token: str, title: str, body: str):
         # Send the message
         response = messaging.send(message)
         print(f"✅ FCM notification sent successfully: {response}")
+    # FIX: Catch the specific error for better logging
+    except firebase_exceptions.NotFoundError as e:
+        print(f"⚠️ Failed to send FCM notification: Requested entity was not found.")
+        print(f"Error details: {e}")
     except firebase_exceptions.FirebaseError as e:
-        print(f"⚠️ Failed to send FCM notification: {e}")
+        # Catch other generic Firebase errors
+        print(f"⚠️ An unknown Firebase error occurred: {e}")
+    except Exception as e:
+        # Catch all other exceptions
+        print(f"⚠️ An unexpected error occurred: {e}")

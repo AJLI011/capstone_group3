@@ -1094,13 +1094,13 @@ def confirm_online_order(request, orderId):
     """
     API view for staff to confirm a pending online order.
     Changes the status from 'pending' to 'ready for pickup'.
-    Sends a push notification to the customer if token exists.
+    Sends a push notification to the customer if a token exists.
     """
     try:
         staff_id = request.data.get('staff_id')
         if not staff_id:
             return Response({'error': 'Staff ID is required'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         staff_user = Staff.objects.get(id=staff_id)
 
         with transaction.atomic():
@@ -1130,18 +1130,24 @@ def confirm_online_order(request, orderId):
                 # -------------------------------
                 # Send push notification to customer
                 # -------------------------------
-                token_obj = CustomerFCMToken.objects.filter(customer=order.customer).first()
-                if token_obj:
-                    try:
-                        # ✅ CORRECTED: Use .token instead of .fcm_token
-                        send_fcm_notification(
-                            token=token_obj.token, 
-                            title="Your order is ready for pickup",
-                            body=f"Hi {order.customer.name}, your order has been confirmed."
-                        )
-                    except Exception as e:
-                        print(f"[FCM SEND ERROR] {e}")
+                try:
+                    # FIX: Use .filter() to get all tokens and iterate through them
+                    token_objects = CustomerFCMToken.objects.filter(customer=order.customer)
+                    
+                    if not token_objects.exists():
+                        print(f"⚠️ No FCM tokens found for customer {order.customer.id}.")
+                    else:
+                        for token_obj in token_objects:
+                            send_fcm_notification(
+                                token=token_obj.token,
+                                title="Your order is ready for pickup",
+                                body=f"Hi {order.customer.name}, your order has been confirmed."
+                            )
+                except Exception as e:
+                    # Log the error but continue the process
+                    print(f"[FCM SEND ERROR] {e}")
 
+                # This is the single, final success response
                 return Response(
                     {"detail": "Online order confirmed successfully."},
                     status=status.HTTP_200_OK
