@@ -1452,14 +1452,14 @@ def completed_online_orders_report(request):
                 completed_orders = completed_orders.filter(
                     date_created__range=(start_of_day, end_of_day)
                 )
-                
+
             except ValueError:
                 # Handle cases where the date format is incorrect
                 return Response(
-                    {"error": "Invalid date format. Use YYYY-MM-DD."}, 
+                    {"error": "Invalid date format. Use YYYY-MM-DD."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        
+
         # Order the results by creation date
         completed_orders = completed_orders.order_by('-date_created')
 
@@ -1468,17 +1468,17 @@ def completed_online_orders_report(request):
             # Get initiated and approved staff from logs
             initiated_by_log = OrderLog.objects.filter(online_order=order, action_type='online_confirmed').first()
             approved_by_log = OrderLog.objects.filter(online_order=order, action_type='online_picked_up').first()
-            
+
             # Get the customer type based on the 'is_pwd' field
             customer_type = 'Discounted' if order.is_pwd else 'Regular'
-            
+
             # Get the timestamp from the 'date_created' field and format it
-            fulfilled_timestamp = order.date_created.strftime('%m/%d/%Y %I:%M %p') if order.date_created else 'N/A'
-            
+            fulfilled_timestamp = order.date_created.isoformat() if order.date_created else 'N/A'
+
             # Calculate subtotal and discount
             subtotal_amount = order.total_amount_before_discount
             discount_amount = subtotal_amount - order.total_amount_after_discount
-            
+
             # Get items
             items_data = []
             for item in order.items.all():
@@ -1489,23 +1489,19 @@ def completed_online_orders_report(request):
                     'promo_quantity': item.free_quantity_given,
                     'item_total': float(item.price_at_sale * item.quantity_sold),
                 })
-            
-            # ---- START OF CORRECTED LOGIC (Based on your models) ----
-            
+
+            # Get the name and role of the staff who initiated and approved the order
             initiated_by_name = 'N/A'
             initiated_by_role = 'N/A'
             if initiated_by_log and initiated_by_log.staff_user:
                 initiated_by_name = initiated_by_log.staff_user.name
                 initiated_by_role = initiated_by_log.staff_user.role.capitalize()
-                # You can use .capitalize() to make it 'Cashier' or 'Staff'
 
             approved_by_name = 'N/A'
             approved_by_role = 'N/A'
             if approved_by_log and approved_by_log.staff_user:
                 approved_by_name = approved_by_log.staff_user.name
                 approved_by_role = approved_by_log.staff_user.role.capitalize()
-            
-            # ---- END OF CORRECTED LOGIC ----
 
             orders_data.append({
                 'order_id': order.id,
@@ -1521,13 +1517,11 @@ def completed_online_orders_report(request):
                 'fulfilled_timestamp': fulfilled_timestamp,
                 'medicines_ordered': items_data,
             })
-        
+
         return Response(orders_data, status=status.HTTP_200_OK)
 
     except Exception as e:
-        # Check if the logger is defined before using it
-        # if 'logger' in globals():
-        #     logger.error(f"[COMPLETED ORDERS REPORT ERROR] {e}")
+        # You may want to add logging here to see the specific error
         return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 #===================In store Sales Report=================

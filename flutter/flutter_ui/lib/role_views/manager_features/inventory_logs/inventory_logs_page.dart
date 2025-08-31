@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+
 
 class InventoryLogsPage extends StatefulWidget {
   const InventoryLogsPage({Key? key}) : super(key: key);
@@ -17,6 +20,8 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
   @override
   void initState() {
     super.initState();
+    // Initialize timezone data
+    tz.initializeTimeZones();
     fetchInventoryLogs();
   }
 
@@ -63,7 +68,18 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
       itemCount: logs.length,
       itemBuilder: (context, index) {
         final log = logs[index];
-        final timestamp = DateTime.parse(log['timestamp']);
+
+        // START OF CHANGES
+        // Parse the timestamp string to a DateTime object.
+        final DateTime utcTimestamp = DateTime.parse(log['timestamp']).toUtc();
+
+        // Define the target timezone.
+        final location = tz.getLocation('Asia/Manila');
+
+        // Convert the UTC timestamp to the target timezone.
+        final tz.TZDateTime manilaTimestamp = tz.TZDateTime.from(utcTimestamp, location);
+
+        // END OF CHANGES
 
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -72,7 +88,8 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
               '${log['action_type']} by ${log['user_name']}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            subtitle: Text(DateFormat('MM-dd-yyyy hh:mm a').format(timestamp)),
+            // Use the converted timestamp for formatting.
+            subtitle: Text(DateFormat('MM-dd-yyyy hh:mm a').format(manilaTimestamp)),
             children: <Widget>[
               Padding(
                 padding: const EdgeInsets.all(16.0),

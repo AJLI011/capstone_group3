@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'dart:developer';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 const String _baseUrl = 'http://10.0.2.2:8000/api';
 
@@ -133,13 +135,20 @@ class OrderLog {
       }
     }
 
+    // Get the UTC time from Django's timestamp string.
+    final DateTime utcTimestamp = DateTime.parse(json['timestamp']).toUtc();
+
+    // Convert the UTC timestamp to the specific 'Asia/Manila' timezone.
+    final location = tz.getLocation('Asia/Manila');
+    final tz.TZDateTime manilaTimestamp = tz.TZDateTime.from(utcTimestamp, location);
+
     return OrderLog(
       id: json['id'] ?? 0,
       staffName: json['staff_name'] ?? 'Unknown',
       staffRole: json['staff_role'] ?? 'Unknown',
       actionType: json['action_type'] ?? 'Unknown',
       description: json['description'] ?? '',
-      timestamp: DateTime.parse(json['timestamp']),
+      timestamp: manilaTimestamp,
       orderDetails: parsedDetails,
     );
   }
@@ -158,6 +167,8 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialize timezone data
+    tz.initializeTimeZones();
     _futureOrderLogs = fetchOrderLogs();
   }
 

@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
+// Add these imports for timezone support
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+
 
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
@@ -25,6 +29,8 @@ class _CashierOnlineTransactionPageState extends State<CashierOnlineTransactionP
   @override
   void initState() {
     super.initState();
+    // Initialize timezone data
+    tz.initializeTimeZones();
     // Fetch orders for the current date when the page first loads.
     _fetchCompletedOrdersForSelectedDate();
   }
@@ -159,7 +165,7 @@ class _CashierOnlineTransactionPageState extends State<CashierOnlineTransactionP
                 final totalAmount = order['total_amount'];
                 final subtotalAmount = order['subtotal_amount'] ?? 0.0;
                 final discountAmount = order['discount_amount'] ?? 0.0;
-                final fulfilledTimestamp = order['fulfilled_timestamp'] ?? 'N/A';
+                final fulfilledTimestampString = order['fulfilled_timestamp'] ?? 'N/A';
                 final items = order['medicines_ordered'] as List<dynamic>;
 
                 final formattedTotal = NumberFormat.currency(
@@ -180,6 +186,22 @@ class _CashierOnlineTransactionPageState extends State<CashierOnlineTransactionP
                   decimalDigits: 2,
                 ).format(discountAmount);
 
+                // START OF TIMEZONE LOGIC
+                // Check if the timestamp is available before parsing
+                String formattedTimestamp = 'N/A';
+                if (fulfilledTimestampString != 'N/A') {
+                  try {
+                    // Parse the ISO 8601 string directly, it already contains timezone info
+                    final DateTime utcTimestamp = DateTime.parse(fulfilledTimestampString);
+                    final location = tz.getLocation('Asia/Manila');
+                    final tz.TZDateTime manilaTimestamp = tz.TZDateTime.from(utcTimestamp, location);
+                    formattedTimestamp = DateFormat('yyyy-MM-dd hh:mm a').format(manilaTimestamp);
+                  } catch (e) {
+                    debugPrint('Error parsing timestamp: $e');
+                  }
+                }
+                // END OF TIMEZONE LOGIC
+
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   elevation: 4,
@@ -199,7 +221,8 @@ class _CashierOnlineTransactionPageState extends State<CashierOnlineTransactionP
                               ),
                             ),
                             Text(
-                              fulfilledTimestamp,
+                              // Use the new formatted timestamp here
+                              formattedTimestamp,
                               style: const TextStyle(
                                 color: Colors.black54,
                                 fontSize: 12,
