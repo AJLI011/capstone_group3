@@ -1,3 +1,5 @@
+// staff_orders.dart
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -48,46 +50,57 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
   }
 
   Future<void> _confirmOrder(int orderId) async {
-      final url = '$_baseUrl/api/staff/confirm-online-order/$orderId/';
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final int? staffId = prefs.getInt('staff_id');
+    print('I/flutter (UI): Tapped "Confirm Order" button for Order #$orderId.');
 
-      if (staffId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error: Staff ID is missing.')),
-        );
-        return;
-      }
+    final url = '$_baseUrl/api/staff/confirm-online-order/$orderId/';
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final int? staffId = prefs.getInt('staff_id');
 
-      final body = jsonEncode({
-        'staff_id': staffId,
-      });
-
-      try {
-        final response = await http.put(
-          Uri.parse(url),
-          headers: {'Content-Type': 'application/json'},
-          body: body,
-        );
-
-        if (response.statusCode == 200) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Order confirmed successfully.')),
-          );
-          _refreshOrders();
-        } else {
-          final errorBody = jsonDecode(response.body);
-          final errorMessage = errorBody['detail'] ?? 'Failed to confirm order.';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMessage)),
-          );
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to connect to the server: $e')),
-        );
-      }
+    if (staffId == null) {
+      print('I/flutter (UI): Error - Staff ID is missing from SharedPreferences.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: Staff ID is missing.')),
+      );
+      return;
     }
+
+    final body = jsonEncode({
+      'staff_id': staffId,
+    });
+
+    print('I/flutter (UI): Sending PUT request to API with body: $body');
+
+    try {
+      final response = await http.put(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: body,
+      );
+      
+      print('I/flutter (UI): API Response Status Code: ${response.statusCode}');
+      print('I/flutter (UI): API Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        print('I/flutter (UI): ✅ Order confirmed successfully via API.');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Order confirmed successfully.')),
+        );
+        _refreshOrders();
+      } else {
+        final errorBody = jsonDecode(response.body);
+        final errorMessage = errorBody['detail'] ?? 'Failed to confirm order.';
+        print('I/flutter (UI): ❌ Failed to confirm order. Error: $errorMessage');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
+    } catch (e) {
+      print('I/flutter (UI): ❌ Failed to connect to the server. Exception: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to connect to the server: $e')),
+      );
+    }
+  }
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -139,7 +152,6 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
             final orders = snapshot.data!;
             final pendingOrders = orders.where((order) => order['status'] == 'pending').toList();
             
-            // Filter ready for pickup orders by date
             List<dynamic> readyForPickupOrders = orders.where((order) => order['status'] == 'ready for pickup').toList();
             if (_selectedDate != null) {
               readyForPickupOrders = readyForPickupOrders.where((order) {
@@ -153,9 +165,7 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
             return TabBarView(
               controller: _tabController,
               children: [
-                // Pending Orders Tab
                 _buildOrderList(pendingOrders, isPending: true),
-                // Ready for Pickup Tab with Date Picker
                 _buildReadyForPickupTab(readyForPickupOrders),
               ],
             );
