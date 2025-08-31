@@ -642,14 +642,16 @@ class OnlineOrderListSerializer(serializers.ModelSerializer):
     customer_email = serializers.CharField(source='customer.email', read_only=True)
     pickup_schedule = serializers.DateTimeField(read_only=True)
 
+    # ADD THIS LINE to map the fulfilled_timestamp to the date_fulfilled model field
+    fulfilled_timestamp = serializers.DateTimeField(source='date_fulfilled', read_only=True)
+
     class Meta:
         model = OnlineOrder
         fields = [
             'id', 'customer_name', 'customer_email', 'date_created',
             'status', 'total_amount_before_discount', 'total_amount_after_discount',
-            'is_pwd', 'items', 'pickup_schedule'
+            'is_pwd', 'items', 'pickup_schedule', 'fulfilled_timestamp'
         ]
-
 
 class OnlineOrderItemCreateSerializer(serializers.ModelSerializer):
     medicine_id = serializers.PrimaryKeyRelatedField(
