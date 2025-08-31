@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import 'cart_service.dart';
 import 'package:intl/intl.dart';
 import 'orderarrangement_page.dart';
-import 'package:http/http.dart' as http; // ADDED: Import http package
-import 'dart:convert'; // ADDED: Import for JSON decoding
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class CheckoutPage extends StatefulWidget {
   final int customerId;
@@ -17,16 +17,15 @@ class CheckoutPage extends StatefulWidget {
 class _CheckoutPageState extends State<CheckoutPage> {
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
-  bool _isPwd = false; // ADDED: State variable to store PWD status
-  bool _isLoading = true; // ADDED: State variable for loading status
+  bool _isPwd = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchCustomerData(); // ADDED: Fetch customer data on initialization
+    _fetchCustomerData();
   }
 
-  // ADDED: Function to fetch customer details from the API
   Future<void> _fetchCustomerData() async {
     setState(() {
       _isLoading = true;
@@ -40,10 +39,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
         setState(() {
-          _isPwd = data['is_pwd'] ?? false; // Safely get the is_pwd value
+          _isPwd = data['is_pwd'] ?? false;
         });
       } else {
-        // Handle error if customer data cannot be fetched
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to fetch customer data: ${response.statusCode}'),
@@ -73,13 +71,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
         backgroundColor: Colors.blue,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator()) // Show loading indicator
+          ? const Center(child: CircularProgressIndicator())
           : Consumer<CartService>(
               builder: (context, cartService, child) {
                 final cartItems = cartService.items;
-
-                // Rest of the UI remains the same...
-                // ...
                 return Column(
                   children: [
                     Expanded(
@@ -88,6 +83,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         itemCount: cartItems.length,
                         itemBuilder: (context, index) {
                           final item = cartItems[index];
+
+                          final quantityAdded = item.isPromo ? 2 : 1;
+                          final bool isAddDisabled = (item.quantity + item.promoQuantity + quantityAdded) > item.availableStock;
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
@@ -145,8 +143,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                         ),
                                       ),
                                       const SizedBox(height: 4),
-                                      // Display Promo Quantity if applicable
-                                      if (item.promoQuantity > 0)
+                                      if (item.isPromo)
                                         Text(
                                           "Promo: ${item.promoQuantity}",
                                           style: const TextStyle(
@@ -168,14 +165,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                       },
                                     ),
                                     Text(
-                                      "${item.quantity}",
+                                      "${item.quantity}", // CORRECTED: Show paid quantity
                                       style: const TextStyle(color: Colors.black),
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.add_circle_outline, color: Colors.blue),
-                                      onPressed: () {
-                                        cartService.increaseQuantity(index);
-                                      },
+                                      icon: Icon(
+                                        Icons.add_circle_outline,
+                                        color: isAddDisabled ? Colors.grey : Colors.blue,
+                                      ),
+                                      onPressed: isAddDisabled
+                                          ? null
+                                          : () {
+                                              cartService.increaseQuantity(index);
+                                            },
                                     ),
                                   ],
                                 ),
@@ -212,14 +214,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text("Quantity", style: TextStyle(color: Colors.white)),
+                              const Text("Paid Quantity", style: TextStyle(color: Colors.white)),
                               Text("${cartService.totalPaidQuantity}", style: const TextStyle(color: Colors.white)),
                             ],
                           ),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text("Promo Quantity", style: TextStyle(color: Colors.white)),
+                              const Text("Free Quantity", style: TextStyle(color: Colors.white)),
                               Text("${cartService.totalPromoQuantity}", style: const TextStyle(color: Colors.white)),
                             ],
                           ),
@@ -231,7 +233,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          // Pickup date and time selectors
                           Row(
                             children: [
                               Expanded(
@@ -278,7 +279,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                     ),
                                   );
                                 } else {
-                                  // Combine the selected date and time into a single DateTime object
                                   final DateTime pickupDateTime = DateTime(
                                     selectedDate!.year,
                                     selectedDate!.month,
@@ -286,14 +286,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                     selectedTime!.hour,
                                     selectedTime!.minute,
                                   );
-
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) => OrderArrangementPage(
                                         pickupSchedule: pickupDateTime,
                                         customerId: widget.customerId,
-                                        isPwd: _isPwd, // CORRECTION: Pass the fetched _isPwd value
+                                        isPwd: _isPwd,
                                       ),
                                     ),
                                   );
@@ -346,7 +345,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     if (selected.isAtSameMomentAs(today)) {
       final currentTime = TimeOfDay.fromDateTime(now);
-
       int startHour = currentTime.hour;
       int startMinute = currentTime.minute + 1;
       if (startMinute >= 60) {

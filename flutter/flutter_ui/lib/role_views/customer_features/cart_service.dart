@@ -1,4 +1,3 @@
-
 // cart_service.dart
 import 'package:flutter/material.dart';
 
@@ -12,6 +11,7 @@ class CartItem {
   int quantity;
   final bool isPromo;
   int promoQuantity;
+  final int availableStock;
 
   CartItem({
     required this.id,
@@ -21,6 +21,7 @@ class CartItem {
     required this.image,
     required this.price,
     required this.quantity,
+    required this.availableStock,
     this.isPromo = false,
     this.promoQuantity = 0,
   });
@@ -38,18 +39,14 @@ class CartService with ChangeNotifier {
   List<CartItem> get items => _items;
 
   void addToCart(CartItem item) {
-    // Find an existing item with the same ID and promo status
     final existingIndex = _items.indexWhere(
       (i) => i.id == item.id && i.isPromo == item.isPromo,
     );
 
     if (existingIndex >= 0) {
-      // If the exact item exists, update its quantities.
-      // The incoming item already has the correct promoQuantity.
       _items[existingIndex].quantity += item.quantity;
       _items[existingIndex].promoQuantity += item.promoQuantity;
     } else {
-      // If no existing item, add a new one.
       _items.add(item);
     }
     notifyListeners();
@@ -94,11 +91,20 @@ class CartService with ChangeNotifier {
   void increaseQuantity(int index) {
     if (index >= 0 && index < _items.length) {
       final item = _items[index];
-      item.quantity++;
-      if (item.isPromo) {
-        item.promoQuantity++;
+      
+      // We are adding one paid item and potentially one free item.
+      final quantityAdded = item.isPromo ? 2 : 1; 
+
+      // Check if the current total quantity plus the new quantity will exceed the stock
+      if ((item.quantity + item.promoQuantity + quantityAdded) <= item.availableStock) {
+        item.quantity++;
+        if (item.isPromo) {
+          item.promoQuantity++;
+        }
+        notifyListeners();
+      } else {
+        print("Cannot add more. Exceeded available stock of ${item.availableStock}");
       }
-      notifyListeners();
     }
   }
 }

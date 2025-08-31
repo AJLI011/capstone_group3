@@ -239,6 +239,7 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                                 price: double.parse(medicineData!['price'].toString()),
                                 quantity: selectedQuantity,
                                 isPromo: false,
+                                availableStock: availableQuantity, // ADDED: Pass the availableQuantity
                               ),
                             );
                             ScaffoldMessenger.of(context).showSnackBar(
