@@ -24,9 +24,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-5)i5x4*mpiskxl*u^xkr$6*a^du_=b5knz+gpx-u2sby9bw%aq'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['10.0.0.2', 'localhost', '*', '127.0.0.1:8000', 'jallybee.pythonanywhere.com']
+ALLOWED_HOSTS = ['10.0.0.2', 'localhost', '*', '127.0.0.1:8000', 'juliaally.pythonanywhere.com']
 
 
 # Application definition
@@ -82,11 +82,10 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'capstone_db',
-        'USER': 'root',
-        'PASSWORD': 'Fixthebreak_99',
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
+        'NAME': 'juliaally$default',
+        'USER': 'juliaally',
+        'PASSWORD': 'group3pharmacy',
+        'HOST': 'juliaally.mysql.pythonanywhere-services.com',
     }
 }
 
