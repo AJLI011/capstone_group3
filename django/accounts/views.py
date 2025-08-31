@@ -1321,9 +1321,8 @@ def finalize_online_order(request, orderId):
     API view to finalize an online order after pickup.
     This marks the order status as 'completed' and deducts the inventory.
     
-    This function has been fixed to correctly deduct inventory for each individual
-    order item, ensuring that promo items and regular items for the same medicine
-    are deducted from their respective, pre-allocated inventory batches.
+    This function now correctly handles both regular and promo items, deducting
+    from their respective inventory batches using FEFO logic.
     """
     try:
         staff_id = request.data.get('staff_id')
@@ -1335,33 +1334,97 @@ def finalize_online_order(request, orderId):
         with transaction.atomic():
             order = OnlineOrder.objects.get(id=orderId, status='ready for pickup')
             
-            # Iterate through each specific item in the order to deduct from its
-            # dedicated inventory batch. This fixes the issue of mixed deductions.
+            # Step 1: Aggregate the total quantity required for each medicine,
+            # separating regular and promo items.
+            regular_items_to_deduct = {}
+            promo_items_to_deduct = {}
+            
             for item in order.items.all():
-                inventory_batch = item.inventory_id
+                medicine_id = item.inventory_id.medicine.id
+                quantity_needed = item.quantity_sold + item.free_quantity_given
                 
-                # The quantity to deduct is the sum of sold and free quantities.
-                # This quantity is already linked to the correct inventory batch via the
-                # OnlineOrderItem model.
-                quantity_to_deduct = item.quantity_sold + item.free_quantity_given
-                medicine_name = inventory_batch.medicine.name
+                if item.inventory_id.is_promo:
+                    # This is a promo item
+                    if medicine_id not in promo_items_to_deduct:
+                        promo_items_to_deduct[medicine_id] = {
+                            'name': item.inventory_id.medicine.name,
+                            'quantity': 0
+                        }
+                    promo_items_to_deduct[medicine_id]['quantity'] += quantity_needed
+                else:
+                    # This is a regular item
+                    if medicine_id not in regular_items_to_deduct:
+                        regular_items_to_deduct[medicine_id] = {
+                            'name': item.inventory_id.medicine.name,
+                            'quantity': 0
+                        }
+                    regular_items_to_deduct[medicine_id]['quantity'] += quantity_needed
 
-                # Check for sufficient stock in the specific inventory batch
-                if inventory_batch.quantity < quantity_to_deduct:
+            # Step 2: Deduct from regular inventory batches (is_promo=False)
+            for medicine_id, data in regular_items_to_deduct.items():
+                required_quantity = data['quantity']
+                medicine_name = data['name']
+                
+                # Get all regular batches for this medicine, ordered by expiry date (FEFO)
+                batches = Inventory.objects.select_for_update().filter(
+                    medicine_id=medicine_id,
+                    is_promo=False, # Filter for regular stock
+                    quantity__gt=0,
+                ).order_by('exp_date')
+                
+                # Check if there is enough total stock before starting the deduction loop
+                total_available_stock = sum(batch.quantity for batch in batches)
+                if total_available_stock < required_quantity:
                     raise ValueError(
-                        f"Insufficient stock for {medicine_name}. Available: {inventory_batch.quantity}, Required: {quantity_to_deduct}"
+                        f"Insufficient regular stock for {medicine_name}. Available: {total_available_stock}, Required: {required_quantity}"
                     )
                 
-                # Deduct the quantity from the specific inventory batch
-                inventory_batch.quantity -= quantity_to_deduct
-                inventory_batch.save()
+                remaining_to_deduct = required_quantity
+                for batch in batches:
+                    if remaining_to_deduct <= 0:
+                        break 
+                    amount_to_take = min(remaining_to_deduct, batch.quantity)
+                    batch.quantity -= amount_to_take
+                    batch.save()
+                    remaining_to_deduct -= amount_to_take
             
-            # Update the order status to 'completed' and record the fulfillment date
-            order.status = 'completed'
-            order.date_fulfilled = timezone.now()
-            order.save() # Mark the order as completed and record the exact fulfillment timestamp
+            # Step 3: Deduct from promo inventory batches (is_promo=True)
+            for medicine_id, data in promo_items_to_deduct.items():
+                required_quantity = data['quantity']
+                medicine_name = data['name']
+                
+                # Get all promo batches for this medicine, ordered by expiry date (FEFO)
+                batches = Inventory.objects.select_for_update().filter(
+                    medicine_id=medicine_id,
+                    is_promo=True, # Filter for promo stock
+                    quantity__gt=0,
+                ).order_by('exp_date')
+                
+                # Check if there is enough total stock before starting the deduction loop
+                total_available_stock = sum(batch.quantity for batch in batches)
+                if total_available_stock < required_quantity:
+                    raise ValueError(
+                        f"Insufficient promo stock for {medicine_name}. Available: {total_available_stock}, Required: {required_quantity}"
+                    )
+                
+                remaining_to_deduct = required_quantity
+                for batch in batches:
+                    if remaining_to_deduct <= 0:
+                        break 
+                    amount_to_take = min(remaining_to_deduct, batch.quantity)
+                    batch.quantity -= amount_to_take
+                    batch.save()
+                    remaining_to_deduct -= amount_to_take
 
-            # Create a log entry for the picked up online order
+            # Step 4: Update the order status and create a log entry after successful deduction.
+            # This is the correct order of operations.
+            from .serializers import OnlineOrderListSerializer
+
+            order.date_fulfilled = timezone.now()
+            order.status = 'completed'
+            order.save()
+            
+            # Create the log entry after the order is successfully finalized and saved.
             OrderLog.objects.create(
                 staff_user=staff_user,
                 online_order=order,
@@ -1369,10 +1432,10 @@ def finalize_online_order(request, orderId):
                 description=f'Online order marked as picked up by cashier {staff_user.name}.'
             )
 
-            return Response(
-                {"detail": "Online order finalized successfully, inventory deducted."},
-                status=status.HTTP_200_OK
-            )
+            # The serializer automatically handles the date formatting correctly
+            serializer = OnlineOrderListSerializer(order)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
     except Staff.DoesNotExist:
         return Response({'error': 'Staff member not found'}, status=status.HTTP_404_NOT_FOUND)
     except OnlineOrder.DoesNotExist:
@@ -1386,12 +1449,12 @@ def finalize_online_order(request, orderId):
             status=status.HTTP_400_BAD_REQUEST
         )
     except Exception as e:
-        logger.error(f"[FINALIZE ORDER ERROR] {e}")
+        # A more robust error logging and handling mechanism might be needed for production
         return Response(
             {"detail": f"An unexpected error occurred: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
+        
 #------instore sales transaction views----------------
 
 class InStoreSalesTransactionView(generics.ListAPIView):
@@ -1452,14 +1515,14 @@ def completed_online_orders_report(request):
                 completed_orders = completed_orders.filter(
                     date_created__range=(start_of_day, end_of_day)
                 )
-
+                
             except ValueError:
                 # Handle cases where the date format is incorrect
                 return Response(
-                    {"error": "Invalid date format. Use YYYY-MM-DD."},
+                    {"error": "Invalid date format. Use YYYY-MM-DD."}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
+        
         # Order the results by creation date
         completed_orders = completed_orders.order_by('-date_created')
 
@@ -1468,17 +1531,18 @@ def completed_online_orders_report(request):
             # Get initiated and approved staff from logs
             initiated_by_log = OrderLog.objects.filter(online_order=order, action_type='online_confirmed').first()
             approved_by_log = OrderLog.objects.filter(online_order=order, action_type='online_picked_up').first()
-
+            
             # Get the customer type based on the 'is_pwd' field
             customer_type = 'Discounted' if order.is_pwd else 'Regular'
-
+            
             # Get the timestamp from the 'date_created' field and format it
+            # Corrected line to format the timestamp as ISO 8601
             fulfilled_timestamp = order.date_created.isoformat() if order.date_created else 'N/A'
-
+            
             # Calculate subtotal and discount
             subtotal_amount = order.total_amount_before_discount
             discount_amount = subtotal_amount - order.total_amount_after_discount
-
+            
             # Get items
             items_data = []
             for item in order.items.all():
@@ -1489,19 +1553,23 @@ def completed_online_orders_report(request):
                     'promo_quantity': item.free_quantity_given,
                     'item_total': float(item.price_at_sale * item.quantity_sold),
                 })
-
-            # Get the name and role of the staff who initiated and approved the order
+            
+            # ---- START OF CORRECTED LOGIC (Based on your models) ----
+            
             initiated_by_name = 'N/A'
             initiated_by_role = 'N/A'
             if initiated_by_log and initiated_by_log.staff_user:
                 initiated_by_name = initiated_by_log.staff_user.name
                 initiated_by_role = initiated_by_log.staff_user.role.capitalize()
+                # You can use .capitalize() to make it 'Cashier' or 'Staff'
 
             approved_by_name = 'N/A'
             approved_by_role = 'N/A'
             if approved_by_log and approved_by_log.staff_user:
                 approved_by_name = approved_by_log.staff_user.name
                 approved_by_role = approved_by_log.staff_user.role.capitalize()
+            
+            # ---- END OF CORRECTED LOGIC ----
 
             orders_data.append({
                 'order_id': order.id,
@@ -1517,13 +1585,15 @@ def completed_online_orders_report(request):
                 'fulfilled_timestamp': fulfilled_timestamp,
                 'medicines_ordered': items_data,
             })
-
+        
         return Response(orders_data, status=status.HTTP_200_OK)
 
     except Exception as e:
-        # You may want to add logging here to see the specific error
+        # Check if the logger is defined before using it
+        # if 'logger' in globals():
+        #     logger.error(f"[COMPLETED ORDERS REPORT ERROR] {e}")
         return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+
 #===================In store Sales Report=================
 #For Instore Page Viewing
 class InStoreSalesReportView(APIView):
