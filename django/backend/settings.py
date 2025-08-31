@@ -79,14 +79,25 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+#just uncomment the database for deployment
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'aaron$default',
+#         'USER': 'aaron',
+#         'PASSWORD': 'admin123!',
+#         'HOST': 'aaron.mysql.pythonanywhere-services.com',
+#     }
+# }
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'aaron$default',
-        'USER': 'aaron',
-        'PASSWORD': 'admin123!',
-        'HOST': 'aaron.mysql.pythonanywhere-services.com',
+        'NAME': 'capstone_db',
+        'USER': 'root',
+        'PASSWORD': 'admin123',
+        'HOST': '127.0.0.1',
+        'PORT': '3306',
     }
 }
 
