@@ -48,7 +48,7 @@ class _ChangeStaffPasswordPageState extends State<ChangeStaffPasswordPage> {
       errorMessage = null;
     });
 
-    final url = Uri.parse('https://aaron.pythonanywhere.com/api/staff/${widget.staffId}/change-password/');
+    final url = Uri.parse('http://10.0.2.2:8000/api/staff/${widget.staffId}/change-password/');
     final body = json.encode({
       'current_password': currentPwController.text.trim(),
       'new_password': newPwController.text.trim(),

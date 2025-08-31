@@ -42,7 +42,7 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
     cameraController.stop();
 
     try {
-      final response = await http.get(Uri.parse('http://aaron.pythonanywhere.com/api/sales/barcode/$barcode/'));
+      final response = await http.get(Uri.parse('http://10.0.2.2:8000/api/sales/barcode/$barcode/'));
 
       if (response.statusCode == 200) {
         // The API now returns a list of batches, not a single item.

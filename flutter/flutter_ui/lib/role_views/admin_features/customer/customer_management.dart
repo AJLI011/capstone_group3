@@ -46,7 +46,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
   Future<void> fetchCustomers() async {
     setState(() { isLoading = true; error = ''; });
     try {
-      final res = await http.get(Uri.parse('https://aaron.pythonanywhere.com/api/customers/'));
+      final res = await http.get(Uri.parse('http://10.0.2.2:8000/api/customers/'));
       if (res.statusCode == 200) {
         final data = json.decode(res.body) as List;
         customers = data.map((j) => Customer.fromJson(j)).toList();
@@ -60,7 +60,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
   }
 
   Future<void> deleteCustomer(int id) async {
-    final res = await http.delete(Uri.parse('https://aaron.pythonanywhere.com/api/customers/$id/'));
+    final res = await http.delete(Uri.parse('http://10.0.2.2:8000/api/customers/$id/'));
     if (res.statusCode == 204) {
       setState(() => customers.removeWhere((c) => c.id == id));
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted')));

@@ -18,7 +18,7 @@ class _ExpiryDashboardViewState extends State<ExpiryDashboardView> {
   int expiringSoonCount = 0;
   int expiredCount = 0;
 
-  final String baseUrl = 'https://aaron.pythonanywhere.com/api/medicines';
+  final String baseUrl = 'http://10.0.2.2:8000/api/medicines';
 
   @override
   void initState() {

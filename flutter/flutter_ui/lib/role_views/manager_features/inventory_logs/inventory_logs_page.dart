@@ -21,7 +21,7 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
   }
 
   Future<void> fetchInventoryLogs() async {
-    const url = 'https://aaron.pythonanywhere.com/api/inventory-logs/';
+    const url = 'http://10.0.2.2:8000/api/inventory-logs/';
     
     try {
       final response = await http.get(Uri.parse(url));

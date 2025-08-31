@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'dart:developer';
 
-const String _baseUrl = 'https://aaron.pythonanywhere.com';
+const String _baseUrl = 'http://10.0.2.2:8000';
 
 // NEW: Data model for OnlineOrderItem
 class OnlineOrderItem {

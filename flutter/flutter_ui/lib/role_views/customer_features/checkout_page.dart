@@ -33,7 +33,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     try {
       final response = await http.get(
-        Uri.parse('https://aaron.pythonanywhere.com/api/customers/${widget.customerId}/'),
+        Uri.parse('http://10.0.2.2:8000/api/customers/${widget.customerId}/'),
       );
 
       if (response.statusCode == 200) {
