@@ -41,7 +41,7 @@ class _EditCustomerViewState extends State<EditCustomerView> {
   Future<void> _saveChanges() async {
     setState(() => isSaving = true);
 
-    final url  = Uri.parse('http://10.0.2.2:8000/api/customers/${widget.id}/');
+    final url  = Uri.parse('http://juliaally.pythonanywhere.com/api/customers/${widget.id}/');
     final body = {
       'name'        : nameCtrl.text.trim(),
       'email'       : emailCtrl.text.trim(), // Even though it's uneditable, still send it in the payload

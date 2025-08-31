@@ -26,7 +26,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       message = '';
     });
 
-    final url = Uri.parse('http://10.0.2.2:8000/api/forgot-password/');
+    final url = Uri.parse('http://juliaally.pythonanywhere.com/api/forgot-password/');
     final response = await http.post(url, body: {'email': email});
 
     setState(() => isLoading = false);

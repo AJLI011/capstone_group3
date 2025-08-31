@@ -7,7 +7,7 @@ import 'dart:developer';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
-const String _baseUrl = 'http://10.0.2.2:8000/api';
+const String _baseUrl = 'http://juliaally.pythonanywhere.com/api';
 
 // NEW: Data model for OnlineOrderItem
 class OnlineOrderItem {

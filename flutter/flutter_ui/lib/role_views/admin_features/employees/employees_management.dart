@@ -176,8 +176,8 @@ class _EmployeeFormState extends State<EmployeeForm> {
 
     final isEdit = widget.employee != null;
     final url = isEdit
-        ? 'http://10.0.2.2:8000/api/staff/${widget.employee!['id']}/'
-        : 'http://10.0.2.2:8000/api/staff/';
+        ? 'http://juliaally.pythonanywhere.com/api/staff/${widget.employee!['id']}/'
+        : 'http://juliaally.pythonanywhere.com';
 
     final data = {
       'name': nameController.text,

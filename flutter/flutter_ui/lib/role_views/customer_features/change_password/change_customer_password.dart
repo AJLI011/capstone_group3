@@ -48,7 +48,7 @@ class _ChangeCustomerPasswordPageState extends State<ChangeCustomerPasswordPage>
       errorMessage = null;
     });
 
-    final url = Uri.parse('http://10.0.2.2:8000/api/customer/${widget.customerId}/change-password/');
+    final url = Uri.parse('http://juliaally.pythonanywhere.com/api/customer/${widget.customerId}/change-password/');
     final body = json.encode({
       'current_password': currentPwController.text.trim(),
       'new_password': newPwController.text.trim(),

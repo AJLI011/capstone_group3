@@ -54,7 +54,7 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
   }
 
   Future<void> _fetchSuppliers() async {
-    final url = Uri.parse('http://10.0.2.2:8000/api/suppliers/');
+    final url = Uri.parse('http://juliaally.pythonanywhere.com/api/suppliers/');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -96,7 +96,7 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
     if (!_formKey.currentState!.validate()) return;
 
     final uri = Uri.parse(
-        'http://10.0.2.2:8000/api/medicines/${widget.medicine['id']}/');
+        'http://juliaally.pythonanywhere.com/api/medicines/${widget.medicine['id']}/');
     final request = http.MultipartRequest('PUT', uri);
 
     request.fields['name'] = _nameController.text;
@@ -171,7 +171,7 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
     if (imageUrlFromWidget != null) {
       // Ensure the path starts with a '/' for correct URL construction
       final cleanImageUrl = imageUrlFromWidget.startsWith('/') ? imageUrlFromWidget : '/$imageUrlFromWidget';
-      fullImageUrl = 'http://10.0.2.2:8000$cleanImageUrl';
+      fullImageUrl = 'http://juliaally.pythonanywhere.com$cleanImageUrl';
       print('DEBUG: Attempting to load image from: $fullImageUrl');
     } else {
       print('DEBUG: Image URL from widget.medicine is null for this entry.');

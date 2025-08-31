@@ -54,7 +54,7 @@ class _EditManagerProfilePageState extends State<EditManagerProfilePage> {
   }
 
   Future<void> saveProfile() async {
-    final url = Uri.parse('http://10.0.2.2:8000/api/staff/${widget.staffId}/update-profile/');
+    final url = Uri.parse('http://juliaally.pythonanywhere.com/api/staff/${widget.staffId}/update-profile/');
     final body = json.encode({
       'email': emailController.text.trim(),
       'name': nameController.text.trim(),

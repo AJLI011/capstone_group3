@@ -64,7 +64,7 @@ class _PromoViewState extends State<PromoView> {
 
   Future<void> fetchPromos() async {
     try {
-      final response = await http.get(Uri.parse('http://10.0.2.2:8000/api/medicine/promos/'));
+      final response = await http.get(Uri.parse('http://juliaally.pythonanywhere.com/api/medicine/promos/'));
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);

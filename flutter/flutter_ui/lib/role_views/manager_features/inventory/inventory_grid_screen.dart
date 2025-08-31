@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class InventoryApiService {
-  static const String inventoryUrl = 'http://10.0.2.2:8000/api/inventory/';
+  static const String inventoryUrl = 'http://juliaally.pythonanywhere.com/api/inventory/';
 
   static Future<List<TotalQuantity>> fetchInventoryItems() async {
     try {

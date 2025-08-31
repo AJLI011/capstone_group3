@@ -132,7 +132,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       };
 
       final response = await http.post(
-        Uri.parse('http://10.0.2.2:8000/api/sales/process/'),
+        Uri.parse('http://juliaally.pythonanywhere.com/api/sales/process/'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(payload),
       );

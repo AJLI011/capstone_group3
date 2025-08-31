@@ -45,7 +45,7 @@ class _GoodStockPageState extends State<GoodStockPage> {
   }
 
   Future<void> fetchGoodStocks() async {
-    final String url = 'http://10.0.2.2:8000/api/medicines/good-stock/';
+    final String url = 'http://juliaally.pythonanywhere.com/api/medicines/good-stock/';
 
     try {
       final response = await http.get(Uri.parse(url));
