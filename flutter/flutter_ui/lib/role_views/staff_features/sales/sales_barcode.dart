@@ -1,9 +1,11 @@
-// sales_barcode.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:http/http.dart' as http;
 import 'sales_details.dart';
+
+// Import the new BatchSelectionPage
+import 'batch_selection.dart';
 
 class SalesBarcodeScreen extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -49,12 +51,11 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
 
         // Ensure there is at least one item before navigating
         if (itemData.isNotEmpty) {
-          Navigator.of(context).pushReplacement(
+          // Changed the navigation to go to the new BatchSelectionPage
+          Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => SalesDetailsPage(
-                // Pass the entire list of batches to the next screen
-                barcodeData: itemData,
-                cartItems: widget.cartItems,
+              builder: (_) => BatchSelectionPage(
+                batches: itemData,
                 staffId: widget.staffId,
               ),
             ),

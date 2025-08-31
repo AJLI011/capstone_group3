@@ -119,6 +119,9 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
   }
 
   void _toggleMenu() {
+    if (!_isMenuOpen) {
+      _fetchDashboardData();
+    }
     setState(() => _isMenuOpen = !_isMenuOpen);
     _isMenuOpen ? _ctrl.forward() : _ctrl.reverse();
   }
@@ -257,17 +260,7 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                           const SizedBox(height: 10),
                           _buildLowStockList(),
                           const SizedBox(height: 20),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              _buildSectionTitle('Inventory Logs'),
-                              IconButton(
-                                icon: const Icon(Icons.refresh, color: Color(0xFF5C7C9A)),
-                                onPressed: _fetchDashboardData,
-                                tooltip: 'Refresh logs',
-                              ),
-                            ],
-                          ),
+                          _buildSectionTitle('Inventory Logs'),
                           const SizedBox(height: 10),
                           _buildInventoryLogsList(),
                         ],
