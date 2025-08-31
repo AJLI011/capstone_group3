@@ -209,10 +209,23 @@ class PromoSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+
+
+
+
+
+
+
+
+
+
+
+#===========================8/31/25========================================================
 # For Inventory Logs
 class InventoryLogSerializer(serializers.ModelSerializer):
     user_name = serializers.SerializerMethodField()
-    medicine_name = serializers.CharField(source='medicine.name')
+    # CHANGE THIS LINE: from CharField to SerializerMethodField
+    medicine_name = serializers.SerializerMethodField()
 
     class Meta:
         model = InventoryLog
@@ -222,6 +235,29 @@ class InventoryLogSerializer(serializers.ModelSerializer):
         if obj.user:
             return f"{obj.user.name}, {obj.user.role}"
         return "Unknown"
+
+    # ADD THIS METHOD to handle the medicine_name field
+    def get_medicine_name(self, obj):
+        # Check if obj.medicine is not None before accessing its attributes
+        if obj.medicine:
+            return obj.medicine.name
+        # Return a descriptive string for deleted medicines
+        return "Deleted Medicine"
+
+#===========================8/31/25========================================================
+
+
+
+
+
+
+
+
+
+
+
+ 
+
 
 
 # =====================================

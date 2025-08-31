@@ -122,6 +122,14 @@ class Promo(models.Model):
         return f"Promo for {self.inventory_id.medicine.name}"
 
 
+
+
+
+
+
+
+
+#================================8/31/25 changes
 # Model for Inventory Logs
 class InventoryLog(models.Model):
     ACTION_CHOICES = [
@@ -135,7 +143,8 @@ class InventoryLog(models.Model):
     ]
 
     user = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True)
-    medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE)
+    # Corrected line below:
+    medicine = models.ForeignKey('Medicine', on_delete=models.SET_NULL, null=True, blank=True)
     action_type = models.CharField(max_length=20, choices=ACTION_CHOICES)
     timestamp = models.DateTimeField(auto_now_add=True)
     description = models.TextField()
@@ -145,7 +154,27 @@ class InventoryLog(models.Model):
         ordering = ['-timestamp']
 
     def __str__(self):
-        return f"{self.user} - {self.action_type} - {self.medicine.name}"
+        # You may need to update this to handle the case where medicine is null
+        if self.medicine:
+            return f"{self.user} - {self.action_type} - {self.medicine.name}"
+        else:
+            return f"{self.user} - {self.action_type} - [Medicine Deleted]"
+
+#================================8/31/25 changes
+
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
 
 
 # Models for In-store Sales and Orders
