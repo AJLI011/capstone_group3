@@ -1,9 +1,9 @@
-# your_app_name/management/commands/notify_expired.py
+# accounts/management/commands/notify_expired.py
 
 from django.core.management.base import BaseCommand
 from datetime import date
-from your_app_name.models import Inventory, Staff
-from your_app_name.sms_utility import send_sms
+from accounts.models import Inventory, Staff
+from accounts.sms_utility import send_sms
 
 class Command(BaseCommand):
     help = 'Checks for expired medicines and sends an SMS notification to the manager.'
