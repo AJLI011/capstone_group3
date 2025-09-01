@@ -33,7 +33,8 @@ class ManagerView extends StatefulWidget {
   State<ManagerView> createState() => _ManagerViewState();
 }
 
-class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStateMixin {
+class _ManagerViewState extends State<ManagerView>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   bool _isMenuOpen = false;
   String? staffName;
@@ -83,7 +84,9 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
           totalMedicineCount = json.decode(responses[0].body)['total_count'];
         }
         if (responses[1].statusCode == 200) {
-          totalEarned = (json.decode(responses[1].body)['total_earnings'] as num).toDouble();
+          totalEarned =
+              (json.decode(responses[1].body)['total_earnings'] as num)
+                  .toDouble();
         }
         if (responses[2].statusCode == 200) {
           goodStockCount = json.decode(responses[2].body).length;
@@ -247,6 +250,7 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                             style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
+                              color: Color(0xFF5C7C9A), // Consistent with app bar
                             ),
                           ),
                           const SizedBox(height: 20),
@@ -306,36 +310,67 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                             child: SingleChildScrollView(
                               child: Column(
                                 children: [
-                                  _drawerItem(Icons.inventory_outlined, 'Inventory',
+                                  _drawerItem(
+                                      Icons.inventory_outlined,
+                                      'Inventory',
                                       () => _open(const InventoryGridScreen())),
-                                  _drawerItem(Icons.shelves, 'Restock',
-                                      () => _open(const RestockBarcodeScreen())),
-                                  _drawerItem(Icons.store, 'In Store Sales Transaction',
+                                  _drawerItem(
+                                      Icons.shelves,
+                                      'Restock',
+                                      () =>
+                                          _open(const RestockBarcodeScreen())),
+                                  _drawerItem(
+                                      Icons.store,
+                                      'In Store Sales Transaction',
                                       () => _open(const InStoreTransactionPage())),
-                                  _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction',
+                                  _drawerItem(
+                                      Icons.phone_android_outlined,
+                                      'Online Sales Transaction',
                                       () => _open(const OnlineOrdersReportPage())),
-                                  _drawerItem(Icons.priority_high, 'Expiry',
+                                  _drawerItem(
+                                      Icons.priority_high,
+                                      'Expiry',
                                       () => _open(const ExpiryDashboardView())),
-                                  _drawerItem(Icons.assignment_return, 'Return Medicines',
+                                  _drawerItem(
+                                      Icons.assignment_return,
+                                      'Return Medicines',
                                       () => _open(const ReturnMedicinePage())),
-                                  _drawerItem(Icons.local_offer, 'Promo Medicines',
+                                  _drawerItem(
+                                      Icons.local_offer,
+                                      'Promo Medicines',
                                       () => _open(const PromoMedicinePage())),
-                                  _drawerItem(Icons.point_of_sale, 'In Store Sales Report',
+                                  _drawerItem(
+                                      Icons.point_of_sale,
+                                      'In Store Sales Report',
                                       () => _open(const InStoreSalesReportPage())),
-                                  _drawerItem(Icons.trending_up, 'Online Sales Report',
+                                  _drawerItem(
+                                      Icons.trending_up,
+                                      'Online Sales Report',
                                       () => _open(const OnlineSalesReportPage())),
                                   _drawerItem(Icons.insights, 'Demand Forecast', () {}),
                                   _drawerItem(Icons.shopping_cart, 'Purchase Request', () {}),
-                                  _drawerItem(Icons.list_alt, 'Medicine List',
+                                  _drawerItem(
+                                      Icons.list_alt,
+                                      'Medicine List',
                                       () => _open(const MedicineListView())),
-                                  _drawerItem(Icons.history, 'Inventory Logs',
+                                  _drawerItem(
+                                      Icons.history,
+                                      'Inventory Logs',
                                       () => _open(const InventoryLogsPage())),
-                                  _drawerItem(Icons.receipt_long, 'Order Logs',
+                                  _drawerItem(
+                                      Icons.receipt_long,
+                                      'Order Logs',
                                       () => _open(const OrderLogsScreen())),
-                                  _drawerItem(Icons.person_outline, 'Edit Profile',
-                                      () => _open(EditManagerProfilePage(staffId: widget.staffId))),
-                                  _drawerItem(Icons.vpn_key, 'Change Password',
-                                      () => _open(ChangeManagerPasswordPage(staffId: widget.staffId))),
+                                  _drawerItem(
+                                      Icons.person_outline,
+                                      'Edit Profile',
+                                      () => _open(EditManagerProfilePage(
+                                          staffId: widget.staffId))),
+                                  _drawerItem(
+                                      Icons.vpn_key,
+                                      'Change Password',
+                                      () => _open(ChangeManagerPasswordPage(
+                                          staffId: widget.staffId))),
                                 ],
                               ),
                             ),
@@ -436,16 +471,14 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _buildIndicator(
-            Icons.check_circle_outline, goodStockCount, Colors.green),
-        _buildIndicator(
-            Icons.warning_amber_outlined, expiringSoonCount, Colors.orange),
-        _buildIndicator(Icons.error_outline, expiredCount, Colors.red),
+        _buildIndicator(Icons.check_circle_outline, 'Good Stock', goodStockCount, Colors.green),
+        _buildIndicator(Icons.warning_amber_outlined, 'Expiring Soon', expiringSoonCount, Colors.orange),
+        _buildIndicator(Icons.error_outline, 'Expired', expiredCount, Colors.red),
       ],
     );
   }
 
-  Widget _buildIndicator(IconData icon, int count, Color color) {
+  Widget _buildIndicator(IconData icon, String title, int count, Color color) {
     return Expanded(
       child: Card(
         color: color,
@@ -461,6 +494,16 @@ class _ManagerViewState extends State<ManagerView> with SingleTickerProviderStat
                 count.toString(),
                 style: const TextStyle(
                   fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),

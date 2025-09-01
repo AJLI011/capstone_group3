@@ -502,9 +502,9 @@ class _StaffViewState extends State<StaffView>
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _buildIndicator(
-                Icons.check_circle_outline, 'In-Stock', goodStockCount, Colors.green),
+                Icons.check_circle_outline, 'Good Stock', goodStockCount, Colors.green),
             _buildIndicator(
-                Icons.warning_amber_outlined, 'Expiring', expiringSoonCount, Colors.orange),
+                Icons.warning_amber_outlined, 'Expiring Soon', expiringSoonCount, Colors.orange),
             _buildIndicator(Icons.error_outline, 'Expired', expiredCount, Colors.red),
           ],
         ),
