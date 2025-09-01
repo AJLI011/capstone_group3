@@ -11,7 +11,7 @@ from datetime import date
 from django.db import transaction
 from django.db.models import F, Sum
 from django.utils.timezone import now
-
+from django.utils import timezone # add this (elton)
 
 
 
@@ -214,13 +214,7 @@ class PromoSerializer(serializers.ModelSerializer):
 
 
 
-
-
-
-
-
-
-#===========================8/31/25========================================================
+#===========================8/31/25 (aaron)========================================================
 # For Inventory Logs
 class InventoryLogSerializer(serializers.ModelSerializer):
     user_name = serializers.SerializerMethodField()
@@ -244,7 +238,7 @@ class InventoryLogSerializer(serializers.ModelSerializer):
         # Return a descriptive string for deleted medicines
         return "Deleted Medicine"
 
-#===========================8/31/25========================================================
+#===========================8/31/25 (aaron)========================================================
 
 
 
@@ -252,11 +246,6 @@ class InventoryLogSerializer(serializers.ModelSerializer):
 
 
 
-
-
-
-
- 
 
 
 
@@ -403,7 +392,19 @@ class CustomerMedicineSerializer(serializers.ModelSerializer):
         if obj.image and hasattr(obj.image, 'url'):
             return request.build_absolute_uri(obj.image.url)
         return ""
-    
+
+
+
+
+
+
+
+
+
+
+
+
+#============================9/1/25============================================
 class CustomerMedicineDetailSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
     quantity = serializers.SerializerMethodField()
@@ -432,14 +433,26 @@ class CustomerMedicineDetailSerializer(serializers.ModelSerializer):
     def get_quantity(self, obj):
         # local import of Inventory avoids circular import problems
         from .models import Inventory
+        today = timezone.now().date()
         total = Inventory.objects.filter(
             medicine=obj,
-            is_promo=False
+            is_promo=False,
+            # This is the line you need to change: ADD THIS (Elton)
+            exp_date__gt=today
         ).aggregate(total=Sum('quantity'))['total']
         return total or 0
 
     def get_stock_status(self, obj):
         return "In Stock" if self.get_quantity(obj) > 0 else "Out of Stock"
+#=================================9/1/25=============================================================
+
+
+
+
+
+
+
+
 
 
 # Employee Logs serializer
@@ -635,6 +648,16 @@ class OrderLogSerializer(serializers.ModelSerializer):
             return OnlineOrderLogDetailsSerializer(obj.online_order).data
         return None
 
+
+
+
+
+
+
+
+
+
+#=================================9/1/25=============================================================
 # --- Online Orders Serializers ---
 class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
     # This is the correct way to get the medicine name
@@ -680,14 +703,16 @@ class OnlineOrderListSerializer(serializers.ModelSerializer):
     customer_email = serializers.CharField(source='customer.email', read_only=True)
     pickup_schedule = serializers.DateTimeField(read_only=True)
 
+    # ADD THIS LINE to map the fulfilled_timestamp to the date_fulfilled model field
+    fulfilled_timestamp = serializers.DateTimeField(source='date_fulfilled', read_only=True)
+
     class Meta:
         model = OnlineOrder
         fields = [
             'id', 'customer_name', 'customer_email', 'date_created',
             'status', 'total_amount_before_discount', 'total_amount_after_discount',
-            'is_pwd', 'items', 'pickup_schedule'
+            'is_pwd', 'items', 'pickup_schedule', 'fulfilled_timestamp'
         ]
-
 
 class OnlineOrderItemCreateSerializer(serializers.ModelSerializer):
     medicine_id = serializers.PrimaryKeyRelatedField(
@@ -817,6 +842,21 @@ class OnlineOrderCreateSerializer(serializers.ModelSerializer):
                 return order
         except Exception as e:
             raise serializers.ValidationError(f"Failed to process order: {str(e)}")
+#=================================9/1/25=============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #-------- in store transactions serializers--------------------
 # New serializer for Staff to get their name and role
@@ -1021,11 +1061,7 @@ class CustomerFCMTokenSerializer(serializers.ModelSerializer):
 
 
 
-
-
-
-
-#-----dashboard 
+#-----DASHBOARD
 #low stocks & totalqty
 
 class LowStockSerializer(serializers.ModelSerializer):

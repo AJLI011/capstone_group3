@@ -122,13 +122,6 @@ class Promo(models.Model):
         return f"Promo for {self.inventory_id.medicine.name}"
 
 
-
-
-
-
-
-
-
 #================================8/31/25 changes
 # Model for Inventory Logs
 class InventoryLog(models.Model):
@@ -163,19 +156,6 @@ class InventoryLog(models.Model):
 #================================8/31/25 changes
 
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-
 
 # Models for In-store Sales and Orders
 class InStoreOrder(models.Model):

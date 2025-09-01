@@ -71,7 +71,8 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(medicineData!['name']),
-        backgroundColor: const Color(0xFF003B63),
+        backgroundColor: const Color.fromARGB(255, 10, 84, 182),
+        foregroundColor: Colors.white,
       ),
       body: Stack(
         children: [
@@ -117,6 +118,15 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                         style: const TextStyle(
                           fontSize: 18,
                           color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 4), // Add spacing for dosage form
+                      Text(
+                        medicineData!['dosage_form'] ?? 'Dosage form not specified',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.black54,
+                          fontStyle: FontStyle.italic,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -253,7 +263,7 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.add, size: 20),
-                          onPressed: selectedQuantity < availableQuantity
+                          onPressed: (selectedQuantity * 2) < availableQuantity
                               ? () => setState(() => selectedQuantity++)
                               : null,
                         ),
@@ -262,26 +272,28 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                   ),
                   // Add to Cart Button
                   ElevatedButton.icon(
-                    onPressed: availableQuantity > 0
-                        ? () {
-                            CartService().addToCart(
+                    onPressed: (selectedQuantity * 2) > availableQuantity
+                      ? null // Disable the button if the total quantity exceeds stock
+                      : () {
+                          // You may want to add a final check here just in case, but the button should already be disabled.
+                          CartService().addToCart(
                               CartItem(
-                                id: medicineData!['id'],
-                                name: medicineData!['name'],
-                                genericName: medicineData!['generic_name'],
-                                dosageForm: medicineData!['dosage_form'] ?? "Unknown",
-                                image: medicineData!['image'],
-                                price: double.parse(medicineData!['price'].toString()),
-                                quantity: selectedQuantity,
-                                isPromo: true,
-                                promoQuantity: selectedQuantity,
+                                  id: medicineData!['id'],
+                                  name: medicineData!['name'],
+                                  genericName: medicineData!['generic_name'],
+                                  dosageForm: medicineData!['dosage_form'] ?? "Unknown",
+                                  image: medicineData!['image'],
+                                  price: double.parse(medicineData!['price'].toString()),
+                                  quantity: selectedQuantity,
+                                  isPromo: true,
+                                  promoQuantity: selectedQuantity,
+                                  availableStock: availableQuantity, // ADDED: Pass the availableQuantity
                               ),
-                            );
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Added to cart')),
-                            );
-                          }
-                        : null,
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Added $selectedQuantity item(s) to cart with $selectedQuantity promo item(s)!')),
+                          );
+                        },
                     icon: const Icon(Icons.shopping_cart),
                     label: const Text('Add to cart'),
                     style: ElevatedButton.styleFrom(

@@ -44,8 +44,8 @@ class PromoMedicine {
 
 // ===================== PROMO VIEW =====================
 class PromoView extends StatefulWidget {
-  final int customerId;
-  const PromoView({super.key, required this.customerId});
+  final int customerId; // <--- ADDED: customerId
+  const PromoView({super.key, required this.customerId}); // <--- ADDED: customerId to constructor
 
   @override
   State<PromoView> createState() => _PromoViewState();
@@ -74,14 +74,13 @@ class _PromoViewState extends State<PromoView> {
         });
       } else {
         setState(() {
-          // Changed the error message to be more user-friendly
-          errorMessage = 'Failed to load promo items. Please try again later.';
+          errorMessage = 'Server error: ${response.statusCode}';
           isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        errorMessage = 'Failed to connect to the server. Check your internet connection.';
+        errorMessage = 'Failed to fetch promos: $e';
         isLoading = false;
       });
     }
@@ -93,8 +92,7 @@ class _PromoViewState extends State<PromoView> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text("Promos"),
-        backgroundColor: const Color.fromARGB(255, 10, 84, 182),
-        foregroundColor: Colors.white,
+        backgroundColor: const Color(0xFF003B63),
         automaticallyImplyLeading: false,
       ),
       body: isLoading
@@ -102,14 +100,7 @@ class _PromoViewState extends State<PromoView> {
           : errorMessage != null
               ? Center(child: Text(errorMessage!))
               : promos.isEmpty
-                  ? const Center(
-                      // Custom message for when there are no promos
-                      child: Text(
-                        "No promo items are available at the moment.",
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                        textAlign: TextAlign.center,
-                      ),
-                    )
+                  ? const Center(child: Text("No promo medicines available"))
                   : Padding(
                       padding: const EdgeInsets.all(12),
                       child: GridView.builder(
@@ -118,7 +109,7 @@ class _PromoViewState extends State<PromoView> {
                           crossAxisCount: 2,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
-                          childAspectRatio: 0.7,
+                          childAspectRatio: 0.7, // Adjusted to match the new style
                         ),
                         itemBuilder: (context, index) {
                           final promo = promos[index];
@@ -130,7 +121,7 @@ class _PromoViewState extends State<PromoView> {
                                 MaterialPageRoute(
                                   builder: (context) => PromoMedicineDetailPage(
                                     medicineId: promo.id,
-                                    customerId: widget.customerId,
+                                    customerId: widget.customerId, // <--- MODIFIED: Passed customerId
                                   ),
                                 ),
                               );
@@ -192,7 +183,7 @@ class _PromoViewState extends State<PromoView> {
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.orange,
+                                      color: Colors.orange, // Use a distinct color for promos
                                     ),
                                     textAlign: TextAlign.end,
                                   ),

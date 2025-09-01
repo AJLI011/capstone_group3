@@ -162,7 +162,7 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
   }
 
   Future<List<OrderLog>> fetchOrderLogs() async {
-    final url = Uri.parse('$_baseUrl/order-logs/');
+    final url = Uri.parse('$_baseUrl/api/order-logs/');
     final headers = await _getHeaders();
 
     try {

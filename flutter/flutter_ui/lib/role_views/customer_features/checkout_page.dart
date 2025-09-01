@@ -63,47 +63,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
   }
 
-  void _confirmRemoveItem(BuildContext context, CartService cartService, int index) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Remove Item"),
-          content: const Text("Are you sure you want to remove this item from your cart?"),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text("Cancel"),
-            ),
-            TextButton(
-              onPressed: () {
-                cartService.removeItem(index);
-                Navigator.of(context).pop();
-              },
-              child: const Text("Remove", style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Check Out"),
-        backgroundColor: const Color.fromARGB(255, 10, 84, 182),
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.blue,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Consumer<CartService>(
               builder: (context, cartService, child) {
                 final cartItems = cartService.items;
-
                 return Column(
                   children: [
                     Expanded(
@@ -112,6 +83,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         itemCount: cartItems.length,
                         itemBuilder: (context, index) {
                           final item = cartItems[index];
+
+                          final quantityAdded = item.isPromo ? 2 : 1;
+                          final bool isAddDisabled = (item.quantity + item.promoQuantity + quantityAdded) > item.availableStock;
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
@@ -131,30 +105,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                // Use a fixed-size container for the image
-                                SizedBox(
-                                  width: 70,
-                                  height: 70,
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      item.image,
-                                      fit: BoxFit.cover,
-                                      // errorBuilder: Show a placeholder if the image fails to load
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return Container(
-                                          color: Colors.grey[200],
-                                          child: const Center(
-                                            child: Icon(Icons.broken_image, color: Colors.red, size: 40),
-                                          ),
-                                        );
-                                      },
-                                    ),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    item.image,
+                                    width: 70,
+                                    height: 70,
+                                    fit: BoxFit.cover,
                                   ),
                                 ),
                                 const SizedBox(width: 10),
-
-                                // Item details (expanded to fill space)
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,7 +143,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                         ),
                                       ),
                                       const SizedBox(height: 4),
-                                      if (item.promoQuantity > 0)
+                                      if (item.isPromo)
                                         Text(
                                           "Promo: ${item.promoQuantity}",
                                           style: const TextStyle(
@@ -195,10 +155,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                     ],
                                   ),
                                 ),
-
-                                // Quantity controls and remove button
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     IconButton(
                                       icon: const Icon(Icons.remove_circle_outline, color: Colors.blue),
@@ -207,22 +165,27 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                       },
                                     ),
                                     Text(
-                                      "${item.quantity}",
+                                      "${item.quantity}", // CORRECTED: Show paid quantity
                                       style: const TextStyle(color: Colors.black),
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.add_circle_outline, color: Colors.blue),
-                                      onPressed: () {
-                                        cartService.increaseQuantity(index);
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.close, color: Colors.red),
-                                      onPressed: () {
-                                        _confirmRemoveItem(context, cartService, index);
-                                      },
+                                      icon: Icon(
+                                        Icons.add_circle_outline,
+                                        color: isAddDisabled ? Colors.grey : Colors.blue,
+                                      ),
+                                      onPressed: isAddDisabled
+                                          ? null
+                                          : () {
+                                              cartService.increaseQuantity(index);
+                                            },
                                     ),
                                   ],
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close, color: Colors.red),
+                                  onPressed: () {
+                                    cartService.removeItem(index);
+                                  },
                                 ),
                               ],
                             ),
@@ -231,7 +194,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       ),
                     ),
                     Container(
-                      // Your existing order summary and button section
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: const BoxDecoration(
@@ -252,14 +214,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text("Quantity", style: TextStyle(color: Colors.white)),
+                              const Text("Paid Quantity", style: TextStyle(color: Colors.white)),
                               Text("${cartService.totalPaidQuantity}", style: const TextStyle(color: Colors.white)),
                             ],
                           ),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text("Promo Quantity", style: TextStyle(color: Colors.white)),
+                              const Text("Free Quantity", style: TextStyle(color: Colors.white)),
                               Text("${cartService.totalPromoQuantity}", style: const TextStyle(color: Colors.white)),
                             ],
                           ),
@@ -278,7 +240,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                   onPressed: pickDate,
                                   style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade900),
                                   child: Text(
-                                    selectedDate == null ? "MM / DD / YYYY" : DateFormat('MM / dd / yyyy').format(selectedDate!),
+                                    selectedDate == null
+                                        ? "MM / DD / YYYY"
+                                        : DateFormat('MM / dd / yyyy').format(selectedDate!),
                                     style: const TextStyle(color: Colors.white),
                                   ),
                                 ),
@@ -289,7 +253,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                   onPressed: pickTime,
                                   style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade900),
                                   child: Text(
-                                    selectedTime == null ? "HH : MM" : selectedTime!.format(context),
+                                    selectedTime == null
+                                        ? "HH : MM"
+                                        : selectedTime!.format(context),
                                     style: const TextStyle(color: Colors.white),
                                   ),
                                 ),
@@ -320,7 +286,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                     selectedTime!.hour,
                                     selectedTime!.minute,
                                   );
-
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -347,13 +312,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  // Your existing pickDate and pickTime functions
   Future<void> pickDate() async {
     final now = DateTime.now();
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: now,
-      initialEntryMode: DatePickerEntryMode.calendarOnly,
       firstDate: now,
       lastDate: now.add(const Duration(days: 30)),
     );
@@ -382,7 +345,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     if (selected.isAtSameMomentAs(today)) {
       final currentTime = TimeOfDay.fromDateTime(now);
-
       int startHour = currentTime.hour;
       int startMinute = currentTime.minute + 1;
       if (startMinute >= 60) {
