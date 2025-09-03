@@ -1,0 +1,2 @@
+email,password,name,role,contact_num
+admin@a.com,pbkdf2_sha256$1000000$pC1Nb4G50kTtczCVjJTjdc$oCNOXiL3uBthoiv+z046Ql/GmJahFCSNCLV/RsnPxlU=,admin user,admin,091234567890

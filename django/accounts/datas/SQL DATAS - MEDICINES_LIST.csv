@@ -1,0 +1,51 @@
+name,generic_name,barcode,category,dosage_form,restock_quantity,price,requires_prescription,supplier_id
+Biogesic 500mg,Paracetamol,4800092112084,analgesics,tablet,100,5,0,1
+Tempra Forte,Paracetamol,4800092112138,analgesics,syrup,60,159.5,0,3
+Medicol Advance 200mg,Ibuprofen,4807770272333,analgesics,capsule,100,12,0,4
+Kremil-S Tablet,Aluminum Hydroxide + Magnesium Hydroxide + Simethicone,4800092060033,gastrointestinal_medicines,tablet,100,9.75,0,5
+Bioflu Tablet,Phenylephrine + Chlorphenamine + Paracetamol,4800092112077,cough_and_cold_medicines,tablet,100,8.5,0,6
+Neozep Forte,Phenylephrine + Chlorphenamine + Paracetamol,4800092112060,cough_and_cold_medicines,tablet,100,7.5,0,1
+Tuseran Forte,Dextromethorphan + Phenylpropanolamine + Paracetamol,4800092112046,cough_and_cold_medicines,capsule,100,10.5,0,3
+Decolgen Forte,Phenylephrine + Chlorphenamine + Paracetamo,4800092112022,cough_and_cold_medicines,tablet,100,7.75,0,4
+Alnix PLUS,Cetirizine,4800092112107,antihistamines,syrup,1,307,0,5
+Claritin 10mg,Loratadine,4800092112091,antihistamines,tablet,100,35,0,6
+Allerkid Syrup 5mg,Cetirizine,4800092112114,antihistamines,syrup,1,158,0,1
+Solmux Capsule,Carbocisteine,4800092112053,anti_asthma_and_respiratory_medicines,capsule,100,11,0,3
+Solmux Forte 500mg,Carbocisteine,4800092112145,anti_asthma_and_respiratory_medicines,capsule,100,14.5,0,4
+Ventolin Expectorant Syrup,Salbutamol,4800092112121,anti_asthma_and_respiratory_medicines,syrup,1,318,1,5
+Ventomac 2mg,Salbutamol,4800092112152,anti_asthma_and_respiratory_medicines,syrup,100,50,1,6
+Ascof Forte 120ml,Lagundi Leaf Extract,4800092112169,anti_asthma_and_respiratory_medicines,syrup,1,206,0,1
+Enervon Tablet,Multivitamins + Vitamin C,4800092112176,vitamins_and_supplements,tablet,100,10,0,3
+Centrum Advance,Multivitamins + Minerals,4800092112183,vitamins_and_supplements,tablet,30,11,0,4
+Conzace Capsule,Vit A + Vit C + Vit E + Zinc,4800092112190,vitamins_and_supplements,capsule,30,15,0,5
+Stresstabs Tablet,Vit B Complex + Vit C + Minerals,4800092112206,vitamins_and_supplements,tablet,30,11.5,0,6
+Fern-C Capsule,Sodium Ascorbate (Vit C),4800092112213,vitamins_and_supplements,capsule,100,10,0,1
+Ventar Syr 60ml,Salbutamol,4800289820162,anti_asthma_and_respiratory_medicines,syrup,1,95,1,3
+Moxylor 250mg,Amoxicillin,4800092112237,antibiotics,capsule,100,4.5,1,4
+Augmentin 625mg,Amoxicillin + Clavulanic Acid,4800092112244,antibiotics,tablet,14,67.5,1,5
+Azithromycin 500mg,Azithromycin,4800092112251,antibiotics,tablet,6,85,1,6
+Cephalexin 500mg,Cephalexin,4800092112268,antibiotics,capsule,100,52.75,1,1
+Ciprofloxacin 500mg,Ciprofloxacin,4800092112275,antibiotics,tablet,100,31,1,3
+Co-Amoxiclav 625mg,Amoxicillin + Clavulanic Acid,4800092112282,antibiotics,tablet,14,41.5,1,4
+Metformin 500mg,Metformin,4800092112299,antidiabetics,tablet,100,4.25,1,5
+Arya Glimepiride 2mg,Glimepiride,4800092112305,antidiabetics,tablet,30,11.75,1,6
+Diamicron MR 80mg,Gliclazide MR,4800092112312,antidiabetics,tablet,30,8.7,1,1
+Norvasc,Amlodipine,4800092112329,antihypertensives,tablet,100,36.75,1,3
+Cozaar,Losartan,4800092112336,antihypertensives,tablet,100,23.25,1,4
+Capomed,Captopril,4800092112343,antihypertensives,tablet,100,6.5,1,5
+Hypace 5mg,Enalapril,4800092112350,antihypertensives,tablet,100,11.5,1,6
+Tenormin,Atenolol,4800092112367,antihypertensives,tablet,100,45.75,1,1
+Zocor 20mg,Simvastatin,4800092112374,cardiovascular_medicines,tablet,100,36,1,3
+Lipitor 10mg,Atorvastatin,4800092112381,cardiovascular_medicines,tablet,30,35.25,1,4
+Isordil 5mg,Isosorbide Dinitrate,4800092112398,cardiovascular_medicines,tablet,100,23.25,1,5
+Asmalin 2mg Syrup,Salbutamol,4800092112404,anti_asthma_and_respiratory_medicines,syrup,1,170.25,1,6
+Ventolin Ventolin 2mg/5ml,Ventolin,4800092112411,anti_asthma_and_respiratory_medicines,syrup,1,299.75,1,1
+Zyrtec 10mg,Cetirizine,4800092112428,antihistamines,tablet,100,29,0,3
+Allerta 10mg,Loratadine,4800092112435,antihistamines,tablet,100,23.5,0,4
+Mucosolvan,Ambroxol,4800092112442,cough_and_cold_medicines,tablet,100,20.75,0,5
+Bronchofen 5mg/1mg/5ml,Phenylephrine + Hydrochloride + Chlorphenamine,4800092112459,cough_and_cold_medicines,syrup,1,103.28,1,6
+Zovirax 800mg,Aciclovir,4800092113005,antivirals,tablet,25,394,1,1
+Clearamox Cap 500mg,Amoxicillin,4800292303027,antibiotics,capsule,100,9.1,1,3
+Catapres Tab 150mcg,Clonidine,4800292103078,antihypertensives,tablet,100,54.25,1,4
+Globaxol 60ml,Sulfamethoxazole + Trimethoprim,4800289820346,antiparasitics,syrup,1,264.34,1,5
+Malastra 20/120mg,Artemether-Lumefantrine,4800092113012,antimalarials,tablet,24,5,1,6
