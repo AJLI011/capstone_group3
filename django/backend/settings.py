@@ -95,7 +95,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'capstone_db',
         'USER': 'root',
-        'PASSWORD': 'admin123',
+        'PASSWORD': 'Fixthebreak_99',
         'HOST': '127.0.0.1',
         'PORT': '3306',
     }
@@ -130,7 +130,8 @@ TIME_ZONE = 'Asia/Manila'
 
 USE_I18N = True
 
-USE_TZ = True
+# USE_TZ = True
+USE_TZ = False
 
 
 

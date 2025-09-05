@@ -26,7 +26,7 @@ class Command(BaseCommand):
             message_lines.append("The following medicines have expired:")
             
             for item in expired_items:
-                message_lines.append(f"- {item.medicine.name} (Batch: {item.batch_number}, Qty: {item.quantity})")
+                message_lines.append(f"- {item.medicine.name} (Batch: {item.batch_num}, Qty: {item.quantity})")
                 
             message = "\n".join(message_lines)
             
