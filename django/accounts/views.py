@@ -1699,19 +1699,21 @@ def completed_online_orders_report(request):
         #     logger.error(f"[COMPLETED ORDERS REPORT ERROR] {e}")
         return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-#===================In store Sales Report=================
-#For Instore Page Viewing
+#===================In-store Sales Report=================   =================09/05/2025===================
 class InStoreSalesReportView(APIView):
     def get(self, request, *args, **kwargs):
         start_date_str = request.query_params.get('start_date')
         end_date_str = request.query_params.get('end_date')
 
         if not start_date_str or not end_date_str:
-            return Response({"error": "Please provide both start_date and end_date query parameters in YYYY-MM-DD format."}, status=400)
+            return Response(
+                {"error": "Please provide both start_date and end_date query parameters in YYYY-MM-DD format."},
+                status=400
+            )
 
         try:
-            start_datetime = datetime.strptime(start_date_str, '%Y-%m-%d')
-            end_datetime = datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1) - timedelta(seconds=1)
+            start_datetime = timezone.make_aware(datetime.strptime(start_date_str, '%Y-%m-%d'))
+            end_datetime = timezone.make_aware(datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1) - timedelta(seconds=1))
         except ValueError:
             return Response({"error": "Invalid date format. Please use YYYY-MM-DD."}, status=400)
 
@@ -1720,25 +1722,37 @@ class InStoreSalesReportView(APIView):
             approval_date__range=[start_datetime, end_datetime]
         ).select_related('order')
 
-        # Get all approved order items within the date range
-        order_items = InStoreOrderItem.objects.filter(
-            order__in=[ao.order for ao in approved_orders]
-        ).select_related('inventory_id__medicine')
-
-        # Calculate total revenue
+        # Calculate total revenue from the order's after-discount total
         total_revenue = sum(ao.order.total_amount_after_discount for ao in approved_orders)
 
         # Aggregate sales by medicine
         sales_data = {}
-        for item in order_items:
-            medicine_name = item.inventory_id.medicine.name
-            if medicine_name not in sales_data:
-                sales_data[medicine_name] = {
-                    'quantity_sold': 0,
-                    'total_sale': 0
-                }
-            sales_data[medicine_name]['quantity_sold'] += item.quantity_sold
-            sales_data[medicine_name]['total_sale'] += item.quantity_sold * item.price_at_sale
+        for ao in approved_orders:
+            order = ao.order
+            
+            # Get discount percentage for the entire order
+            if order.total_amount_before_discount > 0:
+                discount_percentage = (order.total_amount_before_discount - order.total_amount_after_discount) / order.total_amount_before_discount
+            else:
+                discount_percentage = Decimal('0.00')
+
+            # Iterate through each item in the order to aggregate sales and quantities.
+            order_items = InStoreOrderItem.objects.filter(order=order).select_related('inventory_id__medicine')
+            for item in order_items:
+                medicine_name = item.inventory_id.medicine.name
+                if medicine_name not in sales_data:
+                    sales_data[medicine_name] = {
+                        'quantity_sold': 0,
+                        'total_sale': Decimal('0.00')
+                    }
+                
+                # FIX 1: Sum both the paid quantity and the free quantity.
+                sales_data[medicine_name]['quantity_sold'] += item.quantity_sold + item.free_quantity_given
+                
+                # FIX 2: Apply the order-level discount to each item's sale price.
+                discounted_price_at_sale = item.price_at_sale * (1 - discount_percentage)
+                item_total_sale = item.quantity_sold * discounted_price_at_sale
+                sales_data[medicine_name]['total_sale'] += item_total_sale
 
         # Format the aggregated sales data for the response
         formatted_sales_data = [
@@ -1761,7 +1775,7 @@ class InStoreSalesReportView(APIView):
 
         return Response(response_data)
 
-#===================Online Sales Report=================
+#===================Online Sales Report=================   =================09/05/2025===================
 class OnlineSalesReportView(APIView):
     def get(self, request, *args, **kwargs):
         start_date_str = request.query_params.get('start_date')
@@ -1795,29 +1809,42 @@ class OnlineSalesReportView(APIView):
             status='completed',
             date_fulfilled__range=[start_datetime, end_datetime]
         )
+        
         print(f"DEBUG: completed_orders.count()={completed_orders.count()}")
-
-        # Get all order items for these orders
-        order_items = OnlineOrderItem.objects.filter(
-            order__in=completed_orders
-        ).select_related('inventory_id__medicine')
-        print(f"DEBUG: order_items.count()={order_items.count()}")
 
         # Calculate total revenue
         total_revenue = sum(order.total_amount_after_discount for order in completed_orders)
         print(f"DEBUG: total_revenue={total_revenue}")
-
+        
         # Aggregate sales by medicine
         sales_data = {}
-        for item in order_items:
-            med_name = item.inventory_id.medicine.name
-            if med_name not in sales_data:
-                sales_data[med_name] = {
-                    'quantity_sold': 0,
-                    'total_sale': 0
-                }
-            sales_data[med_name]['quantity_sold'] += item.quantity_sold
-            sales_data[med_name]['total_sale'] += item.quantity_sold * item.price_at_sale
+        for order in completed_orders:
+            # Check for a discount applied to the entire order (e.g., PWD discount)
+            if order.total_amount_before_discount > 0:
+                discount_percentage = (order.total_amount_before_discount - order.total_amount_after_discount) / order.total_amount_before_discount
+            else:
+                discount_percentage = Decimal('0.00')
+
+            order_items = OnlineOrderItem.objects.filter(order=order)
+            
+            # Iterate through each item in the order to aggregate sales and quantities.
+            for item in order_items:
+                med_name = item.inventory_id.medicine.name
+                
+                if med_name not in sales_data:
+                    sales_data[med_name] = {
+                        'quantity_sold': 0,
+                        'total_sale': 0
+                    }
+                
+                # The total number of items sold is the sum of paid and free quantities.
+                sales_data[med_name]['quantity_sold'] += item.quantity_sold + item.free_quantity_given
+                
+                # Apply the discount percentage to the price of each paid item.
+                # Free items (price_at_sale=0) will still contribute 0 to the total sale.
+                discounted_price_at_sale = item.price_at_sale * (1 - discount_percentage)
+                item_total_sale = item.quantity_sold * discounted_price_at_sale
+                sales_data[med_name]['total_sale'] += item_total_sale
 
         # Format sales data
         formatted_sales = [
