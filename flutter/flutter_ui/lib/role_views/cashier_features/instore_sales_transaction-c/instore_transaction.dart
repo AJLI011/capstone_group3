@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 // Model for individual items within a transaction
 class TransactionItem {
@@ -91,6 +93,7 @@ class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
   @override
   void initState() {
     super.initState();
+    tz.initializeTimeZones();
     _transactionsFuture = _fetchTransactions();
   }
 
@@ -136,259 +139,235 @@ class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
       _transactionsFuture = _fetchTransactions();
     });
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          title: const Text('In-store Order Transactions'),
-          centerTitle: false,
-          backgroundColor: const Color(0xFF5C7C9A), // Updated color
-          foregroundColor: Colors.white, // Updated color for font and icon
-        ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Date Filter Section
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _selectedDate == null
-                          ? 'Select a Date'
-                          : 'Date: ${DateFormat('MMM d, yyyy').format(_selectedDate!)}',
-                      style: const TextStyle(fontSize: 16.0),
-                    ),
-                  ),
-                  if (_selectedDate != null)
-                    IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.red),
-                      onPressed: _clearFilter,
-                    ),
-                  IconButton(
-                    icon: const Icon(Icons.calendar_today),
-                    onPressed: () async {
-                      final DateTime? pickedDate = await showDatePicker(
-                        context: context,
-                        initialDate: _selectedDate ?? DateTime.now(),
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2101),
-                      );
-                      if (pickedDate != null && pickedDate != _selectedDate) {
-                        _onDateSelected(pickedDate);
-                      }
+        title: const Text('In-store Order Transactions'),
+        centerTitle: false,
+        backgroundColor: const Color(0xFF5C7C9A),
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_today),
+            onPressed: () async {
+              final DateTime? pickedDate = await showDatePicker(
+                context: context,
+                initialDate: _selectedDate ?? DateTime.now(),
+                firstDate: DateTime(2000),
+                lastDate: DateTime(2101),
+              );
+              if (pickedDate != null && pickedDate != _selectedDate) {
+                _onDateSelected(pickedDate);
+              }
+            },
+          ),
+          if (_selectedDate != null)
+            IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: _clearFilter,
+            ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              'Transactions on: ${_selectedDate != null ? DateFormat('MMMM d, y').format(_selectedDate!) : 'All Dates'}',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () {
+                return _fetchTransactions(date: _selectedDate);
+              },
+              child: FutureBuilder<List<InStoreTransaction>>(
+                future: _transactionsFuture,
+                builder: (context, snapshot) {
+                  if (_isLoading && !snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(
+                        child: Text('No transactions found for this date.'));
+                  }
+
+                  final transactions = snapshot.data!;
+
+                  return ListView.separated(
+                    itemCount: transactions.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final transaction = transactions[index];
+                      return InStoreTransactionCard(transaction: transaction);
                     },
-                  ),
-                ],
-              ),
-            ),
-            
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () {
-                  // If a date is selected, refresh with the same date
-                  // Otherwise, refresh with no date (all transactions)
-                  return _fetchTransactions(date: _selectedDate);
+                  );
                 },
-                child: FutureBuilder<List<InStoreTransaction>>(
-                  future: _transactionsFuture,
-                  builder: (context, snapshot) {
-                    if (_isLoading && !snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    } else if (snapshot.hasError) {
-                      return Center(child: Text('Error: ${snapshot.error}'));
-                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return const Center(child: Text('No transactions found.'));
-                    }
-            
-                    final transactions = snapshot.data!;
-            
-                    return ListView.separated(
-                      itemCount: transactions.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) {
-                        final transaction = transactions[index];
-                        return ExpandableTransactionCard(transaction: transaction);
-                      },
-                    );
-                  },
-                ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class ExpandableTransactionCard extends StatefulWidget {
+class InStoreTransactionCard extends StatelessWidget {
   final InStoreTransaction transaction;
 
-  const ExpandableTransactionCard({
+  const InStoreTransactionCard({
     super.key,
     required this.transaction,
   });
 
   @override
-  State<ExpandableTransactionCard> createState() => _ExpandableTransactionCardState();
-}
-
-class _ExpandableTransactionCardState extends State<ExpandableTransactionCard> with SingleTickerProviderStateMixin {
-  bool _isExpanded = false;
-  late AnimationController _controller;
-  late Animation<double> _rotation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
-    _rotation = Tween<double>(begin: 0, end: 0.5).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    ));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _toggleExpanded() {
-    setState(() {
-      _isExpanded = !_isExpanded;
-    });
-    if (_isExpanded) {
-      _controller.forward();
-    } else {
-      _controller.reverse();
-    }
-  }
-  
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'approved':
-        return Colors.green.shade700;
-      case 'rejected':
-        return Colors.red.shade700;
-      default:
-        return Colors.grey.shade700;
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final formattedTotal = NumberFormat.currency(
+      locale: 'en_PH',
+      symbol: '₱',
+      decimalDigits: 2,
+    ).format(transaction.totalAmount);
+
+    final formattedSubtotal = NumberFormat.currency(
+      locale: 'en_PH',
+      symbol: '₱',
+      decimalDigits: 2,
+    ).format(transaction.subtotal);
+
+    final formattedDiscount = NumberFormat.currency(
+      locale: 'en_PH',
+      symbol: '₱',
+      decimalDigits: 2,
+    ).format(transaction.discountAmount);
+
     return Card(
-      elevation: 2,
-      child: InkWell(
-        onTap: _toggleExpanded,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Order #${widget.transaction.id}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Order #${transaction.id}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
                   ),
-                  Text(
-                    DateFormat('MMM d, yyyy').format(widget.transaction.dateCreated),
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      const SizedBox(width: 4),
-                      Text('₱${widget.transaction.totalAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        widget.transaction.status.toUpperCase(),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: _getStatusColor(widget.transaction.status),
-                        ),
-                      ),
-                      RotationTransition(
-                        turns: _rotation,
-                        child: const Icon(Icons.expand_more, size: 20),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              if (_isExpanded) ...[
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Staff: ${widget.transaction.staff}'),
-                    Text('Cashier: ${widget.transaction.cashier}'),
-                  ],
                 ),
-                const SizedBox(height: 12),
-                const Text('Items:', style: TextStyle(fontWeight: FontWeight.bold)),
-                ...widget.transaction.items.map((item) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4.0),
-                    child: Row(
-                      children: [
-                        Expanded(child: Text('   ${item.medicineName}')),
-                        Text('x${item.quantitySold}'),
-                        if (item.freeQuantityGiven > 0)
-                          Text(' +${item.freeQuantityGiven} free'),
-                        const SizedBox(width: 8),
-                        Text('₱${item.pricePerItem.toStringAsFixed(2)}'),
-                      ],
+                Text(
+                  DateFormat('yyyy-MM-dd hh:mm a').format(
+                    tz.TZDateTime.from(
+                      transaction.dateCreated,
+                      tz.getLocation('Asia/Manila'),
                     ),
-                  )),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Subtotal:'),
-                    Text('₱${widget.transaction.subtotal.toStringAsFixed(2)}'),
-                  ],
-                ),
-                if (widget.transaction.discountAmount > 0)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Discount:'),
-                      Text('-₱${widget.transaction.discountAmount.toStringAsFixed(2)}', style: const TextStyle(color: Colors.red)),
-                    ],
                   ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Total Amount:', style: TextStyle(fontWeight: FontWeight.bold)),
-                    Text(
-                      '₱${widget.transaction.totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
+                  style: const TextStyle(
+                    color: Colors.black54,
+                    fontSize: 12,
+                  ),
                 ),
               ],
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            Text('Staff: ${transaction.staff}'),
+            Text('Cashier: ${transaction.cashier}'),
+            const Divider(height: 20),
+            ...transaction.items.map((item) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.medicineName,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          if (item.isPromo)
+                            const Text(
+                              'Promo',
+                              style: TextStyle(color: Colors.grey, fontSize: 12),
+                            )
+                          else
+                            const Text(
+                              'Regular Sale',
+                              style: TextStyle(color: Colors.grey, fontSize: 12),
+                            ),
+                          if (item.freeQuantityGiven > 0)
+                            Text(
+                              'Free: ${item.freeQuantityGiven}',
+                              style: const TextStyle(color: Colors.green, fontSize: 12),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Text('x${item.quantitySold}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 80,
+                          child: Text(
+                            NumberFormat.currency(
+                              locale: 'en_PH',
+                              symbol: '₱',
+                              decimalDigits: 2,
+                            ).format(item.pricePerItem * item.quantitySold),
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+            const Divider(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Subtotal:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(formattedSubtotal, style: const TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            if (transaction.discountAmount > 0)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Discount (20%):', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('-$formattedDiscount', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                ],
+              ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Total Amount:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(
+                  formattedTotal,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
