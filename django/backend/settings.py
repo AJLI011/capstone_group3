@@ -93,7 +93,7 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'capstone_db2',
+        'NAME': 'capstone_db3',
         'USER': 'root',
         'PASSWORD': 'admin123',
         'HOST': '127.0.0.1',
@@ -130,7 +130,10 @@ TIME_ZONE = 'Asia/Manila'
 
 USE_I18N = True
 
-USE_TZ = False
+#once done, make sure to uncomment this when dummy data is now plugged in
+#when creating dummy data, set this to False
+# USE_TZ = True
+USE_TZ = True
 
 
 

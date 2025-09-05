@@ -1,16 +1,25 @@
-from django.core.management.base import BaseCommand
+import os
+import django
 import random
 from faker import Faker
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date, time
 import pytz 
-from accounts.models import Supplier, Medicine, Inventory, InStoreOrder, InStoreOrderItem, Customer, Staff
+from django.conf import settings
+
+from django.core.management.base import BaseCommand
+from accounts.models import Supplier, Medicine, Inventory, InStoreOrder, InStoreOrderItem, Staff
 
 class Command(BaseCommand):
     help = 'Generates dummy in-store order data for the year 2023.'
     
     def create_dummy_medicines(self):
-        self.stdout.write(self.style.NOTICE('Creating dummy suppliers and medicines...'))
+        self.stdout.write(self.style.NOTICE('Checking for existing suppliers and medicines...'))
         
+        # Check if 50 medicines already exist
+        if Medicine.objects.count() >= 50:
+            self.stdout.write(self.style.SUCCESS('50 medicines already exist. Skipping creation.'))
+            return
+
         supplier_names = ['PharmaCorp', 'MediSupply', 'Global Drugs Inc.']
         suppliers = []
         for name in supplier_names:
@@ -103,8 +112,11 @@ class Command(BaseCommand):
             return
 
         # Define the date range for 2023
-        start_date = datetime(2023, 1, 1)
-        end_date = datetime(2023, 12, 31)
+        manila_tz = pytz.timezone(settings.TIME_ZONE)
+        
+        # MODIFIED: Use date objects for the loop to avoid ambiguity
+        start_date = date(2023, 1, 1)
+        end_date = date(2023, 12, 31)
         total_days = (end_date - start_date).days
         
         seasonality_map = {
@@ -121,7 +133,7 @@ class Command(BaseCommand):
         }
         
         # Sales range for a small independent pharmacy
-        num_orders_per_day_range = (50, 70)
+        num_orders_per_day_range = (40, 60)
 
         for day_offset in range(total_days + 1):
             current_date = start_date + timedelta(days=day_offset)
@@ -137,7 +149,11 @@ class Command(BaseCommand):
                 # Randomize order time between 9 AM and 9 PM
                 random_hour = random.randint(9, 21)
                 random_minute = random.randint(0, 59)
-                order_time = current_date.replace(hour=random_hour, minute=random_minute, second=random.randint(0, 59))
+                random_time = time(random_hour, random_minute, random.randint(0, 59))
+                
+                # CORRECTED: Use datetime.combine() for a more robust creation
+                order_time_naive = datetime.combine(current_date, random_time)
+                order_time = manila_tz.localize(order_time_naive)
                 
                 sales_multiplier = 1.0
                 for time_period, (start_h, end_h, multiplier) in time_of_day_map.items():

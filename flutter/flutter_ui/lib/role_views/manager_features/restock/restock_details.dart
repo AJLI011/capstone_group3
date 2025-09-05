@@ -22,10 +22,16 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
   // A new state variable to track if there are any unsaved changes.
   bool _hasUnsavedChanges = false;
 
+  // A new variable to determine if the quantity field should be editable.
+  late bool _isSyrup;
+
   @override
   void initState() {
     super.initState();
-    // Initialize quantity controller with restock_quantity from the passed medicine data
+    // Initialize _isSyrup based on the medicine's dosage form.
+    _isSyrup = widget.medicine['dosage_form']?.toLowerCase() == 'syrup';
+
+    // Initialize quantity controller with restock_quantity from the passed medicine data.
     if (widget.medicine['restock_quantity'] != null) {
       _quantityController.text = widget.medicine['restock_quantity'].toString();
     }
@@ -33,6 +39,10 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
     // Add listeners to detect changes in the text fields.
     _batchNumberController.addListener(_onTextChanged);
     _expirationDateController.addListener(_onTextChanged);
+    // Only listen for changes on the quantity controller if it's not read-only.
+    if (_isSyrup) {
+      _quantityController.addListener(_onTextChanged);
+    }
   }
 
   void _onTextChanged() {
@@ -255,16 +265,20 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
 
                 TextFormField(
                   controller: _quantityController,
-                  readOnly: true,
-                  decoration: const InputDecoration(labelText: 'Quantity'),
+                  // Now, the readOnly property is dynamic.
+                  readOnly: !_isSyrup,
+                  decoration: InputDecoration(
+                    labelText: 'Quantity',
+                    // Conditionally add a suffix icon to indicate editability.
+                    suffixIcon: _isSyrup ? const Icon(Icons.edit) : null,
+                  ),
                   keyboardType: TextInputType.number,
-                  // The validator might still be useful for initial display if the value is not set
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Quantity cannot be empty'; // Changed message as it's not user input
+                      return 'Quantity cannot be empty';
                     }
                     if (int.tryParse(value) == null || int.parse(value) <= 0) {
-                      return 'Invalid quantity value'; // Changed message
+                      return 'Invalid quantity value';
                     }
                     return null;
                   },
@@ -313,6 +327,10 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
   void dispose() {
     _batchNumberController.removeListener(_onTextChanged);
     _expirationDateController.removeListener(_onTextChanged);
+    // Only remove listener for quantity controller if it was added.
+    if (_isSyrup) {
+      _quantityController.removeListener(_onTextChanged);
+    }
     _batchNumberController.dispose();
     _expirationDateController.dispose();
     _quantityController.dispose();
