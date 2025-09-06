@@ -553,7 +553,7 @@ def total_quantities(request):
 
     return JsonResponse(list(inventory_totals), safe=False)
 
-# =================== Expiration Dashboard -------------------- # 
+# =================== Expiration Dashboard -------------------- =================09/05/2025===================
 # ✅ Good Stocks:
 # Medicines that either:
 # - Expire more than 15 days from today
@@ -563,7 +563,10 @@ class GoodStockView(generics.ListAPIView):
     def get_queryset(self):
         today = date.today()
         threshold_date = today + timedelta(days=15)
-        return Inventory.objects.filter(exp_date__gt=threshold_date)
+        return Inventory.objects.filter(
+        exp_date__gt=threshold_date,
+        quantity__gt=0 # ✅ NEW: Exclude batches with 0 quantity
+        )
 
 # ⚠️ Expiring Soon:
 # Medicines that will expire within the next 15 days (but not yet expired),
@@ -575,7 +578,8 @@ class ExpiringSoonView(generics.ListAPIView):
         today = date.today()
         return Inventory.objects.filter(
             exp_date__gt=today,
-            exp_date__lte=today + timedelta(days=15)
+            exp_date__lte=today + timedelta(days=15),
+            quantity__gt=0 # ✅ NEW: Exclude batches with 0 quantity
         )
 
 # ❌ Expired:
@@ -585,7 +589,10 @@ class ExpiredView(generics.ListAPIView):
 
     def get_queryset(self):
         today = date.today()
-        return Inventory.objects.filter(exp_date__lte=today)
+        return Inventory.objects.filter(
+            exp_date__lte=today,
+            quantity__gt=0 # ✅ NEW: Exclude batches with 0 quantity
+        )
 
 #Return Medicine
 @api_view(['DELETE'])
