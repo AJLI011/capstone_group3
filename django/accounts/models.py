@@ -336,3 +336,33 @@ class CustomerFCMToken(models.Model):
 
     def __str__(self):
         return f"{self.customer.email} - {self.token}"
+
+
+#-----DEMAND FORECASTING
+class ForecastReport(models.Model):
+    class Meta:
+        db_table = 'demand_forecast_report_tbl'
+        unique_together = ('week_start_date',)
+
+    week_start_date = models.DateField()
+    date_generated = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Forecast Report for the week of {self.week_start_date}"
+
+# This is the child table for your two-table approach
+class ForecastItem(models.Model):
+    class Meta:
+        db_table = 'demand_forecast_items_tbl'
+
+    forecast_report = models.ForeignKey(
+        'ForecastReport',
+        on_delete=models.CASCADE,
+        related_name='items'
+    )
+    medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE)
+    forecasted_quantity = models.PositiveIntegerField()
+    rank = models.PositiveIntegerField()
+
+    def __str__(self):
+        return f"Rank {self.rank}: {self.medicine.name} - {self.forecasted_quantity} units"
