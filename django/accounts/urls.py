@@ -134,6 +134,12 @@ urlpatterns = [
     path('sales/total-earnings/', views.total_combined_earnings, name='total_combined_earnings'),
     path('medicines/low-stock/', views.low_stock_list, name='low_stock_list'),
     path('medicines/total/', views.total_medicine_count, name='total-medicines'),
+    
+    
+    #----------EXPIRY NOTIFICATION
+    # API endpoint to save staff FCM tokens
+    path('save-staff-fcm-token/', views.save_staff_fcm_token, name='save_staff_fcm_token'),
+
 
 
 

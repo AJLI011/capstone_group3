@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, 
 InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog, OnlineOrder, OnlineOrderItem, OrderLog, Prescription,
-PrescriptionImage, CustomerFCMToken, TotalQuantity, Medicine
+PrescriptionImage, CustomerFCMToken, TotalQuantity, Medicine, StaffFCMToken
 
 )
 from django.contrib.auth.hashers import make_password
@@ -1035,3 +1035,10 @@ class LowStockSerializer(serializers.ModelSerializer):
     class Meta:
         model = TotalQuantity
         fields = ['name', 'generic_name', 'total_quantity']
+        
+#-----EXPIRY NOTIFICATION
+class StaffFCMTokenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StaffFCMToken
+        fields = ['id', 'staff', 'token', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']

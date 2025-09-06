@@ -25,7 +25,7 @@ from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, 
     InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, 
     OnlineOrder, OnlineOrderItem, InStoreOrderApproval, Prescription, PrescriptionImage,
-    CustomerFCMToken
+    CustomerFCMToken, StaffFCMToken
 )
 from .serializers import (
     CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer,
@@ -42,6 +42,9 @@ from .serializers import (
 )
 
 from backend.firebase import send_fcm_notification
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
 
@@ -1907,3 +1910,42 @@ def total_medicine_count(request):
     """
     total_count = Medicine.objects.count()
     return Response({'total_count': total_count})
+
+#--------EXPIRATION NOTIFICATION
+# -------------------------------
+# Save Staff FCM Token
+# -------------------------------
+@api_view(['POST'])
+def save_staff_fcm_token(request):
+    """
+    Save or update the FCM token for a staff member.
+    """
+    try:
+        fcm_token = request.data.get('fcm_token')
+        staff_id = request.data.get('staff_id')
+
+        if not fcm_token or not staff_id:
+            return Response(
+                {'error': 'FCM token and Staff ID are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            staff_instance = Staff.objects.get(id=staff_id)
+        except Staff.DoesNotExist:
+            return Response({'error': 'Staff member not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Use update_or_create to handle new or existing tokens
+        token_obj, created = StaffFCMToken.objects.update_or_create(
+            token=fcm_token,
+            defaults={'staff': staff_instance},
+        )
+
+        if created:
+            return Response({'detail': 'FCM token for staff created successfully.'}, status=status.HTTP_201_CREATED)
+        else:
+            return Response({'detail': 'FCM token for staff updated successfully.'}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print(f"[SAVE STAFF FCM TOKEN ERROR] {e}")
+        return Response({'error': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
