@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
 
 class RestockDetailsPage extends StatefulWidget {
   final Map<String, dynamic> medicine;
@@ -19,34 +23,26 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
   final TextEditingController _expirationDateController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
 
-  // A new state variable to track if there are any unsaved changes.
   bool _hasUnsavedChanges = false;
-
-  // A new variable to determine if the quantity field should be editable.
   late bool _isSyrup;
 
   @override
   void initState() {
     super.initState();
-    // Initialize _isSyrup based on the medicine's dosage form.
     _isSyrup = widget.medicine['dosage_form']?.toLowerCase() == 'syrup';
 
-    // Initialize quantity controller with restock_quantity from the passed medicine data.
     if (widget.medicine['restock_quantity'] != null) {
       _quantityController.text = widget.medicine['restock_quantity'].toString();
     }
 
-    // Add listeners to detect changes in the text fields.
     _batchNumberController.addListener(_onTextChanged);
     _expirationDateController.addListener(_onTextChanged);
-    // Only listen for changes on the quantity controller if it's not read-only.
     if (_isSyrup) {
       _quantityController.addListener(_onTextChanged);
     }
   }
 
   void _onTextChanged() {
-    // We only need to set the state once when a change is detected.
     if (!_hasUnsavedChanges) {
       setState(() {
         _hasUnsavedChanges = true;
@@ -54,7 +50,6 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
     }
   }
 
-  // This is the dialog that will be shown when the user tries to exit.
   Future<bool> _showDiscardDialog() async {
     return await showDialog<bool>(
       context: context,
@@ -66,23 +61,22 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
           actions: <Widget>[
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(false); // Do not exit the page
+                Navigator.of(context).pop(false);
               },
               child: const Text('No'),
             ),
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(true); // Exit the page
+                Navigator.of(context).pop(true);
               },
               child: const Text('Yes'),
             ),
           ],
         );
       },
-    ) ?? false; // In case the user taps outside the dialog.
+    ) ?? false;
   }
 
-  // New dialog for confirming save action.
   Future<bool> _showSaveConfirmationDialog() async {
     return await showDialog<bool>(
       context: context,
@@ -93,13 +87,13 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
           actions: <Widget>[
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(false); // Do not save
+                Navigator.of(context).pop(false);
               },
               child: const Text('No'),
             ),
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(true); // Proceed with save
+                Navigator.of(context).pop(true);
               },
               child: const Text('Yes'),
             ),
@@ -110,7 +104,6 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
   }
 
   Future<void> _submitRestock() async {
-    // First, validate the form. If validation fails, show a snackbar and return.
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill out all required fields')),
@@ -118,15 +111,11 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
       return;
     }
 
-    // Show confirmation dialog before proceeding with the API call.
     final shouldSave = await _showSaveConfirmationDialog();
     if (!shouldSave) {
-      // If the user chooses not to save, we simply return.
       return;
     }
 
-    // Proceed with the save logic only if the user confirmed.
-    // 🧠 Get staff ID from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     final staffId = prefs.getInt('staff_id');
 
@@ -142,39 +131,42 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
       'batch_num': _batchNumberController.text,
       'exp_date': _expirationDateController.text,
       'quantity': int.parse(_quantityController.text),
-      'staff_id': staffId, // ✅ Add staff_id here!
+      'staff_id': staffId,
     };
 
+    final url = Uri.parse('${API_BASE}api/inventory/add/');
 
-    print('Submitting restock data: $restockData');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(restockData),
+      );
 
-    final url = Uri.parse('http://10.0.2.2:8000/api/inventory/add/'); 
-    
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(restockData),
-    );
-
-    if (response.statusCode == 201 || response.statusCode == 200) {
-      // On successful submission, reset the unsaved changes flag so we can pop
-      _hasUnsavedChanges = false;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Restock info submitted')),
-        );
-        Navigator.pop(context);
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        _hasUnsavedChanges = false;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Restock info submitted')),
+          );
+          // Changed to pass a boolean `true` to indicate success
+          Navigator.pop(context, true);
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${response.statusCode}')),
+          );
+        }
       }
-    } else {
-      print('Error submitting restock: ${response.body}');
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${response.statusCode}')),
+          SnackBar(content: Text('Failed to connect to the server. Error: $e')),
         );
       }
     }
   }
-
 
   Future<void> _selectDate(BuildContext context) async {
     final pickedDate = await showDatePicker(
@@ -200,21 +192,15 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
       final cleanImageUrl = imageUrlFromWidget.startsWith('/')
           ? imageUrlFromWidget
           : '/$imageUrlFromWidget';
-      fullImageUrl = 'http://10.0.2.2:8000$cleanImageUrl';
+      fullImageUrl = '${API_BASE}$cleanImageUrl';
     }
 
     return PopScope(
-      // The canPop property is now dynamically controlled by our _hasUnsavedChanges state variable.
-      // If no changes have been made, _hasUnsavedChanges is false, and canPop is true,
-      // allowing the back button to function normally.
       canPop: !_hasUnsavedChanges,
       onPopInvoked: (bool didPop) async {
-        // This callback only runs if canPop was false.
-        // The didPop argument will be false, indicating the pop was blocked.
         if (!didPop) {
           final shouldPop = await _showDiscardDialog();
           if (shouldPop) {
-            // If the user confirms, we manually pop the route.
             if (mounted) {
               Navigator.of(context).pop();
             }
@@ -224,8 +210,8 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Restock'),
-          backgroundColor: const Color(0xFF5C7C9A), // Updated color
-          foregroundColor: Colors.white, // Updated color for font and icon
+          backgroundColor: const Color(0xFF5C7C9A),
+          foregroundColor: Colors.white,
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -244,17 +230,12 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
                     ),
                   ),
                 const SizedBox(height: 16),
-
                 _infoRow('Name', widget.medicine['name']),
                 _infoRow('Generic Name', widget.medicine['generic_name']),
                 _infoRow('Category', widget.medicine['category']),
                 _infoRow('Dosage Form', widget.medicine['dosage_form']),
                 _infoRow('Price', '₱${widget.medicine['price']}'),
-                // You can keep or remove this display row, as the TextFormField below now handles the actual value
-                // _infoRow('Quantity', '${widget.medicine['restock_quantity'] ?? 'N/A'}'), 
-
                 const Divider(height: 32),
-
                 TextFormField(
                   controller: _batchNumberController,
                   decoration: const InputDecoration(labelText: 'Batch Number'),
@@ -262,14 +243,11 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
                       value!.isEmpty ? 'Please enter a batch number' : null,
                 ),
                 const SizedBox(height: 16),
-
                 TextFormField(
                   controller: _quantityController,
-                  // Now, the readOnly property is dynamic.
                   readOnly: !_isSyrup,
                   decoration: InputDecoration(
                     labelText: 'Quantity',
-                    // Conditionally add a suffix icon to indicate editability.
                     suffixIcon: _isSyrup ? const Icon(Icons.edit) : null,
                   ),
                   keyboardType: TextInputType.number,
@@ -284,7 +262,6 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
                   },
                 ),
                 const SizedBox(height: 16),
-
                 TextFormField(
                   controller: _expirationDateController,
                   readOnly: true,
@@ -297,7 +274,6 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
                   validator: (value) =>
                       value!.isEmpty ? 'Please pick an expiration date' : null,
                 ),
-
                 const SizedBox(height: 24),
                 Center(
                   child: ElevatedButton(
@@ -327,7 +303,6 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
   void dispose() {
     _batchNumberController.removeListener(_onTextChanged);
     _expirationDateController.removeListener(_onTextChanged);
-    // Only remove listener for quantity controller if it was added.
     if (_isSyrup) {
       _quantityController.removeListener(_onTextChanged);
     }

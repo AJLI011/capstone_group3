@@ -18,6 +18,8 @@ import 'manager_features/instore_sales_transaction_m/instore_transaction.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
@@ -56,6 +58,8 @@ class _ManagerViewState extends State<ManagerView>
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
+    // Initialize timezone data
+    tz.initializeTimeZones();
     _fetchDashboardData();
   }
 
@@ -76,7 +80,7 @@ class _ManagerViewState extends State<ManagerView>
         http.get(Uri.parse('$API_BASE/api/medicines/expiring-soon/')),
         http.get(Uri.parse('$API_BASE/api/medicines/expired/')),
         http.get(Uri.parse('$API_BASE/api/medicines/low-stock/')),
-        http.get(Uri.parse('$API_BASE/api/inventory-logs/')),
+        http.get(Uri.parse('$API_BASE/api/inventory-logs/?limit=3&ordering=-timestamp')),
       ]);
 
       setState(() {
@@ -101,7 +105,12 @@ class _ManagerViewState extends State<ManagerView>
           lowStockItems = json.decode(responses[5].body);
         }
         if (responses[6].statusCode == 200) {
-          inventoryLogs = json.decode(responses[6].body);
+          final newLogs = json.decode(responses[6].body);
+          if (newLogs.length < inventoryLogs.length || newLogs.length > inventoryLogs.length) {
+            inventoryLogs = newLogs;
+          } else if (newLogs.isNotEmpty && newLogs[0]['id'] != inventoryLogs[0]['id']) {
+            inventoryLogs = newLogs;
+          }
         }
         isLoading = false;
       });
@@ -250,7 +259,7 @@ class _ManagerViewState extends State<ManagerView>
                             style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF5C7C9A), // Consistent with app bar
+                              color: Color(0xFF5C7C9A),
                             ),
                           ),
                           const SizedBox(height: 20),
@@ -327,39 +336,28 @@ class _ManagerViewState extends State<ManagerView>
                                       Icons.phone_android_outlined,
                                       'Online Sales Transaction',
                                       () => _open(const OnlineOrdersReportPage())),
-                                  _drawerItem(
-                                      Icons.priority_high,
-                                      'Expiry',
+                                  _drawerItem(Icons.priority_high, 'Expiry',
                                       () => _open(const ExpiryDashboardView())),
-                                  _drawerItem(
-                                      Icons.assignment_return,
+                                  _drawerItem(Icons.assignment_return,
                                       'Return Medicines',
                                       () => _open(const ReturnMedicinePage())),
-                                  _drawerItem(
-                                      Icons.local_offer,
-                                      'Promo Medicines',
+                                  _drawerItem(Icons.local_offer, 'Promo Medicines',
                                       () => _open(const PromoMedicinePage())),
-                                  _drawerItem(
-                                      Icons.point_of_sale,
+                                  _drawerItem(Icons.point_of_sale,
                                       'In Store Sales Report',
                                       () => _open(const InStoreSalesReportPage())),
-                                  _drawerItem(
-                                      Icons.trending_up,
+                                  _drawerItem(Icons.trending_up,
                                       'Online Sales Report',
                                       () => _open(const OnlineSalesReportPage())),
-                                  _drawerItem(Icons.insights, 'Demand Forecast', () {}),
-                                  _drawerItem(Icons.shopping_cart, 'Purchase Request', () {}),
-                                  _drawerItem(
-                                      Icons.list_alt,
-                                      'Medicine List',
+                                  _drawerItem(Icons.insights, 'Demand Forecast',
+                                      () {}),
+                                  _drawerItem(Icons.shopping_cart, 'Purchase Request',
+                                      () {}),
+                                  _drawerItem(Icons.list_alt, 'Medicine List',
                                       () => _open(const MedicineListView())),
-                                  _drawerItem(
-                                      Icons.history,
-                                      'Inventory Logs',
+                                  _drawerItem(Icons.history, 'Inventory Logs',
                                       () => _open(const InventoryLogsPage())),
-                                  _drawerItem(
-                                      Icons.receipt_long,
-                                      'Order Logs',
+                                  _drawerItem(Icons.receipt_long, 'Order Logs',
                                       () => _open(const OrderLogsScreen())),
                                   _drawerItem(
                                       Icons.person_outline,
@@ -403,7 +401,7 @@ class _ManagerViewState extends State<ManagerView>
   }
 
   Widget _buildSummaryCards() {
-    return Row(
+    return Column(
       children: [
         _buildSummaryCard(
           title: 'Total Medicines',
@@ -412,7 +410,7 @@ class _ManagerViewState extends State<ManagerView>
           color: const Color(0xFF5C7C9A),
           textColor: Colors.white,
         ),
-        const SizedBox(width: 16),
+        const SizedBox(height: 16),
         _buildSummaryCard(
           title: 'Total Earnings',
           value: '₱${totalEarned.toStringAsFixed(2)}',
@@ -431,35 +429,41 @@ class _ManagerViewState extends State<ManagerView>
     required Color color,
     Color textColor = Colors.black,
   }) {
-    return Expanded(
+    return SizedBox(
+      width: double.infinity,
       child: Card(
         color: color,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row( // Changed Column to Row
             children: [
-              Icon(icon, size: 30, color: textColor),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
+              Expanded( // Added Expanded for text content
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
+              Icon(icon, size: 50, color: textColor), // Moved icon to the end and increased size
             ],
           ),
         ),
@@ -526,10 +530,8 @@ class _ManagerViewState extends State<ManagerView>
   }
 
   Widget _buildLowStockList() {
-    // Filter out items with a quantity of 0 or less
-    final filteredLowStockItems = lowStockItems.where((item) => (item['total_quantity'] ?? 0) > 0).toList();
-
-    if (filteredLowStockItems.isEmpty) {
+    // Use the lowStockItems list directly without additional filtering.
+    if (lowStockItems.isEmpty) {
       return const Text(
         'No low stock items found.',
         style: TextStyle(color: Colors.grey),
@@ -545,9 +547,9 @@ class _ManagerViewState extends State<ManagerView>
         ),
         padding: const EdgeInsets.all(8.0),
         child: ListView.builder(
-          itemCount: filteredLowStockItems.length,
+          itemCount: lowStockItems.length,
           itemBuilder: (context, index) {
-            final item = filteredLowStockItems[index];
+            final item = lowStockItems[index];
             return Card(
               elevation: 2,
               margin: const EdgeInsets.only(bottom: 8),
@@ -574,6 +576,9 @@ class _ManagerViewState extends State<ManagerView>
     if (inventoryLogs.isEmpty) {
       return const Text('No recent logs.', style: TextStyle(color: Colors.grey));
     }
+
+    final latestLogs = inventoryLogs.length > 3 ? inventoryLogs.sublist(0, 3) : inventoryLogs;
+
     return SizedBox(
       height: 200,
       child: Container(
@@ -584,8 +589,11 @@ class _ManagerViewState extends State<ManagerView>
         padding: const EdgeInsets.all(8.0),
         child: SingleChildScrollView(
           child: Column(
-            children: inventoryLogs.take(5).map((log) {
-              final timestamp = DateTime.parse(log['timestamp']);
+            children: latestLogs.map((log) {
+              final DateTime utcTimestamp = DateTime.parse(log['timestamp']).toUtc();
+              final location = tz.getLocation('Asia/Manila');
+              final tz.TZDateTime manilaTimestamp = tz.TZDateTime.from(utcTimestamp, location);
+
               return Card(
                 elevation: 2,
                 margin: const EdgeInsets.only(bottom: 8),
@@ -593,7 +601,7 @@ class _ManagerViewState extends State<ManagerView>
                   leading: const Icon(Icons.history_outlined),
                   title: Text('${log['action_type']} by ${log['user_name']}'),
                   subtitle: Text(log['description']),
-                  trailing: Text(DateFormat('hh:mm a').format(timestamp)),
+                  trailing: Text(DateFormat('hh:mm a').format(manilaTimestamp)),
                 ),
               );
             }).toList(),
