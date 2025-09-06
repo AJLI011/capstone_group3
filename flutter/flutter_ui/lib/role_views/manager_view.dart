@@ -20,6 +20,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'manager_features/demand_forecasting/demand_forecast.dart';
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
@@ -351,7 +352,10 @@ class _ManagerViewState extends State<ManagerView>
                                       Icons.trending_up,
                                       'Online Sales Report',
                                       () => _open(const OnlineSalesReportPage())),
-                                  _drawerItem(Icons.insights, 'Demand Forecast', () {}),
+                                  _drawerItem(
+                                      Icons.insights,
+                                      'Demand Forecast',
+                                      () => _open(const DemandForecastScreen())),
                                   _drawerItem(Icons.shopping_cart, 'Purchase Request', () {}),
                                   _drawerItem(
                                       Icons.list_alt,

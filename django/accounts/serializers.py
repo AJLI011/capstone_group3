@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, 
 InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog, OnlineOrder, OnlineOrderItem, OrderLog, Prescription,
-PrescriptionImage, CustomerFCMToken, TotalQuantity, Medicine
+PrescriptionImage, CustomerFCMToken, TotalQuantity, Medicine, ForecastReport, ForecastItem,
 
 )
 from django.contrib.auth.hashers import make_password
@@ -1071,3 +1071,31 @@ class LowStockSerializer(serializers.ModelSerializer):
     class Meta:
         model = TotalQuantity
         fields = ['name', 'generic_name', 'total_quantity']
+
+
+#Demand Forecasting
+# This keeps the API response clean and fast.
+class MedicineForecastSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Medicine
+        fields = ['id', 'name', 'generic_name']
+
+# NEW: Serializer for the forecast items.
+class ForecastItemSerializer(serializers.ModelSerializer):
+    # Use the simplified MedicineForecastSerializer to represent the medicine object.
+    medicine = MedicineForecastSerializer(read_only=True)
+
+    class Meta:
+        model = ForecastItem
+        # UPDATED FIELDS: Added current_stock and restock_amount
+        fields = ['rank', 'forecasted_quantity', 'current_stock', 'restock_amount', 'medicine']
+
+# NEW: Main serializer for the forecast report.
+class ForecastReportSerializer(serializers.ModelSerializer):
+    # The 'items' field here will return a list of all ForecastItem objects
+    # related to this report.
+    items = ForecastItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ForecastReport
+        fields = ['week_start_date', 'date_generated', 'items']

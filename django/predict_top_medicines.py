@@ -12,27 +12,23 @@ from django.db.models import Sum, F
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings') 
 django.setup()
 
-from accounts.models import InStoreOrder, OnlineOrder, Medicine, InStoreOrderItem, OnlineOrderItem, ForecastReport, ForecastItem
+# UPDATED IMPORT: Added TotalQuantity model
+from accounts.models import (
+    InStoreOrder, OnlineOrder, Medicine, InStoreOrderItem,
+    OnlineOrderItem, ForecastReport, ForecastItem, TotalQuantity
+)
 
 warnings.filterwarnings("ignore")
 
-def predict_and_save_top_medicines(forecast_date=None):
+def predict_and_save_top_medicines():
     """
     Predicts the top-selling medicines and saves the forecast to the database.
-    
-    Args:
-        forecast_date (datetime.date, optional): A specific date to forecast for. 
-            If not provided, the script will forecast for the next upcoming week.
+    This script is designed to be run weekly and will always forecast the upcoming week.
     """
-    if forecast_date:
-        print(f"\n--- Running in TEST mode for forecast date: {forecast_date} ---")
-        today_for_forecast = forecast_date
-    else:
-        today_for_forecast = datetime.now()
-
-    # Calculate the start date of the week to forecast
-    # This logic remains dynamic based on the provided date or current date
-    next_sunday = today_for_forecast + timedelta(days=(6 - today_for_forecast.weekday()))
+    # Calculate the start date of the next week
+    today = datetime.now()
+    # Find the next Sunday (the start of the week in pandas' 'W' frequency)
+    next_sunday = today + timedelta(days=(6 - today.weekday()))
     next_week_start_date = next_sunday.date()
 
     # --- Precautionary check at the very beginning of the script ---
@@ -105,7 +101,6 @@ def predict_and_save_top_medicines(forecast_date=None):
             )
             results = model.fit(disp=False)
             
-            # Forecast for the next 1 week
             forecast = results.get_forecast(steps=1)
             predicted_quantity = forecast.predicted_mean.iloc[0]
             
@@ -131,16 +126,33 @@ def predict_and_save_top_medicines(forecast_date=None):
 
     top_10_forecasts = sorted_forecasts[:10]
     forecast_item_objects = []
-    
+
+    # NEW: Fetch all current stocks in a single query for efficiency
+    medicine_quantities = {
+        item.medicine_id: item.total_quantity 
+        for item in TotalQuantity.objects.all()
+    }
+
     for i, (medicine_name, quantity) in enumerate(top_10_forecasts):
         try:
             medicine_obj = Medicine.objects.get(name=medicine_name)
             
+            # NEW: Get the current stock from the pre-fetched dictionary
+            current_stock = medicine_quantities.get(medicine_obj.pk, 0)
+            
+            # NEW: Calculate the restock amount
+            forecasted_quantity = int(round(quantity))
+            restock_amount = forecasted_quantity - current_stock
+
             forecast_item_objects.append(
                 ForecastItem(
                     forecast_report=report,
                     medicine=medicine_obj,
-                    forecasted_quantity=int(round(quantity)),
+                    forecasted_quantity=forecasted_quantity,
+                    # NEW FIELDS ARE PASSED HERE
+                    current_stock=current_stock,
+                    restock_amount=restock_amount,
+                    # END NEW FIELDS
                     rank=i + 1
                 )
             )
@@ -155,11 +167,5 @@ def predict_and_save_top_medicines(forecast_date=None):
         print("No forecasts to save.")
 
 if __name__ == '__main__':
-    # --- Example of how to call it dynamically ---
-    # To run for the upcoming week (production mode)
-    predict_and_save_top_medicines(datetime(2025,9,14))
-    
-    # To run for a specific week in the past or future (testing mode)
-    # Uncomment the line below to test a specific date
-    # Make sure to run `python manage.py makemigrations` and `python manage.py migrate` again if you are changing your models.
-    # predict_and_save_top_medicines(datetime(2025, 1, 1))
+    # This is the production-ready call. It will always forecast the next upcoming week.
+    predict_and_save_top_medicines()

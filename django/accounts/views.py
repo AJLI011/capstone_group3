@@ -1,5 +1,7 @@
 import uuid
 import logging
+import pandas as pd
+
 from datetime import date, timedelta, datetime
 from decimal import Decimal
 
@@ -25,7 +27,7 @@ from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, 
     InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, 
     OnlineOrder, OnlineOrderItem, InStoreOrderApproval, Prescription, PrescriptionImage,
-    CustomerFCMToken
+    CustomerFCMToken, ForecastReport, ForecastItem
 )
 from .serializers import (
     CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer,
@@ -38,7 +40,7 @@ from .serializers import (
     OnlineOrderItemReadSerializer, OnlineOrderListSerializer, OnlineOrderItemCreateSerializer, 
     OnlineOrderCreateSerializer, OnlineOrderLogDetailsSerializer, InStoreSalesTransactionSerializer, 
     PrescriptionOrderSerializer, CombinedPrescriptionSerializer, PrescriptionImageSerializer,
-    LowStockSerializer
+    LowStockSerializer, ForecastItemSerializer, ForecastReportSerializer, MedicineForecastSerializer,
 )
 
 
@@ -2144,3 +2146,116 @@ def total_medicine_count(request):
     """
     total_count = Medicine.objects.count()
     return Response({'total_count': total_count})
+
+
+# ====================================================================
+# DEMAND FORECASTING VIEWS
+# ====================================================================
+
+# NEW VIEW: This is the view that your Flutter app's POST request calls
+@api_view(['POST'])
+def generate_forecast_report(request):
+    """
+    API endpoint to trigger the generation of a new demand forecast report.
+    This is where you will add your core forecasting logic.
+    """
+    if request.method == 'POST':
+        try:
+            # TODO: Implement your full forecasting logic here.
+            # 1. Fetch sales data for all medicines.
+            # 2. Process data and apply your forecasting model.
+            # 3. Calculate current stock and restock amounts.
+            # 4. Save the new ForecastReport and its ForecastItems to the database.
+
+            # For now, we will just return a success message.
+            # Replace this with your actual logic.
+            return Response(
+                {'message': 'Forecast generation initiated successfully.'},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {'error': f"An error occurred during forecast generation: {e}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+# The view to retrieve the latest report
+class LatestForecastReportView(generics.RetrieveAPIView):
+    """
+    API view to retrieve the latest demand forecast report.
+    """
+    queryset = ForecastReport.objects.all()
+    serializer_class = ForecastReportSerializer
+
+    def get_object(self):
+        try:
+            return ForecastReport.objects.latest('week_start_date')
+        except ForecastReport.DoesNotExist:
+            return None
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance is None:
+            return Response(
+                {"detail": "No demand forecast reports have been generated yet."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+# The view to retrieve historical sales data for a specific medicine
+class MedicineSalesHistoryView(APIView):
+    """
+    API endpoint to retrieve a medicine's weekly sales history.
+    """
+    def get(self, request, medicine_id, *args, **kwargs):
+        try:
+            medicine = Medicine.objects.get(pk=medicine_id)
+        except Medicine.DoesNotExist:
+            return Response(
+                {"detail": "Medicine not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=2 * 365) # Use 2 years of history
+
+        try:
+            in_store_sales = InStoreOrderItem.objects.filter(
+                inventory_id__medicine=medicine,
+                order__date_created__gte=start_date, 
+                order__date_created__lte=end_date
+            ).values('order__date_created', 'quantity_sold')
+
+            online_sales = OnlineOrderItem.objects.filter(
+                inventory_id__medicine=medicine,
+                order__date_created__gte=start_date,
+                order__date_created__lte=end_date
+            ).values('order__date_created', 'quantity_sold')
+            
+            combined_sales = list(in_store_sales) + list(online_sales)
+
+        except Exception as e:
+            return Response(
+                {"error": f"An error occurred while fetching data: {e}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        if not combined_sales:
+            return Response({"detail": "No historical sales data found for this medicine."}, status=status.HTTP_200_OK)
+
+        df = pd.DataFrame(combined_sales)
+        df.rename(columns={'order__date_created': 'date'}, inplace=True)
+        df.set_index('date', inplace=True)
+        
+        weekly_sales_df = df.groupby(pd.Grouper(freq='W')).agg(
+            total_sales=('quantity_sold', 'sum')
+        ).reset_index()
+
+        historical_data = [
+            {'week_start_date': row['date'].strftime('%Y-%m-%d'), 'sales': row['total_sales']}
+            for index, row in weekly_sales_df.iterrows()
+        ]
+
+        return Response(historical_data, status=status.HTTP_200_OK)

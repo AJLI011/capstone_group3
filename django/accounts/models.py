@@ -339,6 +339,7 @@ class CustomerFCMToken(models.Model):
 
 
 #-----DEMAND FORECASTING
+#-----DEMAND FORECASTING
 class ForecastReport(models.Model):
     class Meta:
         db_table = 'demand_forecast_report_tbl'
@@ -362,6 +363,10 @@ class ForecastItem(models.Model):
     )
     medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE)
     forecasted_quantity = models.PositiveIntegerField()
+    # NEW FIELDS ADDED BELOW
+    current_stock = models.PositiveIntegerField(default=0)
+    restock_amount = models.IntegerField(default=0) # Can be negative if stock > forecast
+    # END NEW FIELDS
     rank = models.PositiveIntegerField()
 
     def __str__(self):
