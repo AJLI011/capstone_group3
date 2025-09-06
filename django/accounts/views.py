@@ -1419,7 +1419,7 @@ def cancel_online_order_cashier(request, orderId):
 
 
 
-#=====================9/1/25===================
+#=====================9/1/25===================    ===================== 9/4/25 (online orders added in inventory logs)===================
 @api_view(['PUT'])
 def finalize_online_order(request, orderId):
     """
@@ -1492,7 +1492,15 @@ def finalize_online_order(request, orderId):
                     batch.quantity -= amount_to_take
                     batch.save()
                     remaining_to_deduct -= amount_to_take
-            
+
+                    # Log the sale in InventoryLog for the specific batch
+                    InventoryLog.objects.create(
+                        user=staff_user,
+                        medicine=batch.medicine,
+                        action_type='Sold',
+                        description=f"Sold {amount_to_take} units of '{batch.medicine.name}' (Batch: {batch.batch_num}) from online order #{orderId}."
+                    )
+
             # Step 3: Deduct from promo inventory batches (is_promo=True)
             for medicine_id, data in promo_items_to_deduct.items():
                 required_quantity = data['quantity']
@@ -1520,6 +1528,15 @@ def finalize_online_order(request, orderId):
                     batch.quantity -= amount_to_take
                     batch.save()
                     remaining_to_deduct -= amount_to_take
+
+                    # Log the sale in InventoryLog for the specific batch
+                    InventoryLog.objects.create(
+                        user=staff_user,
+                        medicine=batch.medicine,
+                        action_type='Sold',
+                        description=f"Sold {amount_to_take} units of '{batch.medicine.name}' (Batch: {batch.batch_num}) from online order #{orderId}."
+                        f"({item.quantity_sold} paid, {item.free_quantity_given} free)."
+                    )
 
             # Step 4: Update the order status and create a log entry after successful deduction.
             # This is the correct order of operations.
