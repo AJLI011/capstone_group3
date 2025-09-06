@@ -18,6 +18,8 @@ import 'manager_features/instore_sales_transaction_m/instore_transaction.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
@@ -56,6 +58,8 @@ class _ManagerViewState extends State<ManagerView>
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
+    // Initialize timezone data
+    tz.initializeTimeZones();
     _fetchDashboardData();
   }
 
@@ -585,7 +589,10 @@ class _ManagerViewState extends State<ManagerView>
         child: SingleChildScrollView(
           child: Column(
             children: inventoryLogs.take(5).map((log) {
-              final timestamp = DateTime.parse(log['timestamp']);
+              final DateTime utcTimestamp = DateTime.parse(log['timestamp']).toUtc();
+              final location = tz.getLocation('Asia/Manila');
+              final tz.TZDateTime manilaTimestamp = tz.TZDateTime.from(utcTimestamp, location);
+
               return Card(
                 elevation: 2,
                 margin: const EdgeInsets.only(bottom: 8),
@@ -593,7 +600,7 @@ class _ManagerViewState extends State<ManagerView>
                   leading: const Icon(Icons.history_outlined),
                   title: Text('${log['action_type']} by ${log['user_name']}'),
                   subtitle: Text(log['description']),
-                  trailing: Text(DateFormat('hh:mm a').format(timestamp)),
+                  trailing: Text(DateFormat('hh:mm a').format(manilaTimestamp)),
                 ),
               );
             }).toList(),
