@@ -87,17 +87,35 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
       return;
     }
 
-    // Map the current values from controllers to a new list for the PDF service
-    final List<Map<String, dynamic>> finalPurchaseRequests = _editablePurchaseRequests.map((item) {
-      return {
-        ...item,
-        // Use the current value from the controller
-        'restock_amount': int.tryParse((item['controller'] as TextEditingController).text) ?? 0,
-      };
-    }).toList();
+    setState(() {
+      _isLoading = true; // Show a loading indicator while fetching low stock data and generating PDF
+    });
 
     try {
-      await PdfPurchaseRequestService.generateAndSavePdf(purchaseRequests: finalPurchaseRequests);
+      // Step 1: Fetch the low stock data
+      final lowStockResponse = await http.get(Uri.parse('http://10.0.2.2:8000/api/medicines/low-stock/'));
+      List<dynamic> lowStockItems = [];
+      if (lowStockResponse.statusCode == 200) {
+        lowStockItems = json.decode(lowStockResponse.body);
+      } else {
+        // Handle case where low stock data fails to load, but don't stop the process
+        print('Warning: Failed to load low stock items. Status code: ${lowStockResponse.statusCode}');
+      }
+
+      // Step 2: Prepare the purchase requests data from the controllers
+      final List<Map<String, dynamic>> finalPurchaseRequests = _editablePurchaseRequests.map((item) {
+        return {
+          ...item,
+          'restock_amount': int.tryParse((item['controller'] as TextEditingController).text) ?? 0,
+        };
+      }).toList();
+
+      // Step 3: Pass both lists to the PDF service
+      await PdfPurchaseRequestService.generateAndSavePdf(
+        purchaseRequests: finalPurchaseRequests,
+        lowStockItems: lowStockItems,
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('✅ PDF saved successfully to downloads.')),
@@ -108,6 +126,12 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('❌ Failed to save PDF: $e')),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
