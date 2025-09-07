@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
 import 'restock_details.dart';
+
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
 
 class RestockBarcodeScreen extends StatefulWidget {
   const RestockBarcodeScreen({super.key});
@@ -25,9 +29,6 @@ class _RestockBarcodeScreenState extends State<RestockBarcodeScreen> {
   @override
   void initState() {
     super.initState();
-    // No manual start() call is needed here.
-    // The MobileScanner widget handles it automatically.
-    // You can initialize local state based on the controller properties.
   }
 
   @override
@@ -43,24 +44,36 @@ class _RestockBarcodeScreenState extends State<RestockBarcodeScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:8000/api/medicines/barcode/$barcode/'),
+        Uri.parse('${API_BASE}api/medicines/barcode/$barcode/'),
       );
 
       if (response.statusCode == 200) {
         final medicineData = json.decode(response.body);
         if (mounted) {
-          Navigator.of(context).pushReplacement(
+          final result = await Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => RestockDetailsPage(medicine: medicineData),
             ),
           );
+
+          // Check for a positive result from the restock page
+          if (result == true) {
+            // Pop this screen, passing 'true' back to the previous screen (ManagerView)
+            Navigator.of(context).pop(true);
+          } else {
+            // If the user came back without a successful restock, restart the scanner
+            _isScanning = false;
+            cameraController.start();
+          }
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Medicine not found')),
+            const SnackBar(content: Text('Medicine not found')),
           );
-          Navigator.of(context).pop();
+          // // Restart scanner for a new attempt
+          // _isScanning = false;
+          // cameraController.start();
         }
       }
     } catch (e) {
@@ -68,10 +81,10 @@ class _RestockBarcodeScreenState extends State<RestockBarcodeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
-        Navigator.of(context).pop();
+        // Restart scanner for a new attempt
+        _isScanning = false;
+        cameraController.start();
       }
-    } finally {
-      _isScanning = false;
     }
   }
 

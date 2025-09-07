@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
- 
+
 import 'edit_medicines_list.dart';
 
 import 'add_medicines_list.dart';
@@ -85,23 +85,103 @@ class MedicineListView extends StatefulWidget {
 }
 
 class _MedicineListViewState extends State<MedicineListView> {
-  late Future<List<Medicine>> futureMedicines;
+  // Updated to hold the list directly
+  List<Medicine> _medicines = [];
+  // State for lazy loading
+  bool _isLoading = false;
+  bool _hasMore = true;
+  int _page = 1;
+  final int _pageSize = 10; // Number of items to fetch per page
+  final ScrollController _scrollController = ScrollController();
+  
+  // *** START OF ADDED CODE FOR SEARCH ***
+  List<Medicine> _filteredMedicines = [];
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
+  // *** END OF ADDED CODE FOR SEARCH ***
 
   @override
   void initState() {
     super.initState();
-    futureMedicines = fetchMedicines();
+    // Initial fetch
+    _fetchMedicines();
+    // Add listener for infinite scrolling
+    _scrollController.addListener(_onScroll);
+    // *** ADDED LISTENER FOR SEARCH ***
+    _searchController.addListener(_filterMedicines);
   }
 
-  Future<List<Medicine>> fetchMedicines() async {
-    final response = await http.get(
-      Uri.parse('http://10.0.2.2:8000/api/medicines/'),
-    );
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    // *** DISPOSE OF SEARCH CONTROLLER ***
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    // Check if the user has scrolled to the end of the list
+    if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
+      // Trigger fetch for the next page
+      _fetchMedicines();
+    }
+  }
+
+  // *** ADDED METHOD TO FILTER MEDICINES ***
+  void _filterMedicines() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredMedicines = List.from(_medicines);
+      } else {
+        _filteredMedicines = _medicines
+            .where((medicine) =>
+                (medicine.name?.toLowerCase().contains(query) ?? false) ||
+                (medicine.genericName?.toLowerCase().contains(query) ?? false) ||
+                (medicine.barcode?.toLowerCase().contains(query) ?? false))
+            .toList();
+      }
+    });
+  }
+  // *** END OF ADDED METHOD ***
+
+  Future<void> _fetchMedicines() async {
+    if (_isLoading || !_hasMore) {
+      return;
+    }
+    
+    setState(() {
+      _isLoading = true;
+    });
+    
+    // Construct the API URL with pagination parameters
+    final uri = Uri.parse('http://10.0.2.2:8000/api/medicines/?page=$_page&page_size=$_pageSize');
+    
+    final response = await http.get(uri);
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
-      return data.map((json) => Medicine.fromJson(json)).toList();
+      final newMedicines = data.map((json) => Medicine.fromJson(json)).toList();
+      
+      setState(() {
+        // Append new data to the existing list
+        _medicines.addAll(newMedicines);
+        _isLoading = false;
+        _page++; // Increment page for the next fetch
+        // Check if we've received fewer items than the page size, meaning no more data
+        if (newMedicines.length < _pageSize) {
+          _hasMore = false;
+        }
+        // *** ADDED: FILTER MEDICINES AFTER FETCHING ***
+        _filterMedicines(); 
+      });
     } else {
+      setState(() {
+        _isLoading = false;
+        // Stop trying to fetch if there's an error
+        _hasMore = false;
+      });
       throw Exception('Failed to load medicines');
     }
   }
@@ -110,13 +190,10 @@ class _MedicineListViewState extends State<MedicineListView> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => EditMedicinePage(medicine: medicine.toJson()), // Changed here
+        builder: (context) => EditMedicinePage(medicine: medicine.toJson()),
       ),
     ).then((_) {
-      // Refresh list after editing
-      setState(() {
-        futureMedicines = fetchMedicines();
-      });
+      _refreshList();
     });
   }
 
@@ -154,9 +231,7 @@ class _MedicineListViewState extends State<MedicineListView> {
     final response = await http.delete(uri); // Corrected line
 
     if (response.statusCode == 204) {
-      setState(() {
-        futureMedicines = fetchMedicines();
-      });
+      _refreshList();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Medicine deleted')),
       );
@@ -174,75 +249,109 @@ class _MedicineListViewState extends State<MedicineListView> {
         builder: (context) => const AddMedicineScreen(),
       ),
     ).then((_) {
-      // This 'then' block will execute when AddMedicineScreen is popped (closed).
-      // It allows you to refresh the list of medicines after a new one might have been added.
-      setState(() {
-        futureMedicines = fetchMedicines(); // Refresh the list
-      });
+      _refreshList();
     });
   }
+
+  // Helper function to reset and fetch data
+  // *** MODIFIED _refreshList METHOD ***
+  void _refreshList() {
+    setState(() {
+      _medicines = [];
+      _filteredMedicines = [];
+      _page = 1;
+      _hasMore = true;
+      _searchController.clear();
+      _isSearching = false;
+    });
+    _fetchMedicines();
+  }
+  // *** END OF MODIFIED _refreshList METHOD ***
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Medicine List'),
+        // *** MODIFIED: DYNAMIC TITLE AND SEARCH BAR ***
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                decoration: const InputDecoration(
+                  hintText: 'Search...',
+                  hintStyle: TextStyle(color: Colors.white70),
+                  border: InputBorder.none,
+                ),
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              )
+            : const Text('Medicine List'),
         backgroundColor: const Color(0xFF5C7C9A), // Updated color
         foregroundColor: Colors.white, // Updated color for font and icon
-      ),
-      body: FutureBuilder<List<Medicine>>(
-        future: futureMedicines,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No medicines found.'));
-          }
-
-          final medicines = snapshot.data!;
-          return ListView.builder(
-            itemCount: medicines.length,
-            itemBuilder: (context, index) {
-              final med = medicines[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: ListTile(
-                  title: Text(med.name ?? 'Unnamed'),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Barcode No: ${med.barcode ?? "-"}'),
-                      Text('Generic Name: ${med.genericName ?? "-"}'),
-                      Text('Category: ${med.category ?? "-"}'),
-                      Text('Dosage Form: ${med.dosageForm ?? "-"}'),
-                      Text('Supplier: ${med.supplierName ?? "-"}'),
-                      Text('Prescription Required: ${med.prescriptionRequired == true ? "Yes" : "No"}'),
-                      Text('Quantity: ${med.quantity ?? 0}'),
-                      Text('Price: ₱${(med.price ?? 0.0).toStringAsFixed(2)}'),
-                    ],
-                  ),
-                  isThreeLine: true,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () => _editMedicine(med),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _deleteMedicine(med.id),
-                      ),
-                    ],
-                  ),
-                ),
-              );
+        // *** ADDED: SEARCH BUTTON AND FUNCTIONALITY ***
+        actions: [
+          IconButton(
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            onPressed: () {
+              setState(() {
+                _isSearching = !_isSearching;
+                if (!_isSearching) {
+                  _searchController.clear();
+                }
+              });
             },
-          );
-        },
+          ),
+        ],
       ),
+      body: _medicines.isEmpty && _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          // *** MODIFIED: CHECK FILTERED LIST FOR EMPTY STATE ***
+          : _filteredMedicines.isEmpty && !_isLoading && !_isSearching
+              ? const Center(child: Text('No medicines found.'))
+              // *** MODIFIED: USE _filteredMedicines LIST FOR THE VIEWS ***
+              : ListView.builder(
+                  controller: _scrollController,
+                  itemCount: _filteredMedicines.length + (_hasMore && !_isSearching ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    // Check if this is the last item and we have more to load
+                    if (index == _filteredMedicines.length) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    
+                    final med = _filteredMedicines[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      child: ListTile(
+                        title: Text(med.name ?? 'Unnamed'),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Barcode No: ${med.barcode ?? "-"}'),
+                            Text('Generic Name: ${med.genericName ?? "-"}'),
+                            Text('Category: ${med.category ?? "-"}'),
+                            Text('Dosage Form: ${med.dosageForm ?? "-"}'),
+                            Text('Supplier: ${med.supplierName ?? "-"}'),
+                            Text('Prescription Required: ${med.prescriptionRequired == true ? "Yes" : "No"}'),
+                            Text('Quantity: ${med.quantity ?? 0}'),
+                            Text('Price: ₱${(med.price ?? 0.0).toStringAsFixed(2)}'),
+                          ],
+                        ),
+                        isThreeLine: true,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () => _editMedicine(med),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _deleteMedicine(med.id),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
       floatingActionButton: FloatingActionButton(
         onPressed: _onAddMedicine,
         tooltip: 'Add Medicine',

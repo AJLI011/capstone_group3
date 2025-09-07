@@ -1,4 +1,3 @@
-
 // medicine_view.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -37,11 +36,13 @@ class Medicine {
 class MedicineView extends StatefulWidget {
   final int customerId;
   final String selectedCategory;
+  final String searchQuery; // <--- Added this line for working search bar
 
   const MedicineView({
     super.key,
     required this.customerId,
     this.selectedCategory = 'all',
+    this.searchQuery = '', // <--- Added this line for working search bar
   });
 
   @override
@@ -176,19 +177,31 @@ class _MedicineViewState extends State<MedicineView> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+@override
+Widget build(BuildContext context) {
+  final filteredMedicines = _medicines.where((medicine) {
+    final nameLower = medicine.name.toLowerCase();
+    final genericNameLower = medicine.genericName.toLowerCase();
+    final searchLower = widget.searchQuery.toLowerCase();
+
+    return nameLower.contains(searchLower) || genericNameLower.contains(searchLower);
+  }).toList();
+    
     return Scaffold(
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _medicines.isEmpty
+          : filteredMedicines.isEmpty // <-- Change `_medicines` to `filteredMedicines`
               ? Center(
                   child: Text(
-                      "No medicines available for the category: ${widget.selectedCategory}"))
+                    (widget.searchQuery.isNotEmpty) // <-- This checks if a search was performed
+                    ? "No medicines found for '${widget.searchQuery}'"
+                    : "No medicines available for the category: ${widget.selectedCategory}",
+                  ),
+               )
               : Padding(
                   padding: const EdgeInsets.all(12),
                   child: GridView.builder(
-                    itemCount: _medicines.length,
+                    itemCount: filteredMedicines.length,
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
@@ -196,7 +209,7 @@ class _MedicineViewState extends State<MedicineView> {
                       childAspectRatio: 0.7,
                     ),
                     itemBuilder: (context, index) =>
-                        _buildMedicineCard(_medicines[index]),
+                        _buildMedicineCard(filteredMedicines[index]),
                   ),
                 ),
     );

@@ -1,19 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_ui/role_views/manager_features/expiration_dashboard/expiry_dashboard_view.dart';
+import 'package:flutter_ui/role_views/manager_features/online_sales_report/online_sales_report_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../login_function/login_customer.dart';
+import 'manager_features/medicines_list/medicines_list_view.dart';
+import 'manager_features/restock/restock_barcode.dart';
+import 'manager_features/change_password/change_manager_password.dart';
+import 'manager_features/edit_profile/edit_manager_profile.dart';
+import 'manager_features/inventory/inventory_grid_screen.dart';
+import 'manager_features/return_medicines/return_page.dart';
+import 'manager_features/promo_medicines/promo_page.dart';
+import 'manager_features/inventory_logs/inventory_logs_page.dart';
+import 'manager_features/online_sales_transaction/online_transaction.dart';
+import 'manager_features/instore_sales_report/in_store_sales_report_page.dart';
+import 'manager_features/order_logs/order_logs.dart';
+import 'manager_features/instore_sales_transaction_m/instore_transaction.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
-import '../login_function/login_customer.dart';
-import 'staff_features/edit_profile/edit_staff_profile.dart';
-import 'staff_features/change_password/change_staff_password.dart';
-import 'manager_features/inventory/inventory_grid_screen.dart';
-import 'staff_features/expiration_dashboard/expiry_dashboard_staff_view.dart';
-import 'staff_features/sales/sales_barcode.dart';
-import 'staff_features/online_orders/online_orders_staff_page.dart';
-import 'staff_features/prescription/prescription_staff.dart';
-
-// Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
   defaultValue: 'http://10.0.2.2:8000/',
@@ -37,10 +44,12 @@ class _StaffViewState extends State<StaffView>
   bool isLoading = true;
 
   int totalMedicineCount = 0;
-  double totalEarnings = 0.0;
+  double totalEarned = 0.0;
   int goodStockCount = 0;
   int expiringSoonCount = 0;
   int expiredCount = 0;
+  List<dynamic> inventoryLogs = [];
+  List<dynamic> lowStockItems = [];
 
   @override
   void initState() {
@@ -49,6 +58,8 @@ class _StaffViewState extends State<StaffView>
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
+    // Initialize timezone data
+    tz.initializeTimeZones();
     _fetchDashboardData();
   }
 
@@ -56,9 +67,10 @@ class _StaffViewState extends State<StaffView>
     setState(() {
       isLoading = true;
     });
+
     final prefs = await SharedPreferences.getInstance();
     staffName = prefs.getString('name') ?? 'Staff User';
-    staffEmail = prefs.getString('email') ?? 'staff@email.com';
+    staffEmail = prefs.getString('email') ?? 'staff.email@example.com';
 
     try {
       final responses = await Future.wait([
@@ -67,6 +79,8 @@ class _StaffViewState extends State<StaffView>
         http.get(Uri.parse('$API_BASE/api/medicines/good-stock/')),
         http.get(Uri.parse('$API_BASE/api/medicines/expiring-soon/')),
         http.get(Uri.parse('$API_BASE/api/medicines/expired/')),
+        http.get(Uri.parse('$API_BASE/api/medicines/low-stock/')),
+        http.get(Uri.parse('$API_BASE/api/inventory-logs/?limit=3&ordering=-timestamp')),
       ]);
 
       setState(() {
@@ -74,7 +88,9 @@ class _StaffViewState extends State<StaffView>
           totalMedicineCount = json.decode(responses[0].body)['total_count'];
         }
         if (responses[1].statusCode == 200) {
-          totalEarnings = (json.decode(responses[1].body)['total_earnings'] as num).toDouble();
+          totalEarned =
+              (json.decode(responses[1].body)['total_earnings'] as num)
+                  .toDouble();
         }
         if (responses[2].statusCode == 200) {
           goodStockCount = json.decode(responses[2].body).length;
@@ -84,6 +100,17 @@ class _StaffViewState extends State<StaffView>
         }
         if (responses[4].statusCode == 200) {
           expiredCount = json.decode(responses[4].body).length;
+        }
+        if (responses[5].statusCode == 200) {
+          lowStockItems = json.decode(responses[5].body);
+        }
+        if (responses[6].statusCode == 200) {
+          final newLogs = json.decode(responses[6].body);
+          if (newLogs.length < inventoryLogs.length || newLogs.length > inventoryLogs.length) {
+            inventoryLogs = newLogs;
+          } else if (newLogs.isNotEmpty && newLogs[0]['id'] != inventoryLogs[0]['id']) {
+            inventoryLogs = newLogs;
+          }
         }
         isLoading = false;
       });
@@ -111,7 +138,6 @@ class _StaffViewState extends State<StaffView>
     _isMenuOpen ? _ctrl.forward() : _ctrl.reverse();
   }
 
-  // Helper to POST an employee log (login/logout)
   Future<void> _postEmployeeLog(int staffId, String action) async {
     try {
       final url = Uri.parse('$API_BASE/api/employee-logs/');
@@ -120,7 +146,6 @@ class _StaffViewState extends State<StaffView>
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'staff': staffId, 'action': action}),
       );
-
       if (resp.statusCode != 201 && resp.statusCode != 200) {
         if (!mounted) return;
         debugPrint('Employee log POST failed: ${resp.statusCode} ${resp.body}');
@@ -133,7 +158,6 @@ class _StaffViewState extends State<StaffView>
   Future<void> _logout() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-
       int staffIdToUse;
       final int? prefsStaffId = prefs.getInt('staff_id');
       if (prefsStaffId != null) {
@@ -141,15 +165,12 @@ class _StaffViewState extends State<StaffView>
       } else {
         staffIdToUse = widget.staffId;
       }
-
       try {
         await _postEmployeeLog(staffIdToUse, 'logout');
       } catch (e) {
         debugPrint('Error posting logout log: $e');
       }
-
       await prefs.clear();
-
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
@@ -187,7 +208,6 @@ class _StaffViewState extends State<StaffView>
         ],
       ),
     );
-
     if (confirm == true) {
       _logout();
     }
@@ -195,11 +215,8 @@ class _StaffViewState extends State<StaffView>
 
   void _open(Widget page) async {
     _toggleMenu();
-    final result =
-        await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-    if (result == true) {
-      _fetchDashboardData();
-    }
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    _fetchDashboardData();
   }
 
   @override
@@ -242,19 +259,23 @@ class _StaffViewState extends State<StaffView>
                             style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
-                              color: Colors.black, // Changed to black
+                              color: Color(0xFF5C7C9A),
                             ),
                           ),
-                          const SizedBox(height: 30), // Increased vertical spacing
+                          const SizedBox(height: 20),
                           _buildSummaryCards(),
-                          const SizedBox(height: 30), // Increased vertical spacing
+                          const SizedBox(height: 20),
                           _buildSectionTitle('Medicine Status'),
-                          const SizedBox(height: 20), // Increased vertical spacing
+                          const SizedBox(height: 10),
                           _buildExpirationIndicators(),
-                          const SizedBox(height: 30), // Increased vertical spacing
-                          _buildSectionTitle('Quick Actions'),
-                          const SizedBox(height: 20), // Increased vertical spacing
-                          _buildQuickActions(),
+                          const SizedBox(height: 20),
+                          _buildSectionTitle('Low Stock Alert'),
+                          const SizedBox(height: 10),
+                          _buildLowStockList(),
+                          const SizedBox(height: 20),
+                          _buildSectionTitle('Inventory Logs'),
+                          const SizedBox(height: 10),
+                          _buildInventoryLogsList(),
                         ],
                       ),
                     ),
@@ -271,89 +292,95 @@ class _StaffViewState extends State<StaffView>
                     child: Material(
                       color: Colors.white,
                       elevation: 16,
-                      child: isLoading
-                          ? const Center(child: CircularProgressIndicator())
-                          : Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                const SizedBox(height: 60),
-                                const CircleAvatar(
-                                  radius: 40,
-                                  child: Icon(Icons.person, size: 50),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  staffName ?? 'Staff Name',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  staffEmail ?? 'staff@email.com',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(color: Colors.grey),
-                                ),
-                                const Divider(height: 40),
-                                Expanded(
-                                  child: SingleChildScrollView(
-                                    child: Column(
-                                      children: [
-                                        _drawerItem(Icons.inventory_outlined,
-                                            'Inventory',
-                                            () => _open(
-                                                const InventoryGridScreen())),
-                                        _drawerItem(
-                                            Icons.sell,
-                                            'Sale',
-                                            () => _open(SalesBarcodeScreen(
-                                                staffId: widget.staffId,
-                                                cartItems: const []))),
-                                        _drawerItem(
-                                            Icons.mobile_friendly,
-                                            'Online Orders',
-                                            () => _open(const StaffOrdersPage())),
-                                        _drawerItem(
-                                            Icons.priority_high,
-                                            'Expiry',
-                                            () => _open(
-                                                const ExpiryDashboardStaffView())),
-                                        _drawerItem(
-                                            Icons.receipt_long,
-                                            'Prescriptions',
-                                            () => _open(
-                                                const PrescriptionsStaff())),
-                                        _drawerItem(
-                                            Icons.person_outline,
-                                            'Edit Profile',
-                                            () => _open(EditStaffProfilePage(
-                                                staffId: widget.staffId))),
-                                        _drawerItem(
-                                            Icons.vpn_key,
-                                            'Change Password',
-                                            () => _open(ChangeStaffPasswordPage(
-                                                staffId: widget.staffId))),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blue.shade700,
-                                    ),
-                                    onPressed: _confirmLogout,
-                                    child: const Text(
-                                      'Logout',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 60),
+                          const CircleAvatar(
+                            radius: 40,
+                            child: Icon(Icons.person, size: 50),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            staffName ?? 'Staff Name',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
                             ),
+                          ),
+                          Text(
+                            staffEmail ?? 'staff.email@example.com',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                          const Divider(height: 40),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              child: Column(
+                                children: [
+                                  _drawerItem(
+                                      Icons.inventory_outlined,
+                                      'Inventory',
+                                      () => _open(const InventoryGridScreen())),
+                                  _drawerItem(Icons.shelves, 'Restock',
+                                      () => _open(const RestockBarcodeScreen())),
+                                  _drawerItem(Icons.store, 'In Store Sales Transaction',
+                                      () => _open(const InStoreTransactionPage())),
+                                  _drawerItem(
+                                      Icons.phone_android_outlined,
+                                      'Online Sales Transaction',
+                                      () => _open(const OnlineOrdersReportPage())),
+                                  _drawerItem(Icons.priority_high, 'Expiry',
+                                      () => _open(const ExpiryDashboardView())),
+                                  _drawerItem(Icons.assignment_return, 'Return Medicines',
+                                      () => _open(const ReturnMedicinePage())),
+                                  _drawerItem(Icons.local_offer, 'Promo Medicines',
+                                      () => _open(const PromoMedicinePage())),
+                                  _drawerItem(Icons.point_of_sale, 'In Store Sales Report',
+                                      () => _open(const InStoreSalesReportPage())),
+                                  _drawerItem(Icons.trending_up, 'Online Sales Report',
+                                      () => _open(const OnlineSalesReportPage())),
+                                  _drawerItem(Icons.insights, 'Demand Forecast',
+                                      () {}),
+                                  _drawerItem(Icons.shopping_cart, 'Purchase Request',
+                                      () {}),
+                                  _drawerItem(Icons.list_alt, 'Medicine List',
+                                      () => _open(const MedicineListView())),
+                                  _drawerItem(Icons.history, 'Inventory Logs',
+                                      () => _open(const InventoryLogsPage())),
+                                  _drawerItem(Icons.receipt_long, 'Order Logs',
+                                      () => _open(const OrderLogsScreen())),
+                                  _drawerItem(
+                                      Icons.person_outline,
+                                      'Edit Profile',
+                                      () => _open(EditManagerProfilePage(
+                                          staffId: widget.staffId))),
+                                  _drawerItem(
+                                      Icons.vpn_key,
+                                      'Change Password',
+                                      () => _open(ChangeManagerPasswordPage(
+                                          staffId: widget.staffId))),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue.shade700,
+                              ),
+                              onPressed: _confirmLogout,
+                              child: const Text(
+                                'Logout',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -366,7 +393,7 @@ class _StaffViewState extends State<StaffView>
   }
 
   Widget _buildSummaryCards() {
-    return Row(
+    return Column(
       children: [
         _buildSummaryCard(
           title: 'Total Medicines',
@@ -375,10 +402,10 @@ class _StaffViewState extends State<StaffView>
           color: const Color(0xFF5C7C9A),
           textColor: Colors.white,
         ),
-        const SizedBox(width: 16),
+        const SizedBox(height: 16),
         _buildSummaryCard(
           title: 'Total Earnings',
-          value: '₱${totalEarnings.toStringAsFixed(2)}',
+          value: '₱${totalEarned.toStringAsFixed(2)}',
           icon: Icons.attach_money_outlined,
           color: Colors.green.shade700,
           textColor: Colors.white,
@@ -394,35 +421,41 @@ class _StaffViewState extends State<StaffView>
     required Color color,
     Color textColor = Colors.black,
   }) {
-    return Expanded(
+    return SizedBox(
+      width: double.infinity,
       child: Card(
         color: color,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
-          padding: const EdgeInsets.all(20.0), // Increased vertical padding
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
             children: [
-              Icon(icon, size: 50, color: textColor), // Increased icon size
-              const SizedBox(height: 12), // Increased vertical spacing
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16, // Increased font size
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8), // Increased vertical spacing
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 28, // Increased font size
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
+              Icon(icon, size: 50, color: textColor),
             ],
           ),
         ),
@@ -430,117 +463,50 @@ class _StaffViewState extends State<StaffView>
     );
   }
 
-
-  Widget _buildQuickActions() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0), // Increased vertical padding
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildActionButton(
-              icon: Icons.sell,
-              label: 'Sale',
-              onTap: () => _open(SalesBarcodeScreen(staffId: widget.staffId, cartItems: const [])),
-            ),
-            _buildActionButton(
-              icon: Icons.inventory_outlined,
-              label: 'Inventory',
-              onTap: () => _open(const InventoryGridScreen()),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return Column(
-      children: [
-        InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.all(20), // Increased padding
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E3A5F),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
-                  spreadRadius: 2,
-                  blurRadius: 5,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Icon(icon, size: 50, color: Colors.white), // Increased icon size
-          ),
-        ),
-        const SizedBox(height: 12), // Increased vertical spacing
-        Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ],
-    );
-  }
-
   Widget _buildExpirationIndicators() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0), // Increased vertical padding
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildIndicator(
-                Icons.check_circle_outline, 'Good Stock', goodStockCount, Colors.green),
-            _buildIndicator(
-                Icons.warning_amber_outlined, 'Expiring Soon', expiringSoonCount, Colors.orange),
-            _buildIndicator(Icons.error_outline, 'Expired', expiredCount, Colors.red),
-          ],
-        ),
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _buildIndicator(Icons.check_circle_outline, 'Good Stock', goodStockCount, Colors.green),
+        _buildIndicator(Icons.warning_amber_outlined, 'Expiring Soon', expiringSoonCount, Colors.orange),
+        _buildIndicator(Icons.error_outline, 'Expired', expiredCount, Colors.red),
+      ],
     );
   }
 
   Widget _buildIndicator(IconData icon, String title, int count, Color color) {
     return Expanded(
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16), // Increased padding
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 40, color: Colors.white), // Increased icon size
+      child: Card(
+        color: color,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Icon(icon, size: 35, color: Colors.white),
+              const SizedBox(height: 4),
+              Text(
+                count.toString(),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12), // Increased vertical spacing
-          Text(
-            count.toString(),
-            style: const TextStyle(
-              fontSize: 24, // Increased font size
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14, // Increased font size
-              color: Colors.grey.shade600,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -551,7 +517,88 @@ class _StaffViewState extends State<StaffView>
       style: const TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.bold,
-        color: Color(0xFF5C7C9A),
+      ),
+    );
+  }
+
+  Widget _buildLowStockList() {
+    // Use the lowStockItems list directly without additional filtering.
+    if (lowStockItems.isEmpty) {
+      return const Text(
+        'No low stock items found.',
+        style: TextStyle(color: Colors.grey),
+      );
+    }
+    return SizedBox(
+      height: 200,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.shade400, width: 1.5),
+        ),
+        padding: const EdgeInsets.all(8.0),
+        child: ListView.builder(
+          itemCount: lowStockItems.length,
+          itemBuilder: (context, index) {
+            final item = lowStockItems[index];
+            return Card(
+              elevation: 2,
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                leading: const Icon(Icons.warning_amber, color: Colors.orange),
+                title: Text(item['name']),
+                subtitle: Text('Generic: ${item['generic_name'] ?? 'N/A'}'),
+                trailing: Text(
+                  'Qty: ${item['total_quantity']}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInventoryLogsList() {
+    if (inventoryLogs.isEmpty) {
+      return const Text('No recent logs.', style: TextStyle(color: Colors.grey));
+    }
+
+    final latestLogs = inventoryLogs.length > 3 ? inventoryLogs.sublist(0, 3) : inventoryLogs;
+
+    return SizedBox(
+      height: 200,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF5C7C9A),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.all(8.0),
+        child: SingleChildScrollView(
+          child: Column(
+            children: latestLogs.map((log) {
+              final DateTime utcTimestamp = DateTime.parse(log['timestamp']).toUtc();
+              final location = tz.getLocation('Asia/Manila');
+              final tz.TZDateTime manilaTimestamp = tz.TZDateTime.from(utcTimestamp, location);
+
+              return Card(
+                elevation: 2,
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: const Icon(Icons.history_outlined),
+                  title: Text('${log['action_type']} by ${log['user_name']}'),
+                  subtitle: Text(log['description']),
+                  trailing: Text(DateFormat('hh:mm a').format(manilaTimestamp)),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
       ),
     );
   }
@@ -562,24 +609,6 @@ class _StaffViewState extends State<StaffView>
       title: Text(title),
       onTap: onTap,
       hoverColor: Colors.blue.shade50,
-    );
-  }
-}
-
-class PlaceholderPage extends StatelessWidget {
-  final String title;
-
-  const PlaceholderPage({super.key, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-      ),
-      body: Center(
-        child: Text('This is the $title page.'),
-      ),
     );
   }
 }

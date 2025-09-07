@@ -22,6 +22,7 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
   String _customerName = '';
   String _customerEmail = '';
   int _customerId = 0;
+  String _searchQuery = ''; // <--- Added this line for working search bar 
 
   late AnimationController _ctrl;
   bool _isMenuOpen = false;
@@ -222,6 +223,11 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: TextField(
+                 onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     icon: const Icon(Icons.search),
@@ -247,6 +253,7 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
       MedicineView(
         customerId: _customerId,
         selectedCategory: _selectedCategory,
+        searchQuery: _searchQuery, // <--- Add this line
       ),
       PromoView(customerId: _customerId),
       CheckoutPage(customerId: _customerId),

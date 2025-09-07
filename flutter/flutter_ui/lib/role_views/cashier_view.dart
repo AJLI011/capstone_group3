@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:intl/intl.dart'; // Added for currency formatting
-
+import 'package:intl/intl.dart';
 import '../login_function/login_customer.dart';
 import 'cashier_features/edit_profile/edit_cashier_profile.dart';
 import 'cashier_features/change_password/change_cashier_password.dart';
@@ -13,7 +12,6 @@ import 'cashier_features/instore_sales_transaction-c/instore_transaction.dart';
 import 'cashier_features/online_sales_transaction/cashier_online_transaction.dart';
 import 'cashier_features/prescription/prescription_cashier.dart';
 
-// Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
   defaultValue: 'http://10.0.2.2:8000/',
@@ -36,7 +34,6 @@ class _CashierViewState extends State<CashierView>
   String? staffEmail;
   bool isLoading = true;
 
-  // New dashboard data variables
   int totalMedicineCount = 0;
   double totalEarnings = 0.0;
   int goodStockCount = 0;
@@ -114,7 +111,6 @@ class _CashierViewState extends State<CashierView>
     _isMenuOpen ? _ctrl.forward() : _ctrl.reverse();
   }
 
-  // Helper to POST an employee log (login/logout)
   Future<void> _postEmployeeLog(int staffId, String action) async {
     try {
       final url = Uri.parse('$API_BASE/api/employee-logs/');
@@ -198,12 +194,8 @@ class _CashierViewState extends State<CashierView>
 
   void _open(Widget page) async {
     _toggleMenu();
-    final result =
-        await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-
-    if (result == true) {
-      _fetchDashboardData();
-    }
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    _fetchDashboardData();
   }
 
   @override
@@ -246,18 +238,18 @@ class _CashierViewState extends State<CashierView>
                             style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E3A5F), // Different shade of blue
+                              color: Color(0xFF5C7C9A),
                             ),
                           ),
-                          const SizedBox(height: 30),
+                          const SizedBox(height: 20),
                           _buildSummaryCards(),
-                          const SizedBox(height: 30),
+                          const SizedBox(height: 20),
                           _buildSectionTitle('Medicine Status'),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 10),
                           _buildExpirationIndicators(),
-                          const SizedBox(height: 30),
-                          _buildSectionTitle('Quick Actions'),
                           const SizedBox(height: 20),
+                          _buildSectionTitle('Quick Actions'),
+                          const SizedBox(height: 10),
                           _buildQuickActions(),
                         ],
                       ),
@@ -332,8 +324,9 @@ class _CashierViewState extends State<CashierView>
                                         _drawerItem(
                                             Icons.lock,
                                             'Change Password',
-                                            () => _open(ChangeCashierPasswordPage(
-                                                staffId: widget.staffId))),
+                                            () => _open(
+                                                ChangeCashierPasswordPage(
+                                                    staffId: widget.staffId))),
                                         _drawerItem(
                                             Icons.receipt_long,
                                             'Prescriptions',
@@ -369,23 +362,22 @@ class _CashierViewState extends State<CashierView>
     );
   }
 
-  // UI building methods for the main dashboard
   Widget _buildSummaryCards() {
-    return Row(
+    return Column(
       children: [
         _buildSummaryCard(
           title: 'Total Medicines',
           value: totalMedicineCount.toString(),
           icon: Icons.medication_liquid_outlined,
-          color: const Color(0xFF5C7C9A), // Different color for cashier view
+          color: const Color(0xFF5C7C9A),
           textColor: Colors.white,
         ),
-        const SizedBox(width: 16),
+        const SizedBox(height: 16),
         _buildSummaryCard(
           title: 'Total Earnings',
           value: '₱${totalEarnings.toStringAsFixed(2)}',
           icon: Icons.attach_money_outlined,
-          color: Colors.green.shade700, // Different color for cashier view
+          color: Colors.green.shade700,
           textColor: Colors.white,
         ),
       ],
@@ -399,38 +391,102 @@ class _CashierViewState extends State<CashierView>
     required Color color,
     Color textColor = Colors.black,
   }) {
+    return SizedBox(
+      width: double.infinity,
+      child: Card(
+        color: color,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(icon, size: 50, color: textColor),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpirationIndicators() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _buildIndicator(Icons.check_circle_outline, 'Good Stock', goodStockCount, Colors.green),
+        _buildIndicator(Icons.warning_amber_outlined, 'Expiring Soon', expiringSoonCount, Colors.orange),
+        _buildIndicator(Icons.error_outline, 'Expired', expiredCount, Colors.red),
+      ],
+    );
+  }
+
+  Widget _buildIndicator(IconData icon, String title, int count, Color color) {
     return Expanded(
       child: Card(
         color: color,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.all(16.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 50, color: textColor),
-              const SizedBox(height: 12),
+              Icon(icon, size: 35, color: Colors.white),
+              const SizedBox(height: 4),
               Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
+                count.toString(),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Text(
-                value,
-                style: TextStyle(
-                  fontSize: 28,
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: textColor,
+                  color: Colors.white,
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
       ),
     );
   }
@@ -493,70 +549,6 @@ class _CashierViewState extends State<CashierView>
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ],
-    );
-  }
-
-  Widget _buildExpirationIndicators() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildIndicator(
-                Icons.check_circle_outline, 'Good Stock', goodStockCount, Colors.green),
-            _buildIndicator(
-                Icons.warning_amber_outlined, 'Expiring Soon', expiringSoonCount, Colors.orange),
-            _buildIndicator(Icons.error_outline, 'Expired', expiredCount, Colors.red),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIndicator(IconData icon, String title, int count, Color color) {
-    return Expanded(
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 40, color: Colors.white),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            count.toString(),
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFF1E3A5F),
-      ),
     );
   }
 

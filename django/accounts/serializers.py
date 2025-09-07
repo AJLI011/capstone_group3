@@ -345,7 +345,7 @@ class CustomerPromoMedicineDetailSerializer(serializers.ModelSerializer):
         today = timezone.now().date()
         total = Inventory.objects.filter(
             medicine=obj,
-            is_promo=False,
+            is_promo=True,
             # This is the line you need to change:
             exp_date__gt=today
         ).aggregate(total=Sum('quantity'))['total']
@@ -376,8 +376,7 @@ class CustomerPromoMedicineDetailSerializer(serializers.ModelSerializer):
         ).order_by('end_date')
         if promos.exists():
             return promos.last().end_date
-        return None    
-
+        return None
 
 #Normal medicine 
 class CustomerMedicineSerializer(serializers.ModelSerializer):

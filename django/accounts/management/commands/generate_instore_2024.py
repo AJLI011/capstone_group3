@@ -29,11 +29,65 @@ class Command(BaseCommand):
 
         categories = [choice[0] for choice in Medicine.CATEGORY_CHOICES]
         
-        for i in range(50):
-            name = Faker().unique.word().capitalize() + ' Medicine'
-            generic_name = Faker().word() + ' Generic'
+        # --- START OF CHANGES ---
+        # The specific list of 50 medicine names should be defined here
+        MEDICINE_DATA = {
+            'Biogesic': 'Paracetamol',
+            'Alaxan': 'Ibuprofen + Paracetamol',
+            'Decolgen': 'Paracetamol + Phenylephrine + Chlorphenamine Maleate',
+            'Neozep': 'Phenylephrine + Chlorphenamine Maleate + Paracetamol',
+            'Bioflu': 'Phenylephrine + Chlorphenamine Maleate + Paracetamol + Phenylpropanolamine',
+            'Amoxicillin': 'Amoxicillin',
+            'Mefenamic Acid': 'Mefenamic Acid',
+            'Paracetamol': 'Paracetamol',
+            'Cetirizine': 'Cetirizine',
+            'Loperamide': 'Loperamide',
+            'Ibuprofen': 'Ibuprofen',
+            'Cefalexin': 'Cefalexin',
+            'Metformin': 'Metformin',
+            'Omeprazole': 'Omeprazole',
+            'Loratadine': 'Loratadine',
+            'Ventolin': 'Salbutamol',
+            'Salbutamol': 'Salbutamol',
+            'Aspirin': 'Aspirin',
+            'Diatabs': 'Loperamide Hydrochloride',
+            'Kremil-S': 'Aluminum Hydroxide + Magnesium Hydroxide + Simeticone',
+            'Ascof': 'Vitex negundo L. (Lagundi)',
+            'Solmux': 'Carbocisteine',
+            'Tuseran Forte': 'Dextromethorphan + Phenylpropanolamine + Paracetamol',
+            'Robitussin': 'Guaifenesin',
+            'Mucosolvan': 'Ambroxol',
+            'Advil': 'Ibuprofen',
+            'Voltaren': 'Diclofenac',
+            'Plavix': 'Clopidogrel',
+            'Lipitor': 'Atorvastatin',
+            'Norvasc': 'Amlodipine',
+            'Losartan': 'Losartan',
+            'Cozaar': 'Losartan',
+            'Zestril': 'Lisinopril',
+            'Gabapentin': 'Gabapentin',
+            'Augmentin': 'Amoxicillin + Clavulanic Acid',
+            'Medicol': 'Ibuprofen',
+            'Novaluzid': 'Magnesium Hydroxide + Dried Aluminum Hydroxide Gel',
+            'Maalox': 'Aluminum Hydroxide + Magnesium Hydroxide',
+            'Motilium': 'Domperidone',
+            'Buscopan': 'Hyoscine Butylbromide',
+            'Lincocin': 'Lincomycin',
+            'Clindamycin': 'Clindamycin',
+            'Azithromycin': 'Azithromycin',
+            'Bactrim': 'Trimethoprim + Sulfamethoxazole',
+            'Zithromax': 'Azithromycin',
+            'Celebrex': 'Celecoxib',
+            'Arcoxia': 'Etoricoxib',
+            'Dolfenal': 'Mefenamic Acid',
+            'Ponstan': 'Mefenamic Acid',
+            'Virlix': 'Cetirizine'
+        }
+
+        # Iterate through the dictionary to create each medicine
+        for name, generic_name in MEDICINE_DATA.items():
             barcode = Faker().unique.ean13()
-            price = round(random.uniform(50, 500), 2)
+            price = round(random.uniform(6, 150), 2)
             category = random.choice(categories)
             
             dosage_form = random.choice([choice[0] for choice in Medicine.DOSAGE_CHOICES])
@@ -41,21 +95,24 @@ class Command(BaseCommand):
             supplier = random.choice(suppliers)
 
             medicine, created = Medicine.objects.get_or_create(
-                barcode=barcode,
+                name=name,
                 defaults={
-                    'name': name,
                     'generic_name': generic_name,
                     'category': category,
                     'dosage_form': dosage_form,
                     'supplier': supplier,
-                    'restock_quantity': random.randint(50, 200),
+                    'restock_quantity': random.choice([50, 100]),
                     'price': price,
-                    'requires_prescription': random.choice([True, False])
+                    'requires_prescription': random.choice([True, False]),
+                    'barcode': barcode # Add barcode to defaults
                 }
             )
             if created:
                 self.stdout.write(f'Created medicine: {medicine.name}')
+            else:
+                self.stdout.write(f'Medicine already exists: {medicine.name}')
 
+        # --- END OF CHANGES ---
         self.stdout.write(self.style.SUCCESS('Finished creating dummy suppliers and medicines.'))
         
     def create_dummy_inventory(self):
@@ -68,19 +125,19 @@ class Command(BaseCommand):
 
         for medicine in medicines:
             batch_num = Faker().unique.isbn13()
-            exp_date = Faker().date_between(start_date='+1y', end_date='+3y')
-            quantity = random.randint(100, 500)
+            exp_date = Faker().date_between(start_date='now', end_date='+2y')
+            quantity = random.randint(30, 70)
             
             Inventory.objects.create(
                 medicine=medicine,
                 batch_num=batch_num,
                 exp_date=exp_date,
                 quantity=quantity,
-                is_promo=random.choice([True, False])
+                is_promo=False
             )
         
         self.stdout.write(self.style.SUCCESS('Finished creating dummy inventory.'))
-    
+
     def create_dummy_users(self):
         self.stdout.write(self.style.NOTICE('Creating dummy staff...'))
         
