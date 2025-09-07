@@ -7,7 +7,7 @@ from .views import GoodStockView, ExpiringSoonView, ExpiredView
 from .views import delete_expired_batch, remove_promo, get_customer_medicines
 from .views import inventory_logs, PromoMedicineView, PromoMedicineDetailView, get_customer_medicine_detail
 from .views import InStoreSalesReportView
-from .views import OnlineSalesReportView, LatestForecastReportView, MedicineSalesHistoryView
+from .views import OnlineSalesReportView, LatestForecastReportView, MedicineSalesHistoryView, PurchaseRequestListView
 
 
 urlpatterns = [
@@ -140,4 +140,8 @@ urlpatterns = [
      # NEW URL for fetching historical sales data for a specific medicine
     path('forecast/history/<int:medicine_id>/', MedicineSalesHistoryView.as_view(), name='medicine-sales-history'),
     path('forecast/generate/', views.generate_forecast_report, name='generate_forecast'), # ADD THIS LINE
+
+
+    # New URL for Purchase Request
+    path('purchase-request/', views.PurchaseRequestListView.as_view(), name='purchase-request-list'),
 ]

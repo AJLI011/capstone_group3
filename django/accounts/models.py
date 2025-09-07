@@ -169,7 +169,8 @@ class InStoreOrder(models.Model):
     ]
 
     staff = models.ForeignKey('Staff', on_delete=models.CASCADE)
-    date_created = models.DateTimeField(auto_now_add=True)
+    # date_created = models.DateTimeField(auto_now_add=True) -------- Remove comment after dummy data is completed
+    date_created = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     is_pwd = models.BooleanField(default=False)
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -253,7 +254,8 @@ class OnlineOrder(models.Model):
         ('cancelled', 'Cancelled'),
     ]
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    date_created = models.DateTimeField(auto_now_add=True)
+    # date_created = models.DateTimeField(auto_now_add=True) -------- Remove comment after dummy data is completed
+    date_created = models.DateTimeField()
     status = models.CharField(max_length=20, choices=ORDER_STATUS, default='pending')
     is_pwd = models.BooleanField(default=False)
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)

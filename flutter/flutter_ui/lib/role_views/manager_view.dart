@@ -16,6 +16,7 @@ import 'manager_features/instore_sales_report/in_store_sales_report_page.dart';
 import 'manager_features/order_logs/order_logs.dart';
 import 'manager_features/instore_sales_transaction_m/instore_transaction.dart';
 import 'manager_features/demand_forecasting/demand_forecast.dart';
+import 'manager_features/purchase_request/purchase_request_page.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
@@ -354,13 +355,17 @@ class _ManagerViewState extends State<ManagerView>
                                       Icons.insights,
                                       'Demand Forecast',
                                       () => _open(const DemandForecastScreen())),
-                                  _drawerItem(Icons.shopping_cart, 'Purchase Request',
-                                      () {}),
-                                  _drawerItem(Icons.list_alt, 'Medicine List',
+                                  _drawerItem(Icons.shopping_cart, 
+                                      'Purchase Request',
+                                      () => _open(const PurchaseRequestPage())),
+                                  _drawerItem(Icons.list_alt, 
+                                      'Medicine List',
                                       () => _open(const MedicineListView())),
-                                  _drawerItem(Icons.history, 'Inventory Logs',
+                                  _drawerItem(Icons.history, 
+                                      'Inventory Logs',
                                       () => _open(const InventoryLogsPage())),
-                                  _drawerItem(Icons.receipt_long, 'Order Logs',
+                                  _drawerItem(Icons.receipt_long, 
+                                      'Order Logs',
                                       () => _open(const OrderLogsScreen())),
                                   _drawerItem(
                                       Icons.person_outline,

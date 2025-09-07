@@ -12,7 +12,7 @@ from django.core.management import call_command
 from django.http import JsonResponse, HttpResponseNotFound, HttpResponse
 from django.shortcuts import render, get_object_or_404
 from django.utils import timezone
-from django.db.models import F, Prefetch, DecimalField, Sum, Q
+from django.db.models import F, Prefetch, DecimalField, Sum, Q, OuterRef, Subquery
 from django.contrib.auth.hashers import check_password, make_password
 from django.db.models import Count
 
@@ -2259,3 +2259,47 @@ class MedicineSalesHistoryView(APIView):
         ]
 
         return Response(historical_data, status=status.HTTP_200_OK)
+    
+
+
+
+
+
+
+# ==================== PURCHASE REQUEST LOGIC ===========================
+
+class PurchaseRequestListView(APIView):
+    def get(self, request, *args, **kwargs):
+        # Get the latest ForecastReport
+        latest_report = ForecastReport.objects.order_by('-date_generated').first()
+
+        if not latest_report:
+            return Response({"error": "No forecast reports found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get all forecast items for the latest report
+        # We also filter for items that have a restock amount > 0
+        forecast_items = ForecastItem.objects.filter(
+            forecast_report=latest_report,
+            restock_amount__gt=0
+        ).select_related('medicine', 'medicine__supplier').order_by('rank')
+
+        purchase_request_list = []
+        for item in forecast_items:
+            medicine = item.medicine
+            supplier = medicine.supplier
+            
+            # Construct the item data
+            purchase_request_list.append({
+                'no': item.rank,
+                'medicine_name': medicine.name,
+                'restock_amount': item.restock_amount,
+                'units_per_items': medicine.restock_quantity,
+                'supplier_name': supplier.name if supplier else 'N/A',
+                'contact_num': supplier.contact if supplier else 'N/A'
+            })
+
+        return Response(purchase_request_list, status=status.HTTP_200_OK)
+
+# ==================== END PURCHASE REQUEST LOGIC ===========================
+
+
