@@ -8,7 +8,10 @@ import '../role_views/manager_view.dart';
 import '../role_views/cashier_view.dart';
 import '../role_views/staff_view.dart';
 import 'forgot_password.dart';
-import 'login_customer.dart'; // Import to navigate back
+import 'login_customer.dart';
+
+// ✅ NEW IMPORT FOR FIREBASE MESSAGING
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 // Use dart-define to change base URL for different environments.
 const String API_BASE = String.fromEnvironment(
@@ -36,6 +39,29 @@ class _LoginStaffState extends State<LoginStaff> {
     super.dispose();
   }
 
+  // ✅ NEW FUNCTION TO SEND TOKEN TO BACKEND FOR STAFF
+  Future<void> _sendTokenToBackend(String token, int staffId) async {
+    print('Attempting to send FCM token to backend for staff...');
+    try {
+      final response = await http.post(
+        Uri.parse('$API_BASE/api/save-staff-fcm-token/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'fcm_token': token,
+          'staff_id': staffId,
+        }),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('✅ FCM token successfully sent and saved on backend for staff.');
+      } else {
+        print('❌ Failed to save FCM token for staff. Status code: ${response.statusCode}');
+        print('Response body: ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Error during HTTP request to save FCM token for staff: $e');
+    }
+  }
+
   Future<void> loginStaff() async {
     setState(() {
       isLoading = true;
@@ -57,6 +83,13 @@ class _LoginStaffState extends State<LoginStaff> {
         if (data['user_type'] == 'staff') {
           final role = data['role'];
           final int staffId = data['id'];
+
+          // ✅ NEW CODE BLOCK: Get and save the FCM token for the staff member
+          final fcmToken = await FirebaseMessaging.instance.getToken();
+          if (fcmToken != null) {
+            print('🔑 FCM Token obtained for staff: $fcmToken');
+            await _sendTokenToBackend(fcmToken, staffId);
+          }
 
           final prefs = await SharedPreferences.getInstance();
           await prefs.setBool('is_logged_in', true);
