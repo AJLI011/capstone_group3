@@ -94,7 +94,7 @@ class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
   void initState() {
     super.initState();
     tz.initializeTimeZones();
-    _transactionsFuture = _fetchTransactions();
+    _transactionsFuture = Future.value([]); // We initialize it with an empty list
   }
 
   Future<List<InStoreTransaction>> _fetchTransactions({DateTime? date}) async {
@@ -174,9 +174,14 @@ Widget build(BuildContext context) {
       children: [
         Padding(
           padding: const EdgeInsets.all(8.0),
-          child: Text(
-            'Transactions on: ${_selectedDate != null ? DateFormat('MMMM d, y').format(_selectedDate!) : 'All Dates'}',
+          child: _selectedDate != null
+          ? Text(
+            'Transactions on: ${DateFormat('MMMM d, y').format(_selectedDate!)}',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          )
+        : const Text(
+          'Select a Date',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
         Expanded(
@@ -187,7 +192,14 @@ Widget build(BuildContext context) {
             child: FutureBuilder<List<InStoreTransaction>>(
               future: _transactionsFuture,
               builder: (context, snapshot) {
-                if (_isLoading && !snapshot.hasData) {
+                if (_selectedDate == null) {
+                  return const Center(
+                    child: Text(
+                      'Please select a date to view transactions.',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                );
+                } else if (_isLoading) {
                   return const Center(child: CircularProgressIndicator());
                 } else if (snapshot.hasError) {
                   return Center(child: Text('Error: ${snapshot.error}'));

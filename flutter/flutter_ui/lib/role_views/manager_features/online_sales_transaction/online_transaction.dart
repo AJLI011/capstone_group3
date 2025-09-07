@@ -28,7 +28,7 @@ class _OnlineOrdersReportPageState extends State<OnlineOrdersReportPage> {
   void initState() {
     super.initState();
     tz.initializeTimeZones();
-    _transactionsFuture = _fetchCompletedOrders();
+    _transactionsFuture = Future.value([]); // Initialize with an empty list
   }
 
   Future<List<dynamic>> _fetchCompletedOrders({DateTime? date}) async {
@@ -109,9 +109,14 @@ class _OnlineOrdersReportPageState extends State<OnlineOrdersReportPage> {
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text(
-              'Transactions on: ${_selectedDate != null ? DateFormat('MMMM d, y').format(_selectedDate!) : 'All Dates'}',
+            child: _selectedDate != null
+            ? Text(
+              'Transactions on: ${DateFormat('MMMM d, y').format(_selectedDate!)}',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            )
+            : const Text(
+              'Select a Date',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
           Expanded(
@@ -120,17 +125,20 @@ class _OnlineOrdersReportPageState extends State<OnlineOrdersReportPage> {
               child: FutureBuilder<List<dynamic>>(
                 future: _transactionsFuture,
                 builder: (context, snapshot) {
-                  if (_isLoading && !snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'No transactions found for this date.',
-                      ),
-                    );
-                  }
+                 if (_selectedDate == null) {
+                  return const Center(
+                    child: Text('Please select a date to view transactions.',
+                    style: TextStyle(fontSize: 16),
+                    ),
+                  );
+                } else if (_isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(
+                  child: Text('No transactions found for this date.'));
+                }
 
                   final completedOrders = snapshot.data!;
 
