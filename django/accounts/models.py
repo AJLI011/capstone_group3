@@ -168,7 +168,7 @@ class InStoreOrder(models.Model):
         ('rejected', 'Rejected'),
     ]
     staff = models.ForeignKey('Staff', on_delete=models.CASCADE)
-    # date_created = models.DateTimeField(auto_now_add=True) -------- Remove comment after dummy data is completed
+    #date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
     date_created = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     is_pwd = models.BooleanField(default=False)
@@ -228,8 +228,9 @@ class OrderLog(models.Model):
     online_order = models.ForeignKey('OnlineOrder', on_delete=models.SET_NULL, null=True, blank=True, related_name='logs')
     action_type = models.CharField(max_length=20, choices=ACTION_CHOICES)
     description = models.TextField(blank=True, null=True)
-    timestamp = models.DateTimeField(auto_now_add=True)
     
+    #timestamp = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    timestamp = models.DateTimeField()
     class Meta:
         db_table = 'order_logs'
         ordering = ['-timestamp']
@@ -253,7 +254,7 @@ class OnlineOrder(models.Model):
         ('cancelled', 'Cancelled'),
     ]
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    # date_created = models.DateTimeField(auto_now_add=True) -------- Remove comment after dummy data is completed
+    #date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
     date_created = models.DateTimeField()
     status = models.CharField(max_length=20, choices=ORDER_STATUS, default='pending')
     is_pwd = models.BooleanField(default=False)
