@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, 
 InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog, OnlineOrder, OnlineOrderItem, OrderLog, Prescription,
-PrescriptionImage, CustomerFCMToken, TotalQuantity, Medicine, ForecastReport, ForecastItem,
+PrescriptionImage, CustomerFCMToken, TotalQuantity, Medicine, ForecastReport, ForecastItem, StaffFCMToken
 
 )
 from django.contrib.auth.hashers import make_password
@@ -1098,3 +1098,10 @@ class ForecastReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = ForecastReport
         fields = ['week_start_date', 'date_generated', 'items']
+
+#-----EXPIRY NOTIFICATION
+class StaffFCMTokenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StaffFCMToken
+        fields = ['id', 'staff', 'token', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']

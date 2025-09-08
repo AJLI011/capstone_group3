@@ -144,4 +144,10 @@ urlpatterns = [
 
     # New URL for Purchase Request
     path('purchase-request/', views.PurchaseRequestListView.as_view(), name='purchase-request-list'),
+    
+    #----------EXPIRY NOTIFICATION
+    # API endpoint to save staff FCM tokens
+    path('save-staff-fcm-token/', views.save_staff_fcm_token, name='save_staff_fcm_token'),
+
+
 ]

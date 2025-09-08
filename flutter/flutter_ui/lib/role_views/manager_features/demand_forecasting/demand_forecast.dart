@@ -314,6 +314,8 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Demand Forecast'),
+        backgroundColor: const Color(0xFF5C7C9A),
+        foregroundColor: Colors.white,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -322,22 +324,27 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
           children: [
             Text(
               'Generate a report of the top forecasted medicines.',
-              style: Theme.of(context).textTheme.titleLarge,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: const Color(0xFF5C7C9A),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: isGenerating ? null : _fetchData,
-              icon: isGenerating
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Icon(Icons.show_chart),
-              label: Text(isGenerating ? 'Generating...' : 'Generate Forecast'),
+            Center(
+              child: ElevatedButton.icon(
+                onPressed: isGenerating ? null : _fetchData,
+                icon: isGenerating
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.show_chart),
+                label: Text(isGenerating ? 'Generating...' : 'Generate Forecast'),
+              ),
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -373,15 +380,27 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
                             return const Center(child: Text('No forecast data available.'));
                           }
 
+                          // Parse the dateGenerated string into a DateTime object
+                          final DateTime generatedDateTime = DateTime.parse(forecastReport.dateGenerated);
+                          // Format the DateTime object to the desired format
+                          final String formattedTime = DateFormat('MMM d, y hh:mm a').format(generatedDateTime);
+
+                          // Parse the weekStartDate string into a DateTime object
+                          final DateTime weekStartDateTime = DateTime.parse(forecastReport.weekStartDate);
+                          // Format the DateTime object for the week start date
+                          final String formattedWeekStart = DateFormat('MMM d, y').format(weekStartDateTime);
+
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Generated: ${forecastReport.dateGenerated}',
+                                // Use the formatted time string
+                                'Generated: $formattedTime',
                                 style: Theme.of(context).textTheme.bodyLarge,
                               ),
                               Text(
-                                'For the week of: ${forecastReport.weekStartDate}',
+                                // Use the new formatted week start date
+                                'For the week of: $formattedWeekStart',
                                 style: Theme.of(context).textTheme.bodyLarge,
                               ),
                               const SizedBox(height: 16),

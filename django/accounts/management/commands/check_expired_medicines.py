@@ -1,59 +1,42 @@
+# In your `your_app/management/commands/` directory, create this new file
+# make sure to change 'your_app' to the name of your app
+import datetime
 from django.core.management.base import BaseCommand
-from django.utils import timezone
-from accounts.models import Inventory, Staff  # Import your Inventory and Staff models
-from accounts.sms_utility import send_sms  # Import your send_sms function
-import logging
-
-# Set up logging
-logger = logging.getLogger(__name__)
+from django.db.models import F
+from accounts.models import Inventory, Staff, StaffFCMToken
+from backend.firebase import send_fcm_notification
 
 class Command(BaseCommand):
-    help = 'Checks for expired medicines and sends an SMS notification to the pharmacy manager.'
+    help = 'Checks for expired medicines and sends a push notification to managers.'
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.NOTICE('Starting check for expired medicines...'))
+        # 1. Find all expired inventory items
+        today = datetime.date.today()
+        expired_items = Inventory.objects.filter(exp_date__lte=today)
 
-        try:
-            # Find the manager's phone number
-            try:
-                manager_profile = Staff.objects.get(role='manager')
-                manager_number = manager_profile.contact_num
-            except Staff.DoesNotExist:
-                self.stdout.write(self.style.ERROR('Staff profile for manager not found. Cannot send SMS.'))
-                logger.error('Staff profile for manager not found.')
-                return
+        if not expired_items.exists():
+            self.stdout.write(self.style.SUCCESS('No expired medicines found.'))
+            return
 
-            today = timezone.localdate()  # Use timezone.localdate() to get today's date
-            
-            # Find expired medicines
-            expired_items = Inventory.objects.filter(exp_date__lte=today, quantity__gt=0)
-            
-            if expired_items.exists():
-                self.stdout.write(self.style.WARNING(f'Found {expired_items.count()} expired medicine items.'))
-                
-                # Prepare the SMS message
-                message_lines = ["EXPIRATION ALERT"]
-                message_lines.append("The following medicines have expired:")
-                
-                for item in expired_items:
-                    message_lines.append(f"  * {item.medicine.name} (Batch: {item.batch_num}, Qty: {item.quantity})")
-                    # You may want to update the inventory to mark it as expired here
-                    # For example: item.is_expired = True; item.save()
-                    
-                message = "\n".join(message_lines)
-                
-                # Send the SMS notification using your existing utility function
-                success, response_data = send_sms(manager_number, message)
-                
-                if success:
-                    self.stdout.write(self.style.SUCCESS('Successfully sent SMS notification to manager.'))
-                    logger.info('Successfully sent SMS notification for expired medicines.')
-                else:
-                    self.stdout.write(self.style.ERROR(f'Failed to send SMS notification. API response: {response_data}'))
-                    logger.error(f'Failed to send SMS notification: {response_data}')
-            else:
-                self.stdout.write(self.style.SUCCESS('No expired medicines found. No SMS sent.'))
+        # 2. Get the tokens for all manager accounts
+        manager_tokens = StaffFCMToken.objects.filter(staff__role='manager').values_list('token', flat=True)
+
+        if not manager_tokens:
+            self.stdout.write(self.style.WARNING('No manager FCM tokens found. No notifications will be sent.'))
+            return
         
-        except Exception as e:
-            self.stdout.write(self.style.ERROR(f'An error occurred: {e}'))
-            logger.error(f'An error occurred while checking for expired medicines: {e}')
+        # 3. Prepare the notification
+        total_expired = expired_items.count()
+        title = f"❗{total_expired} Expired Medicine(s)"
+        body = f"Please check the inventory. There are {total_expired} item(s) that have expired as of today."
+
+        # 4. Send the notification to each manager
+        for token in manager_tokens:
+            send_fcm_notification(
+                token=token,
+                title=title,
+                body=body
+            )
+            self.stdout.write(self.style.SUCCESS(f"✅ Notification sent to manager token: {token}"))
+
+        self.stdout.write(self.style.SUCCESS(f"Task completed. {total_expired} expired item(s) found."))
