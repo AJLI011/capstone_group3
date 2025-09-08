@@ -4,10 +4,11 @@ import random
 from faker import Faker
 from datetime import datetime, timedelta, date, time
 import pytz 
-from django.conf import settings 
+from django.conf import settings
+from django.db import transaction
 
 from django.core.management.base import BaseCommand
-from accounts.models import Supplier, Medicine, Inventory, OnlineOrder, OnlineOrderItem, Customer
+from accounts.models import Supplier, Medicine, Inventory, OnlineOrder, OnlineOrderItem, Customer, Staff, OrderLog
 
 
 class Command(BaseCommand):
@@ -31,7 +32,6 @@ class Command(BaseCommand):
         categories = [choice[0] for choice in Medicine.CATEGORY_CHOICES]
         
         # --- START OF CHANGES ---
-        # The specific list of 50 medicine names should be defined here
         MEDICINE_DATA = {
             'Biogesic': 'Paracetamol',
             'Alaxan': 'Ibuprofen + Paracetamol',
@@ -85,15 +85,15 @@ class Command(BaseCommand):
             'Virlix': 'Cetirizine'
         }
 
-        # Iterate through the dictionary to create each medicine
         for name, generic_name in MEDICINE_DATA.items():
             barcode = Faker().unique.ean13()
             price = round(random.uniform(6, 150), 2)
             category = random.choice(categories)
+            
             dosage_form = random.choice([choice[0] for choice in Medicine.DOSAGE_CHOICES])
+            
             supplier = random.choice(suppliers)
 
-            # Use name as the lookup key to prevent duplicates
             medicine, created = Medicine.objects.get_or_create(
                 name=name,
                 defaults={
@@ -104,7 +104,7 @@ class Command(BaseCommand):
                     'restock_quantity': random.choice([50, 100]),
                     'price': price,
                     'requires_prescription': random.choice([True, False]),
-                    'barcode': barcode # Add barcode to defaults
+                    'barcode': barcode
                 }
             )
             if created:
@@ -123,7 +123,6 @@ class Command(BaseCommand):
             return
 
         for medicine in medicines:
-            # Check if inventory for this medicine already exists
             if Inventory.objects.filter(medicine=medicine).exists():
                 self.stdout.write(self.style.WARNING(f'Inventory for {medicine.name} already exists. Skipping.'))
                 continue
@@ -143,9 +142,8 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Finished creating dummy inventory.'))
 
     def create_dummy_users(self):
-        self.stdout.write(self.style.NOTICE('Creating dummy customers...'))
+        self.stdout.write(self.style.NOTICE('Creating dummy customers and staff...'))
         
-        # Create 10 dummy customers as they are required for OnlineOrder
         for _ in range(10):
             Customer.objects.get_or_create(
                 email=Faker().unique.email(),
@@ -155,8 +153,21 @@ class Command(BaseCommand):
                     'password': 'testpassword123'
                 }
             )
-
-        self.stdout.write(self.style.SUCCESS('Finished creating dummy customers.'))
+            
+        staff_roles = ['cashier', 'staff']
+        for role in staff_roles:
+            email = f'{role}@example.com'
+            Staff.objects.get_or_create(
+                email=email,
+                defaults={
+                    'password': 'testpassword123',
+                    'name': Faker().name(),
+                    'role': role,
+                    'contact_num': Faker().msisdn()[:20]
+                }
+            )
+            
+        self.stdout.write(self.style.SUCCESS('Finished creating dummy customers and staff.'))
     
     def create_online_sales(self):
         self.stdout.write(self.style.NOTICE('Creating a large set of dummy online sales records for 2024...'))
@@ -165,14 +176,15 @@ class Command(BaseCommand):
         customers = Customer.objects.all()
         inventory_items = Inventory.objects.all()
         
+        staff_user = Staff.objects.get(role='staff')
+        cashier_user = Staff.objects.get(role='cashier')
+        
         if not customers.exists() or not inventory_items.exists():
             self.stdout.write(self.style.WARNING('Prerequisite data (customers, inventory) not found. Please run previous functions first.'))
             return
 
-        # Define the date range for 2024
         manila_tz = pytz.timezone(settings.TIME_ZONE)
         
-        # MODIFIED: Use date objects for the loop to avoid ambiguity
         start_date = date(2024, 1, 1)
         end_date = date(2024, 12, 31)
         total_days = (end_date - start_date).days
@@ -203,76 +215,87 @@ class Command(BaseCommand):
             num_orders_per_day = random.randint(*num_orders_per_day_range)
 
             for _ in range(num_orders_per_day):
-                # Randomize order time between 9 AM and 9 PM
-                random_hour = random.randint(9, 21)
-                random_minute = random.randint(0, 59)
-                random_time = time(random_hour, random_minute, random.randint(0, 59))
-                
-                # CORRECTED: Use datetime.combine() to create a naive datetime object
-                order_time_naive = datetime.combine(current_date, random_time)
-                # Then localize it with the correct timezone
-                order_time = manila_tz.localize(order_time_naive)
-                
-                sales_multiplier = 1.0
-                for time_period, (start_h, end_h, multiplier) in time_of_day_map.items():
-                    if start_h <= random_hour <= end_h:
-                        sales_multiplier = multiplier
-                        break
+                with transaction.atomic():
+                    # Order time for customer submission
+                    random_hour = random.randint(9, 21)
+                    random_minute = random.randint(0, 59)
+                    random_time = time(random_hour, random_minute, random.randint(0, 59))
+                    order_time_naive = datetime.combine(current_date, random_time)
+                    order_time = manila_tz.localize(order_time_naive)
+                    
+                    sales_multiplier = 1.0
+                    for time_period, (start_h, end_h, multiplier) in time_of_day_map.items():
+                        if start_h <= random_hour <= end_h:
+                            sales_multiplier = multiplier
+                            break
 
-                customer = random.choice(customers)
-                
-                # Pickup schedule can be same day or one day ahead
-                pickup_delta = timedelta(days=random.randint(0, 1))
-                
-                # Check if the order time is too late for same-day pickup (e.g., after 8 PM)
-                if pickup_delta.days == 0 and random_hour > 20:
-                    pickup_delta = timedelta(days=1)
-                
-                # CORRECTED: Create the pickup time using datetime.combine() as well
-                pickup_time_naive = datetime.combine(current_date, time(random.randint(9, 21), random.randint(0, 59)))
-                pickup_time = manila_tz.localize(pickup_time_naive + pickup_delta)
-
-                order = OnlineOrder.objects.create(
-                    customer=customer,
-                    date_created=order_time,
-                    status='completed',
-                    total_amount_before_discount=0,
-                    total_amount_after_discount=0,
-                    pickup_schedule=pickup_time,
-                    date_fulfilled=pickup_time
-                )
-                
-                num_items_in_order = random.randint(1, 3)
-                total_before = 0
-                total_after = 0
-                
-                for _ in range(num_items_in_order):
-                    selected_item = random.choice(inventory_items)
-                    medicine_category = selected_item.medicine.category
+                    customer = random.choice(customers)
                     
-                    item_multiplier = seasonality_map.get(medicine_category, {}).get(season, 1.0)
+                    pickup_delta_days = random.randint(0, 1)
+                    pickup_schedule_time_naive = datetime.combine(current_date + timedelta(days=pickup_delta_days), time(random.randint(9, 21), random.randint(0, 59)))
+                    pickup_schedule = manila_tz.localize(pickup_schedule_time_naive)
                     
-                    base_quantity = random.randint(1, 5)
-                    quantity_sold = int(base_quantity * sales_multiplier * item_multiplier)
+                    date_fulfilled_time = pickup_schedule + timedelta(minutes=random.randint(15, 60))
                     
-                    if quantity_sold < 1:
-                        quantity_sold = 1
-
-                    price_at_sale = selected_item.medicine.price
-                    
-                    OnlineOrderItem.objects.create(
-                        order=order,
-                        inventory_id=selected_item,
-                        quantity_sold=quantity_sold,
-                        price_at_sale=price_at_sale
+                    order = OnlineOrder.objects.create(
+                        customer=customer,
+                        date_created=order_time,
+                        status='completed',
+                        total_amount_before_discount=0,
+                        total_amount_after_discount=0,
+                        pickup_schedule=pickup_schedule,
+                        date_fulfilled=date_fulfilled_time
                     )
                     
-                    total_before += price_at_sale * quantity_sold
-                    total_after = total_before
-                
-                order.total_amount_before_discount = total_before
-                order.total_amount_after_discount = total_after
-                order.save()
+                    # Log the 'online_confirmed' action by the staff
+                    OrderLog.objects.create(
+                        online_order=order,
+                        staff_user=staff_user,
+                        action_type='online_confirmed',
+                        description=f'Online order confirmed by {staff_user.name}',
+                        timestamp=order_time + timedelta(minutes=random.randint(5, 15))
+                    )
+                    
+                    # Log the 'online_picked_up' action by the cashier
+                    OrderLog.objects.create(
+                        online_order=order,
+                        staff_user=cashier_user,
+                        action_type='online_picked_up',
+                        description=f'Online order picked up and fulfilled by {cashier_user.name}',
+                        timestamp=date_fulfilled_time
+                    )
+                    
+                    num_items_in_order = random.randint(1, 3)
+                    total_before = 0
+                    total_after = 0
+                    
+                    for _ in range(num_items_in_order):
+                        selected_item = random.choice(inventory_items)
+                        medicine_category = selected_item.medicine.category
+                        
+                        item_multiplier = seasonality_map.get(medicine_category, {}).get(season, 1.0)
+                        
+                        base_quantity = random.randint(1, 5)
+                        quantity_sold = int(base_quantity * sales_multiplier * item_multiplier)
+                        
+                        if quantity_sold < 1:
+                            quantity_sold = 1
+
+                        price_at_sale = selected_item.medicine.price
+                        
+                        OnlineOrderItem.objects.create(
+                            order=order,
+                            inventory_id=selected_item,
+                            quantity_sold=quantity_sold,
+                            price_at_sale=price_at_sale
+                        )
+                        
+                        total_before += price_at_sale * quantity_sold
+                        total_after = total_before
+                    
+                    order.total_amount_before_discount = total_before
+                    order.total_amount_after_discount = total_after
+                    order.save()
             
             if day_offset % 30 == 0:
                 self.stdout.write(f'Progress: {day_offset}/{total_days} days generated for 2024.')
