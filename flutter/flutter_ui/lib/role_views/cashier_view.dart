@@ -315,7 +315,7 @@ class _CashierViewState extends State<CashierView>
                                             Icons.smartphone,
                                             'Online Sales Transaction',
                                             () => _open(
-                                                const CashierOnlineTransactionPage())),
+                                                const OnlineOrdersReportPage())),
                                         _drawerItem(
                                             Icons.edit,
                                             'Edit Profile',

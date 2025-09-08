@@ -94,7 +94,7 @@ class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
   void initState() {
     super.initState();
     tz.initializeTimeZones();
-    _transactionsFuture = _fetchTransactions();
+    _transactionsFuture = Future.value([]); // We initialize it with an empty list
   }
 
   Future<List<InStoreTransaction>> _fetchTransactions({DateTime? date}) async {
@@ -139,71 +139,83 @@ class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
       _transactionsFuture = _fetchTransactions();
     });
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('In-store Order Transactions'),
-        centerTitle: false,
-        backgroundColor: const Color(0xFF5C7C9A),
-        foregroundColor: Colors.white,
-        actions: [
+  
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text('In-store Order Transactions'),
+      centerTitle: false,
+      backgroundColor: const Color(0xFF5C7C9A),
+      foregroundColor: Colors.white,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.calendar_today),
+          onPressed: () async {
+            final DateTime? pickedDate = await showDatePicker(
+              context: context,
+              initialDate: _selectedDate ?? DateTime.now(),
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2101),
+            );
+            if (pickedDate != null && pickedDate != _selectedDate) {
+              _onDateSelected(pickedDate);
+            }
+          },
+        ),
+        if (_selectedDate != null)
           IconButton(
-            icon: const Icon(Icons.calendar_today),
-            onPressed: () async {
-              final DateTime? pickedDate = await showDatePicker(
-                context: context,
-                initialDate: _selectedDate ?? DateTime.now(),
-                firstDate: DateTime(2000),
-                lastDate: DateTime(2101),
-              );
-              if (pickedDate != null && pickedDate != _selectedDate) {
-                _onDateSelected(pickedDate);
-              }
+            icon: const Icon(Icons.clear),
+            onPressed: _clearFilter,
+          ),
+      ],
+    ),
+    body: Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: _selectedDate != null
+          ? Text(
+            'Transactions on: ${DateFormat('MMMM d, y').format(_selectedDate!)}',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          )
+        : const Text(
+          'Select a Date',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () {
+              return _fetchTransactions(date: _selectedDate);
             },
-          ),
-          if (_selectedDate != null)
-            IconButton(
-              icon: const Icon(Icons.clear),
-              onPressed: _clearFilter,
-            ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              'Transactions on: ${_selectedDate != null ? DateFormat('MMMM d, y').format(_selectedDate!) : 'All Dates'}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-          ),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () {
-                return _fetchTransactions(date: _selectedDate);
-              },
-              child: FutureBuilder<List<InStoreTransaction>>(
-                future: _transactionsFuture,
-                builder: (context, snapshot) {
-                  if (_isLoading && !snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Center(
-                        child: Text('No transactions found for this date.'));
-                  }
+            child: FutureBuilder<List<InStoreTransaction>>(
+              future: _transactionsFuture,
+              builder: (context, snapshot) {
+                if (_selectedDate == null) {
+                  return const Center(
+                    child: Text(
+                      'Please select a date to view transactions.',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                );
+                } else if (_isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(
+                      child: Text('No transactions found for this date.'));
+                }
 
-                  final transactions = snapshot.data!;
+                final transactions = snapshot.data!;
 
-                  return ListView.separated(
-                    itemCount: transactions.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final transaction = transactions[index];
-                      return InStoreTransactionCard(transaction: transaction);
+                return ListView.separated(
+                  itemCount: transactions.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final transaction = transactions[index];
+                    return InStoreTransactionCard(transaction: transaction);
                     },
                   );
                 },

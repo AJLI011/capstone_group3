@@ -11,29 +11,30 @@ const String API_BASE = String.fromEnvironment(
   defaultValue: 'http://10.0.2.2:8000',
 );
 
-class CashierOnlineTransactionPage extends StatefulWidget {
-  const CashierOnlineTransactionPage({super.key});
+class OnlineOrdersReportPage extends StatefulWidget {
+  const OnlineOrdersReportPage({super.key});
 
   @override
-  State<CashierOnlineTransactionPage> createState() => _CashierOnlineTransactionPageState();
+  State<OnlineOrdersReportPage> createState() => _OnlineOrdersReportPageState();
 }
 
-class _CashierOnlineTransactionPageState extends State<CashierOnlineTransactionPage> {
+class _OnlineOrdersReportPageState extends State<OnlineOrdersReportPage> {
   late Future<List<dynamic>> _transactionsFuture;
   DateTime? _selectedDate;
   bool _isLoading = false;
+  String? errorMessage;
 
   @override
   void initState() {
     super.initState();
     tz.initializeTimeZones();
-    // Fetch all orders on initial load.
-    _transactionsFuture = _fetchCompletedOrders();
+    _transactionsFuture = Future.value([]); // Initialize with an empty list
   }
 
   Future<List<dynamic>> _fetchCompletedOrders({DateTime? date}) async {
     setState(() {
       _isLoading = true;
+      errorMessage = null;
     });
 
     String url = '$API_BASE/api/manager/completed-online-orders/';
@@ -44,6 +45,7 @@ class _CashierOnlineTransactionPageState extends State<CashierOnlineTransactionP
 
     try {
       final response = await http.get(Uri.parse(url));
+
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data;
@@ -107,9 +109,14 @@ class _CashierOnlineTransactionPageState extends State<CashierOnlineTransactionP
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text(
-              'Transactions on: ${_selectedDate != null ? DateFormat('MMMM d, y').format(_selectedDate!) : 'All Dates'}',
+            child: _selectedDate != null
+            ? Text(
+              'Transactions on: ${DateFormat('MMMM d, y').format(_selectedDate!)}',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            )
+            : const Text(
+              'Select a Date',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
           Expanded(
@@ -118,17 +125,20 @@ class _CashierOnlineTransactionPageState extends State<CashierOnlineTransactionP
               child: FutureBuilder<List<dynamic>>(
                 future: _transactionsFuture,
                 builder: (context, snapshot) {
-                  if (_isLoading && !snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'No transactions found for this date.',
-                      ),
-                    );
-                  }
+                 if (_selectedDate == null) {
+                  return const Center(
+                    child: Text('Please select a date to view transactions.',
+                    style: TextStyle(fontSize: 16),
+                    ),
+                  );
+                } else if (_isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(
+                  child: Text('No transactions found for this date.'));
+                }
 
                   final completedOrders = snapshot.data!;
 
