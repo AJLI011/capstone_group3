@@ -492,100 +492,87 @@ class CashierInStoreOrderSerializer(serializers.ModelSerializer):
 
 class InStoreOrderSerializer(serializers.ModelSerializer):
     # This now expects a list of items with medicine_id and total quantity
-    items = FEFOOrderItemSerializer(many=True)
+    items = serializers.ListField(child=serializers.DictField()) # Changed to a generic list of dicts since FEFOOrderItemSerializer is now unused
     staff = serializers.PrimaryKeyRelatedField(queryset=Staff.objects.all())
 
     class Meta:
         model = InStoreOrder
         fields = ['staff', 'is_pwd', 'items', 'status']
         read_only_fields = ['status']
+    
+    # You might want to move this validation to a validate method to make it cleaner
+    def validate_items(self, value):
+        if not value:
+            raise serializers.ValidationError("Order must contain at least one item.")
+        
+        inventory_ids = [item.get('inventory_id') for item in value]
+        if len(inventory_ids) != len(set(inventory_ids)):
+            raise serializers.ValidationError("Duplicate inventory items detected in the order.")
+            
+        return value
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
         staff = validated_data['staff']
         is_pwd = validated_data.get('is_pwd', False)
 
-        total_before = Decimal('0.00')
-
         try:
             with transaction.atomic():
-                # Create the order with a 'pending' status (default)
+                # 1. Create the order
                 order = InStoreOrder.objects.create(staff=staff, is_pwd=is_pwd)
-
-                all_batches = Inventory.objects.filter(
-                    medicine__in=[item['medicine_id'] for item in items_data],
-                    quantity__gt=0,
-                    exp_date__gt=date.today()
-                ).order_by('exp_date')
-
-                batch_map = {batch.id: batch for batch in all_batches}
                 
+                total_before = Decimal('0.00')
                 order_items_to_create = []
 
+                # 2. Process each item, using the inventory_id directly
                 for item_data in items_data:
-                    medicine = item_data['medicine_id']
-                    quantity_to_sell = item_data['quantity_sold']
-                    free_quantity_to_give = item_data['free_quantity_given']
+                    inventory_id = item_data.get('inventory_id')
+                    quantity_to_sell = item_data.get('quantity_sold', 0)
+                    free_quantity_to_give = item_data.get('free_quantity_given', 0)
                     total_to_deduct = quantity_to_sell + free_quantity_to_give
 
-                    available_batches = [
-                        batch for batch in all_batches if batch.medicine_id == medicine.id
-                    ]
+                    if not inventory_id or total_to_deduct <= 0:
+                        continue
 
-                    current_deducted = 0
-                    for batch in available_batches:
-                        can_deduct_from_batch = min(
-                            batch.quantity, 
-                            total_to_deduct - current_deducted
+                    try:
+                        # 3. Fetch the specific batch selected by the user
+                        selected_batch = Inventory.objects.select_for_update().get(
+                            id=inventory_id,
+                            quantity__gte=total_to_deduct,
+                            exp_date__gt=date.today()
                         )
-                        current_deducted += can_deduct_from_batch
-
-                    if current_deducted < total_to_deduct:
+                    except Inventory.DoesNotExist:
+                        # Clean up the order to avoid an empty order being created
+                        order.delete()
                         raise serializers.ValidationError(
-                            f"Not enough stock for {medicine.name}. "
-                            f"Requested: {total_to_deduct}, "
-                            f"Available: {current_deducted}"
+                            f"Selected batch is not available or has insufficient stock."
                         )
+
+                    # 4. Deduct from the selected batch's quantity
+                    selected_batch.quantity -= total_to_deduct
+                    selected_batch.save()
                     
-                    current_allocated_sold = 0
-                    current_allocated_free = 0
-
-                    for batch in available_batches:
-                        if current_allocated_sold >= quantity_to_sell and current_allocated_free >= free_quantity_to_give:
-                            break
-                        
-                        available_in_batch = batch.quantity
-                        
-                        sold_to_allocate = min(
-                            quantity_to_sell - current_allocated_sold,
-                            available_in_batch
+                    # 5. Prepare the order item to be created
+                    order_items_to_create.append(
+                        InStoreOrderItem(
+                            order=order,
+                            inventory_id=selected_batch,
+                            quantity_sold=quantity_to_sell,
+                            free_quantity_given=free_quantity_to_give,
+                            price_at_sale=selected_batch.medicine.price
                         )
-                        available_in_batch -= sold_to_allocate
-                        
-                        free_to_allocate = min(
-                            free_quantity_to_give - current_allocated_free,
-                            available_in_batch
-                        )
-                        
-                        order_items_to_create.append(
-                            InStoreOrderItem(
-                                order=order,
-                                inventory_id=batch,
-                                quantity_sold=sold_to_allocate,
-                                free_quantity_given=free_to_allocate,
-                                price_at_sale=medicine.price
-                            )
-                        )
-                        
-                        current_allocated_sold += sold_to_allocate
-                        current_allocated_free += free_to_allocate
+                    )
+                    
+                    total_before += quantity_to_sell * selected_batch.medicine.price
 
-                    total_before += quantity_to_sell * medicine.price
+                # 6. Create all order items in a single bulk operation
+                if order_items_to_create:
+                    InStoreOrderItem.objects.bulk_create(order_items_to_create)
+                else:
+                    order.delete()
+                    raise serializers.ValidationError("No valid items to process.")
 
-                # Create all order items in a single bulk operation
-                InStoreOrderItem.objects.bulk_create(order_items_to_create)
-
-                # Now, with the order items created, check for prescriptions
+                # 7. Check for prescriptions and update order totals
                 requires_prescription = InStoreOrderItem.objects.filter(
                     order=order,
                     inventory_id__medicine__requires_prescription=True
@@ -597,7 +584,6 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
                         status='pending'
                     )
 
-                # Calculate and update totals for the order
                 discount = total_before * Decimal('0.20') if is_pwd else Decimal('0.00')
                 order.total_amount_before_discount = total_before
                 order.total_amount_after_discount = total_before - discount
@@ -605,10 +591,13 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
 
                 return order
         except Exception as e:
+            if 'order' in locals() and order.pk:
+                order.delete()
             raise serializers.ValidationError(
                 f"Failed to process order: {str(e)}"
             )
-
+            
+            
 # ORDER LOGS SERIALIZERS
 
 class InStoreOrderItemSerializer(serializers.ModelSerializer):
