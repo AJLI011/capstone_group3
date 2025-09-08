@@ -27,7 +27,8 @@ SECRET_KEY = 'django-insecure-5)i5x4*mpiskxl*u^xkr$6*a^du_=b5knz+gpx-u2sby9bw%aq
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['10.0.0.2', 'localhost', '*', '127.0.0.1:8000', 'aaron.pythonanywhere.com']
+ALLOWED_HOSTS = ['10.0.0.2', 'localhost', '*', '127.0.0.1:8000', ]
+#'aaron.pythonanywhere.com' add the url of our account sa taas
 
 
 # Application definition
@@ -93,9 +94,9 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'capstone_db2',
+        'NAME': 'capstone_db4',
         'USER': 'root',
-        'PASSWORD': 'Fixthebreak_99',
+        'PASSWORD': 'admin123',
         'HOST': '127.0.0.1',
         'PORT': '3306',
     }
