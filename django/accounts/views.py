@@ -58,7 +58,7 @@ from .models import Prescription
 
 
 
-from .sms_utility import send_sms #FOR SMS
+
 
 
 from backend.firebase import send_fcm_notification
