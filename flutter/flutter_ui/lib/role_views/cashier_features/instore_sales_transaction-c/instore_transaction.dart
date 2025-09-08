@@ -103,19 +103,22 @@ class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
       _isLoading = true;
     });
 
-    String url = _baseUrl;
+    // Correct URL building:
+    String fullUrl = '$_baseUrl/api/in-store-transactions/'; 
     if (date != null) {
       String formattedDate = DateFormat('yyyy-MM-dd').format(date);
-      url += '?date=$formattedDate';
+      fullUrl += '?date=$formattedDate'; // Appends the query parameter to the correct endpoint
     }
 
     try {
-      final response = await http.get(Uri.parse(url));
+      final response = await http.get(Uri.parse(fullUrl));
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data.map((json) => InStoreTransaction.fromJson(json)).toList();
       } else {
+        // It's good practice to print the response body for debugging
+        print('API Error: ${response.statusCode} - ${response.body}');
         throw Exception('Failed to load transactions. Status code: ${response.statusCode}');
       }
     } catch (e) {

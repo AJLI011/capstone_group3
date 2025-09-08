@@ -476,6 +476,8 @@ class InStoreOrderItemSerializer(serializers.ModelSerializer):
     barcode = serializers.CharField(source='inventory_id.medicine.barcode', read_only=True)
     batch_num = serializers.CharField(source='inventory_id.batch_num', read_only=True)
     exp_date = serializers.DateField(source='inventory_id.exp_date', read_only=True)
+    # Use DecimalField for price_at_sale to ensure correct serialization
+    price_at_sale = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True) 
 
     class Meta:
         model = InStoreOrderItem
@@ -491,8 +493,7 @@ class CashierInStoreOrderSerializer(serializers.ModelSerializer):
         fields = ['id', 'staff_name', 'is_pwd', 'total_amount_before_discount', 'total_amount_after_discount', 'items']
 
 class InStoreOrderSerializer(serializers.ModelSerializer):
-    # This now expects a list of items with medicine_id and total quantity
-    items = serializers.ListField(child=serializers.DictField()) # Changed to a generic list of dicts since FEFOOrderItemSerializer is now unused
+    items = serializers.ListField(child=serializers.DictField())
     staff = serializers.PrimaryKeyRelatedField(queryset=Staff.objects.all())
 
     class Meta:
@@ -500,59 +501,44 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
         fields = ['staff', 'is_pwd', 'items', 'status']
         read_only_fields = ['status']
     
-    # You might want to move this validation to a validate method to make it cleaner
     def validate_items(self, value):
         if not value:
             raise serializers.ValidationError("Order must contain at least one item.")
         
-        inventory_ids = [item.get('inventory_id') for item in value]
-        if len(inventory_ids) != len(set(inventory_ids)):
-            raise serializers.ValidationError("Duplicate inventory items detected in the order.")
-            
+        for item in value:
+            inventory_id = item.get('inventory_id')
+            if not inventory_id:
+                raise serializers.ValidationError("Each item must have an inventory_id.")
+            quantity_sold = item.get('quantity_sold', 0)
+            free_quantity_given = item.get('free_quantity_given', 0)
+            if quantity_sold <= 0 and free_quantity_given <= 0:
+                raise serializers.ValidationError("Quantity sold or free quantity must be greater than zero.")
+        
         return value
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
         staff = validated_data['staff']
         is_pwd = validated_data.get('is_pwd', False)
-
+        
         try:
             with transaction.atomic():
-                # 1. Create the order
                 order = InStoreOrder.objects.create(staff=staff, is_pwd=is_pwd)
                 
                 total_before = Decimal('0.00')
                 order_items_to_create = []
 
-                # 2. Process each item, using the inventory_id directly
                 for item_data in items_data:
                     inventory_id = item_data.get('inventory_id')
                     quantity_to_sell = item_data.get('quantity_sold', 0)
                     free_quantity_to_give = item_data.get('free_quantity_given', 0)
-                    total_to_deduct = quantity_to_sell + free_quantity_to_give
-
-                    if not inventory_id or total_to_deduct <= 0:
-                        continue
-
-                    try:
-                        # 3. Fetch the specific batch selected by the user
-                        selected_batch = Inventory.objects.select_for_update().get(
-                            id=inventory_id,
-                            quantity__gte=total_to_deduct,
-                            exp_date__gt=date.today()
-                        )
-                    except Inventory.DoesNotExist:
-                        # Clean up the order to avoid an empty order being created
-                        order.delete()
-                        raise serializers.ValidationError(
-                            f"Selected batch is not available or has insufficient stock."
-                        )
-
-                    # 4. Deduct from the selected batch's quantity
-                    selected_batch.quantity -= total_to_deduct
-                    selected_batch.save()
                     
-                    # 5. Prepare the order item to be created
+                    try:
+                        selected_batch = Inventory.objects.get(id=inventory_id)
+                    except Inventory.DoesNotExist:
+                        order.delete()
+                        raise serializers.ValidationError(f"Selected batch with ID {inventory_id} does not exist.")
+
                     order_items_to_create.append(
                         InStoreOrderItem(
                             order=order,
@@ -565,19 +551,9 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
                     
                     total_before += quantity_to_sell * selected_batch.medicine.price
 
-                # 6. Create all order items in a single bulk operation
-                if order_items_to_create:
-                    InStoreOrderItem.objects.bulk_create(order_items_to_create)
-                else:
-                    order.delete()
-                    raise serializers.ValidationError("No valid items to process.")
+                InStoreOrderItem.objects.bulk_create(order_items_to_create)
 
-                # 7. Check for prescriptions and update order totals
-                requires_prescription = InStoreOrderItem.objects.filter(
-                    order=order,
-                    inventory_id__medicine__requires_prescription=True
-                ).exists()
-
+                requires_prescription = selected_batch.medicine.requires_prescription
                 if requires_prescription:
                     Prescription.objects.create(
                         in_store_order=order,
@@ -594,9 +570,10 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
             if 'order' in locals() and order.pk:
                 order.delete()
             raise serializers.ValidationError(
-                f"Failed to process order: {str(e)}"
+                f"Failed to create pending order: {str(e)}"
             )
             
+                        
             
 # ORDER LOGS SERIALIZERS
 

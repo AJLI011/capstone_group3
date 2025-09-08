@@ -881,44 +881,47 @@ class InStoreOrderProcessingView(APIView):
 
     def put(self, request, order_id):
         """
-        Approve or Reject an order.
+        Approve or Reject a pending order.
+        This is where inventory is deducted if approved.
         """
-        try:
-            order = InStoreOrder.objects.get(id=order_id, status='pending')
-        except InStoreOrder.DoesNotExist:
-            return Response({'error': 'Pending order not found'}, status=status.HTTP_404_NOT_FOUND)
-
         new_status = request.data.get('status')
-        staff_id = request.data.get('cashier_id')  # Will rename to staff_id for consistency
+        staff_id = request.data.get('cashier_id')
         
         if not new_status or new_status not in ['approved', 'rejected']:
             return Response({'error': 'Invalid status provided'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            staff_user = Staff.objects.get(id=staff_id)
-        except Staff.DoesNotExist:
-            return Response({'error': f'Staff member with ID {staff_id} not found'}, status=status.HTTP_404_NOT_FOUND)
-        
-        if new_status == 'approved':
-            try:
-                with transaction.atomic():
+            # The entire approval/rejection logic must be inside an atomic block
+            with transaction.atomic():
+                # Now, select_for_update() is inside the transaction
+                try:
+                    order = InStoreOrder.objects.select_for_update().get(id=order_id, status='pending')
+                except InStoreOrder.DoesNotExist:
+                    return Response({'error': 'Pending order not found'}, status=status.HTTP_404_NOT_FOUND)
+                
+                # The staff user lookup should also be part of the transaction
+                try:
+                    staff_user = Staff.objects.get(id=staff_id)
+                except Staff.DoesNotExist:
+                    return Response({'error': f'Staff member with ID {staff_id} not found'}, status=status.HTTP_404_NOT_FOUND)
+                
+                if new_status == 'approved':
                     order_items = InStoreOrderItem.objects.filter(order=order)
                     for item in order_items:
                         total_to_deduct = item.quantity_sold + item.free_quantity_given
                         batch = item.inventory_id
                         
-                        # Ensure sufficient stock before proceeding
                         if batch.quantity < total_to_deduct:
+                            # An error here will cause the transaction to roll back
                             return Response(
                                 {'error': f"Insufficient stock for {batch.medicine.name}. "
-                                          f"Available: {batch.quantity}, Required: {total_to_deduct}"},
+                                        f"Available: {batch.quantity}, Required: {total_to_deduct}"},
                                 status=status.HTTP_400_BAD_REQUEST
                             )
-                        
+                            
                         batch.quantity = F('quantity') - total_to_deduct
                         batch.save(update_fields=['quantity'])
                         
-                        # Log the sale in InventoryLog
                         InventoryLog.objects.create(
                             user=staff_user,
                             medicine=batch.medicine,
@@ -927,14 +930,12 @@ class InStoreOrderProcessingView(APIView):
                                         f"of {batch.medicine.name} (Batch: {batch.batch_num}) "
                                         f"from In-Store Order #{order.id}."
                         )
-
-                    # Create the InStoreOrderApproval record
+                    
                     InStoreOrderApproval.objects.create(
                         order=order,
                         cashier=staff_user
                     )
 
-                    # Create a log entry for the approved order
                     OrderLog.objects.create(
                         staff_user=staff_user,
                         in_store_order=order,
@@ -946,36 +947,39 @@ class InStoreOrderProcessingView(APIView):
                     order.save(update_fields=['status'])
                     
                     return Response({'message': 'Order approved and inventory updated'}, status=status.HTTP_200_OK)
-            
-            except Exception as e:
-                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        elif new_status == 'rejected':
-            # Create a log entry for the rejected order
-            OrderLog.objects.create(
-                staff_user=staff_user,
-                in_store_order=order,
-                action_type='reject',
-                description=f'Sale transaction rejected by {staff_user.name}'
-            )
-            order.status = 'rejected'
-            order.save(update_fields=['status'])
-            return Response({'message': 'Order rejected'}, status=status.HTTP_200_OK)
+                
+                elif new_status == 'rejected':
+                    OrderLog.objects.create(
+                        staff_user=staff_user,
+                        in_store_order=order,
+                        action_type='reject',
+                        description=f'Sale transaction rejected by {staff_user.name}'
+                    )
+                    order.status = 'rejected'
+                    order.save(update_fields=['status'])
+                    return Response({'message': 'Order rejected'}, status=status.HTTP_200_OK)
 
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
 #----------ORDER LOGS PT 2 - FOR STAFF (INSTORE)---------
 @api_view(['POST'])
 def process_instore_order(request):
+    """
+    API endpoint for staff to create a pending in-store order.
+    Does NOT deduct from inventory yet.
+    """
     serializer = InStoreOrderSerializer(data=request.data)
     if serializer.is_valid():
         try:
-            # First, save the order as you did before
+            # 1. Save the order with a 'pending' status.
             order = serializer.save()
 
-            # Now, get the staff user ID from the request data
-            staff_id = request.data.get('staff')  # The serializer uses 'staff'
+            # 2. Get the staff user ID from the request data
+            staff_id = request.data.get('staff')
             staff_user = Staff.objects.get(id=staff_id)
             
-            # Create a log entry for the 'initiate sale' action
+            # 3. Create a log entry for the 'initiate sale' action
             OrderLog.objects.create(
                 staff_user=staff_user,
                 in_store_order=order,
@@ -984,20 +988,15 @@ def process_instore_order(request):
             )
 
             return Response({
-                "message": "Order processed successfully",
+                "message": "Order submitted successfully for cashier approval",
                 "order_id": order.id,
                 "total_before_discount": float(order.total_amount_before_discount),
                 "total_after_discount": float(order.total_amount_after_discount),
             }, status=status.HTTP_201_CREATED)
         except Staff.DoesNotExist:
             return Response({"error": "Staff member not found."}, status=status.HTTP_404_NOT_FOUND)
-        except serializers.ValidationError as e:
-            return Response({"error": e.detail}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            # Log the error for backend debugging
-            print(f"[PROCESS ORDER ERROR] {e}")
             return Response({"error": f"Failed to process order: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-
     return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
