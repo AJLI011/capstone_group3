@@ -6,9 +6,16 @@ MAKE SURE TO READ THIS FIRST:
  # date_created = models.DateTimeField(auto_now_add=True) -------- Remove comment after dummy data is completed
    date_created = models.DateTimeField()
 
+
     >make sure to uncomment and remove the comment when all dummy data is created.
     >commend the other date created now without the [auto_now_add=True]
 
 -when database is created, run python manage.py [import_staff] first to generate admin user then proceed with the [generate_instore/online] files
 NOTE: start first with ALL 2023, regardless if you start online or instore. 
     >it must be generate all 2023, then generate all 2024
+
+-----ANOTHER ALTERNATIVE TO CHECK MGA NEED AYUSIN SA MODELS IS JUST TYPE THIS AFTER PRESSING CTRL+F : Remove comment after dummy data is completed
+
+MGA NEED I-CHECK:
+INSTORE AND ONLINE ORDERS TABLE
+ORDERLOGS

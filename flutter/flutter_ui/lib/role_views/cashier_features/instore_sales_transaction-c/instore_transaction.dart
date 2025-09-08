@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+final String _baseUrl = 'http://10.0.2.2:8000';
 // Model for individual items within a transaction
 class TransactionItem {
   final String medicineName;
@@ -85,7 +86,7 @@ class InStoreTransactionPage extends StatefulWidget {
 
 class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
   late Future<List<InStoreTransaction>> _transactionsFuture;
-  final String _apiUrl = 'http://10.0.2.2:8000/api/in-store-transactions/';
+  final url = '$_baseUrl/api/in-store-transactions/';
 
   DateTime? _selectedDate;
   bool _isLoading = false;
@@ -102,7 +103,7 @@ class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
       _isLoading = true;
     });
 
-    String url = _apiUrl;
+    String url = _baseUrl;
     if (date != null) {
       String formattedDate = DateFormat('yyyy-MM-dd').format(date);
       url += '?date=$formattedDate';
