@@ -5,10 +5,11 @@ from faker import Faker
 from datetime import datetime, timedelta, date, time
 import pytz 
 from django.conf import settings
-from django.db import transaction
+from django.db import transaction, models
+from random import choice
 
 from django.core.management.base import BaseCommand
-from accounts.models import Supplier, Medicine, Inventory, InStoreOrder, InStoreOrderItem, Staff, OrderLog, InStoreOrderApproval
+from accounts.models import Supplier, Medicine, Inventory, InStoreOrder, InStoreOrderItem, Staff, OrderLog
 
 class Command(BaseCommand):
     help = 'Generates dummy in-store order data for the year 2024.'
@@ -111,7 +112,7 @@ class Command(BaseCommand):
                 self.stdout.write(f'Medicine already exists: {medicine.name}')
                 
         self.stdout.write(self.style.SUCCESS('Finished creating dummy suppliers and medicines.'))
-        
+    
     def create_dummy_inventory(self):
         self.stdout.write(self.style.NOTICE('Creating dummy inventory...'))
         
@@ -167,6 +168,7 @@ class Command(BaseCommand):
 
         manila_tz = pytz.timezone(settings.TIME_ZONE)
         
+        # Updated for 2024
         start_date = date(2024, 1, 1)
         end_date = date(2024, 12, 31)
         total_days = (end_date - start_date).days
@@ -184,7 +186,7 @@ class Command(BaseCommand):
             'evening': (18, 21, 1.0),
         }
         
-        num_orders_per_day_range = (50, 70)
+        num_orders_per_day_range = (40, 60)
 
         for day_offset in range(total_days + 1):
             current_date = start_date + timedelta(days=day_offset)
@@ -212,7 +214,8 @@ class Command(BaseCommand):
                             break
 
                     order = InStoreOrder.objects.create(
-                        staff=cashier_user, 
+                        staff=staff_user, 
+                        cashier=cashier_user,
                         date_created=order_time,
                         status='approved', 
                         total_amount_before_discount=0,
@@ -221,25 +224,18 @@ class Command(BaseCommand):
                     
                     OrderLog.objects.create(
                         in_store_order=order,
-                        staff_user=cashier_user,
+                        staff_user=staff_user,
                         action_type='initiate_sale',
-                        description=f'In-store sale initiated by {cashier_user.name}',
+                        description=f'In-store sale initiated by {staff_user.name}',
                         timestamp=order_time
                     )
                     
                     OrderLog.objects.create(
                         in_store_order=order,
-                        staff_user=staff_user,
+                        staff_user=cashier_user,
                         action_type='in_store_approve',
-                        description=f'In-store order approved by {staff_user.name}',
+                        description=f'In-store order approved by {cashier_user.name}',
                         timestamp=order_time
-                    )
-
-                    # Create InStoreOrderApproval entry
-                    InStoreOrderApproval.objects.create(
-                        order=order,
-                        cashier=cashier_user,
-                        approval_date=order_time
                     )
                     
                     num_items_in_order = random.randint(1, 3)

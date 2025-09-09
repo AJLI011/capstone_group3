@@ -26,7 +26,7 @@ from rest_framework.views import APIView
 from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, 
     InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, 
-    OnlineOrder, OnlineOrderItem, InStoreOrderApproval, Prescription, PrescriptionImage,
+    OnlineOrder, OnlineOrderItem, Prescription, PrescriptionImage,
     CustomerFCMToken, ForecastReport, ForecastItem, StaffFCMToken
 )
 from .serializers import (
@@ -55,11 +55,17 @@ from django.db.models import Q
 from .models import Prescription
 #==============9/1/25=====================
 
+from django.db import transaction
+from django.db.models import F
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from datetime import datetime, timedelta
+from django.utils import timezone
+from decimal import Decimal
 
 
-
-
-
+#=============================
 
 from backend.firebase import send_fcm_notification
 from django.utils.timezone import now
@@ -879,31 +885,26 @@ class InStoreOrderProcessingView(APIView):
         serializer = CashierInStoreOrderSerializer(pending_orders, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    # Indent the 'put' method to be inside the class
     def put(self, request, order_id):
-        """
-        Approve or Reject a pending order.
-        This is where inventory is deducted if approved.
-        """
         new_status = request.data.get('status')
-        staff_id = request.data.get('cashier_id')
+        cashier_id = request.data.get('cashier_id') # Changed variable name to be consistent
         
         if not new_status or new_status not in ['approved', 'rejected']:
             return Response({'error': 'Invalid status provided'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            # The entire approval/rejection logic must be inside an atomic block
             with transaction.atomic():
-                # Now, select_for_update() is inside the transaction
                 try:
                     order = InStoreOrder.objects.select_for_update().get(id=order_id, status='pending')
                 except InStoreOrder.DoesNotExist:
                     return Response({'error': 'Pending order not found'}, status=status.HTTP_404_NOT_FOUND)
                 
-                # The staff user lookup should also be part of the transaction
                 try:
-                    staff_user = Staff.objects.get(id=staff_id)
+                    # You should use the Staff model, which represents the cashier in this context.
+                    cashier_user = Staff.objects.get(id=cashier_id)
                 except Staff.DoesNotExist:
-                    return Response({'error': f'Staff member with ID {staff_id} not found'}, status=status.HTTP_404_NOT_FOUND)
+                    return Response({'error': f'Cashier with ID {cashier_id} not found'}, status=status.HTTP_404_NOT_FOUND)
                 
                 if new_status == 'approved':
                     order_items = InStoreOrderItem.objects.filter(order=order)
@@ -912,18 +913,19 @@ class InStoreOrderProcessingView(APIView):
                         batch = item.inventory_id
                         
                         if batch.quantity < total_to_deduct:
-                            # An error here will cause the transaction to roll back
+                            # Revert any changes if stock is insufficient
+                            transaction.set_rollback(True)
                             return Response(
                                 {'error': f"Insufficient stock for {batch.medicine.name}. "
-                                        f"Available: {batch.quantity}, Required: {total_to_deduct}"},
+                                          f"Available: {batch.quantity}, Required: {total_to_deduct}"},
                                 status=status.HTTP_400_BAD_REQUEST
                             )
-                            
+                        
                         batch.quantity = F('quantity') - total_to_deduct
                         batch.save(update_fields=['quantity'])
                         
                         InventoryLog.objects.create(
-                            user=staff_user,
+                            user=cashier_user, # Corrected to use cashier user
                             medicine=batch.medicine,
                             action_type='Sold',
                             description=f"Approved sale of {total_to_deduct} units "
@@ -931,36 +933,37 @@ class InStoreOrderProcessingView(APIView):
                                         f"from In-Store Order #{order.id}."
                         )
                     
-                    InStoreOrderApproval.objects.create(
-                        order=order,
-                        cashier=staff_user
-                    )
+                    order.cashier = cashier_user
+                    order.status = 'approved'
+                    order.save(update_fields=['status', 'cashier'])
 
                     OrderLog.objects.create(
-                        staff_user=staff_user,
+                        staff_user=cashier_user,
                         in_store_order=order,
-                        action_type='approve',
-                        description=f'Sale transaction approved by {staff_user.name}'
+                        action_type='in_store_approve',
+                        description=f'Sale transaction approved by {cashier_user.name}'
                     )
-
-                    order.status = 'approved'
-                    order.save(update_fields=['status'])
                     
                     return Response({'message': 'Order approved and inventory updated'}, status=status.HTTP_200_OK)
                 
                 elif new_status == 'rejected':
-                    OrderLog.objects.create(
-                        staff_user=staff_user,
-                        in_store_order=order,
-                        action_type='reject',
-                        description=f'Sale transaction rejected by {staff_user.name}'
-                    )
+                    order.cashier = cashier_user # Also set cashier for rejected orders for auditing
                     order.status = 'rejected'
-                    order.save(update_fields=['status'])
+                    order.save(update_fields=['status', 'cashier'])
+                    
+                    OrderLog.objects.create(
+                        staff_user=cashier_user,
+                        in_store_order=order,
+                        action_type='in_store_reject',
+                        description=f'Sale transaction rejected by {cashier_user.name}'
+                    )
                     return Response({'message': 'Order rejected'}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Handle any other exceptions
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)        
+        
+        
     
 #----------ORDER LOGS PT 2 - FOR STAFF (INSTORE)---------
 @api_view(['POST'])
@@ -1745,28 +1748,24 @@ class InStoreSalesReportView(APIView):
         except ValueError:
             return Response({"error": "Invalid date format. Please use YYYY-MM-DD."}, status=400)
 
-        # Filter approved in-store orders based on the approval date
-        approved_orders = InStoreOrderApproval.objects.filter(
-            approval_date__range=[start_datetime, end_datetime]
-        ).select_related('order')
+        # **CRITICAL CHANGE HERE: FILTER DIRECTLY ON InStoreOrder**
+        approved_orders = InStoreOrder.objects.filter(
+            status='approved',
+            date_created__range=[start_datetime, end_datetime]
+        ).select_related('staff', 'cashier').prefetch_related(
+            Prefetch('items', queryset=InStoreOrderItem.objects.select_related('inventory_id__medicine'))
+        )
 
-        # Calculate total revenue from the order's after-discount total
-        total_revenue = sum(ao.order.total_amount_after_discount for ao in approved_orders)
+        total_revenue = sum(o.total_amount_after_discount for o in approved_orders)
 
-        # Aggregate sales by medicine
         sales_data = {}
-        for ao in approved_orders:
-            order = ao.order
-            
-            # Get discount percentage for the entire order
+        for order in approved_orders:
             if order.total_amount_before_discount > 0:
                 discount_percentage = (order.total_amount_before_discount - order.total_amount_after_discount) / order.total_amount_before_discount
             else:
                 discount_percentage = Decimal('0.00')
 
-            # Iterate through each item in the order to aggregate sales and quantities.
-            order_items = InStoreOrderItem.objects.filter(order=order).select_related('inventory_id__medicine')
-            for item in order_items:
+            for item in order.items.all():  # Use .all() since it's already prefetched
                 medicine_name = item.inventory_id.medicine.name
                 if medicine_name not in sales_data:
                     sales_data[medicine_name] = {
@@ -1774,15 +1773,12 @@ class InStoreSalesReportView(APIView):
                         'total_sale': Decimal('0.00')
                     }
                 
-                # FIX 1: Sum both the paid quantity and the free quantity.
                 sales_data[medicine_name]['quantity_sold'] += item.quantity_sold + item.free_quantity_given
                 
-                # FIX 2: Apply the order-level discount to each item's sale price.
                 discounted_price_at_sale = item.price_at_sale * (1 - discount_percentage)
                 item_total_sale = item.quantity_sold * discounted_price_at_sale
                 sales_data[medicine_name]['total_sale'] += item_total_sale
 
-        # Format the aggregated sales data for the response
         formatted_sales_data = [
             {
                 'medicine': name,

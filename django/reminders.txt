@@ -19,3 +19,21 @@ NOTE: start first with ALL 2023, regardless if you start online or instore.
 MGA NEED I-CHECK:
 INSTORE AND ONLINE ORDERS TABLE
 ORDERLOGS
+
+------
+TO DELETE DATA FROM DB (FOR DUMMYDATA):
+python manage.pt shell
+
+from accounts.models import InStoreOrder, InStoreOrderItem, OnlineOrder, OnlineOrderItem, Supplier, Medicine, Inventory, Customer, Staff,OrderLog,EmployeeLog,InventoryLog
+
+InStoreOrder.objects.all().delete()
+OnlineOrder.objects.all().delete()
+Inventory.objects.all().delete()
+Medicine.objects.all().delete()
+Supplier.objects.all().delete()
+Customer.objects.all().delete()
+Staff.objects.all().delete()
+OrderLog.objects.all().delete()
+EmployeeLog.objects.all().delete()
+InventoryLog.objects.all().delete()
+

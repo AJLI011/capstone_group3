@@ -168,12 +168,15 @@ class InStoreOrder(models.Model):
         ('rejected', 'Rejected'),
     ]
     staff = models.ForeignKey('Staff', on_delete=models.CASCADE)
-    date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    #date_created = models.DateTimeField()
+    cashier = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_orders')
+    #date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    date_created = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     is_pwd = models.BooleanField(default=False)
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total_amount_after_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    
 
     def __str__(self):
         return f"In-Store Order #{self.id} by {self.staff.email}"
@@ -229,8 +232,8 @@ class OrderLog(models.Model):
     action_type = models.CharField(max_length=20, choices=ACTION_CHOICES)
     description = models.TextField(blank=True, null=True)
     
-    timestamp = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    #timestamp = models.DateTimeField()
+    #timestamp = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    timestamp = models.DateTimeField()
     class Meta:
         db_table = 'order_logs'
         ordering = ['-timestamp']
@@ -254,8 +257,8 @@ class OnlineOrder(models.Model):
         ('cancelled', 'Cancelled'),
     ]
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    #date_created = models.DateTimeField()
+    #date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    date_created = models.DateTimeField()
     status = models.CharField(max_length=20, choices=ORDER_STATUS, default='pending')
     is_pwd = models.BooleanField(default=False)
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -283,20 +286,25 @@ class OnlineOrderItem(models.Model):
     def __str__(self):
         return f"{self.inventory_id.medicine.name} - {self.quantity_sold} sold"
 
-#model for instore sales tranaction
-class InStoreOrderApproval(models.Model):
-    class Meta:
-        db_table = 'in_store_order_approvals_tbl'
-        
-    order = models.OneToOneField('InStoreOrder', on_delete=models.CASCADE, related_name='approval')
-    cashier = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, related_name='approved_in_store_orders')
-    approval_date = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return f"Order #{self.order.id} approved by {self.cashier.name if self.cashier else 'Unknown'}"
+
+#============================================================================================================================
+#model for instore sales tranaction
+# class InStoreOrderApproval(models.Model):
+#     class Meta:
+#         db_table = 'in_store_order_approvals_tbl'
+        
+#     order = models.OneToOneField('InStoreOrder', on_delete=models.CASCADE, related_name='approval')
+#     cashier = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, related_name='approved_in_store_orders')
+#     approval_date = models.DateTimeField(auto_now_add=True)
+
+#     def __str__(self):
+#         return f"Order #{self.order.id} approved by {self.cashier.name if self.cashier else 'Unknown'}"
     
 #--presc
 # Models for Prescription
+#============================================================================================================================
+
 class Prescription(models.Model):
     class Meta:
         db_table = 'prescriptions_tbl'

@@ -476,7 +476,6 @@ class InStoreOrderItemSerializer(serializers.ModelSerializer):
     barcode = serializers.CharField(source='inventory_id.medicine.barcode', read_only=True)
     batch_num = serializers.CharField(source='inventory_id.batch_num', read_only=True)
     exp_date = serializers.DateField(source='inventory_id.exp_date', read_only=True)
-    # Use DecimalField for price_at_sale to ensure correct serialization
     price_at_sale = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True) 
 
     class Meta:
@@ -487,11 +486,14 @@ class InStoreOrderItemSerializer(serializers.ModelSerializer):
 class CashierInStoreOrderSerializer(serializers.ModelSerializer):
     items = InStoreOrderItemSerializer(many=True, read_only=True)
     staff_name = serializers.CharField(source='staff.name', read_only=True)
+    # **THIS IS THE NEW FIELD
+    cashier_name = serializers.CharField(source='cashier.name', read_only=True)
 
     class Meta:
         model = InStoreOrder
-        fields = ['id', 'staff_name', 'is_pwd', 'total_amount_before_discount', 'total_amount_after_discount', 'items']
-
+        # **ADD 'cashier_name' to the fields list**
+        fields = ['id', 'staff_name', 'cashier_name', 'is_pwd', 'total_amount_before_discount', 'total_amount_after_discount', 'items']
+        
 class InStoreOrderSerializer(serializers.ModelSerializer):
     items = serializers.ListField(child=serializers.DictField())
     staff = serializers.PrimaryKeyRelatedField(queryset=Staff.objects.all())

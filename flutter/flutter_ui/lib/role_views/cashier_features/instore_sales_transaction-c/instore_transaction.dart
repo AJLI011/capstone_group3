@@ -6,6 +6,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 final String _baseUrl = 'http://10.0.2.2:8000';
+
 // Model for individual items within a transaction
 class TransactionItem {
   final String medicineName;
@@ -37,8 +38,8 @@ class TransactionItem {
 class InStoreTransaction {
   final int id;
   final DateTime dateCreated;
-  final String staff;
-  final String cashier;
+  final String staffName;
+  final String? cashierName;
   final String status;
   final double subtotal;
   final double totalAmount;
@@ -48,8 +49,8 @@ class InStoreTransaction {
   InStoreTransaction({
     required this.id,
     required this.dateCreated,
-    required this.staff,
-    required this.cashier,
+    required this.staffName,
+    this.cashierName,
     required this.status,
     required this.subtotal,
     required this.totalAmount,
@@ -63,16 +64,28 @@ class InStoreTransaction {
         .map((itemJson) => TransactionItem.fromJson(itemJson))
         .toList();
 
+    // The backend now sends staff and cashier names as direct strings.
+    final staffName = json['staff'] as String? ?? 'N/A';
+    final cashierName = json['cashier'] as String? ?? 'N/A';
+
+    // Parse the new fields from the backend
+    double subtotal = double.tryParse(json['subtotal'].toString()) ?? 0.0;
+    double totalAmount = double.tryParse(json['total_amount_after_discount'].toString()) ?? 0.0;
+    double discountAmount = double.tryParse(json['discount_amount'].toString()) ?? 0.0;
+    
+    // Safely parse the 'id' as an integer
+    final int id = int.tryParse(json['id'].toString()) ?? 0;
+
     return InStoreTransaction(
-      id: json['id'],
+      id: id,
       dateCreated: DateTime.parse(json['date_created']),
-      staff: json['staff'] ?? 'N/A',
-      cashier: json['cashier'] ?? 'N/A',
+      staffName: staffName,
+      cashierName: cashierName,
       status: json['status'] ?? 'N/A',
-      subtotal: double.tryParse(json['subtotal'].toString()) ?? 0.0,
-      totalAmount: double.tryParse(json['total_amount_after_discount'].toString()) ?? 0.0,
+      subtotal: subtotal,
+      totalAmount: totalAmount,
       items: parsedItems,
-      discountAmount: double.tryParse(json['discount_amount'].toString()) ?? 0.0,
+      discountAmount: discountAmount,
     );
   }
 }
@@ -103,11 +116,10 @@ class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
       _isLoading = true;
     });
 
-    // Correct URL building:
-    String fullUrl = '$_baseUrl/api/in-store-transactions/'; 
+    String fullUrl = '$_baseUrl/api/in-store-transactions/';
     if (date != null) {
       String formattedDate = DateFormat('yyyy-MM-dd').format(date);
-      fullUrl += '?date=$formattedDate'; // Appends the query parameter to the correct endpoint
+      fullUrl += '?date=$formattedDate';
     }
 
     try {
@@ -117,7 +129,6 @@ class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
         final List<dynamic> data = json.decode(response.body);
         return data.map((json) => InStoreTransaction.fromJson(json)).toList();
       } else {
-        // It's good practice to print the response body for debugging
         print('API Error: ${response.statusCode} - ${response.body}');
         throw Exception('Failed to load transactions. Status code: ${response.statusCode}');
       }
@@ -140,86 +151,86 @@ class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
   void _clearFilter() {
     setState(() {
       _selectedDate = null;
-      _transactionsFuture = _fetchTransactions();
+      _transactionsFuture = Future.value([]); // Set to empty list and rebuild
     });
   }
   
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      title: const Text('In-store Order Transactions'),
-      centerTitle: false,
-      backgroundColor: const Color(0xFF5C7C9A),
-      foregroundColor: Colors.white,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.calendar_today),
-          onPressed: () async {
-            final DateTime? pickedDate = await showDatePicker(
-              context: context,
-              initialDate: _selectedDate ?? DateTime.now(),
-              firstDate: DateTime(2000),
-              lastDate: DateTime(2101),
-            );
-            if (pickedDate != null && pickedDate != _selectedDate) {
-              _onDateSelected(pickedDate);
-            }
-          },
-        ),
-        if (_selectedDate != null)
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('In-store Order Transactions'),
+        centerTitle: false,
+        backgroundColor: const Color(0xFF5C7C9A),
+        foregroundColor: Colors.white,
+        actions: [
           IconButton(
-            icon: const Icon(Icons.clear),
-            onPressed: _clearFilter,
-          ),
-      ],
-    ),
-    body: Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: _selectedDate != null
-          ? Text(
-            'Transactions on: ${DateFormat('MMMM d, y').format(_selectedDate!)}',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          )
-        : const Text(
-          'Select a Date',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-        ),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: () {
-              return _fetchTransactions(date: _selectedDate);
+            icon: const Icon(Icons.calendar_today),
+            onPressed: () async {
+              final DateTime? pickedDate = await showDatePicker(
+                context: context,
+                initialDate: _selectedDate ?? DateTime.now(),
+                firstDate: DateTime(2000),
+                lastDate: DateTime(2101),
+              );
+              if (pickedDate != null && pickedDate != _selectedDate) {
+                _onDateSelected(pickedDate);
+              }
             },
-            child: FutureBuilder<List<InStoreTransaction>>(
-              future: _transactionsFuture,
-              builder: (context, snapshot) {
-                if (_selectedDate == null) {
-                  return const Center(
-                    child: Text(
-                      'Please select a date to view transactions.',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                );
-                } else if (_isLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                } else if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(
-                      child: Text('No transactions found for this date.'));
-                }
+          ),
+          if (_selectedDate != null)
+            IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: _clearFilter,
+            ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: _selectedDate != null
+            ? Text(
+              'Transactions on: ${DateFormat('MMMM d, y').format(_selectedDate!)}',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            )
+            : const Text(
+              'Select a Date',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () {
+                return _fetchTransactions(date: _selectedDate);
+              },
+              child: FutureBuilder<List<InStoreTransaction>>(
+                future: _transactionsFuture,
+                builder: (context, snapshot) {
+                  if (_selectedDate == null) {
+                    return const Center(
+                      child: Text(
+                        'Please select a date to view transactions.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    );
+                  } else if (_isLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(
+                        child: Text('No transactions found for this date.'));
+                  }
 
-                final transactions = snapshot.data!;
+                  final transactions = snapshot.data!;
 
-                return ListView.separated(
-                  itemCount: transactions.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final transaction = transactions[index];
-                    return InStoreTransactionCard(transaction: transaction);
+                  return ListView.separated(
+                    itemCount: transactions.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final transaction = transactions[index];
+                      return InStoreTransactionCard(transaction: transaction);
                     },
                   );
                 },
@@ -293,8 +304,8 @@ class InStoreTransactionCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text('Staff: ${transaction.staff}'),
-            Text('Cashier: ${transaction.cashier}'),
+            Text('Staff: ${transaction.staffName}'),
+            Text('Cashier: ${transaction.cashierName ?? 'N/A'}'),
             const Divider(height: 20),
             ...transaction.items.map((item) {
               return Padding(
