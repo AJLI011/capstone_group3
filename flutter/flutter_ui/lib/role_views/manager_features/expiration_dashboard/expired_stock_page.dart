@@ -2,6 +2,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class ExpiredStockPage extends StatefulWidget {
   const ExpiredStockPage({Key? key}) : super(key: key);
 
@@ -45,7 +50,7 @@ class _ExpiredStockPageState extends State<ExpiredStockPage> {
   }
 
   Future<void> fetchExpiredStocks() async {
-    final String url = 'http://10.0.2.2:8000/api/medicines/expired/';
+    final String url = '${API_BASE}api/medicines/expired/';
 
     try {
       final response = await http.get(Uri.parse(url));

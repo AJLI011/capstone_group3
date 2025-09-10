@@ -6,6 +6,11 @@ import 'good_stock_page.dart';
 import 'expiring_soon_page.dart';
 import 'expired_stock_page.dart';
 
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class ExpiryDashboardView extends StatefulWidget {
   const ExpiryDashboardView({super.key});
 
@@ -18,7 +23,7 @@ class _ExpiryDashboardViewState extends State<ExpiryDashboardView> {
   int expiringSoonCount = 0;
   int expiredCount = 0;
 
-  final String baseUrl = 'http://10.0.2.2:8000/api/medicines';
+  final String baseUrl = '${API_BASE}api/medicines';
 
   @override
   void initState() {

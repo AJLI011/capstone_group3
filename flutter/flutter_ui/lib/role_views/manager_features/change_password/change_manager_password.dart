@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+// Use dart-define to override in different environments
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class ChangeManagerPasswordPage extends StatefulWidget {
   final int staffId;
 
@@ -48,7 +54,7 @@ class _ChangeManagerPasswordPageState extends State<ChangeManagerPasswordPage> {
       errorMessage = null;
     });
 
-    final url = Uri.parse('http://10.0.2.2:8000/api/staff/${widget.staffId}/change-password/');
+    final url = Uri.parse('${API_BASE}api/staff/${widget.staffId}/change-password/');
     final body = json.encode({
       'current_password': currentPwController.text.trim(),
       'new_password': newPwController.text.trim(),

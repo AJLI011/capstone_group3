@@ -7,6 +7,11 @@ import 'package:image_picker/image_picker.dart';
 import 'barcodeScan_medicines_list.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 // Extension to format strings for display in dropdowns
 extension StringCasingExtension on String {
   String toTitleCase() => this.isNotEmpty
@@ -61,7 +66,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
   // Fetches suppliers from your Django API
   Future<void> _fetchSuppliers() async {
     // IMPORTANT: Replace with your computer's actual local IP address!
-    final url = Uri.parse('http://10.0.2.2:8000/api/suppliers/');
+    final url = Uri.parse('${API_BASE}api/suppliers/');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -130,7 +135,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
     }
 
     // IMPORTANT: Replace with your computer's actual local IP address!
-    final url = Uri.parse('http://10.0.2.2:8000/api/medicines/');
+    final url = Uri.parse('${API_BASE}api/medicines/');
     final request = http.MultipartRequest('POST', url);
 
     // Add text fields

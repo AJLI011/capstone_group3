@@ -5,6 +5,11 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class EditMedicinePage extends StatefulWidget {
   final Map<String, dynamic> medicine;
 
@@ -54,7 +59,7 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
   }
 
   Future<void> _fetchSuppliers() async {
-    final url = Uri.parse('http://10.0.2.2:8000/api/suppliers/');
+    final url = Uri.parse('${API_BASE}api/suppliers/');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -96,7 +101,7 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
     if (!_formKey.currentState!.validate()) return;
 
     final uri = Uri.parse(
-        'http://10.0.2.2:8000/api/medicines/${widget.medicine['id']}/');
+        '${API_BASE}api/medicines/${widget.medicine['id']}/');
     final request = http.MultipartRequest('PUT', uri);
 
     request.fields['name'] = _nameController.text;
@@ -171,7 +176,7 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
     if (imageUrlFromWidget != null) {
       // Ensure the path starts with a '/' for correct URL construction
       final cleanImageUrl = imageUrlFromWidget.startsWith('/') ? imageUrlFromWidget : '/$imageUrlFromWidget';
-      fullImageUrl = 'http://10.0.2.2:8000$cleanImageUrl';
+      fullImageUrl = '${API_BASE}$cleanImageUrl';
       print('DEBUG: Attempting to load image from: $fullImageUrl');
     } else {
       print('DEBUG: Image URL from widget.medicine is null for this entry.');

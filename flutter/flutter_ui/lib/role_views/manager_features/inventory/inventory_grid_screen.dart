@@ -4,8 +4,13 @@ import 'total_quantity.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class InventoryApiService {
-  static const String inventoryUrl = 'http://10.0.2.2:8000/api/inventory/';
+  static const String inventoryUrl = '${API_BASE}api/inventory/';
 
   static Future<List<TotalQuantity>> fetchInventoryItems() async {
     try {
@@ -25,7 +30,7 @@ class InventoryApiService {
   static Future<void> syncTotalQuantities() async {
     try {
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:8000/api/inventory/total-quantities/'), // <-- Added the trailing slash here
+        Uri.parse('${API_BASE}api/inventory/total-quantities/'), // <-- Added the trailing slash here
       );
       if (response.statusCode == 200) {
         print('✅ Total quantity synced');

@@ -3,6 +3,11 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class PromoMedicinePage extends StatefulWidget {
   const PromoMedicinePage({Key? key}) : super(key: key);
 
@@ -40,7 +45,7 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
   }
 
   Future<void> fetchExpiringSoonMedicines() async {
-    const String url = 'http://10.0.2.2:8000/api/medicines/expiring-soon/';
+    const String url = '${API_BASE}api/medicines/expiring-soon/';
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
@@ -72,7 +77,7 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
       return;
     }
 
-    final url = Uri.parse('http://10.0.2.2:8000/api/inventory/$inventoryId/set-promo/');
+    final url = Uri.parse('${API_BASE}api/inventory/$inventoryId/set-promo/');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -107,7 +112,7 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
       return;
     }
 
-    final url = Uri.parse('http://10.0.2.2:8000/api/inventory/remove-promo/');
+    final url = Uri.parse('${API_BASE}api/inventory/remove-promo/');
     try {
       final response = await http.post(
         url,

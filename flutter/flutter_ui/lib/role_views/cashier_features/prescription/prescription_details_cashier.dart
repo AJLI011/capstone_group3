@@ -2,6 +2,11 @@
 
 import 'package:flutter/material.dart';
 
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class PrescriptionDetailsCashier extends StatelessWidget {
   final Map<String, dynamic> prescription;
 
@@ -66,7 +71,7 @@ class PrescriptionDetailsCashier extends StatelessWidget {
                     runSpacing: 8.0,
                     children: existingImages.map((image) {
                       // Construct the full image URL.
-                      final imageUrl = 'http://10.0.2.2:8000${image['image']}';
+                      final imageUrl = '$API_BASE${image['image']}';
                       return GestureDetector(
                         onTap: () {
                           // Navigate to the full-screen image view on tap

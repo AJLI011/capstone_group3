@@ -5,6 +5,10 @@ import 'package:intl/intl.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
 
 class InventoryLogsPage extends StatefulWidget {
   const InventoryLogsPage({Key? key}) : super(key: key);
@@ -26,7 +30,7 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
   }
 
   Future<void> fetchInventoryLogs() async {
-    const url = 'http://10.0.2.2:8000/api/inventory-logs/';
+    const url = '${API_BASE}api/api/inventory-logs/';
     
     try {
       final response = await http.get(Uri.parse(url));

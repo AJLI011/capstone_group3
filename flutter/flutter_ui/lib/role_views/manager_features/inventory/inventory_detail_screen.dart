@@ -3,6 +3,11 @@ import 'dart:convert';
 import 'total_quantity.dart';
 import 'package:http/http.dart' as http;
 
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 // ===================== MODEL: BatchDetail =====================
 class BatchDetail {
   final String batchNumber;
@@ -46,7 +51,7 @@ class BatchDetail {
 class InventoryApiService {
   static Future<List<BatchDetail>> fetchBatchDetails(int medicineId) async {
     final String batchDetailsUrl =
-        'http://10.0.2.2:8000/api/inventory/batches/$medicineId/';
+        'http:${API_BASE}api/inventory/batches/$medicineId/';
 
     try {
       final response = await http.get(Uri.parse(batchDetailsUrl));

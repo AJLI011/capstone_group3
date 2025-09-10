@@ -5,6 +5,11 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:flutter_ui/services/pdf_purchase_request_service.dart';
 
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class PurchaseRequestPage extends StatefulWidget {
   const PurchaseRequestPage({Key? key}) : super(key: key);
 
@@ -44,7 +49,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
       _editablePurchaseRequests = [];
     });
     
-    const String apiUrl = 'http://10.0.2.2:8000/api/purchase-request/';
+    const String apiUrl = '${API_BASE}api/purchase-request/';
     try {
       final response = await http.get(Uri.parse(apiUrl));
 
@@ -93,7 +98,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
 
     try {
       // Step 1: Fetch the low stock data
-      final lowStockResponse = await http.get(Uri.parse('http://10.0.2.2:8000/api/medicines/low-stock/'));
+      final lowStockResponse = await http.get(Uri.parse('${API_BASE}api/medicines/low-stock/'));
       List<dynamic> lowStockItems = [];
       if (lowStockResponse.statusCode == 200) {
         lowStockItems = json.decode(lowStockResponse.body);

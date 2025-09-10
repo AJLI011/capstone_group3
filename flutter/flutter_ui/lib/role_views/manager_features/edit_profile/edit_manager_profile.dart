@@ -3,6 +3,11 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class EditManagerProfilePage extends StatefulWidget {
   final int staffId;
 
@@ -28,8 +33,10 @@ class _EditManagerProfilePageState extends State<EditManagerProfilePage> {
   }
 
   void fetchManagerData() async {
+    // Use the API_BASE constant
+    final url = Uri.parse('${API_BASE}api/staff/${widget.staffId}/profile/');
     final response = await http.get(
-      Uri.parse('http://10.0.2.2:8000/api/staff/${widget.staffId}/profile/'),
+      url,
       headers: {'Content-Type': 'application/json'},
     );
 
@@ -54,7 +61,7 @@ class _EditManagerProfilePageState extends State<EditManagerProfilePage> {
   }
 
   Future<void> saveProfile() async {
-    final url = Uri.parse('http://10.0.2.2:8000/api/staff/${widget.staffId}/update-profile/');
+    final url = Uri.parse('${API_BASE}api/staff/${widget.staffId}/update-profile/');
     final body = json.encode({
       'email': emailController.text.trim(),
       'name': nameController.text.trim(),
