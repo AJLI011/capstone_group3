@@ -36,13 +36,13 @@ class Medicine {
 class MedicineView extends StatefulWidget {
   final int customerId;
   final String selectedCategory;
-  final String searchQuery; // <--- Added this line for working search bar
+  final String searchQuery;
 
   const MedicineView({
     super.key,
     required this.customerId,
     this.selectedCategory = 'all',
-    this.searchQuery = '', // <--- Added this line for working search bar
+    this.searchQuery = '',
   });
 
   @override
@@ -71,7 +71,7 @@ class _MedicineViewState extends State<MedicineView> {
     setState(() {
       _isLoading = true;
     });
-    
+
     String url = 'http://10.0.2.2:8000/api/customer/medicines/';
     if (widget.selectedCategory != 'all') {
       url += '?category=${widget.selectedCategory}';
@@ -134,9 +134,9 @@ class _MedicineViewState extends State<MedicineView> {
                         med.imageUrl,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) =>
-                            Image.asset('assets/placeholder.png', fit: BoxFit.cover),
+                            const Icon(Icons.medication, size: 60, color: Colors.grey),
                       )
-                    : Image.asset('assets/placeholder.png', fit: BoxFit.cover),
+                    : const Icon(Icons.medication, size: 60, color: Colors.grey),
               ),
             ),
             const SizedBox(height: 12),
@@ -177,27 +177,27 @@ class _MedicineViewState extends State<MedicineView> {
     );
   }
 
-@override
-Widget build(BuildContext context) {
-  final filteredMedicines = _medicines.where((medicine) {
-    final nameLower = medicine.name.toLowerCase();
-    final genericNameLower = medicine.genericName.toLowerCase();
-    final searchLower = widget.searchQuery.toLowerCase();
+  @override
+  Widget build(BuildContext context) {
+    final filteredMedicines = _medicines.where((medicine) {
+      final nameLower = medicine.name.toLowerCase();
+      final genericNameLower = medicine.genericName.toLowerCase();
+      final searchLower = widget.searchQuery.toLowerCase();
 
-    return nameLower.contains(searchLower) || genericNameLower.contains(searchLower);
-  }).toList();
-    
+      return nameLower.contains(searchLower) || genericNameLower.contains(searchLower);
+    }).toList();
+
     return Scaffold(
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : filteredMedicines.isEmpty // <-- Change `_medicines` to `filteredMedicines`
+          : filteredMedicines.isEmpty
               ? Center(
                   child: Text(
-                    (widget.searchQuery.isNotEmpty) // <-- This checks if a search was performed
-                    ? "No medicines found for '${widget.searchQuery}'"
-                    : "No medicines available for the category: ${widget.selectedCategory}",
+                    (widget.searchQuery.isNotEmpty)
+                        ? "No medicines found for '${widget.searchQuery}'"
+                        : "No medicines available for the category: ${widget.selectedCategory}",
                   ),
-               )
+                )
               : Padding(
                   padding: const EdgeInsets.all(12),
                   child: GridView.builder(

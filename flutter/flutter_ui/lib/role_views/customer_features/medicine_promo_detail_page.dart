@@ -4,9 +4,15 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'cart_service.dart';
 
+// Define the API_BASE constant here
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class PromoMedicineDetailPage extends StatefulWidget {
   final int medicineId;
-  final int customerId; // <--- ADDED: customerId
+  final int customerId;
   const PromoMedicineDetailPage({super.key, required this.medicineId, required this.customerId});
 
   @override
@@ -25,7 +31,8 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
   }
 
   Future<void> fetchMedicineDetail() async {
-    final url = 'http://10.0.2.2:8000/api/medicine/promos/${widget.medicineId}/';
+    // Use the API_BASE constant here
+    final url = '${API_BASE}api/medicine/promos/${widget.medicineId}/';
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
@@ -91,9 +98,9 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                           medicineData!['image'],
                           fit: BoxFit.contain,
                           errorBuilder: (context, error, stackTrace) =>
-                              Image.asset('assets/placeholder.png', fit: BoxFit.contain),
+                              const Icon(Icons.medication, size: 100, color: Colors.grey),
                         )
-                      : Image.asset('assets/placeholder.png', fit: BoxFit.contain),
+                      : const Icon(Icons.medication, size: 100, color: Colors.grey),
                 ),
                 // Information Section
                 Container(
@@ -273,27 +280,27 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                   // Add to Cart Button
                   ElevatedButton.icon(
                     onPressed: (selectedQuantity * 2) > availableQuantity
-                      ? null // Disable the button if the total quantity exceeds stock
-                      : () {
-                          // You may want to add a final check here just in case, but the button should already be disabled.
-                          CartService().addToCart(
-                              CartItem(
-                                  id: medicineData!['id'],
-                                  name: medicineData!['name'],
-                                  genericName: medicineData!['generic_name'],
-                                  dosageForm: medicineData!['dosage_form'] ?? "Unknown",
-                                  image: medicineData!['image'],
-                                  price: double.parse(medicineData!['price'].toString()),
-                                  quantity: selectedQuantity,
-                                  isPromo: true,
-                                  promoQuantity: selectedQuantity,
-                                  availableStock: availableQuantity, // ADDED: Pass the availableQuantity
-                              ),
-                          );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Added $selectedQuantity item(s) to cart with $selectedQuantity promo item(s)!')),
-                          );
-                        },
+                        ? null // Disable the button if the total quantity exceeds stock
+                        : () {
+                            // You may want to add a final check here just in case, but the button should already be disabled.
+                            CartService().addToCart(
+                                CartItem(
+                                    id: medicineData!['id'],
+                                    name: medicineData!['name'],
+                                    genericName: medicineData!['generic_name'],
+                                    dosageForm: medicineData!['dosage_form'] ?? "Unknown",
+                                    image: medicineData!['image'],
+                                    price: double.parse(medicineData!['price'].toString()),
+                                    quantity: selectedQuantity,
+                                    isPromo: true,
+                                    promoQuantity: selectedQuantity,
+                                    availableStock: availableQuantity, // ADDED: Pass the availableQuantity
+                                ),
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Added $selectedQuantity item(s) to cart with $selectedQuantity promo item(s)!')),
+                            );
+                          },
                     icon: const Icon(Icons.shopping_cart),
                     label: const Text('Add to cart'),
                     style: ElevatedButton.styleFrom(

@@ -62,6 +62,16 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
     final String priceString = '₱${double.parse(medicineData!['price'].toString()).toStringAsFixed(2)}';
     final bool prescriptionRequired = medicineData!['requires_prescription'] ?? false;
     final int availableQuantity = medicineData!['quantity'] ?? 0;
+    final String imageUrl = medicineData!['image'] ?? '';
+
+    Widget imageOrPlaceholder = imageUrl.isNotEmpty
+        ? Image.network(
+            imageUrl,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) =>
+                const Icon(Icons.medication, size: 100, color: Colors.grey),
+          )
+        : const Icon(Icons.medication, size: 100, color: Colors.grey);
 
     return Scaffold(
       appBar: AppBar(
@@ -79,14 +89,7 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                   color: Colors.white,
                   height: 300,
                   alignment: Alignment.center,
-                  child: medicineData!['image'].isNotEmpty
-                      ? Image.network(
-                          medicineData!['image'],
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Image.asset('assets/placeholder.png', fit: BoxFit.contain),
-                        )
-                      : Image.asset('assets/placeholder.png', fit: BoxFit.contain),
+                  child: imageOrPlaceholder,
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -112,7 +115,7 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                           color: Colors.grey,
                         ),
                       ),
-                      const SizedBox(height: 4), // Add spacing for dosage form
+                      const SizedBox(height: 4),
                       Text(
                         medicineData!['dosage_form'] ?? 'Dosage form not specified',
                         style: const TextStyle(
@@ -239,7 +242,7 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                                 price: double.parse(medicineData!['price'].toString()),
                                 quantity: selectedQuantity,
                                 isPromo: false,
-                                availableStock: availableQuantity, // ADDED: Pass the availableQuantity
+                                availableStock: availableQuantity,
                               ),
                             );
                             ScaffoldMessenger.of(context).showSnackBar(
