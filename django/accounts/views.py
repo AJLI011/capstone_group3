@@ -43,6 +43,9 @@ from .serializers import (
     LowStockSerializer, ForecastItemSerializer, ForecastReportSerializer, MedicineForecastSerializer,
 )
 
+from .serializers import OrderLogSerializer
+from .models import OrderLog
+
 
 
 #==============9/1/25=====================
@@ -63,6 +66,7 @@ from rest_framework import status
 from datetime import datetime, timedelta
 from django.utils import timezone
 from decimal import Decimal
+from rest_framework import generics, pagination
 
 
 #=============================
@@ -1003,15 +1007,35 @@ def process_instore_order(request):
     return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #------------------ ORDER LOGS VIEW -------------------
-@api_view(['GET'])
-def order_logs_list_view(request):
+class OrderLogPagination(pagination.PageNumberPagination):
+    page_size = 20  # Set the number of items per page
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+class OrderLogsListView(generics.ListAPIView):
     """
-    API endpoint to retrieve all order logs.
-    This version uses select_related and prefetch_related for optimal performance
-    with both in-store and online orders.
+    API endpoint to retrieve paginated order logs.
+    
+    This view uses a custom pagination class to limit the number of
+    records returned per request. It leverages select_related and 
+    prefetch_related for efficient database queries.
     """
-    logs = OrderLog.objects.all().select_related(
+    queryset = OrderLog.objects.all().select_related(
         'staff_user', 
         'in_store_order__staff',
         'online_order__customer'
@@ -1020,8 +1044,27 @@ def order_logs_list_view(request):
         'online_order__items__inventory_id__medicine'
     ).order_by('-timestamp')
     
-    serializer = OrderLogSerializer(logs, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    serializer_class = OrderLogSerializer
+    pagination_class = OrderLogPagination
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #------------------ CUSTOMER ONLINE ORDERS -------------------
 @api_view(['POST'])
@@ -2336,4 +2379,13 @@ def save_staff_fcm_token(request):
         return Response({'error': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 #============================PUSH NOTIF EXPIRY NOTIF END===============================
 
+
+#MEDICINES LIST NEW VIEW FOR BARCODE DUPLICATION PREVENTION============================
+@api_view(['GET'])
+def check_barcode_existence(request, barcode):
+    """
+    Checks if a medicine with the given barcode already exists.
+    """
+    exists = Medicine.objects.filter(barcode=barcode).exists()
+    return Response({'exists': exists})
 

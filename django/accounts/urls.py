@@ -1,14 +1,13 @@
+# urls.py
+
 from django.urls import path
 from . import views
-from .views import medicine_list, medicine_detail, order_logs_list_view
-from .views import InventoryCreateView
-from .views import get_inventory_list
-from .views import GoodStockView, ExpiringSoonView, ExpiredView
-from .views import delete_expired_batch, remove_promo, get_customer_medicines
-from .views import inventory_logs, PromoMedicineView, PromoMedicineDetailView, get_customer_medicine_detail
-from .views import InStoreSalesReportView
-from .views import OnlineSalesReportView, LatestForecastReportView, MedicineSalesHistoryView, PurchaseRequestListView
-
+from .views import (
+    medicine_list, medicine_detail,InventoryCreateView,get_inventory_list,GoodStockView, ExpiringSoonView, ExpiredView,
+    delete_expired_batch, remove_promo, get_customer_medicines,inventory_logs, PromoMedicineView, PromoMedicineDetailView, 
+    get_customer_medicine_detail,InStoreSalesReportView,OnlineSalesReportView, LatestForecastReportView, MedicineSalesHistoryView, 
+    PurchaseRequestListView,OrderLogsListView, # Now only imported once
+)
 
 urlpatterns = [
     # Authentication
@@ -41,10 +40,10 @@ urlpatterns = [
     path('medicines/<int:pk>/', medicine_detail, name='medicine-detail'), 
 
     # ─────────── INVENTORY / RESTOCKING API ─────────── # Renamed comment
-    path('inventory/add/', InventoryCreateView.as_view(), name='inventory-add'), # Changed URL path and view class
-    path('inventory/', get_inventory_list, name='inventory-list'), # Changed URL path and view function
+    path('inventory/add/', InventoryCreateView.as_view(), name='inventory-add'), 
+    path('inventory/', get_inventory_list, name='inventory-list'),
     path('medicines/barcode/<str:barcode>/', views.get_medicine_by_barcode, name='get-medicine-by-barcode'),
-    path('inventory/total-quantities/', views.total_quantities, name='total_quantities'), #EDITED api/inventory
+    path('inventory/total-quantities/', views.total_quantities, name='total_quantities'), 
     path('inventory/batches/<int:medicine_id>/', views.get_batch_details, name='inventory-batch-details'),
 
     # Expiration tracking
@@ -62,12 +61,9 @@ urlpatterns = [
     #Inventory Logs
     path('inventory-logs/', inventory_logs, name='inventory_logs'),
     
-    #Sales Function (instore) --------- check yung views and serializers nito
+    #Sales Function (instore)
     path('sales/barcode/<str:barcode>/', views.get_item_by_barcode, name='get_item_by_barcode'),
     path('sales/process/', views.process_instore_order, name='process_instore_order'),
-
-    #Customer Promo View
-    path('medicine/promos/', PromoMedicineView.as_view(), name='promo-medicines'),
 
     #Customer Promo View
     path('medicine/promos/', PromoMedicineView.as_view(), name='promo-medicines'),
@@ -85,14 +81,14 @@ urlpatterns = [
     path('sales/pending-orders/<int:order_id>/', views.InStoreOrderProcessingView.as_view(), name='process-pending-order'),
     
     # Order Logs
-    path('order-logs/', views.order_logs_list_view, name='order-logs'),
+    path('order-logs/', OrderLogsListView.as_view(), name='order-logs'),
 
-    # Online Orders ---------- this as well for prescription
+    # Online Orders
     path('customer/<str:customer_id>/online-orders/', views.get_online_customer_orders, name='get_online_customer_orders'),
     path('customer/cancel-online-order/<int:order_id>/', views.cancel_online_order, name='cancel_online_order'),
     path('customer/online-orders/create/', views.create_online_order, name='create_online_order'),
     
-    #Staff Online Orders -------- this as well
+    #Staff Online Orders
     path('staff/online-orders/', views.get_pending_online_orders, name='staff-pending-orders'),
     path('staff/confirm-online-order/<int:orderId>/', views.confirm_online_order, name='staff-confirm-order'),
 
@@ -137,17 +133,16 @@ urlpatterns = [
 
     #--------for DEMAND FORECASTING
     path('forecast/latest/', LatestForecastReportView.as_view(), name='latest-forecast'),
-     # NEW URL for fetching historical sales data for a specific medicine
     path('forecast/history/<int:medicine_id>/', MedicineSalesHistoryView.as_view(), name='medicine-sales-history'),
-    path('forecast/generate/', views.generate_forecast_report, name='generate_forecast'), # ADD THIS LINE
-
+    path('forecast/generate/', views.generate_forecast_report, name='generate_forecast'), 
 
     # New URL for Purchase Request
-    path('purchase-request/', views.PurchaseRequestListView.as_view(), name='purchase-request-list'),
+    path('purchase-request/', PurchaseRequestListView.as_view(), name='purchase-request-list'),
     
     #----------EXPIRY NOTIFICATION
     # API endpoint to save staff FCM tokens
     path('save-staff-fcm-token/', views.save_staff_fcm_token, name='save_staff_fcm_token'),
-
-
+    
+    #medicines_list new url for ensuring one barcode for medicine and no duplication:
+    path('medicines/check_barcode/<str:barcode>/', views.check_barcode_existence, name='check_barcode_existence'),
 ]

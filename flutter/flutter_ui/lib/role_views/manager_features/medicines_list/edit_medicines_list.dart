@@ -193,17 +193,31 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
               // Display existing image from network if available and no new image selected
               if (fullImageUrl != null && _selectedImage == null)
                 Image.network(
-                  fullImageUrl, // Use the constructed fullImageUrl here
+                  fullImageUrl,
                   height: 100,
+                  fit: BoxFit.cover,
                   // Add error handling for network images
                   errorBuilder: (context, error, stackTrace) {
-                    print('Image loading error: $error'); // Log the error
-                    return const Text('Image failed to load ❌'); // Placeholder text
+                    print('Image loading error: $error');
+                    // Show the icon placeholder if the network image fails to load
+                    return const Icon(
+                      Icons.medication, // Updated to the new icon
+                      size: 100,
+                      color: Colors.grey,
+                    );
                   },
+                )
+              else if (_selectedImage != null)
+                // Display newly selected image from file
+                Image.file(_selectedImage!, height: 100, fit: BoxFit.cover,)
+              else
+                // This is the new part: show the placeholder icon
+                const Icon(
+                  Icons.medication, // Updated to the new icon
+                  size: 100,
+                  color: Colors.grey,
                 ),
-              // Display newly selected image from file
-              if (_selectedImage != null)
-                Image.file(_selectedImage!, height: 100),
+
               ElevatedButton(
                 onPressed: _pickImage,
                 child: const Text('Change Image'),

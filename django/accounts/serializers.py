@@ -11,6 +11,7 @@ from django.db import transaction
 from django.db.models import F, Sum
 from django.utils.timezone import now
 from django.utils import timezone # add this (elton)
+from rest_framework.validators import UniqueValidator
 
 
 
@@ -56,8 +57,25 @@ class SupplierSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+
+
+
+
+
+
+
+
+
+
+
+#=================================================================================================
+#MODIFIED THE FF FOR BARCODE DUPLICATION PREVENTION WHEN ADDING
 class MedicineSerializer(serializers.ModelSerializer):
     supplier_name = serializers.StringRelatedField(source='supplier', read_only=True)
+    barcode = serializers.CharField(
+        required=False,  # Make the field optional for partial updates
+        validators=[UniqueValidator(queryset=Medicine.objects.all())]
+    )
 
     class Meta:
         model = Medicine
@@ -80,10 +98,28 @@ class MedicineSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
 
     def update(self, instance, validated_data):
+        # Your existing update logic
         if 'barcode' in validated_data and validated_data['barcode'] == instance.barcode:
             validated_data.pop('barcode')
-
         return super().update(instance, validated_data)
+
+#=================================================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # New Serializer for Inventory

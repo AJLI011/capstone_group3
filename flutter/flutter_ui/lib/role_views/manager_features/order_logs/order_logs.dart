@@ -7,6 +7,9 @@ import 'dart:developer';
 
 const String _baseUrl = 'http://10.0.2.2:8000';
 
+// Your existing data models (OnlineOrderItem, OnlineOrderDetails, etc.) go here
+// ... (The models you provided are unchanged and should be kept as is) ...
+
 // NEW: Data model for OnlineOrderItem
 class OnlineOrderItem {
   final String medicineName;
@@ -145,6 +148,7 @@ class OrderLog {
   }
 }
 
+
 class OrderLogsScreen extends StatefulWidget {
   const OrderLogsScreen({super.key});
 
@@ -153,16 +157,76 @@ class OrderLogsScreen extends StatefulWidget {
 }
 
 class _OrderLogsScreenState extends State<OrderLogsScreen> {
-  late Future<List<OrderLog>> _futureOrderLogs;
+  // NEW: State variables for pagination
+  List<OrderLog> _orderLogs = [];
+  bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMoreData = true;
+  int _currentPage = 1;
+  final int _pageSize = 10; // New page size
+  final _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _futureOrderLogs = fetchOrderLogs();
+    _fetchInitialOrderLogs();
+    _scrollController.addListener(_onScroll);
   }
 
-  Future<List<OrderLog>> fetchOrderLogs() async {
-    final url = Uri.parse('$_baseUrl/api/order-logs/');
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchInitialOrderLogs() async {
+    try {
+      final logs = await _fetchOrderLogs(page: 1, pageSize: _pageSize);
+      setState(() {
+        _orderLogs = logs;
+        _isLoading = false;
+        _hasMoreData = logs.length == _pageSize; // Check if there's potentially more data
+      });
+    } catch (e) {
+      log('Error fetching initial logs: $e');
+      setState(() {
+        _isLoading = false;
+        // Optionally, show an error message
+      });
+    }
+  }
+
+  Future<void> _fetchMoreOrderLogs() async {
+    if (_isLoadingMore || !_hasMoreData) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    try {
+      final logs = await _fetchOrderLogs(page: _currentPage + 1, pageSize: _pageSize);
+      setState(() {
+        _orderLogs.addAll(logs);
+        _currentPage++;
+        _isLoadingMore = false;
+        _hasMoreData = logs.length == _pageSize;
+      });
+    } catch (e) {
+      log('Error fetching more logs: $e');
+      setState(() {
+        _isLoadingMore = false;
+      });
+    }
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
+      _fetchMoreOrderLogs();
+    }
+  }
+
+  Future<List<OrderLog>> _fetchOrderLogs({required int page, required int pageSize}) async {
+    final url = Uri.parse('$_baseUrl/api/order-logs/?page=$page&page_size=$pageSize');
     final headers = await _getHeaders();
 
     try {
@@ -171,7 +235,8 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
       log('API Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
-        List<dynamic> logsJson = json.decode(response.body);
+        final Map<String, dynamic> responseData = json.decode(response.body);
+        final List<dynamic> logsJson = responseData['results'];
         return logsJson.map((json) => OrderLog.fromJson(json)).toList();
       } else {
         throw Exception('Failed to load order logs: ${response.statusCode}');
@@ -200,28 +265,30 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
         backgroundColor: const Color(0xFF5C7C9A),
         foregroundColor: Colors.white,
       ),
-      body: FutureBuilder<List<OrderLog>>(
-        future: _futureOrderLogs,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No order logs found.'));
-          } else {
-            return _buildOrderLogsList(snapshot.data!);
-          }
-        },
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _orderLogs.isEmpty
+              ? const Center(child: Text('No order logs found.'))
+              : _buildOrderLogsList(),
     );
   }
 
-  Widget _buildOrderLogsList(List<OrderLog> logs) {
+  Widget _buildOrderLogsList() {
     return ListView.builder(
-      itemCount: logs.length,
+      controller: _scrollController,
+      itemCount: _orderLogs.length + (_isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
-        final log = logs[index];
+        // Show a loading indicator at the bottom
+        if (index == _orderLogs.length) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 20.0),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        final log = _orderLogs[index];
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: ExpansionTile(

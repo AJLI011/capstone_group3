@@ -1,3 +1,4 @@
+import 'dart:async'; // Import for Timer
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -41,21 +42,67 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
   List<String> _categories = []; // To store static/fetched categories
   List<String> _dosageForms = []; // To store static/fetched dosage forms
 
+  // Debounce timer for barcode validation
+  Timer? _debounce;
+
   @override
   void initState() {
     super.initState();
     _fetchSuppliers(); // Fetch suppliers when the screen initializes
     _fetchCategoryAndDosageChoices(); // Populate static choices
+    _barcodeController.addListener(_onBarcodeChanged); // Add listener for live barcode check
   }
 
   @override
   void dispose() {
+    _barcodeController.removeListener(_onBarcodeChanged);
+    _debounce?.cancel(); // Cancel the debounce timer
     _barcodeController.dispose();
     _medicineNameController.dispose();
     _genericNameController.dispose();
     _restockQuantityController.dispose();
     _productPriceController.dispose();
     super.dispose();
+  }
+
+  // Live barcode existence check with a debounce timer
+  void _onBarcodeChanged() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () async {
+      final String barcode = _barcodeController.text.trim();
+      if (barcode.isNotEmpty) {
+        final bool barcodeExists = await _checkBarcodeExistence(barcode);
+        if (barcodeExists) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Barcode for this medicine is already existing.'),
+                backgroundColor: Color.fromARGB(255, 83, 83, 83),
+              ),
+            );
+          }
+        }
+      }
+    });
+  }
+
+  // New function to check for barcode existence
+  Future<bool> _checkBarcodeExistence(String barcode) async {
+    // IMPORTANT: Replace with your computer's actual local IP address!
+    final url = Uri.parse('http://10.0.2.2:8000/api/medicines/check_barcode/$barcode/');
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['exists'] as bool;
+      } else {
+        print("Failed to check barcode existence: ${response.statusCode}");
+        return false; // Assume it doesn't exist to avoid blocking
+      }
+    } catch (e) {
+      print("Error checking barcode existence: $e");
+      return false; // Assume it doesn't exist to avoid blocking
+    }
   }
 
   // Fetches suppliers from your Django API
@@ -129,6 +176,22 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
       return;
     }
 
+    final String enteredBarcode = _barcodeController.text.trim();
+    if (enteredBarcode.isNotEmpty) {
+      final bool barcodeExists = await _checkBarcodeExistence(enteredBarcode);
+      if (barcodeExists) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('This barcode already exists. Please enter a new one.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
     // IMPORTANT: Replace with your computer's actual local IP address!
     final url = Uri.parse('http://10.0.2.2:8000/api/medicines/');
     final request = http.MultipartRequest('POST', url);
@@ -136,7 +199,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
     // Add text fields
     request.fields['name'] = _medicineNameController.text;
     request.fields['generic_name'] = _genericNameController.text;
-    request.fields['barcode'] = _barcodeController.text;
+    request.fields['barcode'] = enteredBarcode;
     request.fields['restock_quantity'] = _restockQuantityController.text;
     request.fields['price'] = _productPriceController.text;
 
@@ -276,12 +339,13 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
-                  onPressed: _pickImage,
+                  onPressed: () async {
+                    _pickImage();
+                  },
                   icon: const Icon(Icons.image),
                   label: const Text('Select Image'),
                 ),
                 const SizedBox(height: 24),
-
                 // Text fields
                 TextFormField(
                   controller: _medicineNameController,
@@ -302,49 +366,57 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Barcode text field (NOT inside an extra Row)
+                // Barcode text field with on-the-fly validation
                 TextFormField(
                   controller: _barcodeController,
                   decoration: const InputDecoration(
                     labelText: 'Barcode',
-                    border: OutlineInputBorder(), // Add border for consistent look if others have it
+                    border: OutlineInputBorder(),
                   ),
-                  // Optional: Make it read-only if you primarily want scanning
-                  // readOnly: true,
+                  validator: (value) => value!.isEmpty ? 'Please enter a barcode.' : null,
                 ),
-                const SizedBox(height: 16), // Add some spacing
-
-                // Scan Barcode Button (NOT inside an extra Row)
+                const SizedBox(height: 16),
+                
+                // Scan Barcode Button
                 ElevatedButton.icon(
                   onPressed: () async {
-                    // Navigate to the barcode scanner screen and wait for a result
                     final String? scannedBarcode = await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const BarcodeScannerScreen(),
                       ),
                     );
-
-                    // If a barcode was scanned and returned, set it to the controller
                     if (scannedBarcode != null && scannedBarcode.isNotEmpty) {
-                      setState(() {
-                        _barcodeController.text = scannedBarcode;
-                      });
+                      final bool barcodeExists = await _checkBarcodeExistence(scannedBarcode);
+                      if (barcodeExists) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Barcode already exists. Please scan a new one.'),
+                              backgroundColor: Color.fromARGB(255, 98, 98, 98),
+                            ),
+                          );
+                        }
+                        // DO NOT update the text field
+                      } else {
+                        setState(() {
+                          _barcodeController.text = scannedBarcode;
+                        });
+                      }
                     }
                   },
-                  icon: const Icon(Icons.qr_code_scanner), // You can still use the QR icon on the button
-                  label: const Text('Scan Barcode'), // The text for the button
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text('Scan Barcode'),
                   style: ElevatedButton.styleFrom(
-                    // You can customize the button style here if needed
-                    backgroundColor: Colors.blue, // Example: blue background
-                    foregroundColor: Colors.white, // Example: white text
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                 ),
-                const SizedBox(height: 24), // Add spacing after the button
+                const SizedBox(height: 24),
 
                 // Dropdowns with overflow fix
                 DropdownButtonFormField<String>(
@@ -353,13 +425,13 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                     labelText: 'Category',
                     border: OutlineInputBorder(),
                   ),
-                  isExpanded: true, // Crucial for preventing overflow
+                  isExpanded: true,
                   items: _categories.map((String category) {
                     return DropdownMenuItem<String>(
                       value: category,
                       child: Text(
                         category.replaceAll('_', ' ').toTitleCase(),
-                        overflow: TextOverflow.ellipsis, // Prevents text overflow
+                        overflow: TextOverflow.ellipsis,
                       ),
                     );
                   }).toList(),
@@ -382,13 +454,13 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                     labelText: 'Dosage Form',
                     border: OutlineInputBorder(),
                   ),
-                  isExpanded: true, // Crucial for preventing overflow
+                  isExpanded: true,
                   items: _dosageForms.map((String form) {
                     return DropdownMenuItem<String>(
                       value: form,
                       child: Text(
                         form.toTitleCase(),
-                        overflow: TextOverflow.ellipsis, // Prevents text overflow
+                        overflow: TextOverflow.ellipsis,
                       ),
                     );
                   }).toList(),
@@ -411,7 +483,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                     labelText: 'Supplier Name',
                     border: OutlineInputBorder(),
                   ),
-                  isExpanded: true, // Crucial for preventing overflow
+                  isExpanded: true,
                   items: _supplierList.isEmpty
                       ? []
                       : _supplierList.map<DropdownMenuItem<String>>((supplier) {
@@ -419,7 +491,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                       value: supplier['name'],
                       child: Text(
                         supplier['name'],
-                        overflow: TextOverflow.ellipsis, // Prevents text overflow
+                        overflow: TextOverflow.ellipsis,
                       ),
                     );
                   }).toList(),
@@ -493,7 +565,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                     if (!_formKey.currentState!.validate()) {
                       return;
                     }
-                    
+
                     // Show confirmation dialog
                     final confirmed = await showDialog<bool>(
                       context: context,
@@ -521,8 +593,8 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue, // Blue background
-                    foregroundColor: Colors.white, // White text color
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),

@@ -16,37 +16,68 @@ class EmployeeLogsPage extends StatefulWidget {
 }
 
 class _EmployeeLogsPageState extends State<EmployeeLogsPage> {
-  bool isLoading = false;
-  String? error;
-  List<EmployeeLog> logs = [];
+  // Paging variables
+  int _page = 1;
+  static const int _pageSize = 10;
+  bool _isLoading = false;
+  bool _hasMore = true; // Indicates if there are more logs to load
+  String? _error;
+  List<EmployeeLog> _logs = [];
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _fetchLogs();
+    _scrollController.addListener(() {
+      // Check if the user is at the bottom of the list
+      if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
+        _fetchLogs();
+      }
+    });
   }
 
-  Future<void> _fetchLogs() async {
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchLogs({bool isRefresh = false}) async {
+    if (_isLoading || !_hasMore && !isRefresh) return;
+
+    if (isRefresh) {
+      // Reset for a full refresh
+      _page = 1;
+      _logs.clear();
+      _hasMore = true;
+    }
+
     setState(() {
-      isLoading = true;
-      error = null;
+      _isLoading = true;
+      _error = null;
     });
 
     try {
-      final url = Uri.parse('$API_BASE/api/employee-logs/');
+      final url = Uri.parse('$API_BASE/api/employee-logs/?page=$_page&page_size=$_pageSize');
       final resp = await http.get(url);
 
       if (resp.statusCode == 200) {
         final List<dynamic> data = json.decode(resp.body);
         final fetched = data.map((e) => EmployeeLog.fromJson(e)).toList();
-        setState(() => logs = fetched);
+        
+        setState(() {
+          _logs.addAll(fetched);
+          _page++;
+          _hasMore = fetched.length == _pageSize;
+        });
       } else {
-        setState(() => error = 'Failed to load logs: ${resp.statusCode}');
+        setState(() => _error = 'Failed to load logs: ${resp.statusCode}');
       }
     } catch (e) {
-      setState(() => error = 'Network error: $e');
+      setState(() => _error = 'Network error: $e');
     } finally {
-      setState(() => isLoading = false);
+      setState(() => _isLoading = false);
     }
   }
 
@@ -117,7 +148,7 @@ class _EmployeeLogsPageState extends State<EmployeeLogsPage> {
       ),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _fetchLogs,
+          onRefresh: () => _fetchLogs(isRefresh: true),
           child: Column(
             children: [
               const SizedBox(height: 8),
@@ -128,28 +159,36 @@ class _EmployeeLogsPageState extends State<EmployeeLogsPage> {
                 child: _buildHeaderRow(),
               ),
               const SizedBox(height: 8),
-              Expanded( // This is the key change to make the list scrollable
-                child: isLoading && logs.isEmpty
+              Expanded(
+                child: _logs.isEmpty && _isLoading
                     ? const Center(child: CircularProgressIndicator())
-                    : error != null
+                    : _error != null
                         ? Padding(
                             padding: const EdgeInsets.all(20),
                             child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(error!, style: const TextStyle(color: Colors.red)),
+                                Text(_error!, style: const TextStyle(color: Colors.red)),
                                 const SizedBox(height: 12),
-                                ElevatedButton(onPressed: _fetchLogs, child: const Text('Retry')),
+                                ElevatedButton(onPressed: () => _fetchLogs(isRefresh: true), child: const Text('Retry')),
                               ],
                             ),
                           )
-                        : logs.isEmpty
+                        : _logs.isEmpty
                             ? const Center(child: Text('No logs yet'))
                             : ListView.separated(
-                                // Removed shrinkWrap and physics
-                                itemCount: logs.length,
+                                controller: _scrollController,
+                                itemCount: _logs.length + (_hasMore ? 1 : 0), // Add 1 for the loading indicator
                                 separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFEFEFEF)),
                                 itemBuilder: (context, i) {
-                                  return _buildRow(logs[i]);
+                                  // Check if it's the last item and we're still loading/have more
+                                  if (i == _logs.length && _hasMore) {
+                                    return const Padding(
+                                      padding: EdgeInsets.symmetric(vertical: 20),
+                                      child: Center(child: CircularProgressIndicator()),
+                                    );
+                                  }
+                                  return _buildRow(_logs[i]);
                                 },
                               ),
               ),
