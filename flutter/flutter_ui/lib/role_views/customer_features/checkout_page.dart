@@ -1,3 +1,4 @@
+// checkout_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'cart_service.dart';
@@ -5,6 +6,12 @@ import 'package:intl/intl.dart';
 import 'orderarrangement_page.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+
+// Define the constant for the base API URL
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
 
 class CheckoutPage extends StatefulWidget {
   final int customerId;
@@ -33,7 +40,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:8000/api/customers/${widget.customerId}/'),
+        Uri.parse('${API_BASE}api/customers/${widget.customerId}/'),
       );
 
       if (response.statusCode == 200) {
@@ -84,6 +91,22 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         itemBuilder: (context, index) {
                           final item = cartItems[index];
 
+                          // Corrected image loading with a placeholder
+                          Widget itemImageWidget;
+                          if (item.image != null && item.image.isNotEmpty) {
+                            itemImageWidget = Image.network(
+                              item.image,
+                              width: 70,
+                              height: 70,
+                              fit: BoxFit.cover,
+                              // Add an errorBuilder to handle cases where the network image fails to load
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(Icons.medication, size: 70),
+                            );
+                          } else {
+                            itemImageWidget = const Icon(Icons.medication, size: 70);
+                          }
+
                           final quantityAdded = item.isPromo ? 2 : 1;
                           final bool isAddDisabled = (item.quantity + item.promoQuantity + quantityAdded) > item.availableStock;
 
@@ -107,12 +130,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                               children: [
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(
-                                    item.image,
-                                    width: 70,
-                                    height: 70,
-                                    fit: BoxFit.cover,
-                                  ),
+                                  child: itemImageWidget,
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
@@ -165,7 +183,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                       },
                                     ),
                                     Text(
-                                      "${item.quantity}", // CORRECTED: Show paid quantity
+                                      "${item.quantity}",
                                       style: const TextStyle(color: Colors.black),
                                     ),
                                     IconButton(

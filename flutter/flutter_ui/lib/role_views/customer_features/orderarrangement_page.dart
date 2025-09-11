@@ -99,7 +99,7 @@ class OrderArrangementPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Order Arrangement"),
+      appBar: AppBar(title: const Text("Medicine Order Agreement"),
       backgroundColor: const Color.fromARGB(255, 10, 84, 182), // added color to appbar
       foregroundColor: Colors.white, //changed font color
       ),

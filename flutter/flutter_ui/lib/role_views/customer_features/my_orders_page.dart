@@ -66,7 +66,6 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
     }
   }
 
-  // ADDED: Function to show a confirmation dialog before canceling an order
   void _confirmCancelOrder(int orderId) {
     showDialog(
       context: context,
@@ -78,14 +77,14 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
             TextButton(
               child: const Text('No'),
               onPressed: () {
-                Navigator.of(context).pop(); // Dismiss the dialog
+                Navigator.of(context).pop();
               },
             ),
             TextButton(
               child: const Text('Yes', style: TextStyle(color: Colors.red)),
               onPressed: () {
-                Navigator.of(context).pop(); // Dismiss the dialog
-                _cancelOrder(orderId); // Call the cancel function
+                Navigator.of(context).pop();
+                _cancelOrder(orderId);
               },
             ),
           ],
@@ -99,8 +98,8 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Orders'),
-        backgroundColor: const Color.fromARGB(255, 10, 84, 182),// added color to appbar
-        foregroundColor: Colors.white, //changed font color
+        backgroundColor: const Color.fromARGB(255, 10, 84, 182),
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -109,10 +108,10 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.white, // Set the color of the selected tab text
-          unselectedLabelColor: Colors.grey, // Set the color of the unselected tab text
-          indicatorColor: const Color.fromARGB(255, 83, 167, 235), // Set the color of the tab indicator
-          indicatorWeight: 4.0, // Set the thickness of the tab indicator
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.grey,
+          indicatorColor: const Color.fromARGB(255, 83, 167, 235),
+          indicatorWeight: 4.0,
           tabs: const [
             Tab(text: 'Ongoing Orders'),
             Tab(text: 'All Orders'),
@@ -130,7 +129,6 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
             return const Center(child: Text('You have no online orders.'));
           } else {
             final orders = snapshot.data!;
-            // Now include 'ready for pickup' as an ongoing order
             final ongoingOrders = orders.where((order) => order['status'] == 'pending' || order['status'] == 'ready for pickup').toList();
             final pastOrders = orders.where((order) => 
               order['status'] == 'completed' || order['status'] == 'cancelled'
@@ -139,7 +137,6 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
             return TabBarView(
               controller: _tabController,
               children: [
-                // Ongoing Orders Tab
                 RefreshIndicator(
                   onRefresh: _refreshOrders,
                   child: ongoingOrders.isEmpty
@@ -151,7 +148,6 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
                           },
                         ),
                 ),
-                // All Orders Tab
                 RefreshIndicator(
                   onRefresh: _refreshOrders,
                   child: pastOrders.isEmpty
@@ -173,7 +169,6 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
 
   Widget _buildOrderCard(Map<String, dynamic> order) {
     final totalAmount = double.tryParse(order['total_amount_after_discount'].toString()) ?? 0.0;
-    // Determine if the order is cancellable (i.e., status is pending)
     final canBeCancelled = order['status'] == 'pending';
 
     return Card(
@@ -224,10 +219,8 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
                   Padding(
                     padding: const EdgeInsets.only(top: 16.0),
                     child: ElevatedButton(
-                      // MODIFIED: Call the confirmation dialog function instead of the cancel function directly
                       onPressed: () => _confirmCancelOrder(order['id']),
                       style: ElevatedButton.styleFrom(
-                        //: Colors.red, // old color
                         backgroundColor: const Color.fromARGB(255, 10, 84, 182),
                         foregroundColor: Colors.white,
                         minimumSize: const Size(double.infinity, 50),
@@ -250,29 +243,32 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
       final price = double.tryParse(item['price_at_sale'].toString()) ?? 0.0;
       final itemTotal = price * quantitySold;
       
-      // Correctly access the nested medicine data
       final medicine = item['medicine'] as Map<String, dynamic>;
       final medicineName = medicine['name'] ?? 'N/A';
       final genericName = medicine['generic_name'] ?? 'N/A';
       final imageUrl = medicine['image'] ?? '';
-      final requiresPrescription = medicine['requires_prescription'] ?? false; // New line
+      final requiresPrescription = medicine['requires_prescription'] ?? false;
+
+      // New logic to handle image or placeholder
+      final imageOrPlaceholder = imageUrl.isNotEmpty
+          ? Image.network(
+              imageUrl,
+              width: 60,
+              height: 60,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => const Icon(Icons.medication, size: 60, color: Colors.grey),
+            )
+          : const Icon(Icons.medication, size: 60, color: Colors.grey);
 
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (imageUrl.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.network(
-                  imageUrl,
-                  width: 60,
-                  height: 60,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 60),
-                ),
-              ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8.0),
+              child: imageOrPlaceholder,
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -286,7 +282,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
                     genericName,
                     style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.grey),
                   ),
-                  if (requiresPrescription) // New line
+                  if (requiresPrescription)
                     const Text(
                       'Prescription Required',
                       style: TextStyle(

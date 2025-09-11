@@ -4,6 +4,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'medicine_promo_detail_page.dart';
 
+// Define the API_BASE constant here
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 // ===================== MODEL: PromoMedicine =====================
 class PromoMedicine {
   final int id;
@@ -44,8 +50,8 @@ class PromoMedicine {
 
 // ===================== PROMO VIEW =====================
 class PromoView extends StatefulWidget {
-  final int customerId; // <--- ADDED: customerId
-  const PromoView({super.key, required this.customerId}); // <--- ADDED: customerId to constructor
+  final int customerId;
+  const PromoView({super.key, required this.customerId});
 
   @override
   State<PromoView> createState() => _PromoViewState();
@@ -64,7 +70,8 @@ class _PromoViewState extends State<PromoView> {
 
   Future<void> fetchPromos() async {
     try {
-      final response = await http.get(Uri.parse('http://10.0.2.2:8000/api/medicine/promos/'));
+      // Use the API_BASE constant here
+      final response = await http.get(Uri.parse('${API_BASE}api/medicine/promos/'));
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -109,7 +116,7 @@ class _PromoViewState extends State<PromoView> {
                           crossAxisCount: 2,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
-                          childAspectRatio: 0.7, // Adjusted to match the new style
+                          childAspectRatio: 0.7,
                         ),
                         itemBuilder: (context, index) {
                           final promo = promos[index];
@@ -121,7 +128,7 @@ class _PromoViewState extends State<PromoView> {
                                 MaterialPageRoute(
                                   builder: (context) => PromoMedicineDetailPage(
                                     medicineId: promo.id,
-                                    customerId: widget.customerId, // <--- MODIFIED: Passed customerId
+                                    customerId: widget.customerId,
                                   ),
                                 ),
                               );
@@ -150,9 +157,9 @@ class _PromoViewState extends State<PromoView> {
                                               promo.image,
                                               fit: BoxFit.cover,
                                               errorBuilder: (context, error, stackTrace) =>
-                                                  Image.asset('assets/placeholder.png', fit: BoxFit.cover),
+                                                  const Icon(Icons.medication, size: 60, color: Colors.grey),
                                             )
-                                          : Image.asset('assets/placeholder.png', fit: BoxFit.cover),
+                                          : const Icon(Icons.medication, size: 60, color: Colors.grey),
                                     ),
                                   ),
                                   const SizedBox(height: 12),
@@ -183,7 +190,7 @@ class _PromoViewState extends State<PromoView> {
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.orange, // Use a distinct color for promos
+                                      color: Colors.orange,
                                     ),
                                     textAlign: TextAlign.end,
                                   ),
