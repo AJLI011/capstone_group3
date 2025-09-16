@@ -10,41 +10,98 @@ class ExpiredStockPage extends StatefulWidget {
 }
 
 class _ExpiredStockPageState extends State<ExpiredStockPage> {
-  // Original list of all expired stocks fetched from the API
-  List<dynamic> allExpiredStocks = [];
-  // List to display in the UI, filtered by the search query
-  List<dynamic> filteredExpiredStocks = [];
+  // This will hold the entire list of data fetched from the API
+  List<dynamic> _fullExpiredStocks = [];
+  // This is the list that will be displayed in chunks and filtered by search
+  List<dynamic> _filteredExpiredStocks = [];
   // Controller for the search bar
-  final TextEditingController searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+
+  // Pagination & Lazy Loading State
+  bool _isLoading = false;
+  bool _hasMore = true;
+  int _nextIndex = 0; // The index to start loading from in _fullExpiredStocks
+  final int _pageSize = 10;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    fetchExpiredStocks();
+    // Initial fetch of ALL data from the API
+    _fetchAllExpiredStocks();
+    // Add a listener to the scroll controller to trigger client-side lazy loading
+    _scrollController.addListener(_onScroll);
     // Add a listener to the search controller to filter the list as the user types
-    searchController.addListener(filterExpiredStocks);
+    _searchController.addListener(_filterExpiredStocks);
   }
 
   @override
   void dispose() {
-    // Clean up the controller when the widget is disposed
-    searchController.dispose();
+    // Clean up controllers and listeners when the widget is disposed
+    _searchController.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
   }
 
+  // Method to handle scroll events for lazy loading
+  void _onScroll() {
+    // Check if the user is at the end, we're not loading, and have more data to show.
+    // Lazy loading is only active when the search bar is empty.
+    if (!_isLoading && _scrollController.position.pixels >= _scrollController.position.maxScrollExtent * 0.95) {
+      if (_hasMore && _searchController.text.isEmpty) {
+        _loadMoreStocks();
+      }
+    }
+  }
+
   // Method to filter the list based on the search query
-  void filterExpiredStocks() {
-    final query = searchController.text.toLowerCase();
+  void _filterExpiredStocks() {
+    final query = _searchController.text.toLowerCase();
     setState(() {
-      filteredExpiredStocks = allExpiredStocks.where((stock) {
-        final medicineName = stock['medicine_name']?.toLowerCase() ?? '';
-        final genericName = stock['generic_name']?.toLowerCase() ?? '';
-        return medicineName.contains(query) || genericName.contains(query);
-      }).toList();
+      if (query.isEmpty) {
+        // If the search query is empty, reset the displayed list to the loaded chunks
+        _filteredExpiredStocks = _fullExpiredStocks.sublist(0, _nextIndex);
+      } else {
+        // Otherwise, filter the entire fetched data based on the query
+        _filteredExpiredStocks = _fullExpiredStocks.where((stock) {
+          final medicineName = stock['medicine_name']?.toLowerCase() ?? '';
+          final genericName = stock['generic_name']?.toLowerCase() ?? '';
+          return medicineName.contains(query) || genericName.contains(query);
+        }).toList();
+      }
     });
   }
 
-  Future<void> fetchExpiredStocks() async {
+  // New method for client-side pagination
+  void _loadMoreStocks() {
+    if (_isLoading) return;
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Simulate network delay for a better user experience
+    Future.delayed(const Duration(milliseconds: 500), () {
+      final int newLength = _nextIndex + _pageSize;
+      final int end = newLength > _fullExpiredStocks.length ? _fullExpiredStocks.length : newLength;
+
+      setState(() {
+        _filteredExpiredStocks.addAll(_fullExpiredStocks.sublist(_nextIndex, end));
+        _nextIndex = end;
+        _isLoading = false;
+        if (_nextIndex >= _fullExpiredStocks.length) {
+          _hasMore = false;
+        }
+      });
+    });
+  }
+
+  // Modified fetch method to get all data at once
+  Future<void> _fetchAllExpiredStocks() async {
+    setState(() {
+      _isLoading = true;
+    });
+
     final String url = 'http://10.0.2.2:8000/api/medicines/expired/';
 
     try {
@@ -52,7 +109,7 @@ class _ExpiredStockPageState extends State<ExpiredStockPage> {
       if (response.statusCode == 200) {
         final List<dynamic> fetchedData = json.decode(response.body);
 
-        // Apply FEFO sorting here (oldest expired first)
+        // Sort the fetched data once (oldest expired first)
         fetchedData.sort((a, b) {
           final dateA = a['exp_date'] != null ? DateTime.tryParse(a['exp_date']) : null;
           final dateB = b['exp_date'] != null ? DateTime.tryParse(b['exp_date']) : null;
@@ -70,14 +127,26 @@ class _ExpiredStockPageState extends State<ExpiredStockPage> {
         });
 
         setState(() {
-          // Store the sorted data in both lists
-          allExpiredStocks = fetchedData;
-          filteredExpiredStocks = fetchedData;
+          _fullExpiredStocks = fetchedData;
+          _isLoading = false;
+          _hasMore = fetchedData.length > _pageSize;
         });
+        
+        // Immediately load the first page of data
+        _loadMoreStocks();
+
       } else {
+        setState(() {
+          _isLoading = false;
+          _hasMore = false;
+        });
         print('Failed to load expired stocks. Status code: ${response.statusCode}');
       }
     } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _hasMore = false;
+      });
       print('Error fetching expired stocks: $e');
     }
   }
@@ -87,15 +156,15 @@ class _ExpiredStockPageState extends State<ExpiredStockPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Expired Stocks'),
-        backgroundColor: const Color(0xFF5C7C9A), // Updated color
-        foregroundColor: Colors.white, // Updated color for font and icon
+        backgroundColor: const Color(0xFF5C7C9A),
+        foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(10),
             child: TextField(
-              controller: searchController,
+              controller: _searchController,
               decoration: InputDecoration(
                 labelText: 'Search expired medicine...',
                 prefixIcon: const Icon(Icons.search),
@@ -104,60 +173,75 @@ class _ExpiredStockPageState extends State<ExpiredStockPage> {
             ),
           ),
           Expanded(
-            child: filteredExpiredStocks.isEmpty
-                ? const Center(child: Text('No expired medicines'))
-                : ListView.builder(
-                    itemCount: filteredExpiredStocks.length,
-                    itemBuilder: (context, index) {
-                      final stock = filteredExpiredStocks[index];
-                      return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.red[50],
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.red.shade200),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Left side info
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+            child: _fullExpiredStocks.isEmpty && _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _filteredExpiredStocks.isEmpty && _searchController.text.isNotEmpty
+                ? const Center(child: Text('No matching medicines found.'))
+                : _filteredExpiredStocks.isEmpty
+                  ? const Center(child: Text('No expired medicines'))
+                  : ListView.builder(
+                      controller: _scrollController,
+                      // Only show loading indicator if not searching and there's more to load
+                      itemCount: _filteredExpiredStocks.length + (_hasMore && _searchController.text.isEmpty ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == _filteredExpiredStocks.length) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        }
+                        
+                        final stock = _filteredExpiredStocks[index];
+                        return Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red[50],
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Left side info
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      stock['medicine_name'] ?? 'No Name',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text('Generic: ${stock['generic_name'] ?? 'N/A'}'),
+                                    Text('Batch: ${stock['batch_num'] ?? 'N/A'}'),
+                                    Text('Quantity: ${stock['quantity'] ?? '0'}'),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              // Right side info
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    stock['medicine_name'] ?? 'No Name',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
+                                    'Expired on: ${stock['exp_date'] ?? 'N/A'}',
+                                    style: const TextStyle(color: Colors.red),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text('Generic: ${stock['generic_name'] ?? 'N/A'}'),
-                                  Text('Batch: ${stock['batch_num'] ?? 'N/A'}'),
-                                  Text('Quantity: ${stock['quantity'] ?? '0'}'),
+                                  Text('Supplier: ${stock['supplier_name'] ?? 'N/A'}'),
                                 ],
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            // Right side info
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  'Expired on: ${stock['exp_date'] ?? 'N/A'}',
-                                  style: const TextStyle(color: Colors.red),
-                                ),
-                                Text('Supplier: ${stock['supplier_name'] ?? 'N/A'}'),
-                              ],
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
           ),
         ],
       ),

@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
-
 class InventoryLogsPage extends StatefulWidget {
   const InventoryLogsPage({Key? key}) : super(key: key);
 
@@ -16,34 +15,79 @@ class InventoryLogsPage extends StatefulWidget {
 class _InventoryLogsPageState extends State<InventoryLogsPage> {
   List<dynamic> logs = [];
   bool isLoading = true;
+  bool _isFetchingMore = false; // Prevents multiple simultaneous requests
+  int _page = 1; // Tracks the current page number
+  bool _hasMoreData = true; // Tracks if there are more pages to load
+
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    // Initialize timezone data
     tz.initializeTimeZones();
-    fetchInventoryLogs();
+    _fetchInventoryLogs(isInitial: true);
+
+    // Listen for scroll events
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
+        // User has scrolled to the bottom
+        _loadMoreLogs();
+      }
+    });
   }
 
-  Future<void> fetchInventoryLogs() async {
-    const url = 'http://10.0.2.2:8000/api/inventory-logs/';
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+  
+  // Renamed the function to be more descriptive and accept a page number
+  Future<void> _fetchInventoryLogs({bool isInitial = false}) async {
+    if (_isFetchingMore || !_hasMoreData) return;
+
+    if (!isInitial) {
+      setState(() {
+        _isFetchingMore = true; // Show a loading indicator at the bottom
+      });
+    }
+
+    final url = 'http://10.0.2.2:8000/api/inventory-logs/?page=$_page';
     
     try {
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final data = json.decode(response.body);
+        final List<dynamic> fetchedLogs = data['results'];
+        
         setState(() {
-          logs = data;
+          logs.addAll(fetchedLogs); // Append new logs to the existing list
+          _page++; // Increment the page counter
+          _hasMoreData = data['next'] != null; // Check if there's a next page
           isLoading = false;
+          _isFetchingMore = false;
         });
       } else {
         print('Failed to load logs. Status code: ${response.statusCode}');
-        setState(() => isLoading = false);
+        setState(() {
+          isLoading = false;
+          _isFetchingMore = false;
+        });
       }
     } catch (e) {
       print('Error fetching logs: $e');
-      setState(() => isLoading = false);
+      setState(() {
+        isLoading = false;
+        _isFetchingMore = false;
+      });
+    }
+  }
+
+  // A dedicated method to handle loading more data
+  void _loadMoreLogs() {
+    if (!_isFetchingMore && _hasMoreData) {
+      _fetchInventoryLogs();
     }
   }
 
@@ -52,8 +96,8 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Inventory Logs'),
-        backgroundColor: const Color(0xFF5C7C9A), // Updated color
-        foregroundColor: Colors.white, // Updated color for font and icon
+        backgroundColor: const Color(0xFF5C7C9A),
+        foregroundColor: Colors.white,
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -65,21 +109,20 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
 
   Widget _buildInventoryLogsList(List<dynamic> logs) {
     return ListView.builder(
-      itemCount: logs.length,
+      controller: _scrollController,
+      itemCount: logs.length + (_hasMoreData ? 1 : 0), // Add 1 for the loading indicator
       itemBuilder: (context, index) {
+        if (index == logs.length) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16.0),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
         final log = logs[index];
-
-        // START OF CHANGES
-        // Parse the timestamp string to a DateTime object.
         final DateTime utcTimestamp = DateTime.parse(log['timestamp']).toUtc();
-
-        // Define the target timezone.
         final location = tz.getLocation('Asia/Manila');
-
-        // Convert the UTC timestamp to the target timezone.
         final tz.TZDateTime manilaTimestamp = tz.TZDateTime.from(utcTimestamp, location);
-
-        // END OF CHANGES
 
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -88,7 +131,6 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
               '${log['action_type']} by ${log['user_name']}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            // Use the converted timestamp for formatting.
             subtitle: Text(DateFormat('MM-dd-yyyy hh:mm a').format(manilaTimestamp)),
             children: <Widget>[
               Padding(

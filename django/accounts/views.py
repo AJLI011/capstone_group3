@@ -2,6 +2,13 @@ import uuid
 import logging
 import pandas as pd
 
+#===========9/13/25 elton
+from .pagination import InventoryLogPagination
+#9/15/25 elton
+from rest_framework.generics import ListAPIView
+from .pagination import PromoMedicinePagination
+
+
 from datetime import date, timedelta, datetime
 from decimal import Decimal
 
@@ -76,6 +83,9 @@ from django.utils.timezone import now
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+
+#===========9/13/25 LAZY LOADING=====
+from django.core.paginator import Paginator
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
@@ -499,12 +509,81 @@ class InventoryCreateView(APIView):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#======== 9/13/25 LAZY LOADING CHANGE===================================
 @api_view(['GET'])
 def get_inventory_list(request):
+    # Retrieve limit and offset from query parameters, with default values
+    limit = int(request.GET.get('limit', 10))
+    offset = int(request.GET.get('offset', 0))
+
+    # Clean expired promos (assuming this is a necessary pre-processing step)
     clean_expired_promos()
+
+    # Get the base queryset
     queryset = TotalQuantity.objects.select_related('medicine').all()
-    serializer = InventoryListSerializer(queryset, many=True, context={'request': request})
+    
+    # Apply slicing to the queryset based on offset and limit
+    paginated_queryset = queryset[offset:offset + limit]
+
+    # Serialize the paginated data
+    serializer = InventoryListSerializer(paginated_queryset, many=True, context={'request': request})
+    
+    # Return the paginated data in the response
     return Response(serializer.data)
+#=====================================================
+
+
+
+
+
+
+def clean_expired_promos():
+    # Your existing logic for cleaning expired promos
+    pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 @api_view(['GET'])
 def get_medicine_by_barcode(request, barcode):
@@ -531,20 +610,29 @@ def get_medicine_by_barcode(request, barcode):
     serializer = InventoryBatchDetailSerializer(batches, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+#======= 9/13/25 LAZY LOADING CHANGE ===============
 @api_view(['GET'])
 def get_batch_details(request, medicine_id):
     today = timezone.now().date()
+    
+    # NEW: Get limit and offset from request query parameters.
+    limit = int(request.query_params.get('limit', 10))
+    offset = int(request.query_params.get('offset', 0))
 
     batches = Inventory.objects.filter(
         medicine__id=medicine_id,
-        exp_date__gt=today   # strictly greater than today → exclude expired
-    )
+        exp_date__gt=today  # strictly greater than today → exclude expired
+    )#.order_by('exp_date') # MODIFIED: Add a default ordering for consistent pagination.
 
     if not batches.exists():
         return Response({'message': 'No active batches found.'}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = InventoryBatchDetailSerializer(batches, many=True)
+    # MODIFIED: Apply slicing to the queryset using the offset and limit.
+    paginated_batches = batches[offset:offset + limit]
+
+    serializer = InventoryBatchDetailSerializer(paginated_batches, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
+#============================================
 
 
 # ✅ Total quantities (all medicines) — exclude expired
@@ -737,14 +825,43 @@ def clean_expired_promos():
         inventory_item.save()
         promo.delete()
 
-# For Inventory Logs
-from .serializers import InventoryLogSerializer
 
+
+
+
+
+
+#=========================================09/13/25 (ELTON)=========================================
+
+# For Inventory Logs
 @api_view(['GET'])
 def inventory_logs(request):
+    """
+    Returns a paginated list of inventory logs.
+    """
+    # Create an instance of the custom paginator
+    paginator = InventoryLogPagination()
+    
+    # Get all logs, sorted by timestamp
     logs = InventoryLog.objects.select_related('user', 'medicine').all()
-    serializer = InventoryLogSerializer(logs, many=True)
-    return Response(serializer.data)
+
+    # Paginate the queryset
+    paginated_logs = paginator.paginate_queryset(logs, request)
+
+    # If there are no more pages, return an empty list
+    if paginated_logs is not None:
+        serializer = InventoryLogSerializer(paginated_logs, many=True)
+        return paginator.get_paginated_response(serializer.data)
+    else:
+        # This case is for when pagination returns None, though it's rare with DRF's default behavior
+        serializer = InventoryLogSerializer(logs, many=True)
+        return Response(serializer.data)
+#=========================================09/13/25 (ELTON)=========================================
+
+
+
+
+
 
 # ─────────── SALES ───────────
 
@@ -777,38 +894,39 @@ def get_item_by_barcode(request, barcode):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+#===============9/13/2025=============================
 #----------Customer Side Mainview----------------
 
-class PromoMedicineView(APIView):
-    def get(self, request):
-        today = now().date()
+class PromoMedicineView(ListAPIView):
+    serializer_class = PromoMedicineSerializer
+    pagination_class = PromoMedicinePagination # Use the new pagination class
 
-        # Get all promo-active inventory batches
-        promo_batches = Inventory.objects.filter(
+    def get_queryset(self):
+        today = now().date()
+        
+        # This is the correct way to get unique medicines for MySQL
+        # 1. Get the list of unique medicine IDs
+        promo_medicine_ids = Inventory.objects.filter(
             promo__start_date__lte=today,
             promo__end_date__gte=today
-        ).select_related('medicine')
+        ).values_list('medicine__id', flat=True).distinct()
 
-        data = []
-        seen_medicine_ids = set()
+        # 2. Filter the queryset to include only these unique medicine IDs
+        queryset = Inventory.objects.filter(
+            medicine__id__in=promo_medicine_ids,
+            promo__start_date__lte=today,
+            promo__end_date__gte=today
+        ).order_by('medicine__id')
 
-        for batch in promo_batches:
-            medicine = batch.medicine
-            if medicine.id not in seen_medicine_ids:
-                seen_medicine_ids.add(medicine.id)
-                data.append({
-                    'id': medicine.id, 
-                    'name': medicine.name,
-                    'generic_name': medicine.generic_name,
-                    'image': request.build_absolute_uri(medicine.image.url) if medicine.image else '',
-                    'price': float(medicine.price)
-                })
-
-        return Response(data)
+        return queryset
         
+# Keep the existing function as is
 def trigger_update_total_quantity(request):
     call_command('update_total_quantities')
     return JsonResponse({'status': 'success'})
+
+
+#========================9/13/25=========================================
 
 class PromoMedicineDetailView(APIView):
     def get(self, request, pk):
@@ -817,28 +935,48 @@ class PromoMedicineDetailView(APIView):
         return Response(serializer.data)
 
 
-#For Normal Medicine
+#========= 9/13/25 UPDATED 4 LAZY LOADING ================
+#For Normal Medicine 
+#For Normal Medicine 
 @api_view(['GET'])
 def get_customer_medicines(request):
     """
-    Retrieves a list of medicines for the customer view.
-    Filters the list by category if a 'category' query parameter is provided.
+    Retrieves a list of normal medicines for the customer view with lazy loading and filtering.
     """
+    # NEW: Get lazy loading parameters from the request.
+    limit = int(request.query_params.get('limit', 10))
+    offset = int(request.query_params.get('offset', 0))
+    
+    # MODIFIED: Get category and search query from request.
     category = request.query_params.get('category', None)
+    search_query = request.query_params.get('search', None)
+
+    # Start with all medicine objects and then filter based on parameters.
+    # Note: Using .all() on TotalQuantity then list comprehension is not scalable.
+    # It's better to filter the queryset directly.
+    queryset = TotalQuantity.objects.select_related('medicine').all()
     
-    # Start with all inventory items
-    inventory_items = TotalQuantity.objects.select_related('medicine').all()
-    
-    # If a category is specified and is not 'all', filter the queryset
+    # Apply category filter
     if category and category != 'all':
-        inventory_items = inventory_items.filter(medicine__category=category)
+        queryset = queryset.filter(medicine__category=category)
     
-    # Extract the medicine objects from the filtered inventory items
-    medicines = [item.medicine for item in inventory_items]
+    # NEW: Apply search filter using a Q object for combined search.
+    if search_query:
+        queryset = queryset.filter(
+            Q(medicine__name__icontains=search_query) |
+            Q(medicine__generic_name__icontains=search_query)
+        )
     
-    # Serialize the filtered list of medicines
+    # MODIFIED: Apply pagination to the filtered queryset.
+    paginated_queryset = queryset[offset:offset + limit]
+
+    # Extract the medicine objects from the paginated inventory items.
+    medicines = [item.medicine for item in paginated_queryset]
+    
+    # Serialize the paginated list of medicines.
     serializer = CustomerMedicineSerializer(medicines, many=True, context={'request': request})
-    return Response(serializer.data)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+#===================================================================
 
 @api_view(['GET'])
 def get_customer_medicine_detail(request, pk):
