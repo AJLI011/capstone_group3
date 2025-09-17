@@ -541,7 +541,12 @@ class CashierInStoreOrderSerializer(serializers.ModelSerializer):
         model = InStoreOrder
         # **ADD 'cashier_name' to the fields list**
         fields = ['id', 'staff_name', 'cashier_name', 'is_pwd', 'total_amount_before_discount', 'total_amount_after_discount', 'items']
-        
+
+
+
+
+
+#--------------------09/14/2025--------------------------- fixing return medicine
 class InStoreOrderSerializer(serializers.ModelSerializer):
     items = serializers.ListField(child=serializers.DictField())
     staff = serializers.PrimaryKeyRelatedField(queryset=Staff.objects.all())
@@ -588,6 +593,11 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
                     except Inventory.DoesNotExist:
                         order.delete()
                         raise serializers.ValidationError(f"Selected batch with ID {inventory_id} does not exist.")
+                    
+                    # --- START OF CHANGE ---
+                    # Capture the medicine's name and generic name from the Inventory's medicine
+                    medicine_name = selected_batch.medicine.name
+                    generic_name = selected_batch.medicine.generic_name
 
                     order_items_to_create.append(
                         InStoreOrderItem(
@@ -595,10 +605,14 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
                             inventory_id=selected_batch,
                             quantity_sold=quantity_to_sell,
                             free_quantity_given=free_quantity_to_give,
-                            price_at_sale=selected_batch.medicine.price
+                            price_at_sale=selected_batch.medicine.price,
+                            # New fields added here:
+                            medicine_name=medicine_name,
+                            generic_name=generic_name,
                         )
                     )
-                    
+                    # --- END OF CHANGE ---
+                                 
                     total_before += quantity_to_sell * selected_batch.medicine.price
 
                 InStoreOrderItem.objects.bulk_create(order_items_to_create)
@@ -623,6 +637,10 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
                 f"Failed to create pending order: {str(e)}"
             )
             
+                 
+                 
+                 
+                 
                         
             
 # ORDER LOGS SERIALIZERS
@@ -701,16 +719,26 @@ class OnlineOrderLogDetailsSerializer(serializers.ModelSerializer):
         model = OnlineOrder
         fields = ['id', 'customer_name', 'customer_email', 'items']
 
+
+#--------------------09/14/2025--------------------------- fixing return medicine
 # --- Online Orders Serializers ---
 class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
-    medicine = MedicineSerializer(source='inventory_id.medicine')
+    medicine = serializers.SerializerMethodField()
     free_quantity_given = serializers.IntegerField()
 
     class Meta:
         model = OnlineOrderItem
         fields = ['id', 'medicine', 'quantity_sold', 'free_quantity_given', 'price_at_sale']
 
-
+    def get_medicine(self, obj):
+        # The medicine_name and generic_name are now stored directly on the item
+        # This prevents the crash caused by a NULL inventory_id
+        return {
+            'name': obj.medicine_name,
+            'generic_name': obj.generic_name
+        }
+        
+        
 class OnlineOrderListSerializer(serializers.ModelSerializer):
     items = OnlineOrderItemReadSerializer(many=True, read_only=True)
     customer_name = serializers.CharField(source='customer.name', read_only=True)
@@ -766,6 +794,11 @@ class OnlineOrderItemCreateSerializer(serializers.ModelSerializer):
         return data
 
 
+
+
+
+
+#--------------------09/14/2025--------------------------- fixing return medicine
 class OnlineOrderCreateSerializer(serializers.ModelSerializer):
     items = OnlineOrderItemCreateSerializer(many=True, write_only=True)
     customer_id = serializers.PrimaryKeyRelatedField(
@@ -814,12 +847,22 @@ class OnlineOrderCreateSerializer(serializers.ModelSerializer):
                                 f"No available inventory batch found for {medicine.name}."
                             )
 
+                        # 💡 START OF ADDITION 💡
+                        # Capture the medicine's name and generic name from the Inventory's medicine
+                        # right here before creating the object.
+                        medicine_name = inventory_batch.medicine.name
+                        generic_name = inventory_batch.medicine.generic_name
+                        # 💡 END OF ADDITION 💡
+
                         order_items_to_create.append(
                             OnlineOrderItem(
                                 inventory_id=inventory_batch,
                                 quantity_sold=quantity_sold_initial,
                                 free_quantity_given=free_quantity_given_initial,
-                                price_at_sale=medicine.price
+                                price_at_sale=medicine.price,
+                                # New fields added here:
+                                medicine_name=medicine_name,
+                                generic_name=generic_name,
                             )
                         )
                     except Exception as e:
@@ -871,7 +914,6 @@ class OnlineOrderCreateSerializer(serializers.ModelSerializer):
 
 
 
-
 #-------- in store transactions serializers--------------------
 # New serializer for Staff to get their name and role
 class StaffDetailSerializer(serializers.ModelSerializer):
@@ -879,11 +921,12 @@ class StaffDetailSerializer(serializers.ModelSerializer):
         model = Staff
         fields = ['name', 'role']
 
+#--------------------09/14/2025--------------------------- fixing return medicine
 # Corrected nested serializer for InStoreOrderItem
 class ManagerInStoreOrderItemSerializer(serializers.ModelSerializer):
-    medicine_name = serializers.CharField(source='inventory_id.medicine.name', read_only=True)
-    price_per_item = serializers.DecimalField(source='inventory_id.medicine.price', max_digits=10, decimal_places=2, read_only=True)
-    is_promo = serializers.BooleanField(source='inventory_id.is_promo', read_only=True)
+    medicine_name = serializers.CharField(read_only=True)
+    price_per_item = serializers.DecimalField(source='price_at_sale', max_digits=10, decimal_places=2, read_only=True)
+    is_promo = serializers.SerializerMethodField()
 
     class Meta:
         model = InStoreOrderItem
@@ -894,6 +937,18 @@ class ManagerInStoreOrderItemSerializer(serializers.ModelSerializer):
             'medicine_name',
             'price_per_item',
         ]
+
+    def get_is_promo(self, obj):
+        # Check if inventory_id is not null before trying to access its fields
+        if obj.inventory_id:
+            return obj.inventory_id.is_promo
+        return False
+    
+    
+    
+    
+    
+    
 # Main serializer for the manager's sales log
 class InStoreSalesTransactionSerializer(serializers.ModelSerializer):
     staff = serializers.CharField(source='staff.name', read_only=True)

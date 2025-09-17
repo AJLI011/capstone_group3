@@ -697,37 +697,65 @@ class ExpiredView(generics.ListAPIView):
             quantity__gt=0 # ✅ NEW: Exclude batches with 0 quantity
         )
 
-#Return Medicine
+#--------------------09/14/2025--------------------------- fixing return medicine
+#Return Medicine 
 @api_view(['DELETE'])
 def delete_expired_batch(request, pk):
     try:
         inventory_item = Inventory.objects.get(pk=pk)
 
+        # 1. Check if this inventory item was sold as part of an online order
+        online_order_item = OnlineOrderItem.objects.filter(inventory_id=inventory_item).first()
+
         # Capture info before deletion
         medicine = inventory_item.medicine
         quantity = inventory_item.quantity
         batch = inventory_item.batch_num
-
-        inventory_item.delete()
-
+        exp_date = inventory_item.exp_date
+        
         # 🔐 Get staff from query param (Flutter: ?staff_id=123)
         staff_id = request.query_params.get('staff_id')
-        if staff_id:
-            try:
-                staff_user = Staff.objects.get(id=staff_id)
-                InventoryLog.objects.create(
-                    user=staff_user,
-                    medicine=medicine,
-                    action_type='Return',
-                    description=f"Returned {quantity} units of {medicine.name} (Batch: {batch}) due to expiration"
-                )
-            except Staff.DoesNotExist:
-                print(f"Staff ID {staff_id} not found while logging action.")
+        staff_user = Staff.objects.filter(id=staff_id).first()
 
-        return Response({"message": "Deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        # ✅ CRITICAL SECTION: Create the returned medicine record
+        if online_order_item:
+            ReturnedMedicine.objects.create(
+                medicine=medicine,
+                # ✅ FINAL, UNAMBIGUOUS FIX: Explicitly pass the ID of the object.
+                online_order_item_id=online_order_item.id,
+                batch_num=batch,
+                exp_date=exp_date,
+                quantity=quantity,
+                returned_by=staff_user
+            )
+        else:
+            ReturnedMedicine.objects.create(
+                medicine=medicine,
+                batch_num=batch,
+                exp_date=exp_date,
+                quantity=quantity,
+                returned_by=staff_user
+            )
+
+        # Create the inventory log entry
+        if staff_user:
+            InventoryLog.objects.create(
+                user=staff_user,
+                medicine=medicine,
+                action_type='Expiration Return',
+                description=f"Returned {quantity} units of {medicine.name} (Batch: {batch}) due to expiration"
+            )
+
+        # Now, and only now, delete the item from the Inventory table
+        inventory_item.delete()
+
+        return Response({"message": "Batch archived and deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
     except Inventory.DoesNotExist:
         return Response({"error": "Inventory item not found"}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+
+        return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # Promo Medicine
@@ -1797,7 +1825,15 @@ class InStoreSalesTransactionView(generics.ListAPIView):
 
         return queryset    
 
+
+
+
+
+
+
 # Online Orders Transaction for Manager View
+#--------------------09/14/2025--------------------------- fixing return medicine
+# Online Orders Transaction
 @api_view(['GET'])
 def completed_online_orders_report(request):
     """
@@ -1832,9 +1868,8 @@ def completed_online_orders_report(request):
                 completed_orders = completed_orders.filter(
                     date_created__range=(start_of_day, end_of_day)
                 )
-                
+            
             except ValueError:
-                # Handle cases where the date format is incorrect
                 return Response(
                     {"error": "Invalid date format. Use YYYY-MM-DD."}, 
                     status=status.HTTP_400_BAD_REQUEST
@@ -1853,7 +1888,6 @@ def completed_online_orders_report(request):
             customer_type = 'Discounted' if order.is_pwd else 'Regular'
             
             # Get the timestamp from the 'date_created' field and format it
-            # Corrected line to format the timestamp as ISO 8601
             fulfilled_timestamp = order.date_created.isoformat() if order.date_created else 'N/A'
             
             # Calculate subtotal and discount
@@ -1863,22 +1897,23 @@ def completed_online_orders_report(request):
             # Get items
             items_data = []
             for item in order.items.all():
+                # 💡 SIMPLIFIED AND FIXED LOGIC 💡
+                # The medicine_name is now stored directly on the OnlineOrderItem
+                # So you don't need to check the inventory_id at all for the name.
+                
                 items_data.append({
-                    'medicine_name': item.inventory_id.medicine.name,
-                    'generic_name': item.inventory_id.medicine.generic_name,
+                    'medicine_name': item.medicine_name,
+                    'generic_name': item.generic_name,
                     'quantity_ordered': item.quantity_sold,
                     'promo_quantity': item.free_quantity_given,
                     'item_total': float(item.price_at_sale * item.quantity_sold),
                 })
-            
-            # ---- START OF CORRECTED LOGIC (Based on your models) ----
             
             initiated_by_name = 'N/A'
             initiated_by_role = 'N/A'
             if initiated_by_log and initiated_by_log.staff_user:
                 initiated_by_name = initiated_by_log.staff_user.name
                 initiated_by_role = initiated_by_log.staff_user.role.capitalize()
-                # You can use .capitalize() to make it 'Cashier' or 'Staff'
 
             approved_by_name = 'N/A'
             approved_by_role = 'N/A'
@@ -1886,8 +1921,6 @@ def completed_online_orders_report(request):
                 approved_by_name = approved_by_log.staff_user.name
                 approved_by_role = approved_by_log.staff_user.role.capitalize()
             
-            # ---- END OF CORRECTED LOGIC ----
-
             orders_data.append({
                 'order_id': order.id,
                 'customer_name': order.customer.name,
@@ -1906,11 +1939,17 @@ def completed_online_orders_report(request):
         return Response(orders_data, status=status.HTTP_200_OK)
 
     except Exception as e:
-        # Check if the logger is defined before using it
-        # if 'logger' in globals():
-        #     logger.error(f"[COMPLETED ORDERS REPORT ERROR] {e}")
         return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+
+
         
+#--------------------09/14/2025--------------------------- fixing return medicine
 #===================In-store Sales Report=================   =================09/05/2025===================
 class InStoreSalesReportView(APIView):
     def get(self, request, *args, **kwargs):
@@ -1947,7 +1986,15 @@ class InStoreSalesReportView(APIView):
                 discount_percentage = Decimal('0.00')
 
             for item in order.items.all():  # Use .all() since it's already prefetched
-                medicine_name = item.inventory_id.medicine.name
+                # --- CORRECTED LOGIC START ---
+                # Check for the medicine_name field first, since it is now populated
+                if item.medicine_name:
+                    medicine_name = item.medicine_name
+                else:
+                    # Fallback for the old records that were not backfilled with a name
+                    medicine_name = "N/A"
+                # --- CORRECTED LOGIC END ---
+
                 if medicine_name not in sales_data:
                     sales_data[medicine_name] = {
                         'quantity_sold': 0,
@@ -1980,7 +2027,17 @@ class InStoreSalesReportView(APIView):
 
         return Response(response_data)
 
-#===================Online Sales Report=================   =================09/05/2025===================
+
+
+
+
+
+
+
+
+
+#--------------------09/14/2025--------------------------- fixing return medicine
+#===================Online Sales Report=================  
 class OnlineSalesReportView(APIView):
     def get(self, request, *args, **kwargs):
         start_date_str = request.query_params.get('start_date')
@@ -2034,7 +2091,16 @@ class OnlineSalesReportView(APIView):
             
             # Iterate through each item in the order to aggregate sales and quantities.
             for item in order_items:
-                med_name = item.inventory_id.medicine.name
+                # --- CORRECTED LOGIC START ---
+                if item.medicine_name:
+                    med_name = item.medicine_name
+                elif item.inventory_id:
+                    # Fallback for old records if name wasn't backfilled
+                    med_name = item.inventory_id.medicine.name
+                else:
+                    # Final fallback for records with no inventory link
+                    med_name = "N/A"
+                # --- CORRECTED LOGIC END ---
                 
                 if med_name not in sales_data:
                     sales_data[med_name] = {
@@ -2069,6 +2135,121 @@ class OnlineSalesReportView(APIView):
             },
             'sales_report': formatted_sales
         })
+
+# --- NEW ENDPOINT FOR COMPREHENSIVE REPORT ---
+@api_view(['GET'])
+def get_comprehensive_transaction_report(request):
+    """
+    API endpoint to retrieve a combined report of all sales and returned medicines.
+    
+    This report unifies data from InStoreOrder, OnlineOrder, and ReturnedMedicine,
+    allowing for a single, comprehensive view of all stock movements.
+    """
+    start_date_str = request.query_params.get('start_date')
+    end_date_str = request.query_params.get('end_date')
+
+    if not start_date_str or not end_date_str:
+        return Response(
+            {"error": "Please provide both start_date and end_date query parameters in YYYY-MM-DD format."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        start_datetime = timezone.make_aware(datetime.strptime(start_date_str, '%Y-%m-%d'))
+        end_datetime = timezone.make_aware(datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1) - timedelta(seconds=1))
+    except ValueError:
+        return Response({"error": "Invalid date format. Please use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 1. Fetch In-Store Sales Data
+    # The prefetch is now simplified since we no longer need the inventory_id for the name
+    in_store_sales = InStoreOrder.objects.filter(
+        status='approved',
+        date_created__range=[start_datetime, end_datetime]
+    ).prefetch_related(
+        Prefetch('items', queryset=InStoreOrderItem.objects.all())
+    )
+
+    # 2. Fetch Online Sales Data
+    # The prefetch is now simplified since we no longer need the inventory_id for the name
+    online_sales = OnlineOrder.objects.filter(
+        status='completed',
+        date_fulfilled__range=[start_datetime, end_datetime]
+    ).prefetch_related(
+        Prefetch('items', queryset=OnlineOrderItem.objects.all())
+    )
+
+    # 3. Fetch Returned Medicine Data
+    returned_items = ReturnedMedicine.objects.filter(
+        returned_at__range=[start_datetime, end_datetime]
+    ).select_related('medicine')
+
+    # Now, combine all data into a single list
+    combined_transactions = []
+
+    # Process In-Store Sales
+    for order in in_store_sales:
+        items_list = []
+        for item in order.items.all():
+            # --- CORRECTED LOGIC ---
+            items_list.append({
+                'medicine_name': item.medicine_name, # Get name from the fixed field
+                'quantity': item.quantity_sold + item.free_quantity_given,
+                'price_at_transaction': float(item.price_at_sale),
+            })
+        combined_transactions.append({
+            'transaction_type': 'In-Store Sale',
+            'date': order.date_created,
+            'total_amount': float(order.total_amount_after_discount),
+            'items': items_list,
+        })
+
+    # Process Online Sales
+    for order in online_sales:
+        items_list = []
+        for item in order.items.all():
+            # --- CORRECTED LOGIC ---
+            items_list.append({
+                'medicine_name': item.medicine_name, # Get name from the fixed field
+                'quantity': item.quantity_sold + item.free_quantity_given,
+                'price_at_transaction': float(item.price_at_sale),
+            })
+        combined_transactions.append({
+            'transaction_type': 'Online Sale',
+            'date': order.date_fulfilled,
+            'total_amount': float(order.total_amount_after_discount),
+            'items': items_list,
+        })
+
+    # Process Returned Medicines
+    for item in returned_items:
+        combined_transactions.append({
+            'transaction_type': 'Returned',
+            'date': item.returned_at,
+            'total_amount': None,  # No total amount for returns
+            'items': [{
+                'medicine_name': item.medicine.name,
+                'quantity': item.quantity,
+                'price_at_transaction': None, # No price for return since it's an expense
+            }],
+        })
+
+    # Sort the combined list by date, from newest to oldest
+    combined_transactions.sort(key=lambda x: x['date'], reverse=True)
+
+    return Response(combined_transactions, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #---presc-----------------------------------
 # ─────────── STAFF PRESCRIPTION VIEWS ───────────

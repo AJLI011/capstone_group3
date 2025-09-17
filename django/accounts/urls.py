@@ -7,7 +7,9 @@ from .views import (
     delete_expired_batch, remove_promo, get_customer_medicines,inventory_logs, PromoMedicineView, PromoMedicineDetailView, 
     get_customer_medicine_detail,InStoreSalesReportView,OnlineSalesReportView, LatestForecastReportView, MedicineSalesHistoryView, 
     PurchaseRequestListView,OrderLogsListView, # Now only imported once
+    
 )
+from .views import get_comprehensive_transaction_report
 
 urlpatterns = [
     # Authentication
@@ -112,6 +114,11 @@ urlpatterns = [
     
     #Online Sales Report
     path('online-sales-report/', OnlineSalesReportView.as_view(), name='online-sales-report'),
+
+   #--------------------09/14/2025--------------------------- fixing return medicine
+    #Fetching Sales Transactions and Reports of Returned Medicines
+    path('transactions/report/', views.get_comprehensive_transaction_report, name='comprehensive-report'),
+
 
     # ─────────── PRESCRIPTION SALES VIEW ───────────
     #--------STAFF PESCRIPTION VIEWS----------

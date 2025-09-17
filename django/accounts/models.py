@@ -169,8 +169,8 @@ class InStoreOrder(models.Model):
     ]
     staff = models.ForeignKey('Staff', on_delete=models.CASCADE)
     cashier = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_orders')
-    date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    #date_created = models.DateTimeField()
+    #date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    date_created = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     is_pwd = models.BooleanField(default=False)
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -182,18 +182,27 @@ class InStoreOrder(models.Model):
         return f"In-Store Order #{self.id} by {self.staff.email}"
 
 
+#--------------------09/14/2025--------------------------- fixing return medicine
 class InStoreOrderItem(models.Model):
     class Meta:
         db_table = 'in_store_order_items_tbl'
 
     order = models.ForeignKey('InStoreOrder', on_delete=models.CASCADE, related_name='items')
-    inventory_id = models.ForeignKey('Inventory', on_delete=models.CASCADE)
+    inventory_id = models.ForeignKey('Inventory', on_delete=models.SET_NULL, null=True)
     quantity_sold = models.PositiveIntegerField(default=1)
     free_quantity_given = models.PositiveIntegerField(default=0)
     price_at_sale = models.DecimalField(max_digits=8, decimal_places=2)
+    # Add these two new fields
+    medicine_name = models.CharField(max_length=255, null=True, blank=True)
+    generic_name = models.CharField(max_length=255, null=True, blank=True)
 
     def __str__(self):
         return f"{self.inventory_id.medicine.name} - {self.quantity_sold} sold"
+
+
+
+
+
 
 #Model for Employee Log
 class EmployeeLog(models.Model):
@@ -232,8 +241,8 @@ class OrderLog(models.Model):
     action_type = models.CharField(max_length=20, choices=ACTION_CHOICES)
     description = models.TextField(blank=True, null=True)
     
-    timestamp = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    #timestamp = models.DateTimeField()
+    #timestamp = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    timestamp = models.DateTimeField()
     class Meta:
         db_table = 'order_logs'
         ordering = ['-timestamp']
@@ -257,8 +266,8 @@ class OnlineOrder(models.Model):
         ('cancelled', 'Cancelled'),
     ]
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    #date_created = models.DateTimeField()
+    #date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    date_created = models.DateTimeField()
     status = models.CharField(max_length=20, choices=ORDER_STATUS, default='pending')
     is_pwd = models.BooleanField(default=False)
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -273,19 +282,25 @@ class OnlineOrder(models.Model):
         return f"Online Order {self.id} by {self.customer.name}"
 
 
+#--------------------09/14/2025--------------------------- fixing return medicine
 class OnlineOrderItem(models.Model):
     order = models.ForeignKey('OnlineOrder', on_delete=models.CASCADE, related_name='items')
-    inventory_id = models.ForeignKey('Inventory', on_delete=models.CASCADE)
+    # The corrected line:
+    inventory_id = models.ForeignKey('Inventory', on_delete=models.SET_NULL, null=True, blank=True)
     quantity_sold = models.PositiveIntegerField(default=1)
     free_quantity_given = models.PositiveIntegerField(default=0)
     price_at_sale = models.DecimalField(max_digits=8, decimal_places=2)
-
+    # 💡 ADD THIS FIELD 💡
+    medicine_name = models.CharField(max_length=100)
+    generic_name = models.CharField(max_length=100, blank=True)
     class Meta:
         db_table = 'online_order_items_tbl'
         
     def __str__(self):
-        return f"{self.inventory_id.medicine.name} - {self.quantity_sold} sold"
-
+        if self.inventory_id:
+            return f"{self.inventory_id.medicine.name} - {self.quantity_sold} sold"
+        else:
+            return f"Medicine Not Found - {self.quantity_sold} sold"
 
 
 #============================================================================================================================
@@ -392,3 +407,20 @@ class StaffFCMToken(models.Model):
 
     def __str__(self):
         return f"{self.staff.name} - {self.token}"
+    
+#--------------------09/14/2025--------------------------- fixing return medicine
+# Returned Medicine
+class ReturnedMedicine(models.Model):
+    class Meta:
+        db_table = 'returned_medicines_tbl'
+
+    medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE)
+    online_order_item = models.ForeignKey('OnlineOrderItem', on_delete=models.SET_NULL, null=True, blank=True)
+    batch_num = models.CharField(max_length=100)
+    exp_date = models.DateField()
+    quantity = models.IntegerField(default=0)
+    returned_at = models.DateTimeField(auto_now_add=True)
+    returned_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True)
+
+    def __str__(self):
+        return f"Returned: {self.medicine.name} ({self.batch_num})"

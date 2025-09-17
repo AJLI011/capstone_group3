@@ -31,7 +31,6 @@ class Command(BaseCommand):
 
         categories = [choice[0] for choice in Medicine.CATEGORY_CHOICES]
         
-        # --- START OF CHANGES ---
         MEDICINE_DATA = {
             'Biogesic': 'Paracetamol',
             'Alaxan': 'Ibuprofen + Paracetamol',
@@ -84,10 +83,67 @@ class Command(BaseCommand):
             'Ponstan': 'Mefenamic Acid',
             'Virlix': 'Cetirizine'
         }
-
+        
+        # --- NEW CODE: Define the prices for each medicine ---
+        MEDICINE_PRICES = {
+            'Biogesic': 5.00,
+            'Alaxan': 8.75,
+            'Decolgen': 8.75,
+            'Neozep': 7.00,
+            'Bioflu': 9.00,
+            'Amoxicillin': 20.75,
+            'Mefenamic Acid': 5.25,
+            'Paracetamol': 2.75,
+            'Cetirizine': 16.00,
+            'Loperamide': 8.50,
+            'Ibuprofen': 9.00,
+            'Cefalexin': 21.25,
+            'Metformin': 4.25,
+            'Omeprazole': 39.75,
+            'Loratadine': 19.25,
+            'Ventolin': 339.75,
+            'Salbutamol': 5.00,
+            'Aspirin': 2.50,
+            'Diatabs': 8.50,
+            'Kremil-S': 21.25,
+            'Ascof': 8.75,
+            'Solmux': 12.50,
+            'Tuseran Forte': 11.25,
+            'Robitussin': 12.00,
+            'Mucosolvan': 20.75,
+            'Advil': 9.00,
+            'Voltaren': 42.50,
+            'Plavix': 75.75,
+            'Lipitor': 35.25,
+            'Norvasc': 21.75,
+            'Losartan': 17.00,
+            'Cozaar': 23.25,
+            'Zestril': 28.25,
+            'Gabapentin': 42.25,
+            'Augmentin': 67.25,
+            'Medicol': 7.25,
+            'Novaluzid': 16.00,
+            'Maalox': 12.25,
+            'Motilium': 42.75,
+            'Buscopan': 34.50,
+            'Lincocin': 38.00,
+            'Clindamycin': 38.50,
+            'Azithromycin': 67.20,
+            'Bactrim': 33.00,
+            'Zithromax': 151.43,
+            'Celebrex': 55.50,
+            'Arcoxia': 72.75,
+            'Dolfenal': 20.75,
+            'Ponstan': 40.50,
+            'Virlix': 37.00
+        }
+        
         for name, generic_name in MEDICINE_DATA.items():
             barcode = Faker().unique.ean13()
-            price = round(random.uniform(6, 150), 2)
+            
+            # --- UPDATED LINE: Get the price from the new dictionary ---
+            price = MEDICINE_PRICES.get(name, round(random.uniform(6, 150), 2))
+            
             category = random.choice(categories)
             
             dosage_form = random.choice([choice[0] for choice in Medicine.DOSAGE_CHOICES])
@@ -102,17 +158,18 @@ class Command(BaseCommand):
                     'dosage_form': dosage_form,
                     'supplier': supplier,
                     'restock_quantity': random.choice([50, 100]),
-                    'price': price,
+                    'price': price, # Price is now the specific price from the dictionary
                     'requires_prescription': random.choice([True, False]),
-                    'barcode': barcode
+                    'barcode': barcode 
                 }
             )
             if created:
-                self.stdout.write(f'Created medicine: {medicine.name}')
+                self.stdout.write(f'Created medicine: {medicine.name} with price: {medicine.price}')
             else:
                 self.stdout.write(f'Medicine already exists: {medicine.name}')
-
+                
         self.stdout.write(self.style.SUCCESS('Finished creating dummy suppliers and medicines.'))
+        
         
     def create_dummy_inventory(self):
         self.stdout.write(self.style.NOTICE('Creating dummy inventory...'))
@@ -287,7 +344,9 @@ class Command(BaseCommand):
                             order=order,
                             inventory_id=selected_item,
                             quantity_sold=quantity_sold,
-                            price_at_sale=price_at_sale
+                            price_at_sale=price_at_sale,
+                            medicine_name=selected_item.medicine.name,
+                            generic_name=selected_item.generic_name
                         )
                         
                         total_before += price_at_sale * quantity_sold
