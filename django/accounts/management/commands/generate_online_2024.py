@@ -84,7 +84,6 @@ class Command(BaseCommand):
             'Virlix': 'Cetirizine'
         }
         
-        # --- NEW CODE: Define the prices for each medicine ---
         MEDICINE_PRICES = {
             'Biogesic': 5.00,
             'Alaxan': 8.75,
@@ -141,7 +140,6 @@ class Command(BaseCommand):
         for name, generic_name in MEDICINE_DATA.items():
             barcode = Faker().unique.ean13()
             
-            # --- UPDATED LINE: Get the price from the new dictionary ---
             price = MEDICINE_PRICES.get(name, round(random.uniform(6, 150), 2))
             
             category = random.choice(categories)
@@ -158,7 +156,7 @@ class Command(BaseCommand):
                     'dosage_form': dosage_form,
                     'supplier': supplier,
                     'restock_quantity': random.choice([50, 100]),
-                    'price': price, # Price is now the specific price from the dictionary
+                    'price': price,
                     'requires_prescription': random.choice([True, False]),
                     'barcode': barcode 
                 }
@@ -169,7 +167,6 @@ class Command(BaseCommand):
                 self.stdout.write(f'Medicine already exists: {medicine.name}')
                 
         self.stdout.write(self.style.SUCCESS('Finished creating dummy suppliers and medicines.'))
-        
         
     def create_dummy_inventory(self):
         self.stdout.write(self.style.NOTICE('Creating dummy inventory...'))
@@ -346,7 +343,7 @@ class Command(BaseCommand):
                             quantity_sold=quantity_sold,
                             price_at_sale=price_at_sale,
                             medicine_name=selected_item.medicine.name,
-                            generic_name=selected_item.generic_name
+                            generic_name=selected_item.medicine.generic_name
                         )
                         
                         total_before += price_at_sale * quantity_sold
