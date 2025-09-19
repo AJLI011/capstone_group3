@@ -5,6 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
+// Define the API_BASE constant
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class PrescriptionDetailsStaff extends StatefulWidget {
   final Map<String, dynamic> prescription;
 
@@ -43,8 +49,8 @@ class _PrescriptionDetailsStaffState extends State<PrescriptionDetailsStaff> {
     });
 
     final prescriptionId = widget.prescription['id'];
-    // Use the base URL of your backend API. Make sure to update the IP address if it's different.
-    final url = Uri.parse('http://10.0.2.2:8000/api/prescriptions/$prescriptionId/upload-images/');
+    // Use the API_BASE constant to build the URL
+    final url = Uri.parse('${API_BASE}api/prescriptions/$prescriptionId/upload-images/');
     var request = http.MultipartRequest('POST', url);
 
     // Add each selected image to the request
@@ -61,11 +67,11 @@ class _PrescriptionDetailsStaffState extends State<PrescriptionDetailsStaff> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Images uploaded successfully!')),
         );
-        
+
         // Pop the current screen to go back to the list of pending prescriptions.
         // This will trigger the list refresh on the previous screen.
         Navigator.pop(context);
-        
+
       } else {
         // Handle upload failure
         ScaffoldMessenger.of(context).showSnackBar(
@@ -139,8 +145,8 @@ class _PrescriptionDetailsStaffState extends State<PrescriptionDetailsStaff> {
                     spacing: 8.0,
                     runSpacing: 8.0,
                     children: existingImages.map((image) {
-                      // Construct the full image URL. Adjust the IP and port to your server.
-                      final imageUrl = 'http://10.0.2.2:8000${image['image']}';
+                      // Use the API_BASE constant to construct the full image URL
+                      final imageUrl = '$API_BASE${image['image']}';
                       return Container(
                         height: 100,
                         width: 100,
@@ -156,13 +162,13 @@ class _PrescriptionDetailsStaffState extends State<PrescriptionDetailsStaff> {
                   ),
                 if (existingImages.isEmpty)
                   const Text('No prescription images uploaded yet.', style: TextStyle(fontStyle: FontStyle.italic)),
-                
+
                 const Divider(height: 16),
 
                 // Section for new images to upload
                 const Text('Upload New Images', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                
+
                 // New layout with both buttons on the same row
                 Row(
                   children: [
@@ -185,9 +191,9 @@ class _PrescriptionDetailsStaffState extends State<PrescriptionDetailsStaff> {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Displaying images selected by the user
                 if (_selectedImages.isNotEmpty)
                   Wrap(
@@ -231,7 +237,7 @@ class _PrescriptionDetailsStaffState extends State<PrescriptionDetailsStaff> {
                   final medicineName = orderType == 'online'
                       ? item['medicine']['name']
                       : item['medicine_name'];
-                      
+
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(medicineName ?? 'N/A'),

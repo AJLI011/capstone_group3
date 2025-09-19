@@ -7,6 +7,12 @@ import 'package:http/http.dart' as http;
 import 'sales_barcode.dart';
 import 'package:flutter_ui/role_views/staff_view.dart';
 
+// Define the API_BASE constant
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class OrderSummaryPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
   final int? staffId;
@@ -131,8 +137,9 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         }).toList(),
       };
 
+      // Use the API_BASE constant to build the URL
       final response = await http.post(
-        Uri.parse('http://10.0.2.2:8000/api/sales/process/'),
+        Uri.parse('${API_BASE}api/sales/process/'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(payload),
       );
@@ -225,7 +232,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
           title: const Text('Order Summary'),
           backgroundColor: const Color(0xFF5C7C9A), // Updated color
           foregroundColor: Colors.white, // Updated color for font and icon
-        
+
           leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: _showBackConfirmationDialog),
           actions: [
             IconButton(

@@ -1,7 +1,13 @@
+// editstaffprofile_page.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
 
 class EditStaffProfilePage extends StatefulWidget {
   final int staffId;
@@ -29,7 +35,7 @@ class _EditStaffProfilePageState extends State<EditStaffProfilePage> {
 
   void fetchManagerData() async {
     final response = await http.get(
-      Uri.parse('http://10.0.2.2:8000/api/staff/${widget.staffId}/profile/'),
+      Uri.parse('${API_BASE}api/staff/${widget.staffId}/profile/'),
       headers: {'Content-Type': 'application/json'},
     );
 
@@ -54,7 +60,7 @@ class _EditStaffProfilePageState extends State<EditStaffProfilePage> {
   }
 
   Future<void> saveProfile() async {
-    final url = Uri.parse('http://10.0.2.2:8000/api/staff/${widget.staffId}/update-profile/');
+    final url = Uri.parse('${API_BASE}api/staff/${widget.staffId}/update-profile/');
     final body = json.encode({
       'email': emailController.text.trim(),
       'name': nameController.text.trim(),
@@ -123,9 +129,10 @@ class _EditStaffProfilePageState extends State<EditStaffProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Edit Profile"),
-      backgroundColor: const Color(0xFF5C7C9A), // Updated color
-      foregroundColor: Colors.white, // Updated color for font and icon
+      appBar: AppBar(
+        title: const Text("Edit Profile"),
+        backgroundColor: const Color(0xFF5C7C9A), // Updated color
+        foregroundColor: Colors.white, // Updated color for font and icon
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())

@@ -6,6 +6,12 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// Define the API_BASE constant
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class StaffOrdersPage extends StatefulWidget {
   const StaffOrdersPage({super.key});
 
@@ -16,7 +22,8 @@ class StaffOrdersPage extends StatefulWidget {
 class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProviderStateMixin {
   late Future<List<dynamic>> _ordersFuture;
   late TabController _tabController;
-  final String _baseUrl = 'http://10.0.2.2:8000';
+  // Use the new API_BASE constant
+  final String _baseUrl = API_BASE;
   DateTime? _selectedDate;
 
   @override
@@ -39,7 +46,7 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
   }
 
   Future<List<dynamic>> _fetchStaffOrders() async {
-    final url = '$_baseUrl/api/staff/online-orders/';
+    final url = '${_baseUrl}api/staff/online-orders/';
     final response = await http.get(Uri.parse(url));
 
     if (response.statusCode == 200) {
@@ -52,7 +59,7 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
   Future<void> _confirmOrder(int orderId) async {
     print('I/flutter (UI): Tapped "Confirm Order" button for Order #$orderId.');
 
-    final url = '$_baseUrl/api/staff/confirm-online-order/$orderId/';
+    final url = '${_baseUrl}api/staff/confirm-online-order/$orderId/';
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final int? staffId = prefs.getInt('staff_id');
 
@@ -76,7 +83,7 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
         headers: {'Content-Type': 'application/json'},
         body: body,
       );
-      
+
       print('I/flutter (UI): API Response Status Code: ${response.statusCode}');
       print('I/flutter (UI): API Response Body: ${response.body}');
 
@@ -151,14 +158,14 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
           } else {
             final orders = snapshot.data!;
             final pendingOrders = orders.where((order) => order['status'] == 'pending').toList();
-            
+
             List<dynamic> readyForPickupOrders = orders.where((order) => order['status'] == 'ready for pickup').toList();
             if (_selectedDate != null) {
               readyForPickupOrders = readyForPickupOrders.where((order) {
                 final pickupDate = DateTime.parse(order['pickup_schedule']).toLocal();
                 return pickupDate.year == _selectedDate!.year &&
-                       pickupDate.month == _selectedDate!.month &&
-                       pickupDate.day == _selectedDate!.day;
+                    pickupDate.month == _selectedDate!.month &&
+                    pickupDate.day == _selectedDate!.day;
               }).toList();
             }
 
@@ -304,13 +311,14 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
       final freeQuantity = int.tryParse(item['free_quantity_given'].toString()) ?? 0;
       final price = double.tryParse(item['price_at_sale'].toString()) ?? 0.0;
       final itemTotal = price * quantitySold;
-      
+
       final medicine = item['medicine'] as Map<String, dynamic>;
       final medicineName = medicine['name'] ?? 'N/A';
       final genericName = medicine['generic_name'] ?? 'N/A';
       final imageUrl = medicine['image'] ?? '';
       final requiresPrescription = medicine['requires_prescription'] ?? false;
-      
+
+      // Use the API_BASE constant to construct the full image URL
       String fullImageUrl = imageUrl.isNotEmpty && !imageUrl.startsWith('http')
           ? '$_baseUrl$imageUrl'
           : imageUrl;

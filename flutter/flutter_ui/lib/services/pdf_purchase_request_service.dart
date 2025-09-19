@@ -116,7 +116,7 @@ class PdfPurchaseRequestService {
               final item = entry.value;
 
               final totalQuantity = item['total_quantity'] ?? 0;
-              final unitsPerItems = item['units_per_items'] ?? 1;
+              final restockQuantity = item['restock_quantity'] ?? 0;
               final supplierName = item['supplier_name'] ?? 'N/A';
               final contactNum = item['contact_num'] ?? 'N/A';
 
@@ -124,7 +124,7 @@ class PdfPurchaseRequestService {
                 index.toString(),
                 item['name'] ?? 'N/A',
                 totalQuantity.toString(),
-                unitsPerItems.toString(),
+                restockQuantity.toString(),
                 supplierName,
                 contactNum,
               ];

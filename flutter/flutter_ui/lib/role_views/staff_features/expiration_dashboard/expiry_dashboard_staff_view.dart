@@ -6,6 +6,12 @@ import 'good_stock_staff_page.dart';
 import 'expiring_soon_staff_page.dart';
 import 'expired_stock_staff_page.dart';
 
+// Define the API_BASE constant here
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class ExpiryDashboardStaffView extends StatefulWidget {
   const ExpiryDashboardStaffView({Key? key}) : super(key: key);
 
@@ -18,7 +24,8 @@ class _ExpiryDashboardStaffViewState extends State<ExpiryDashboardStaffView> {
   int expiringSoonCount = 0;
   int expiredCount = 0;
 
-  final String baseUrl = 'http://10.0.2.2:8000/api/medicines';
+  // Replace the hardcoded baseUrl with the constant
+  final String baseUrl = '${API_BASE}api/medicines';
 
   @override
   void initState() {

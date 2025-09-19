@@ -213,7 +213,21 @@ class PromoSerializer(serializers.ModelSerializer):
 
 
 
-#===========================8/31/25 (aaron)========================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#===========================09/13/25 (ELTON)========================================================
 # For Inventory Logs
 class InventoryLogSerializer(serializers.ModelSerializer):
     user_name = serializers.SerializerMethodField()
@@ -237,7 +251,25 @@ class InventoryLogSerializer(serializers.ModelSerializer):
         # Return a descriptive string for deleted medicines
         return "Deleted Medicine"
 
-#===========================8/31/25 (aaron)========================================================
+#===========================09/13/25 (ELTON)========================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -289,8 +321,25 @@ class FEFOOrderItemSerializer(serializers.Serializer):
     is_promo = serializers.BooleanField(default=False)
 
 
-# Customer Promo Medicines View
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#=========================================09/15/25 (ELTON)=========================================
+
 class PromoMedicineSerializer(serializers.ModelSerializer):
+    # These fields are defined with a source to pull data from the related Medicine model
     id = serializers.IntegerField(source='medicine.id', read_only=True)
     name = serializers.CharField(source='medicine.name', read_only=True)
     generic_name = serializers.CharField(source='medicine.generic_name', read_only=True)
@@ -298,8 +347,11 @@ class PromoMedicineSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
 
     class Meta:
+        # The model for this serializer is Inventory
         model = Inventory
-        fields = ['id, name', 'generic_name', 'image', 'price']
+        # You must explicitly list ALL the fields you want to include in the API response.
+        # This is where the error comes from.
+        fields = ['id', 'name', 'generic_name', 'price', 'image']
 
     def get_image(self, obj):
         request = self.context.get('request', None)
@@ -307,7 +359,24 @@ class PromoMedicineSerializer(serializers.ModelSerializer):
             if request:
                 return request.build_absolute_uri(obj.medicine.image.url)
             return obj.medicine.image.url
-        return None
+        return '' # Return an empty string if there's no image
+    
+
+#=========================================09/15/25 (ELTON)=========================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     
 class CustomerPromoMedicineDetailSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
@@ -1020,16 +1089,93 @@ class CustomerFCMTokenSerializer(serializers.ModelSerializer):
 
 
 
-#-----DASHBOARD
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#====================================09/13/24 DASHBOARD (ELTON) ===================================#
 #low stocks & totalqty
 
 class LowStockSerializer(serializers.ModelSerializer):
+    # This correctly gets the medicine's name
     name = serializers.CharField(source='medicine.name')
+    # This correctly gets the medicine's generic name
     generic_name = serializers.CharField(source='medicine.generic_name')
     
+    # NEW: Get the restock_quantity directly from the related Medicine model
+    restock_quantity = serializers.IntegerField(source='medicine.restock_quantity')
+
+    # NEW: Get the supplier's name by following the 'medicine' and 'supplier' relationships
+    supplier_name = serializers.CharField(source='medicine.supplier.name')
+    
+    # NEW: Get the supplier's contact number
+    contact_num = serializers.CharField(source='medicine.supplier.contact')
+
     class Meta:
         model = TotalQuantity
-        fields = ['name', 'generic_name', 'total_quantity']
+        fields = [
+            'name',
+            'generic_name',
+            'total_quantity',
+            'restock_quantity',
+            'supplier_name',
+            'contact_num'
+        ]
+
+#====================================09/13/24 DASHBOARD (ELTON) ===================================#        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #Demand Forecasting

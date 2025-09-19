@@ -2,6 +2,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+// Define the API_BASE constant
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class GoodStockStaffPage extends StatefulWidget {
   const GoodStockStaffPage({Key? key}) : super(key: key);
 
@@ -19,7 +25,8 @@ class _GoodStockStaffPageState extends State<GoodStockStaffPage> {
   }
 
   Future<void> fetchGoodStocks() async {
-    final String url = 'http://10.0.2.2:8000/api/medicines/good-stock/';
+    // Use the API_BASE constant to construct the URL
+    final String url = '${API_BASE}api/medicines/good-stock/';
 
     try {
       final response = await http.get(Uri.parse(url));
@@ -38,9 +45,10 @@ class _GoodStockStaffPageState extends State<GoodStockStaffPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Good Stocks'),
-      backgroundColor: const Color(0xFF5C7C9A), // Updated color
-      foregroundColor: Colors.white, // Updated color for font and icon
+      appBar: AppBar(
+        title: const Text('Good Stocks'),
+        backgroundColor: const Color(0xFF5C7C9A),
+        foregroundColor: Colors.white,
       ),
       body: goodStocks.isEmpty
           ? const Center(child: Text('No good stock medicines'))

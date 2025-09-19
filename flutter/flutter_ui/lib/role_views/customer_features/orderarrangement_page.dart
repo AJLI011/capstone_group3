@@ -3,26 +3,30 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart'; // ADDED: Import for Provider
+import 'package:provider/provider.dart';
 import 'success_page.dart';
 import 'cart_service.dart';
 //import 'my_orders_page.dart';
 
+// Define the API_BASE constant here
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class OrderArrangementPage extends StatelessWidget {
   final DateTime pickupSchedule;
   final int customerId;
-  final bool isPwd; // ADDED: Now a required parameter
+  final bool isPwd;
 
   const OrderArrangementPage({
     super.key,
     required this.pickupSchedule,
     required this.customerId,
-    required this.isPwd, // ADDED: Require isPwd in the constructor
+    required this.isPwd,
   });
 
   Future<void> _placeOrder(BuildContext context) async {
-    // CORRECTION: Get the existing CartService instance from the Provider
-    // instead of creating a new one.
     final cartService = Provider.of<CartService>(context, listen: false);
     final items = cartService.items;
 
@@ -33,7 +37,6 @@ class OrderArrangementPage extends StatelessWidget {
       return;
     }
 
-    // FIX: Convert the local pickupSchedule to UTC before sending to the backend
     final String pickupScheduleString = pickupSchedule.toUtc().toIso8601String();
 
     final List<Map<String, dynamic>> orderItems = items.map((item) => {
@@ -44,8 +47,8 @@ class OrderArrangementPage extends StatelessWidget {
     }).toList();
 
     final Map<String, dynamic> requestBody = {
-      'customer_id': customerId, // Using the constructor value
-      'is_pwd': isPwd, // Using the constructor value
+      'customer_id': customerId,
+      'is_pwd': isPwd,
       'items': orderItems,
       'pickup_schedule': pickupScheduleString,
     };
@@ -54,7 +57,8 @@ class OrderArrangementPage extends StatelessWidget {
 
     try {
       final response = await http.post(
-        Uri.parse('http://10.0.2.2:8000/api/customer/online-orders/create/'),
+        // Use the API_BASE constant here
+        Uri.parse('${API_BASE}api/customer/online-orders/create/'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
@@ -99,9 +103,10 @@ class OrderArrangementPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Order Arrangement"),
-      backgroundColor: const Color.fromARGB(255, 10, 84, 182), // added color to appbar
-      foregroundColor: Colors.white, //changed font color
+      appBar: AppBar(
+        title: const Text("Order Arrangement"),
+        backgroundColor: const Color.fromARGB(255, 10, 84, 182),
+        foregroundColor: Colors.white,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

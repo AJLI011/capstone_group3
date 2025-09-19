@@ -6,6 +6,12 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'prescription_details_staff.dart'; // Import the new details screen
 
+// Define the API_BASE constant
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class PrescriptionsStaff extends StatefulWidget {
   const PrescriptionsStaff({super.key});
 
@@ -16,8 +22,8 @@ class PrescriptionsStaff extends StatefulWidget {
 class _PrescriptionsStaffState extends State<PrescriptionsStaff> {
   late Future<List<dynamic>> _pendingPrescriptions;
   
-  // This should be your base API URL
-  final String apiUrl = "http://10.0.2.2:8000/api/prescriptions/pending/";
+  // Use the API_BASE constant to define the API URL
+  final String apiUrl = "${API_BASE}api/prescriptions/pending/";
 
   @override
   void initState() {
@@ -34,7 +40,7 @@ class _PrescriptionsStaffState extends State<PrescriptionsStaff> {
     final token = await _getAuthToken();
     // Temporarily disable token check for testing purposes
     // if (token == null) {
-    //   throw Exception('Authentication token not found');
+    //   throw Exception('Authentication token not found');
     // }
 
     final response = await http.get(

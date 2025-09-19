@@ -3,6 +3,12 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
 
+// Define the API_BASE constant here
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class MyOrdersPage extends StatefulWidget {
   final int customerId;
 
@@ -36,7 +42,8 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
   }
 
   Future<List<dynamic>> _fetchCustomerOrders() async {
-    final url = 'http://10.0.2.2:8000/api/customer/${widget.customerId}/online-orders/';
+    // Use the API_BASE constant here
+    final url = '${API_BASE}api/customer/${widget.customerId}/online-orders/';
     final response = await http.get(Uri.parse(url));
 
     if (response.statusCode == 200) {
@@ -49,7 +56,8 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
   }
 
   Future<void> _cancelOrder(int orderId) async {
-    final url = 'http://10.0.2.2:8000/api/customer/cancel-online-order/$orderId/';
+    // Use the API_BASE constant here
+    final url = '${API_BASE}api/customer/cancel-online-order/$orderId/';
     final response = await http.put(Uri.parse(url));
 
     if (response.statusCode == 200) {
@@ -99,8 +107,8 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Orders'),
-        backgroundColor: const Color.fromARGB(255, 10, 84, 182),// added color to appbar
-        foregroundColor: Colors.white, //changed font color
+        backgroundColor: const Color.fromARGB(255, 10, 84, 182),
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -109,10 +117,10 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.white, // Set the color of the selected tab text
-          unselectedLabelColor: Colors.grey, // Set the color of the unselected tab text
-          indicatorColor: const Color.fromARGB(255, 83, 167, 235), // Set the color of the tab indicator
-          indicatorWeight: 4.0, // Set the thickness of the tab indicator
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.grey,
+          indicatorColor: const Color.fromARGB(255, 83, 167, 235),
+          indicatorWeight: 4.0,
           tabs: const [
             Tab(text: 'Ongoing Orders'),
             Tab(text: 'All Orders'),
@@ -130,7 +138,6 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
             return const Center(child: Text('You have no online orders.'));
           } else {
             final orders = snapshot.data!;
-            // Now include 'ready for pickup' as an ongoing order
             final ongoingOrders = orders.where((order) => order['status'] == 'pending' || order['status'] == 'ready for pickup').toList();
             final pastOrders = orders.where((order) => 
               order['status'] == 'completed' || order['status'] == 'cancelled'
@@ -173,7 +180,6 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
 
   Widget _buildOrderCard(Map<String, dynamic> order) {
     final totalAmount = double.tryParse(order['total_amount_after_discount'].toString()) ?? 0.0;
-    // Determine if the order is cancellable (i.e., status is pending)
     final canBeCancelled = order['status'] == 'pending';
 
     return Card(
@@ -224,10 +230,8 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
                   Padding(
                     padding: const EdgeInsets.only(top: 16.0),
                     child: ElevatedButton(
-                      // MODIFIED: Call the confirmation dialog function instead of the cancel function directly
                       onPressed: () => _confirmCancelOrder(order['id']),
                       style: ElevatedButton.styleFrom(
-                        //: Colors.red, // old color
                         backgroundColor: const Color.fromARGB(255, 10, 84, 182),
                         foregroundColor: Colors.white,
                         minimumSize: const Size(double.infinity, 50),
@@ -250,12 +254,11 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
       final price = double.tryParse(item['price_at_sale'].toString()) ?? 0.0;
       final itemTotal = price * quantitySold;
       
-      // Correctly access the nested medicine data
       final medicine = item['medicine'] as Map<String, dynamic>;
       final medicineName = medicine['name'] ?? 'N/A';
       final genericName = medicine['generic_name'] ?? 'N/A';
       final imageUrl = medicine['image'] ?? '';
-      final requiresPrescription = medicine['requires_prescription'] ?? false; // New line
+      final requiresPrescription = medicine['requires_prescription'] ?? false;
 
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -286,7 +289,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
                     genericName,
                     style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.grey),
                   ),
-                  if (requiresPrescription) // New line
+                  if (requiresPrescription)
                     const Text(
                       'Prescription Required',
                       style: TextStyle(

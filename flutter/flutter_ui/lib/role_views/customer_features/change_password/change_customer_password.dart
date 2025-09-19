@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+// Define the constant right at the top of the file
+const String API_BASE = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000/',
+);
+
 class ChangeCustomerPasswordPage extends StatefulWidget {
   final int customerId;
 
@@ -48,7 +54,8 @@ class _ChangeCustomerPasswordPageState extends State<ChangeCustomerPasswordPage>
       errorMessage = null;
     });
 
-    final url = Uri.parse('http://10.0.2.2:8000/api/customer/${widget.customerId}/change-password/');
+    // Here is the updated line, using the API_BASE constant
+    final url = Uri.parse('${API_BASE}api/customer/${widget.customerId}/change-password/');
     final body = json.encode({
       'current_password': currentPwController.text.trim(),
       'new_password': newPwController.text.trim(),
@@ -100,9 +107,10 @@ class _ChangeCustomerPasswordPageState extends State<ChangeCustomerPasswordPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Change Password'),
-      backgroundColor: const Color.fromARGB(255, 10, 84, 182),  //added color
-      foregroundColor: Colors.white, //changed font color
+      appBar: AppBar(
+        title: const Text('Change Password'),
+        backgroundColor: const Color.fromARGB(255, 10, 84, 182),
+        foregroundColor: Colors.white,
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())

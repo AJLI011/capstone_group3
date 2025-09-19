@@ -2,6 +2,33 @@ import uuid
 import logging
 import pandas as pd
 
+
+
+
+#==========================09/13/25 (ELTON)=========================================
+
+
+from .pagination import InventoryLogPagination # NEW: Import the custom pagination class
+
+
+#==========================09/13/25 (ELTON)=========================================
+
+
+
+from rest_framework.generics import ListAPIView
+from .pagination import PromoMedicinePagination
+
+
+
+
+
+
+
+
+
+
+
+
 from datetime import date, timedelta, datetime
 from decimal import Decimal
 
@@ -727,14 +754,86 @@ def clean_expired_promos():
         inventory_item.save()
         promo.delete()
 
-# For Inventory Logs
-from .serializers import InventoryLogSerializer
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#=========================================09/13/25 (ELTON)=========================================
+
+# For Inventory Logs
 @api_view(['GET'])
 def inventory_logs(request):
+    """
+    Returns a paginated list of inventory logs.
+    """
+    # Create an instance of the custom paginator
+    paginator = InventoryLogPagination()
+    
+    # Get all logs, sorted by timestamp
     logs = InventoryLog.objects.select_related('user', 'medicine').all()
-    serializer = InventoryLogSerializer(logs, many=True)
-    return Response(serializer.data)
+
+    # Paginate the queryset
+    paginated_logs = paginator.paginate_queryset(logs, request)
+
+    # If there are no more pages, return an empty list
+    if paginated_logs is not None:
+        serializer = InventoryLogSerializer(paginated_logs, many=True)
+        return paginator.get_paginated_response(serializer.data)
+    else:
+        # This case is for when pagination returns None, though it's rare with DRF's default behavior
+        serializer = InventoryLogSerializer(logs, many=True)
+        return Response(serializer.data)
+
+#=========================================09/13/25 (ELTON)=========================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # ─────────── SALES ───────────
 
@@ -767,46 +866,87 @@ def get_item_by_barcode(request, barcode):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#=========================================09/15/25 (ELTON)=========================================
+
 #----------Customer Side Mainview----------------
+class PromoMedicineView(ListAPIView):
+    serializer_class = PromoMedicineSerializer
+    pagination_class = PromoMedicinePagination # Use the new pagination class
 
-class PromoMedicineView(APIView):
-    def get(self, request):
+    def get_queryset(self):
         today = now().date()
-
-        # Get all promo-active inventory batches
-        promo_batches = Inventory.objects.filter(
+        
+        # This is the correct way to get unique medicines for MySQL
+        # 1. Get the list of unique medicine IDs
+        promo_medicine_ids = Inventory.objects.filter(
             promo__start_date__lte=today,
             promo__end_date__gte=today
-        ).select_related('medicine')
+        ).values_list('medicine__id', flat=True).distinct()
 
-        data = []
-        seen_medicine_ids = set()
+        # 2. Filter the queryset to include only these unique medicine IDs
+        queryset = Inventory.objects.filter(
+            medicine__id__in=promo_medicine_ids,
+            promo__start_date__lte=today,
+            promo__end_date__gte=today
+        ).order_by('medicine__id')
 
-        for batch in promo_batches:
-            medicine = batch.medicine
-            if medicine.id not in seen_medicine_ids:
-                seen_medicine_ids.add(medicine.id)
-                data.append({
-                    'id': medicine.id, 
-                    'name': medicine.name,
-                    'generic_name': medicine.generic_name,
-                    'image': request.build_absolute_uri(medicine.image.url) if medicine.image else '',
-                    'price': float(medicine.price)
-                })
-
-        return Response(data)
+        return queryset
         
+# Keep the existing function as is
 def trigger_update_total_quantity(request):
     call_command('update_total_quantities')
     return JsonResponse({'status': 'success'})
+
+#=========================================09/15/25 (ELTON)=========================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 class PromoMedicineDetailView(APIView):
     def get(self, request, pk):
         medicine = get_object_or_404(Medicine, pk=pk)
         serializer = CustomerPromoMedicineDetailSerializer(medicine, context={'request': request})
         return Response(serializer.data)
-
-
+    
 #For Normal Medicine
 @api_view(['GET'])
 def get_customer_medicines(request):
@@ -2339,5 +2479,9 @@ def save_staff_fcm_token(request):
         print(f"[SAVE STAFF FCM TOKEN ERROR] {e}")
         return Response({'error': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 #============================PUSH NOTIF EXPIRY NOTIF END===============================
+
+
+
+
 
 
