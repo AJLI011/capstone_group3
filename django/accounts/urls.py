@@ -152,4 +152,8 @@ urlpatterns = [
     
     #medicines_list new url for ensuring one barcode for medicine and no duplication:
     path('medicines/check_barcode/<str:barcode>/', views.check_barcode_existence, name='check_barcode_existence'),
+    
+    
+    #daily reports
+    path('daily-reports/', views.DailyReportsView.as_view(), name='daily_reports'),
 ]

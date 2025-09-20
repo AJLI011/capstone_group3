@@ -1190,3 +1190,11 @@ class StaffFCMTokenSerializer(serializers.ModelSerializer):
         model = StaffFCMToken
         fields = ['id', 'staff', 'token', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
+        
+        
+
+#-----------------
+class DailyReportSerializer(serializers.Serializer):
+    employee_logs = EmployeeLogSerializer(many=True, read_only=True)
+    order_logs = OrderLogSerializer(many=True, read_only=True)
+    inventory_logs = InventoryLogSerializer(many=True, read_only=True)

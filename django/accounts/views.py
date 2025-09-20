@@ -48,6 +48,7 @@ from .serializers import (
     OnlineOrderCreateSerializer, OnlineOrderLogDetailsSerializer, InStoreSalesTransactionSerializer, 
     PrescriptionOrderSerializer, CombinedPrescriptionSerializer, PrescriptionImageSerializer,
     LowStockSerializer, ForecastItemSerializer, ForecastReportSerializer, MedicineForecastSerializer,
+    DailyReportSerializer,
 )
 
 from .serializers import OrderLogSerializer
@@ -96,6 +97,15 @@ from .models import TotalQuantity, Medicine, Inventory # Ensure Inventory is imp
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from .serializers import LowStockSerializer
+
+
+#--------
+from rest_framework import status
+from rest_framework.views import APIView
+from rest_framework.response import Response
+
+from django.utils import timezone
+from datetime import datetime, time # Import the 'time' class
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
@@ -2739,3 +2749,40 @@ def check_barcode_existence(request, barcode):
     exists = Medicine.objects.filter(barcode=barcode).exists()
     return Response({'exists': exists})
 
+
+
+
+#-----------
+class DailyReportsView(APIView):
+    def get(self, request, *args, **kwargs):
+        date_str = request.query_params.get('date')
+        
+        if not date_str:
+            return Response({"error": "Date parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Parse the date string
+            selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Set the start and end of the day using the time class
+        start_of_day = timezone.make_aware(datetime.combine(selected_date, time.min))
+        end_of_day = timezone.make_aware(datetime.combine(selected_date, time.max))
+
+        # Fetch logs for the specified date
+        employee_logs = EmployeeLog.objects.filter(timestamp__range=(start_of_day, end_of_day)).order_by('-timestamp')
+        order_logs = OrderLog.objects.filter(timestamp__range=(start_of_day, end_of_day)).order_by('-timestamp')
+        inventory_logs = InventoryLog.objects.filter(timestamp__range=(start_of_day, end_of_day)).order_by('-timestamp')
+
+        # Create a dictionary to hold the combined data
+        daily_report_data = {
+            'employee_logs': employee_logs,
+            'order_logs': order_logs,
+            'inventory_logs': inventory_logs,
+        }
+
+        # Serialize the combined data
+        serializer = DailyReportSerializer(daily_report_data)
+        
+        return Response(serializer.data, status=status.HTTP_200_OK)

@@ -122,7 +122,16 @@ class _ReturnMedicinePageState extends State<ReturnMedicinePage> {
               pw.Table.fromTextArray(
                 border: pw.TableBorder.all(width: 1),
                 cellAlignment: pw.Alignment.center,
-                headerStyle: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+                headerStyle: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+                // FIXED: Adjust column widths to prevent 'Medicine' from cutting off
+                columnWidths: {
+                  0: pw.FixedColumnWidth(0.5), // 'No.'
+                  1: pw.FlexColumnWidth(1.5),  // 'Medicine'
+                  2: pw.FlexColumnWidth(1.5),  // 'Batch No.'
+                  3: pw.FlexColumnWidth(1.8),  // 'Expiration Date'
+                  4: pw.FlexColumnWidth(1.0),  // 'Expired Quantity'
+                  5: pw.FlexColumnWidth(1.5),  // 'Supplier'
+                },
                 headers: [
                   'No.',
                   'Medicine',

@@ -1,15 +1,17 @@
+// admin_view.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-import '../login_function/login_customer.dart'; // UPDATED: Changed import from main.dart to login_customer.dart
+import '../login_function/login_customer.dart';
 import 'admin_features/customer/customer_management.dart';
 import 'admin_features/suppliers/supplier_list.dart';
 import 'admin_features/employees/employees_management.dart';
 import 'admin_features/edit_profile/edit_admin_profile.dart';
 import 'admin_features/change_password/change_admin_password.dart';
 import 'admin_features/employee_logs/employee_logs.dart';
+import 'admin_features/daily_reports/daily_reports.dart'; // ADD THIS LINE
 
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
@@ -267,6 +269,8 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
                                             () => _open(const SupplierListPage())),
                                         _drawerItem(Icons.list_alt, 'Employees Logs',
                                             () => _open(const EmployeeLogsPage())),
+                                        _drawerItem(Icons.bar_chart, 'Daily Reports', // ADD THIS NEW ITEM
+                                            () => _open(DailyReportsPage())),
                                         _drawerItem(Icons.edit, 'Edit Profile',
                                             () => _open(EditAdminProfilePage(staffId: widget.staffId))),
                                         _drawerItem(Icons.lock, 'Change Password',

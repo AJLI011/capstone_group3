@@ -133,6 +133,7 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
     }
   }
 
+  // UPDATED: Set promo and instantly update the UI
   Future<void> setPromo(int inventoryId, String startDate, String endDate) async {
     final prefs = await SharedPreferences.getInstance();
     final staffId = prefs.getInt('staff_id');
@@ -159,7 +160,21 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Promo set!')),
       );
-      _fetchAllPromoMedicines(); // Refresh list
+
+      // Find the item in the local master list and update its status
+      final itemIndex = _fullPromoMedicines.indexWhere((item) => item['id'] == inventoryId);
+      if (itemIndex != -1) {
+        setState(() {
+          // Create a new map to avoid modifying the original
+          final updatedItem = Map<String, dynamic>.from(_fullPromoMedicines[itemIndex]);
+          updatedItem['is_promo'] = true;
+          // You might also want to update promo dates here if the API returns them
+          _fullPromoMedicines[itemIndex] = updatedItem;
+          // Re-apply the filter to update the displayed list
+          _filterMedicines();
+        });
+      }
+
     } else {
       print('Failed to set promo: ${response.body}');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -168,6 +183,7 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
     }
   }
 
+  // UPDATED: Remove promo and instantly update the UI
   Future<void> removePromo(int inventoryId) async {
     final prefs = await SharedPreferences.getInstance();
     final staffId = prefs.getInt('staff_id');
@@ -194,7 +210,18 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Promo removed successfully')),
         );
-        _fetchAllPromoMedicines(); // Refresh list
+
+        // Find the item in the local master list and update its status
+        final itemIndex = _fullPromoMedicines.indexWhere((item) => item['id'] == inventoryId);
+        if (itemIndex != -1) {
+          setState(() {
+            final updatedItem = Map<String, dynamic>.from(_fullPromoMedicines[itemIndex]);
+            updatedItem['is_promo'] = false; // or 0
+            _fullPromoMedicines[itemIndex] = updatedItem;
+            // Re-apply the filter to update the displayed list
+            _filterMedicines();
+          });
+        }
       } else {
         throw Exception('Failed to remove promo: ${response.body}');
       }
@@ -349,110 +376,110 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
           ),
           Expanded(
             child: _fullPromoMedicines.isEmpty && _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _filteredPromoMedicines.isEmpty && _searchController.text.isNotEmpty
-                ? const Center(child: Text('No matching medicines found.'))
-                : _filteredPromoMedicines.isEmpty
-                  ? const Center(child: Text('No medicines eligible for promo.'))
-                  : ListView.builder(
-                      controller: _scrollController,
-                      // Only show loading indicator if not searching and there's more to load
-                      itemCount: _filteredPromoMedicines.length + (_hasMore && _searchController.text.isEmpty ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index == _filteredPromoMedicines.length) {
-                          return const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(8.0),
-                              child: CircularProgressIndicator(),
-                            ),
-                          );
-                        }
-                        
-                        final item = _filteredPromoMedicines[index];
-                        final isPromo = item['is_promo'] == true || item['is_promo'] == 1;
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredPromoMedicines.isEmpty && _searchController.text.isNotEmpty
+                    ? const Center(child: Text('No matching medicines found.'))
+                    : _filteredPromoMedicines.isEmpty
+                        ? const Center(child: Text('No medicines eligible for promo.'))
+                        : ListView.builder(
+                            controller: _scrollController,
+                            // Only show loading indicator if not searching and there's more to load
+                            itemCount: _filteredPromoMedicines.length + (_hasMore && _searchController.text.isEmpty ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index == _filteredPromoMedicines.length) {
+                                return const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              }
+                              
+                              final item = _filteredPromoMedicines[index];
+                              final isPromo = item['is_promo'] == true || item['is_promo'] == 1;
 
-                        return Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF9C4),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFFFEE58)),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Left side
-                              Expanded(
-                                child: Column(
+                              return Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF9C4),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: const Color(0xFFFFEE58)),
+                                ),
+                                child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      item['medicine_name'] ?? 'No Name',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: Colors.black,
+                                    // Left side
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item['medicine_name'] ?? 'No Name',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                              color: Colors.black,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text('${item['generic_name'] ?? 'N/A'}'),
+                                          Text('${item['batch_num'] ?? 'N/A'}'),
+                                          Text('${item['supplier_name'] ?? 'N/A'}'),
+                                        ],
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text('${item['generic_name'] ?? 'N/A'}'),
-                                    Text('${item['batch_num'] ?? 'N/A'}'),
-                                    Text('${item['supplier_name'] ?? 'N/A'}'),
+                                    const SizedBox(width: 10),
+                                    // Right side
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          item['quantity']?.toString() ?? '0',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 20,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${item['exp_date'] ?? 'N/A'}',
+                                          style: const TextStyle(color: Colors.orange),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        if (!isPromo)
+                                          ElevatedButton(
+                                            onPressed: () => showPromoDialog(item['id'], isPromo),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.yellow[700],
+                                              foregroundColor: Colors.black,
+                                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                            ),
+                                            child: const Text('Promo'),
+                                          )
+                                        else
+                                          ElevatedButton(
+                                            onPressed: () => showRemovePromoConfirmationDialog(item['id']),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                              foregroundColor: Colors.white,
+                                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                            ),
+                                            child: const Text('Remove Promo'),
+                                          ),
+                                      ],
+                                    ),
                                   ],
                                 ),
-                              ),
-                              const SizedBox(width: 10),
-                              // Right side
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    item['quantity']?.toString() ?? '0',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 20,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${item['exp_date'] ?? 'N/A'}',
-                                    style: const TextStyle(color: Colors.orange),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  if (!isPromo)
-                                    ElevatedButton(
-                                      onPressed: () => showPromoDialog(item['id'], isPromo),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.yellow[700],
-                                        foregroundColor: Colors.black,
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                      ),
-                                      child: const Text('Promo'),
-                                    )
-                                  else
-                                    ElevatedButton(
-                                      onPressed: () => showRemovePromoConfirmationDialog(item['id']),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                      ),
-                                      child: const Text('Remove Promo'),
-                                    ),
-                                ],
-                              ),
-                            ],
+                              );
+                            },
                           ),
-                        );
-                      },
-                    ),
           ),
         ],
       ),
