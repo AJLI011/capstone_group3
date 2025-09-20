@@ -107,11 +107,12 @@ class _ManagerViewState extends State<ManagerView>
           lowStockItems = json.decode(responses[5].body);
         }
         if (responses[6].statusCode == 200) {
-          final newLogs = json.decode(responses[6].body);
-          if (newLogs.length < inventoryLogs.length || newLogs.length > inventoryLogs.length) {
-            inventoryLogs = newLogs;
-          } else if (newLogs.isNotEmpty && newLogs[0]['id'] != inventoryLogs[0]['id']) {
-            inventoryLogs = newLogs;
+          final responseData = json.decode(responses[6].body);
+          if (responseData is Map<String, dynamic> && responseData.containsKey('results')) {
+            inventoryLogs = responseData['results'] as List<dynamic>;
+          } else if (responseData is List<dynamic>) {
+            // Fallback for non-paginated responses
+            inventoryLogs = responseData;
           }
         }
         isLoading = false;
@@ -445,9 +446,9 @@ class _ManagerViewState extends State<ManagerView>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Row( // Changed Column to Row
+          child: Row(
             children: [
-              Expanded( // Added Expanded for text content
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -471,7 +472,7 @@ class _ManagerViewState extends State<ManagerView>
                   ],
                 ),
               ),
-              Icon(icon, size: 50, color: textColor), // Moved icon to the end and increased size
+              Icon(icon, size: 50, color: textColor),
             ],
           ),
         ),
@@ -538,7 +539,6 @@ class _ManagerViewState extends State<ManagerView>
   }
 
   Widget _buildLowStockList() {
-    // Use the lowStockItems list directly without additional filtering.
     if (lowStockItems.isEmpty) {
       return const Text(
         'No low stock items found.',

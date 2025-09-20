@@ -317,7 +317,9 @@ class Command(BaseCommand):
                             order=order,
                             inventory_id=selected_item,
                             quantity_sold=quantity_sold,
-                            price_at_sale=price_at_sale
+                            price_at_sale=price_at_sale,
+                            medicine_name=selected_item.medicine.name,
+                            generic_name=selected_item.medicine.generic_name
                         )
                         
                         total_before += price_at_sale * quantity_sold

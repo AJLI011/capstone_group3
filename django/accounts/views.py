@@ -34,7 +34,7 @@ from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, 
     InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, 
     OnlineOrder, OnlineOrderItem, Prescription, PrescriptionImage,
-    CustomerFCMToken, ForecastReport, ForecastItem, StaffFCMToken
+    CustomerFCMToken, ForecastReport, ForecastItem, StaffFCMToken, ReturnedMedicine
 )
 from .serializers import (
     CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer,

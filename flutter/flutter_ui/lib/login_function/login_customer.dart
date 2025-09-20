@@ -179,7 +179,7 @@ class _CustomerLoginFormState extends State<CustomerLoginForm> {
             );
           }
         } else {
-          setState(() => errorMsg = 'Unsupported user type.');
+          setState(() => errorMsg = 'Login failed. This email is associated with a staff account. Please use the staff login page.');
         }
       } else {
         final errorData = json.decode(response.body);

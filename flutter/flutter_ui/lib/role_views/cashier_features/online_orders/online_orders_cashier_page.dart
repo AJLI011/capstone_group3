@@ -36,8 +36,6 @@ Future<bool?> showConfirmationDialog(BuildContext context, String title, String 
 // We make it a StatefulWidget so it can manage its own checkbox state.
 class CashierOrderCard extends StatefulWidget {
   final Map<String, dynamic> order;
-  final bool isPending;
-  final Function(int) onConfirm;
   final Function(int) onCancel;
   final Function(int) onFinalize;
   final Function(int, int) onRemoveItem;
@@ -47,8 +45,6 @@ class CashierOrderCard extends StatefulWidget {
   const CashierOrderCard({
     super.key,
     required this.order,
-    required this.isPending,
-    required this.onConfirm,
     required this.onCancel,
     required this.onFinalize,
     required this.onRemoveItem,
@@ -134,6 +130,7 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // UPDATED: Image loading logic with a fallback
             if (fullImageUrl.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
@@ -142,9 +139,11 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                   width: 60,
                   height: 60,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 60),
+                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.medication, size: 60),
                 ),
-              ),
+              )
+            else
+              const Icon(Icons.medication, size: 60),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -181,15 +180,13 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                 ],
               ),
             ),
-            // Show the "Remove" button only for ready for pickup orders
-            if (!widget.isPending)
-              IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                // Enable the button only if both orderId and itemId are not null
-                onPressed: (orderId != null && itemId != null)
-                    ? () => _onRemoveItem(orderId, itemId)
-                    : null, // Disable the button if IDs are null
-              ),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              // Enable the button only if both orderId and itemId are not null
+              onPressed: (orderId != null && itemId != null)
+                  ? () => _onRemoveItem(orderId, itemId)
+                  : null, // Disable the button if IDs are null
+            ),
             Text(
               '₱${itemTotal.toStringAsFixed(2)}',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -233,18 +230,17 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                 ..._buildOrderItems(_currentOrder['items']),
                 const SizedBox(height: 16),
                 // PWD checkbox for ready for pickup orders
-                if (!widget.isPending)
-                  Row(
-                    children: [
-                      // The checkbox's value is taken directly from the current order data
-                      Checkbox(
-                        value: _currentOrder['is_pwd'] ?? false,
-                        // When the checkbox is tapped, this function is called.
-                        onChanged: _onPwdCheckboxChanged,
-                      ),
-                      const Text('Apply PWD/Senior Citizen Discount'),
-                    ],
-                  ),
+                Row(
+                  children: [
+                    // The checkbox's value is taken directly from the current order data
+                    Checkbox(
+                      value: _currentOrder['is_pwd'] ?? false,
+                      // When the checkbox is tapped, this function is called.
+                      onChanged: _onPwdCheckboxChanged,
+                    ),
+                    const Text('Apply PWD/Senior Citizen Discount'),
+                  ],
+                ),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -259,28 +255,14 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                     ),
                   ],
                 ),
-                if (widget.isPending)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16.0),
-                    child: ElevatedButton(
-                      onPressed: () => widget.onConfirm(_currentOrder['id'] as int),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 50),
-                      ),
-                      child: const Text('Confirm Order'),
-                    ),
-                  ),
-                if (!widget.isPending)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () async {
+                Padding(
+                  padding: const EdgeInsets.only(top: 16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
                               final bool? confirm = await showConfirmationDialog(
                                 context,
                                 'Cancel Order?',
@@ -290,17 +272,17 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                                 widget.onCancel(_currentOrder['id'] as int);
                               }
                             },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                            ),
-                            child: const Text('Cancel Order'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
                           ),
+                          child: const Text('Cancel Order'),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () async {
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
                                final bool? confirm = await showConfirmationDialog(
                                 context,
                                 'Finalize Order?',
@@ -310,16 +292,16 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                                 widget.onFinalize(_currentOrder['id'] as int);
                               }
                             },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                            ),
-                            child: const Text('Picked Up'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
                           ),
+                          child: const Text('Picked Up'),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                ),
               ],
             ),
           ),
@@ -336,8 +318,7 @@ class CashierOnlineOrdersPage extends StatefulWidget {
   _CashierOnlineOrdersPageState createState() => _CashierOnlineOrdersPageState();
 }
 
-class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
   final String _baseUrl = 'http://10.0.2.2:8000';
   DateTime? _selectedDate;
   List<dynamic> _allOrders = [];
@@ -346,14 +327,7 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> with 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _fetchCashierOrders();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   Future<void> _fetchCashierOrders() async {
@@ -365,7 +339,10 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> with 
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         setState(() {
-          _allOrders = jsonDecode(response.body);
+          // Filter orders directly after fetching to only show 'ready for pickup'
+          _allOrders = jsonDecode(response.body)
+              .where((order) => order['status'] == 'ready for pickup')
+              .toList();
           _isLoading = false;
         });
       } else {
@@ -396,49 +373,6 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> with 
         }
       }
     });
-  }
-
-  Future<void> _confirmOrder(int orderId) async {
-    final url = '$_baseUrl/api/cashier/confirm-online-order/$orderId/';
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final int? staffId = prefs.getInt('staff_id'); // Get the staff ID from local storage
-
-    if (staffId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: Staff ID is missing.')),
-      );
-      return;
-    }
-
-    final body = jsonEncode({
-      'staff_id': staffId,
-    });
-
-    try {
-      final response = await http.put(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: body,
-      );
-
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Order confirmed successfully.')),
-        );
-        // Refresh the orders to update the UI
-        _fetchCashierOrders();
-      } else {
-        final errorBody = jsonDecode(response.body);
-        final errorMessage = errorBody['detail'] ?? 'Failed to confirm order.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to connect to the server: $e')),
-      );
-    }
   }
 
   Future<void> _cancelOrder(int orderId) async {
@@ -600,7 +534,6 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> with 
 
   @override
   Widget build(BuildContext context) {
-    final pendingOrders = _allOrders.where((order) => order['status'] == 'pending').toList();
     List<dynamic> readyForPickupOrders = _allOrders.where((order) => order['status'] == 'ready for pickup').toList();
     if (_selectedDate != null) {
       readyForPickupOrders = readyForPickupOrders.where((order) {
@@ -614,33 +547,18 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> with 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Online Orders'),
+        backgroundColor: const Color(0xFF5C7C9A),
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _fetchCashierOrders,
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.black,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: Colors.blue,
-          indicatorWeight: 4.0,
-          tabs: const [
-            Tab(text: 'Pending Orders'),
-            Tab(text: 'Ready for Pickup'),
-          ],
-        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildOrderList(pendingOrders, isPending: true),
-                _buildReadyForPickupTab(readyForPickupOrders),
-              ],
-            ),
+          : _buildReadyForPickupTab(readyForPickupOrders),
     );
   }
 
@@ -678,17 +596,17 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> with 
           ),
         ),
         Expanded(
-          child: _buildOrderList(orders, isPending: false),
+          child: _buildOrderList(orders),
         ),
       ],
     );
   }
 
-  Widget _buildOrderList(List<dynamic> orders, {required bool isPending}) {
+  Widget _buildOrderList(List<dynamic> orders) {
     if (orders.isEmpty) {
       return Center(
-        child: Text(isPending
-            ? 'No pending orders.'
+        child: Text(_selectedDate == null
+            ? 'No ready for pickup orders.'
             : 'No orders ready for pickup for this date.'),
       );
     }
@@ -698,11 +616,8 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> with 
       child: ListView.builder(
         itemCount: orders.length,
         itemBuilder: (context, index) {
-          // Use the new CashierOrderCard widget here
           return CashierOrderCard(
             order: orders[index],
-            isPending: isPending,
-            onConfirm: _confirmOrder,
             onCancel: _cancelOrder,
             onFinalize: _finalizeOrder,
             onRemoveItem: _removeOrderItem,
