@@ -87,6 +87,16 @@ from rest_framework import status
 #===========9/13/25 LAZY LOADING=====
 from django.core.paginator import Paginator
 
+
+
+#======9/20/25 fixes to low stock
+from django.db.models import F, Case, When, IntegerField
+from django.utils import timezone
+from .models import TotalQuantity, Medicine, Inventory # Ensure Inventory is imported
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from .serializers import LowStockSerializer
+
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
 
@@ -2482,21 +2492,42 @@ def total_combined_earnings(request):
 
     return Response({'total_earnings': combined_total})
 
+
+
+
+
+
+
+
+#------9/20/25 changes
 # for low stocks:
 @api_view(['GET'])
 def low_stock_list(request):
     """
-    Returns a list of medicines with a total quantity at or below their restock quantity.
+    Returns a list of unexpired medicines with a total quantity at or below 
+    their restock threshold, based on dosage form.
     """
-    # This query directly filters the TotalQuantity table and compares its total_quantity
-    # to the related Medicine's restock_quantity using an F expression.
+    # Define the dynamic thresholds based on dosage form
+    low_stock_threshold = Case(
+        When(medicine__dosage_form__in=['tablet', 'capsule'], then=20),
+        When(medicine__dosage_form='syrup', then=10),
+        default=F('medicine__restock_quantity'), # Fallback to restock_quantity if needed
+        output_field=IntegerField(),
+    )
+
     low_stock_medicines = TotalQuantity.objects.filter(
-        total_quantity__lte=F('medicine__restock_quantity')
-    ).select_related('medicine')
-    
-    # Use the serializer to format the data
+        total_quantity__lte=low_stock_threshold,
+        medicine__inventory_entries__exp_date__gt=timezone.now().date()
+    ).distinct().select_related('medicine')
+
     serializer = LowStockSerializer(low_stock_medicines, many=True)
     return Response(serializer.data)
+#------9/20/25 changes
+
+
+
+
+
 
 #total count
 @api_view(['GET'])
