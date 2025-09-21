@@ -24,21 +24,28 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
   }
 
   Future<void> fetchInventoryLogs() async {
-    const url = 'http://10.0.2.2:8000/api/inventory-logs/';
-    
-    try {
-      final response = await http.get(Uri.parse(url));
+    String? nextUrl = 'http://10.0.2.2:8000/api/inventory-logs/';
+    List<dynamic> allLogs = [];
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        setState(() {
-          logs = data;
-          isLoading = false;
-        });
-      } else {
-        print('Failed to load logs. Status code: ${response.statusCode}');
-        setState(() => isLoading = false);
+    try {
+      while (nextUrl != null) {
+        final response = await http.get(Uri.parse(nextUrl));
+
+        if (response.statusCode == 200) {
+          final Map<String, dynamic> responseData = json.decode(response.body);
+          
+          allLogs.addAll(responseData['results']);
+          nextUrl = responseData['next'];
+        } else {
+          print('Failed to load logs. Status code: ${response.statusCode}');
+          nextUrl = null; // Stop fetching on failure
+        }
       }
+
+      setState(() {
+        logs = allLogs;
+        isLoading = false;
+      });
     } catch (e) {
       print('Error fetching logs: $e');
       setState(() => isLoading = false);
@@ -75,15 +82,20 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
         IconData actionIcon;
         Color iconColor;
         switch (log['action_type']) {
-          case 'added':
+          case 'Add': // Use 'Add' with a capital 'A'
+          case 'Restock':
             actionIcon = Icons.add_box_rounded;
             iconColor = Colors.green;
             break;
           case 'removed':
+          case 'Sold':
+          case 'Expiration Return':
             actionIcon = Icons.remove_circle_rounded;
             iconColor = Colors.red;
             break;
           case 'updated':
+          case 'Promo Set':
+          case 'Promo Removed':
             actionIcon = Icons.update_rounded;
             iconColor = Colors.blue;
             break;
