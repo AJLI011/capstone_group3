@@ -102,9 +102,8 @@ class TotalQuantity(models.Model):
     class Meta:
         db_table = 'total_quantity_tbl'
 
-    medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE, unique=True, related_name='total_quantity_entry')
+    medicine = models.OneToOneField('Medicine', on_delete=models.CASCADE, primary_key=True)
     total_quantity = models.PositiveIntegerField(default=0)
-    
 
     def __str__(self):
         return f"{self.medicine.name} - Total Qty: {self.total_quantity}"
@@ -170,8 +169,8 @@ class InStoreOrder(models.Model):
     ]
     staff = models.ForeignKey('Staff', on_delete=models.CASCADE)
     cashier = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_orders')
-    #date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    date_created = models.DateTimeField()
+    date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    #date_created = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     is_pwd = models.BooleanField(default=False)
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -242,8 +241,8 @@ class OrderLog(models.Model):
     action_type = models.CharField(max_length=20, choices=ACTION_CHOICES)
     description = models.TextField(blank=True, null=True)
     
-    #timestamp = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    timestamp = models.DateTimeField()
+    timestamp = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    #timestamp = models.DateTimeField()
     class Meta:
         db_table = 'order_logs'
         ordering = ['-timestamp']
@@ -267,8 +266,8 @@ class OnlineOrder(models.Model):
         ('cancelled', 'Cancelled'),
     ]
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    #date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    date_created = models.DateTimeField()
+    date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    #date_created = models.DateTimeField()
     status = models.CharField(max_length=20, choices=ORDER_STATUS, default='pending')
     is_pwd = models.BooleanField(default=False)
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -387,23 +386,16 @@ class ForecastItem(models.Model):
         on_delete=models.CASCADE,
         related_name='items'
     )
-    # The foreign key is now nullable to preserve data
-    medicine = models.ForeignKey('Medicine', on_delete=models.SET_NULL, null=True, blank=True)
-    
-    # Snapshot fields to retain the medicine's information
-    medicine_name = models.CharField(max_length=100, blank=True, null=True)
-    generic_name = models.CharField(max_length=100, blank=True, null=True)
-    
+    medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE)
     forecasted_quantity = models.PositiveIntegerField()
+    # NEW FIELDS ADDED BELOW
     current_stock = models.PositiveIntegerField(default=0)
-    restock_amount = models.IntegerField(default=0)
+    restock_amount = models.IntegerField(default=0) # Can be negative if stock > forecast
+    # END NEW FIELDS
     rank = models.PositiveIntegerField()
 
     def __str__(self):
-        # Use the snapshot name if the medicine link is null
-        if self.medicine_name:
-            return f"Rank {self.rank}: {self.medicine_name} - {self.forecasted_quantity} units"
-        return f"Rank {self.rank}: [Medicine Deleted] - {self.forecasted_quantity} units"
+        return f"Rank {self.rank}: {self.medicine.name} - {self.forecasted_quantity} units"
     
 #-----EXPIRY NOTIFICATION
 class StaffFCMToken(models.Model):

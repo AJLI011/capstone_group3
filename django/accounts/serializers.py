@@ -138,56 +138,30 @@ class InventoryCreateSerializer(serializers.ModelSerializer):
 
 # Serializer for main inventory screen (with total quantity)
 class InventoryListSerializer(serializers.ModelSerializer):
-    medicine_id = serializers.SerializerMethodField()
-    name = serializers.SerializerMethodField()
-    generic_name = serializers.SerializerMethodField()
-    category = serializers.SerializerMethodField()
-    price = serializers.SerializerMethodField()
+    medicine_id = serializers.IntegerField(source='medicine.id')
+    name = serializers.CharField(source='medicine.name')
+    generic_name = serializers.CharField(source='medicine.generic_name')
+    category = serializers.CharField(source='medicine.category')
+    price = serializers.DecimalField(source='medicine.price', max_digits=8, decimal_places=2)
     image = serializers.SerializerMethodField()
 
     class Meta:
         model = TotalQuantity
         fields = ['medicine_id', 'name', 'generic_name', 'category', 'price', 'image', 'total_quantity']
 
-    def get_medicine_id(self, obj):
-        if obj.medicine:
-            return obj.medicine.id
-        return None
-        
-    def get_name(self, obj):
-        if obj.medicine:
-            return obj.medicine.name
-        return "N/A"
-
-    def get_generic_name(self, obj):
-        if obj.medicine:
-            return obj.medicine.generic_name
-        return "N/A"
-
-    def get_category(self, obj):
-        if obj.medicine:
-            return obj.medicine.category
-        return "N/A"
-        
-    def get_price(self, obj):
-        if obj.medicine:
-            return obj.medicine.price
-        return None
-        
     def get_image(self, obj):
-        if obj.medicine and obj.medicine.image:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.medicine.image.url)
-            return obj.medicine.image.url
+        request = self.context.get('request')
+        image = obj.medicine.image
+        if image and hasattr(image, 'url'):
+            return request.build_absolute_uri(image.url)
         return None
 
 
 # Serializer for batch-level details (for selected medicine)
 class InventoryBatchDetailSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(source='medicine.name', read_only=True, allow_null=True)
-    generic_name = serializers.CharField(source='medicine.generic_name', read_only=True, allow_null=True)
-    price = serializers.DecimalField(source='medicine.price', max_digits=8, decimal_places=2, read_only=True, allow_null=True)
+    name = serializers.CharField(source='medicine.name', read_only=True)
+    generic_name = serializers.CharField(source='medicine.generic_name.name', read_only=True, default="N/A")
+    price = serializers.DecimalField(source='medicine.price', max_digits=8, decimal_places=2, read_only=True)
     is_promo = serializers.SerializerMethodField()
     promo_start_date = serializers.SerializerMethodField()
     promo_end_date = serializers.SerializerMethodField()
@@ -208,12 +182,15 @@ class InventoryBatchDetailSerializer(serializers.ModelSerializer):
             'promo_end_date',
         ]
 
-    # You would also need to update the SerializerMethodFields to handle the None case
     def get_is_promo(self, obj):
-        if obj.medicine:
-            # Your existing logic
-            return obj.is_promo
-        return False # Or whatever default value is appropriate
+        promo = Promo.objects.filter(inventory_id=obj.id).first()
+        today = date.today()
+        return (
+            promo is not None and
+            promo.start_date is not None and
+            promo.start_date <= today and
+            (promo.end_date is None or promo.end_date >= today)
+        )
 
     def get_promo_start_date(self, obj):
         promo = Promo.objects.filter(inventory_id=obj.id).first()
@@ -226,11 +203,11 @@ class InventoryBatchDetailSerializer(serializers.ModelSerializer):
 
 # For Expiration Dashboard
 class InventoryDashboardSerializer(serializers.ModelSerializer):
-    medicine_name = serializers.CharField(source='medicine.name', allow_null=True)
-    generic_name = serializers.CharField(source='medicine.generic_name', allow_null=True)
-    dosage_form = serializers.CharField(source='medicine.dosage_form', allow_null=True)
-    supplier_name = serializers.CharField(source='medicine.supplier.name', default=None, allow_null=True)
-    barcode = serializers.CharField(source='medicine.barcode', allow_null=True)
+    medicine_name = serializers.CharField(source='medicine.name')
+    generic_name = serializers.CharField(source='medicine.generic_name')
+    dosage_form = serializers.CharField(source='medicine.dosage_form')
+    supplier_name = serializers.CharField(source='medicine.supplier.name', default=None)
+    barcode = serializers.CharField(source='medicine.barcode')
 
     class Meta:
         model = Inventory
@@ -250,37 +227,14 @@ class InventoryDashboardSerializer(serializers.ModelSerializer):
 
 # Total Quantity
 class TotalQuantitySerializer(serializers.ModelSerializer):
-    medicine_name = serializers.SerializerMethodField()
-    generic_name = serializers.SerializerMethodField()
-    image = serializers.SerializerMethodField()
-    category = serializers.SerializerMethodField()
+    medicine_name = serializers.CharField(source='medicine.name', read_only=True)
+    generic_name = serializers.CharField(source='medicine.generic_name', read_only=True)
+    image = serializers.ImageField(source='medicine.image', read_only=True)
+    category = serializers.CharField(source='medicine.category', read_only=True)
 
     class Meta:
         model = TotalQuantity
         fields = ['medicine', 'medicine_name', 'generic_name', 'category', 'image', 'total_quantity']
-
-    def get_medicine_name(self, obj):
-        if obj.medicine:
-            return obj.medicine.name
-        return None
-
-    def get_generic_name(self, obj):
-        if obj.medicine:
-            return obj.medicine.generic_name
-        return None
-        
-    def get_image(self, obj):
-        if obj.medicine and obj.medicine.image:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.medicine.image.url)
-            return obj.medicine.image.url
-        return None
-        
-    def get_category(self, obj):
-        if obj.medicine:
-            return obj.medicine.category
-        return None
 
 
 # Serializer for Promo
@@ -1175,11 +1129,19 @@ class CustomerFCMTokenSerializer(serializers.ModelSerializer):
 #low stocks & totalqty
 
 class LowStockSerializer(serializers.ModelSerializer):
-    name = serializers.SerializerMethodField()
-    generic_name = serializers.SerializerMethodField()
-    restock_quantity = serializers.SerializerMethodField()
-    supplier_name = serializers.SerializerMethodField()
-    contact_num = serializers.SerializerMethodField()
+    # This correctly gets the medicine's name
+    name = serializers.CharField(source='medicine.name')
+    # This correctly gets the medicine's generic name
+    generic_name = serializers.CharField(source='medicine.generic_name')
+    
+    # NEW: Get the restock_quantity directly from the related Medicine model
+    restock_quantity = serializers.IntegerField(source='medicine.restock_quantity')
+
+    # NEW: Get the supplier's name by following the 'medicine' and 'supplier' relationships
+    supplier_name = serializers.CharField(source='medicine.supplier.name')
+    
+    # NEW: Get the supplier's contact number
+    contact_num = serializers.CharField(source='medicine.supplier.contact')
 
     class Meta:
         model = TotalQuantity
@@ -1192,30 +1154,6 @@ class LowStockSerializer(serializers.ModelSerializer):
             'contact_num'
         ]
 
-    def get_name(self, obj):
-        if obj.medicine:
-            return obj.medicine.name
-        return "N/A"
-
-    def get_generic_name(self, obj):
-        if obj.medicine:
-            return obj.medicine.generic_name
-        return "N/A"
-
-    def get_restock_quantity(self, obj):
-        if obj.medicine:
-            return obj.medicine.restock_quantity
-        return 0
-    
-    def get_supplier_name(self, obj):
-        if obj.medicine and obj.medicine.supplier:
-            return obj.medicine.supplier.name
-        return "N/A"
-
-    def get_contact_num(self, obj):
-        if obj.medicine and obj.medicine.supplier:
-            return obj.medicine.supplier.contact
-        return "N/A"
 #====================================09/13/24 DASHBOARD (ELTON) ===================================# 
 
 
@@ -1233,16 +1171,8 @@ class ForecastItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ForecastItem
-        # UPDATED FIELDS: Add 'medicine_name' and 'generic_name' to the fields list
-        fields = [
-            'rank',
-            'forecasted_quantity',
-            'current_stock',
-            'restock_amount',
-            'medicine',
-            'medicine_name', # <--- ADD THIS FIELD
-            'generic_name' # <--- ADD THIS FIELD
-        ]
+        # UPDATED FIELDS: Added current_stock and restock_amount
+        fields = ['rank', 'forecasted_quantity', 'current_stock', 'restock_amount', 'medicine']
 
 # NEW: Main serializer for the forecast report.
 class ForecastReportSerializer(serializers.ModelSerializer):
