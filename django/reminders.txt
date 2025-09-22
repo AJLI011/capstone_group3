@@ -37,3 +37,22 @@ OrderLog.objects.all().delete()
 EmployeeLog.objects.all().delete()
 InventoryLog.objects.all().delete()
 
+
+
+----------------------
+AFTER DOING MAKE MIGRATIONS RUN THIS COMMAND SA SQL:
+
+*FIRST PART
+
+ALTER TABLE total_quantity_tbl
+DROP FOREIGN KEY total_quantity_tbl_medicine_id_c21995a7_fk_medicines_list_id;
+
+
+*SECOND PART
+
+ALTER TABLE total_quantity_tbl
+ADD CONSTRAINT total_quantity_tbl_medicine_id_c21995a7_fk_medicines_list_id
+FOREIGN KEY (medicine_id)
+REFERENCES medicines_list(id)
+ON DELETE CASCADE;
+
