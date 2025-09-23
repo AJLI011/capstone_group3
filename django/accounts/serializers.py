@@ -253,7 +253,6 @@ class PromoSerializer(serializers.ModelSerializer):
 # For Inventory Logs
 class InventoryLogSerializer(serializers.ModelSerializer):
     user_name = serializers.SerializerMethodField()
-    # CHANGE THIS LINE: from CharField to SerializerMethodField
     medicine_name = serializers.SerializerMethodField()
 
     class Meta:
@@ -265,14 +264,9 @@ class InventoryLogSerializer(serializers.ModelSerializer):
             return f"{obj.user.name}, {obj.user.role}"
         return "Unknown"
 
-    # ADD THIS METHOD to handle the medicine_name field
     def get_medicine_name(self, obj):
-        # Check if obj.medicine is not None before accessing its attributes
-        if obj.medicine:
-            return obj.medicine.name
-        # Return a descriptive string for deleted medicines
-        return "Deleted Medicine"
-
+        # ✅ It's better to return None or a predictable empty string
+        return obj.medicine.name if obj.medicine else None
 #===========================09/13/25 (ELTON)========================================================
 
 
@@ -501,34 +495,109 @@ class CustomerMedicineDetailSerializer(serializers.ModelSerializer):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+#----------9/23/25
+
+
 # Employee Logs serializer
 class EmployeeLogSerializer(serializers.ModelSerializer):
-    # Accept staff ID on write
+    # Accept staff ID on write (this is already correct)
     staff = serializers.PrimaryKeyRelatedField(queryset=Staff.objects.all(), write_only=True)
 
-    # Expose readable fields for the response
-    staff_name = serializers.CharField(source='staff.name', read_only=True)
-    staff_role = serializers.CharField(source='staff.role', read_only=True)
+    # ✅ Use SerializerMethodField for related fields to handle them properly
+    staff_name = serializers.SerializerMethodField()
+    staff_role = serializers.SerializerMethodField()
 
     class Meta:
         model = EmployeeLog
         fields = ['id', 'staff', 'staff_name', 'staff_role', 'action', 'timestamp']
-        read_only_fields = ['id', 'staff_name', 'staff_role', 'timestamp']
+        # read_only_fields are not needed for SerializerMethodField
+        # read_only_fields = ['id', 'staff_name', 'staff_role', 'timestamp']
 
+    def get_staff_name(self, obj):
+        return obj.staff.name if obj.staff else None
+
+    def get_staff_role(self, obj):
+        return obj.staff.role if obj.staff else None
 
 # =====================================
 # IN-STORE ORDERS SERIALIZERS
 
 class InStoreOrderItemSerializer(serializers.ModelSerializer):
-    medicine_name = serializers.CharField(source='inventory_id.medicine.name', read_only=True)
-    barcode = serializers.CharField(source='inventory_id.medicine.barcode', read_only=True)
-    batch_num = serializers.CharField(source='inventory_id.batch_num', read_only=True)
-    exp_date = serializers.DateField(source='inventory_id.exp_date', read_only=True)
-    price_at_sale = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True) 
+    # Use SerializerMethodField for all related data that can be null
+    medicine_name = serializers.SerializerMethodField()
+    barcode = serializers.SerializerMethodField()
+    batch_num = serializers.SerializerMethodField()
+    exp_date = serializers.SerializerMethodField()
+    # No change needed for price_at_sale as it's a direct field on the model
 
     class Meta:
         model = InStoreOrderItem
-        fields = ['id', 'medicine_name', 'barcode', 'batch_num', 'exp_date', 'quantity_sold', 'free_quantity_given', 'price_at_sale']
+        fields = [
+            'id', 
+            'medicine_name', 
+            'barcode', 
+            'batch_num', 
+            'exp_date', 
+            'quantity_sold', 
+            'free_quantity_given', 
+            'price_at_sale'
+        ]
+
+    def get_medicine_name(self, obj):
+        if obj.inventory_id and obj.inventory_id.medicine:
+            return obj.inventory_id.medicine.name
+        return "N/A"
+
+    def get_barcode(self, obj):
+        if obj.inventory_id and obj.inventory_id.medicine:
+            return obj.inventory_id.medicine.barcode
+        return "N/A"
+
+    def get_batch_num(self, obj):
+        if obj.inventory_id:
+            return obj.inventory_id.batch_num
+        return "N/A"
+
+    def get_exp_date(self, obj):
+        if obj.inventory_id:
+            return obj.inventory_id.exp_date
+        return "N/A"
+#----------9/23/25
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 class CashierInStoreOrderSerializer(serializers.ModelSerializer):
@@ -640,18 +709,31 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
                  
                  
                  
-                 
+     
+     
+     
+     
+#----------9/23/25            
                         
             
 # ORDER LOGS SERIALIZERS
 
 class InStoreOrderItemSerializer(serializers.ModelSerializer):
-    medicine_name = serializers.CharField(source='inventory_id.medicine.name', read_only=True)
-    
+    # This correctly uses a SerializerMethodField to prevent crashes
+    medicine_name = serializers.SerializerMethodField()
+
     class Meta:
         model = InStoreOrderItem
         fields = ['id', 'medicine_name', 'quantity_sold', 'price_at_sale']
 
+    def get_medicine_name(self, obj):
+        # Gracefully handle the case where the inventory_id is null
+        if obj.inventory_id and obj.inventory_id.medicine:
+            return obj.inventory_id.medicine.name
+        # Fallback to the snapshot field on the model
+        return obj.medicine_name if obj.medicine_name else "N/A"
+    
+    
 class InStoreOrderDetailsSerializer(serializers.ModelSerializer):
     items = InStoreOrderItemSerializer(many=True, read_only=True)
     staff_name = serializers.CharField(source='staff.name', read_only=True)
@@ -680,6 +762,7 @@ class OrderLogSerializer(serializers.ModelSerializer):
             return OnlineOrderLogDetailsSerializer(obj.online_order).data
         return None
 
+#----------9/23/25
 
 
 
@@ -689,26 +772,77 @@ class OrderLogSerializer(serializers.ModelSerializer):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+#----------9/23/25
 #=================================9/1/25=============================================================
 # --- Online Orders Serializers ---
 class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
-    # This is the correct way to get the medicine name
-    medicine_name = serializers.CharField(source='inventory_id.medicine.name') 
-    price_at_sale = serializers.DecimalField(max_digits=10, decimal_places=2)
-
-    # REMOVE the get_medicine_name method
-    # It is not needed and causes redundancy.
+    # This correctly uses a SerializerMethodField to prevent crashes
+    medicine_name = serializers.SerializerMethodField()
+    generic_name = serializers.SerializerMethodField()
 
     class Meta:
         model = OnlineOrderItem
         fields = [
             'id', 
-            'medicine_name',   # <-- Don't forget the comma here
+            'medicine_name', 
+            'generic_name',
             'quantity_sold', 
             'free_quantity_given', 
             'price_at_sale'
         ]
 
+    def get_medicine_name(self, obj):
+        # Gracefully handles the case where the inventory_id is null
+        if obj.inventory_id and obj.inventory_id.medicine:
+            return obj.inventory_id.medicine.name
+        # Fallback to the name stored directly on the item if the link is broken
+        return obj.medicine_name if obj.medicine_name else "N/A"
+
+    def get_generic_name(self, obj):
+        if obj.inventory_id and obj.inventory_id.medicine:
+            return obj.inventory_id.medicine.generic_name
+        return obj.generic_name if obj.generic_name else "N/A"
+    
+    #----------9/23/25
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 # New serializer for Online order details within a log
 class OnlineOrderLogDetailsSerializer(serializers.ModelSerializer):
     items = OnlineOrderItemReadSerializer(many=True, read_only=True)
@@ -720,23 +854,79 @@ class OnlineOrderLogDetailsSerializer(serializers.ModelSerializer):
         fields = ['id', 'customer_name', 'customer_email', 'items']
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#----------9/23/25
 #--------------------09/14/2025--------------------------- fixing return medicine
 # --- Online Orders Serializers ---
 class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
-    medicine = serializers.SerializerMethodField()
-    free_quantity_given = serializers.IntegerField()
+    # Use SerializerMethodField for both name and generic name
+    medicine_name = serializers.SerializerMethodField()
+    generic_name = serializers.SerializerMethodField()
 
     class Meta:
         model = OnlineOrderItem
-        fields = ['id', 'medicine', 'quantity_sold', 'free_quantity_given', 'price_at_sale']
+        fields = [
+            'id', 
+            'medicine_name', 
+            'generic_name',
+            'quantity_sold', 
+            'free_quantity_given', 
+            'price_at_sale'
+        ]
 
-    def get_medicine(self, obj):
-        # The medicine_name and generic_name are now stored directly on the item
-        # This prevents the crash caused by a NULL inventory_id
-        return {
-            'name': obj.medicine_name,
-            'generic_name': obj.generic_name
-        }
+    def get_medicine_name(self, obj):
+        # 1. Try to get the name from the live inventory link
+        if obj.inventory_id and obj.inventory_id.medicine:
+            return obj.inventory_id.medicine.name
+        # 2. Fall back to the snapshot field on the model
+        return obj.medicine_name if obj.medicine_name else "N/A"
+
+    def get_generic_name(self, obj):
+        # 1. Try to get the generic name from the live inventory link
+        if obj.inventory_id and obj.inventory_id.medicine:
+            return obj.inventory_id.medicine.generic_name
+        # 2. Fall back to the snapshot field on the model
+        return obj.generic_name if obj.generic_name else "N/A"
+        
+        #----------9/23/25
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
         
 class OnlineOrderListSerializer(serializers.ModelSerializer):
@@ -1164,6 +1354,18 @@ class MedicineForecastSerializer(serializers.ModelSerializer):
         model = Medicine
         fields = ['id', 'name', 'generic_name']
 
+
+
+
+
+
+
+
+
+
+
+
+#----------9/23/25
 # NEW: Serializer for the forecast items.
 class ForecastItemSerializer(serializers.ModelSerializer):
     # Use the simplified MedicineForecastSerializer to represent the medicine object.
@@ -1171,8 +1373,31 @@ class ForecastItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ForecastItem
-        # UPDATED FIELDS: Added current_stock and restock_amount
-        fields = ['rank', 'forecasted_quantity', 'current_stock', 'restock_amount', 'medicine']
+        # UPDATED FIELDS: Add 'medicine_name' and 'generic_name' to the fields list
+        fields = [
+            'rank',
+            'forecasted_quantity',
+            'current_stock',
+            'restock_amount',
+            'medicine',
+            'medicine_name', # <--- ADD THIS FIELD
+            'generic_name' # <--- ADD THIS FIELD
+        ]
+#----------9/23/25
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # NEW: Main serializer for the forecast report.
 class ForecastReportSerializer(serializers.ModelSerializer):

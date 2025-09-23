@@ -3,8 +3,8 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:fl_chart/fl_chart.dart'; // NEW: Charting library
-import 'package:intl/intl.dart'; // NEW: For date formatting
+import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 
 // ====================================================================
 // Step 1: DATA MODELS
@@ -24,9 +24,9 @@ class MedicineForecast {
 
   factory MedicineForecast.fromJson(Map<String, dynamic> json) {
     return MedicineForecast(
-      id: json['id'],
-      name: json['name'],
-      genericName: json['generic_name'],
+      id: json['id'] ?? 0,
+      name: json['name'] ?? 'Medicine Deleted',
+      genericName: json['generic_name'] ?? 'N/A',
     );
   }
 }
@@ -52,7 +52,13 @@ class ForecastItem {
       forecastedQuantity: json['forecasted_quantity'],
       currentStock: json['current_stock'],
       restockAmount: json['restock_amount'],
-      medicine: MedicineForecast.fromJson(json['medicine']),
+      medicine: json['medicine'] != null
+          ? MedicineForecast.fromJson(json['medicine'])
+          : MedicineForecast(
+              id: 0,
+              name: json['medicine_name'] ?? 'Medicine Deleted',
+              genericName: json['generic_name'] ?? 'N/A'
+            ),
     );
   }
 }
@@ -80,7 +86,6 @@ class ForecastReport {
   }
 }
 
-// NEW: Model for the historical sales data from the new API endpoint
 class HistoricalSalesData {
   final DateTime weekStartDate;
   final int sales;
@@ -104,8 +109,8 @@ class HistoricalSalesData {
 // ====================================================================
 
 class ApiService {
-  static const String _baseUrl = "http://10.0.2.2:8000/api"; // For Android Emulator
-  // static const String _baseUrl = "http://127.0.0.1:8000/api"; // For iOS Simulator
+  static const String _baseUrl = "http://10.0.2.2:8000/api";
+  // static const String _baseUrl = "http://127.0.0.1:8000/api";
 
   Future<ForecastReport> fetchLatestForecast() async {
     final response = await http.get(Uri.parse('$_baseUrl/forecast/latest/'));
@@ -117,7 +122,6 @@ class ApiService {
     }
   }
 
-  // NEW METHOD: Calls the Django endpoint to generate a new forecast
   Future<void> generateForecast() async {
     final response = await http.post(Uri.parse('$_baseUrl/forecast/generate/'));
 
@@ -126,13 +130,15 @@ class ApiService {
     }
   }
 
-  // NEW METHOD: Fetches the historical sales data for a specific medicine
   Future<List<HistoricalSalesData>> fetchMedicineHistory(int medicineId) async {
     final response = await http.get(Uri.parse('$_baseUrl/forecast/history/$medicineId/'));
 
     if (response.statusCode == 200) {
       List<dynamic> data = jsonDecode(response.body);
       return data.map((item) => HistoricalSalesData.fromJson(item)).toList();
+    } else if (response.statusCode == 404) {
+      // Return an empty list on 404 to gracefully handle missing data
+      return [];
     } else {
       throw Exception('Failed to load historical data');
     }
@@ -179,7 +185,6 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
     });
   }
 
-  // NEW: Method to show the bottom sheet with the plot
   void _showForecastPlot(ForecastItem item) {
     showModalBottomSheet(
       context: context,
@@ -202,25 +207,45 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
                 child: FutureBuilder<List<HistoricalSalesData>>(
                   future: ApiService().fetchMedicineHistory(item.medicine.id),
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    } else if (snapshot.hasError) {
-                      return Center(child: Text('Error: ${snapshot.error}'));
-                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return const Center(child: Text('No historical data available.'));
-                    }
-
-                    final historicalData = snapshot.data!;
                     final List<FlSpot> spots = [];
 
-                    // Create FlSpots for historical data
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    } 
+                    
+                    // Check if there is an error or no data
+                    bool isDataMissing = snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty;
+                    
+                    if (isDataMissing) {
+                      // Only show a specific message if the item is a deleted one (id == 0)
+                      if (item.medicine.id == 0) {
+                        return const Center(
+                          child: Text(
+                            'Historical data is not available for this medicine as it has been deleted.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+                          ),
+                        );
+                      }
+                      
+                      // For other cases of missing data, show a more general error
+                      return Center(
+                        child: Text(
+                          'No historical data available. Error: ${snapshot.error}',
+                          textAlign: TextAlign.center,
+                        )
+                      );
+                    }
+                    
+                    // If data is available, proceed to build the chart
+                    final historicalData = snapshot.data!;
                     for (int i = 0; i < historicalData.length; i++) {
                       spots.add(FlSpot(i.toDouble(), historicalData[i].sales.toDouble()));
                     }
-
-                    // Add a single spot for the forecasted value at the end of the line
                     spots.add(FlSpot(spots.length.toDouble(), item.forecastedQuantity.toDouble()));
-
+                  
+                    double maxY = (spots.map((e) => e.y).reduce((a, b) => a > b ? a : b) * 1.2).ceilToDouble();
+                    
                     return LineChart(
                       LineChartData(
                         gridData: FlGridData(show: false),
@@ -231,7 +256,6 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
                               showTitles: true,
                               reservedSize: 30,
                               getTitlesWidget: (value, meta) {
-                                // Display month for every few data points
                                 final index = value.toInt();
                                 if (index < historicalData.length && index % 4 == 0) {
                                   return SideTitleWidget(
@@ -264,7 +288,7 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
                         minX: 0,
                         maxX: spots.length.toDouble() - 1,
                         minY: 0,
-                        maxY: (spots.map((e) => e.y).reduce((a, b) => a > b ? a : b) * 1.2).ceilToDouble(),
+                        maxY: maxY,
                         lineBarsData: [
                           LineChartBarData(
                             spots: spots,
@@ -274,7 +298,6 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
                             dotData: FlDotData(
                               show: true,
                               getDotPainter: (spot, percent, barData, index) {
-                                // Make the last dot (forecasted) red
                                 if (index == spots.length - 1) {
                                   return FlDotCirclePainter(color: Colors.red, radius: 4);
                                 }
@@ -380,26 +403,20 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
                             return const Center(child: Text('No forecast data available.'));
                           }
 
-                          // Parse the dateGenerated string into a DateTime object
                           final DateTime generatedDateTime = DateTime.parse(forecastReport.dateGenerated);
-                          // Format the DateTime object to the desired format
                           final String formattedTime = DateFormat('MMM d, y hh:mm a').format(generatedDateTime);
 
-                          // Parse the weekStartDate string into a DateTime object
                           final DateTime weekStartDateTime = DateTime.parse(forecastReport.weekStartDate);
-                          // Format the DateTime object for the week start date
                           final String formattedWeekStart = DateFormat('MMM d, y').format(weekStartDateTime);
 
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                // Use the formatted time string
                                 'Generated: $formattedTime',
                                 style: Theme.of(context).textTheme.bodyLarge,
                               ),
                               Text(
-                                // Use the new formatted week start date
                                 'For the week of: $formattedWeekStart',
                                 style: Theme.of(context).textTheme.bodyLarge,
                               ),
@@ -409,7 +426,6 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
                                   children: [
                                     _buildTableHeader(),
                                     ...forecastReport.items.map((item) {
-                                      // WRAPPING THE ROW IN AN INKWELL TO MAKE IT TAPPABLE
                                       return InkWell(
                                         onTap: () => _showForecastPlot(item),
                                         child: _buildTableRow(
@@ -471,7 +487,13 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
         child: Row(
           children: [
             Expanded(flex: 1, child: Text('$rank')),
-            Expanded(flex: 3, child: Text(medicineName)),
+            Expanded(
+              flex: 3,
+              child: Text(
+                medicineName,
+                style: medicineName == 'Medicine Deleted' ? const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey) : null,
+              )
+            ),
             Expanded(flex: 2, child: Text('$forecastedQuantity')),
             Expanded(flex: 2, child: Text('$currentStock')),
             Expanded(

@@ -107,6 +107,14 @@ from rest_framework.response import Response
 from django.utils import timezone
 from datetime import datetime, time # Import the 'time' class
 
+#----#----------9/23/25
+from django.utils import timezone
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from datetime import datetime, time
+import pytz # Import pytz for timezone support
+
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
 
@@ -370,6 +378,33 @@ def change_staff_password(request, staff_id):
     staff.save()
     return Response({'message': 'Password changed successfully'}, status=status.HTTP_200_OK)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#----------9/23/25
 # ─────────── MEDICINE MANAGEMENT ───────────
 
 @api_view(['GET', 'POST'])
@@ -386,7 +421,7 @@ def medicine_list(request):
             medicine = serializer.save()
 
             # Log the 'Add' action
-            staff_id = request.data.get('staff_id')  # You must send this from Flutter
+            staff_id = request.data.get('staff_id')
             if staff_id:
                 try:
                     staff_user = Staff.objects.get(id=staff_id)
@@ -394,13 +429,16 @@ def medicine_list(request):
                         user=staff_user,
                         medicine=medicine,
                         action_type='Add',
-                        description=f"Added new medicine: {medicine.name}"
+                        description=f"Added new medicine: {medicine.name}",
+                        timestamp=timezone.now() # Manually set the timestamp
                     )
                 except Staff.DoesNotExist:
                     print(f"Staff ID {staff_id} not found while logging action.")
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)    
+
+
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
@@ -470,33 +508,68 @@ def medicine_detail(request, pk):
                             user=staff_user,
                             medicine=updated_medicine,
                             action_type='Update',
-                            description=description
+                            description=description,
+                            timestamp=timezone.now() # Manually set the timestamp
                         )
 
                 except Staff.DoesNotExist:
                     print(f"Staff ID {staff_id} not found while logging action.")
 
             return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
         staff_id = request.GET.get('staff_id')
         medicine_name = medicine.name
-        medicine.delete()
 
-        if staff_id:
-            try:
-                staff_user = Staff.objects.get(id=staff_id)
-                InventoryLog.objects.create(
-                    user=staff_user,
-                    medicine=None,
-                    action_type='Delete',
-                    description=f"Deleted medicine: {medicine_name}"
-                )
-            except Staff.DoesNotExist:
-                print(f"Staff ID {staff_id} not found while logging delete.")
+        try:
+            with transaction.atomic():
+                # Step 1: Delete related inventory batches.
+                Inventory.objects.filter(medicine=medicine).delete()
 
-        return Response(status=status.HTTP_204_NO_CONTENT)
+                # Step 2: Delete related total quantity record.
+                TotalQuantity.objects.filter(medicine=medicine).delete()
 
+                # Step 3: Now, safely delete the Medicine record itself.
+                medicine.delete()
+
+            if staff_id:
+                try:
+                    staff_user = Staff.objects.get(id=staff_id)
+                    InventoryLog.objects.create(
+                        user=staff_user,
+                        medicine=None,
+                        action_type='Delete',
+                        description=f"Deleted medicine: {medicine_name}",
+                        timestamp=timezone.now() # Manually set the timestamp
+                    )
+                except Staff.DoesNotExist:
+                    print(f"Staff ID {staff_id} not found while logging delete.")
+
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except Exception as e:
+            print(f"Error during medicine deletion: {e}")
+            return Response({'error': 'An error occurred during the deletion process.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)        
+        
+    #----------9/23/25
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
 # =================== INVENTORY MANAGEMENT -------------------- # Renamed comment for clarity
 class InventoryCreateView(APIView):
@@ -1043,6 +1116,26 @@ def trigger_update_total_quantity(request):
     call_command('update_total_quantities')
     return JsonResponse({'status': 'success'})
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#----------9/23/25
 #----------Employee Logs Views-------
 @api_view(['GET', 'POST'])
 def employee_logs_view(request):
@@ -1052,11 +1145,39 @@ def employee_logs_view(request):
         return Response(serializer.data)
 
     elif request.method == 'POST':
-        serializer = EmployeeLogSerializer(data=request.data)
+        # Create a mutable copy of the request data
+        data = request.data.copy()
+        
+        # Manually add the current timezone-aware timestamp
+        data['timestamp'] = timezone.now()
+        
+        serializer = EmployeeLogSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#----------9/23/25
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #------------ PENDING ORDER----------
 #----------ORDER LOGS PT 1 - FOR CASHER (INSTORE)---------
@@ -2663,21 +2784,39 @@ class MedicineSalesHistoryView(APIView):
     
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#----------9/23/25
+
+
 # ==================== PURCHASE REQUEST LOGIC ===========================
 
 class PurchaseRequestListView(APIView):
     def get(self, request, *args, **kwargs):
-        # Get the latest ForecastReport
         latest_report = ForecastReport.objects.order_by('-date_generated').first()
 
         if not latest_report:
             return Response({"error": "No forecast reports found."}, status=status.HTTP_404_NOT_FOUND)
 
         # Get all forecast items for the latest report
-        # We also filter for items that have a restock amount > 0
+        # Filter for items that have a restock amount > 0 and where the medicine is not deleted
         forecast_items = ForecastItem.objects.filter(
             forecast_report=latest_report,
-            restock_amount__gt=0
+            restock_amount__gt=0,
+            medicine__isnull=False
         ).select_related('medicine', 'medicine__supplier').order_by('rank')
 
         purchase_request_list = []
@@ -2685,7 +2824,7 @@ class PurchaseRequestListView(APIView):
             medicine = item.medicine
             supplier = medicine.supplier
             
-            # Construct the item data
+            # Construct the item data using the correct 'restock_quantity' field
             purchase_request_list.append({
                 'no': item.rank,
                 'medicine_name': medicine.name,
@@ -2698,6 +2837,22 @@ class PurchaseRequestListView(APIView):
         return Response(purchase_request_list, status=status.HTTP_200_OK)
 
 # ==================== END PURCHASE REQUEST LOGIC ===========================
+#----------9/23/25
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #--------EXPIRATION NOTIFICATION
 # -------------------------------
@@ -2752,6 +2907,18 @@ def check_barcode_existence(request, barcode):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+#----------9/23/25
 #-----------
 class DailyReportsView(APIView):
     def get(self, request, *args, **kwargs):
@@ -2761,28 +2928,27 @@ class DailyReportsView(APIView):
             return Response({"error": "Date parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            # Parse the date string
             selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
         except ValueError:
             return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Set the start and end of the day using the time class
-        start_of_day = timezone.make_aware(datetime.combine(selected_date, time.min))
-        end_of_day = timezone.make_aware(datetime.combine(selected_date, time.max))
+        # ⚡️ THE FIX: Explicitly set the timezone to 'Asia/Manila'
+        manila_tz = pytz.timezone('Asia/Manila')
+        start_of_day = manila_tz.localize(datetime.combine(selected_date, time.min))
+        end_of_day = manila_tz.localize(datetime.combine(selected_date, time.max))
 
-        # Fetch logs for the specified date
-        employee_logs = EmployeeLog.objects.filter(timestamp__range=(start_of_day, end_of_day)).order_by('-timestamp')
-        order_logs = OrderLog.objects.filter(timestamp__range=(start_of_day, end_of_day)).order_by('-timestamp')
-        inventory_logs = InventoryLog.objects.filter(timestamp__range=(start_of_day, end_of_day)).order_by('-timestamp')
+        # Fetch logs within the localized time range
+        employee_logs_queryset = EmployeeLog.objects.filter(timestamp__range=(start_of_day, end_of_day)).order_by('-timestamp')
+        order_logs_queryset = OrderLog.objects.filter(timestamp__range=(start_of_day, end_of_day)).order_by('-timestamp')
+        inventory_logs_queryset = InventoryLog.objects.filter(timestamp__range=(start_of_day, end_of_day)).order_by('-timestamp')
 
-        # Create a dictionary to hold the combined data
         daily_report_data = {
-            'employee_logs': employee_logs,
-            'order_logs': order_logs,
-            'inventory_logs': inventory_logs,
+            'employee_logs': employee_logs_queryset,
+            'order_logs': order_logs_queryset,
+            'inventory_logs': inventory_logs_queryset,
         }
 
-        # Serialize the combined data
         serializer = DailyReportSerializer(daily_report_data)
         
         return Response(serializer.data, status=status.HTTP_200_OK)
+#----------9/23/25

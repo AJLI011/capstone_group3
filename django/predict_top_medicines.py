@@ -148,11 +148,13 @@ def predict_and_save_top_medicines():
                 ForecastItem(
                     forecast_report=report,
                     medicine=medicine_obj,
+                    # Added the snapshot fields here
+                    medicine_name=medicine_obj.name, 
+                    generic_name=medicine_obj.generic_name,
+                    # End added fields
                     forecasted_quantity=forecasted_quantity,
-                    # NEW FIELDS ARE PASSED HERE
                     current_stock=current_stock,
                     restock_amount=restock_amount,
-                    # END NEW FIELDS
                     rank=i + 1
                 )
             )

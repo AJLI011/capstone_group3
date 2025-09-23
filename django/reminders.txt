@@ -24,7 +24,7 @@ ORDERLOGS
 TO DELETE DATA FROM DB (FOR DUMMYDATA):
 python manage.pt shell
 
-from accounts.models import InStoreOrder, InStoreOrderItem, OnlineOrder, OnlineOrderItem, Supplier, Medicine, Inventory, Customer, Staff,OrderLog,EmployeeLog,InventoryLog
+from accounts.models import InStoreOrder, InStoreOrderItem, OnlineOrder, OnlineOrderItem, Supplier, Medicine, Inventory, Customer, Staff,OrderLog,EmployeeLog,InventoryLog,ForecastReport
 
 InStoreOrder.objects.all().delete()
 OnlineOrder.objects.all().delete()
@@ -36,6 +36,8 @@ Staff.objects.all().delete()
 OrderLog.objects.all().delete()
 EmployeeLog.objects.all().delete()
 InventoryLog.objects.all().delete()
+ForecastReport.objects.all().delete()
+
 
 
 
