@@ -71,11 +71,23 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Check Out"),
-        backgroundColor: Colors.blue,
+        title: const Text("Check Out", style: TextStyle(color: Colors.white)),
+        // CHANGED: The `backgroundColor` property is removed.
+        // This is because the flexibleSpace will provide the background.
+        elevation: 0, // OPTIONAL: Removes the shadow under the app bar for a cleaner look.
+        flexibleSpace: Container(
+          // NEW: This container holds the gradient that will fill the app bar's background.
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF003B8D), Color(0xFF0050C8)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

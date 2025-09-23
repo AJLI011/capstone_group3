@@ -47,7 +47,16 @@ class PdfPurchaseRequestService {
           pw.SizedBox(height: 20),
           pw.Table.fromTextArray(
             border: pw.TableBorder.all(width: 1),
-            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            // Updated: Reduced header font size and added column widths
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+            columnWidths: {
+              0: pw.FixedColumnWidth(0.5),    // 'No.'
+              1: pw.FlexColumnWidth(2.0),     // 'Medicine'
+              2: pw.FlexColumnWidth(1.5),     // 'Restock Amount'
+              3: pw.FlexColumnWidth(1.5),     // 'Units per Items'
+              4: pw.FlexColumnWidth(1.5),     // 'Supplier'
+              5: pw.FlexColumnWidth(1.8),     // 'Contact No.'
+            },
             headers: [
               'No.',
               'Medicine',
@@ -102,7 +111,16 @@ class PdfPurchaseRequestService {
           pw.SizedBox(height: 20),
           pw.Table.fromTextArray(
             border: pw.TableBorder.all(width: 1),
-            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            // Updated: Reduced header font size and added column widths
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+            columnWidths: {
+              0: pw.FixedColumnWidth(0.5),    // 'No.'
+              1: pw.FlexColumnWidth(2.0),     // 'Medicine'
+              2: pw.FlexColumnWidth(1.5),     // 'Low Stock Amount'
+              3: pw.FlexColumnWidth(1.5),     // 'Units per Items'
+              4: pw.FlexColumnWidth(1.5),     // 'Supplier'
+              5: pw.FlexColumnWidth(1.8),     // 'Contact No.'
+            },
             headers: [
               'No.',
               'Medicine',

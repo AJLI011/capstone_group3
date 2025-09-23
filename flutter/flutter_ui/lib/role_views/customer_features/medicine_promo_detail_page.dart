@@ -77,9 +77,20 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(medicineData!['name']),
-        backgroundColor: const Color.fromARGB(255, 10, 84, 182),
-        foregroundColor: Colors.white,
+        title: Text(
+          medicineData!['name'],
+          style: const TextStyle(color: Colors.white), // Ensures the title text is white
+        ),
+        // ADDED: The `flexibleSpace` property to hold the gradient.
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF003B8D), Color(0xFF0050C8)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+        ),
       ),
       body: Stack(
         children: [
