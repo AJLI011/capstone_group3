@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_ui/services/pdf_daily_report_service.dart';
 
-// --- Data Models ---
+// --- Data Models (Keep as is) ---
 class DailyReport {
   final List<EmployeeLog> employeeLogs;
   final List<OrderLog> orderLogs;
@@ -159,8 +159,8 @@ class InventoryLog {
       actionType: json['action_type'] ?? 'N/A',
       description: json['description'],
       timestamp: json['timestamp'],
-      userName: json['user_name'], // Accessing the top-level key
-      medicineName: json['medicine_name'] ?? 'N/A', // Directly access the medicine_name key
+      userName: json['user_name'],
+      medicineName: json['medicine_name'] ?? 'N/A',
     );
   }
 }
@@ -219,7 +219,8 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
         });
       } else {
         setState(() {
-          _errorMessage = 'Failed to load data. Status code: ${response.statusCode}';
+          _errorMessage =
+              'Failed to load data. Status code: ${response.statusCode}';
           _isLoading = false;
         });
       }
@@ -246,62 +247,7 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            _isLoading
-                ? Center(child: CircularProgressIndicator())
-                : _errorMessage.isNotEmpty
-                    ? Center(child: Text(_errorMessage, style: TextStyle(color: Colors.red)))
-                    : Expanded(
-                        child: ListView(
-                          children: [
-                            if (_dailyReport != null) ...[
-                              _buildLogSection(
-                                'Employee Logs',
-                                _dailyReport!.employeeLogs.map((log) {
-                                  return _buildLogCard(
-                                    title: log.staffName,
-                                    subtitle: '${log.action}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}',
-                                  );
-                                }).toList(),
-                                emptyMessage: 'No employee logs for this date.',
-                              ),
-                              _buildLogSection(
-                                'Order Logs',
-                                _dailyReport!.orderLogs.map((log) {
-                                  String title = log.actionType;
-                                  String subtitle = log.description ?? '';
-                                  if (log.inStoreOrderDetails != null) {
-                                    title = 'In-Store Order #${log.inStoreOrderDetails!.id}';
-                                    subtitle = 'Amount: \$${log.inStoreOrderDetails!.totalAmountAfterDiscount.toStringAsFixed(2)}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}';
-                                  } else if (log.onlineOrderDetails != null) {
-                                    title = 'Online Order #${log.onlineOrderDetails!.id}';
-                                    subtitle = 'Customer: ${log.onlineOrderDetails!.customerName} | Amount: \$${log.onlineOrderDetails!.totalAmountAfterDiscount.toStringAsFixed(2)}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}';
-                                  } else {
-                                    subtitle = '${log.description ?? ''}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}';
-                                  }
-                                  return _buildLogCard(
-                                    title: title,
-                                    subtitle: subtitle,
-                                  );
-                                }).toList(),
-                                emptyMessage: 'No order logs for this date.',
-                              ),
-                              _buildLogSection(
-                                'Inventory Logs',
-                                _dailyReport!.inventoryLogs.map((log) {
-                                  String subtitle = '${log.description ?? ''}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}';
-                                  return _buildLogCard(
-                                    title: '${log.actionType} - ${log.medicineName ?? 'N/A'}',
-                                    subtitle: subtitle,
-                                  );
-                                }).toList(),
-                                emptyMessage: 'No inventory logs for this date.',
-                              ),
-                            ]
-                          ],
-                        ),
-                      ),
-            SizedBox(height: 20),
-            // Stylish date display card
+            // Date display card
             SizedBox(
               width: double.infinity,
               child: Container(
@@ -322,7 +268,92 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
               ),
             ),
             SizedBox(height: 20),
-            // Centered and full-width "Choose a Date" button
+
+            // Main Content Area with conditional display
+            _isLoading
+                ? Center(child: CircularProgressIndicator())
+                : _errorMessage.isNotEmpty
+                    ? Center(
+                        child: Text(_errorMessage,
+                            style: TextStyle(color: Colors.red)))
+                    : _dailyReport == null
+                        ? Center(
+                            child: Text('No data available for this date.',
+                                style: TextStyle(color: Colors.grey)))
+                        : Expanded(
+                            child: Column(
+                              children: [
+                                // Employee Logs Section
+                                Expanded(
+                                  child: _buildLogSection(
+                                    'Employee Logs',
+                                    _dailyReport!.employeeLogs.map((log) {
+                                      return _buildLogCard(
+                                        title: log.staffName,
+                                        subtitle:
+                                            '${log.action}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}',
+                                      );
+                                    }).toList(),
+                                    emptyMessage: 'No employee logs for this date.',
+                                  ),
+                                ),
+                                SizedBox(height: 20),
+
+                                // Order Logs Section
+                                Expanded(
+                                  child: _buildLogSection(
+                                    'Order Logs',
+                                    _dailyReport!.orderLogs.map((log) {
+                                      String title = log.actionType;
+                                      String subtitle = log.description ?? '';
+                                      if (log.inStoreOrderDetails != null) {
+                                        title =
+                                            'In-Store Order #${log.inStoreOrderDetails!.id}';
+                                        subtitle =
+                                            'Amount: \$${log.inStoreOrderDetails!.totalAmountAfterDiscount.toStringAsFixed(2)}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}';
+                                      } else if (log.onlineOrderDetails != null) {
+                                        title =
+                                            'Online Order #${log.onlineOrderDetails!.id}';
+                                        subtitle =
+                                            'Customer: ${log.onlineOrderDetails!.customerName} | Amount: \$${log.onlineOrderDetails!.totalAmountAfterDiscount.toStringAsFixed(2)}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}';
+                                      } else {
+                                        subtitle =
+                                            '${log.description ?? ''}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}';
+                                      }
+                                      return _buildLogCard(
+                                        title: title,
+                                        subtitle: subtitle,
+                                      );
+                                    }).toList(),
+                                    emptyMessage: 'No order logs for this date.',
+                                  ),
+                                ),
+                                SizedBox(height: 20),
+
+                                // Inventory Logs Section
+                                Expanded(
+                                  child: _buildLogSection(
+                                    'Inventory Logs',
+                                    _dailyReport!.inventoryLogs.map((log) {
+                                      String subtitle =
+                                          '${log.description ?? ''}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}';
+                                      return _buildLogCard(
+                                        title:
+                                            '${log.actionType} - ${log.medicineName ?? 'N/A'}',
+                                        subtitle: subtitle,
+                                      );
+                                    }).toList(),
+                                    emptyMessage:
+                                        'No inventory logs for this date.',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+            SizedBox(height: 20),
+            
+            // "Choose a Date" button
             SizedBox(
               width: double.infinity,
               child: FilledButton(
@@ -335,6 +366,7 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
               ),
             ),
             SizedBox(height: 10),
+
             // Download as PDF button
             SizedBox(
               width: double.infinity,
@@ -361,6 +393,20 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
     );
   }
 
+  // No change to this method
+  Widget _buildLogCard({
+    required String title,
+    required String subtitle,
+  }) {
+    return Card(
+      child: ListTile(
+        title: Text(title),
+        subtitle: Text(subtitle),
+      ),
+    );
+  }
+  
+  // No change to this method
   Widget _buildLogSection(String title, List<Widget> children, {required String emptyMessage}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -379,21 +425,12 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
             ),
           )
         else
-          ...children,
-        SizedBox(height: 20),
+          Expanded(
+            child: ListView(
+              children: children,
+            ),
+          ),
       ],
-    );
-  }
-
-  Widget _buildLogCard({
-    required String title,
-    required String subtitle,
-  }) {
-    return Card(
-      child: ListTile(
-        title: Text(title),
-        subtitle: Text(subtitle),
-      ),
     );
   }
 }

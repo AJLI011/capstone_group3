@@ -82,11 +82,12 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
         IconData actionIcon;
         Color iconColor;
         switch (log['action_type']) {
-          case 'Add': // Use 'Add' with a capital 'A'
+          case 'Add':
           case 'Restock':
             actionIcon = Icons.add_box_rounded;
             iconColor = Colors.green;
             break;
+          case 'Delete': // Added 'Delete' case
           case 'removed':
           case 'Sold':
           case 'Expiration Return':
@@ -102,6 +103,14 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
           default:
             actionIcon = Icons.info_outline;
             iconColor = Colors.grey;
+        }
+
+        // Determine the medicine name text based on whether it's null
+        String medicineNameText;
+        if (log['medicine_name'] == null && log['action_type'] == 'Delete') {
+          medicineNameText = 'Medicine: Not available (deleted)';
+        } else {
+          medicineNameText = 'Medicine: ${log['medicine_name']}';
         }
 
         return Card(
@@ -153,7 +162,7 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Medicine: ${log['medicine_name']}',
+                      medicineNameText, // Use the new variable here
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
