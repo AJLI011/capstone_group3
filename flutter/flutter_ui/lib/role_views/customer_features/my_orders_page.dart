@@ -204,6 +204,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
               children: [
                 const Text('Items:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 8),
+                
                 if (items.isEmpty && deletedItemName != null && deletedItemName.isNotEmpty)
                   Text(
                     'Order for "$deletedItemName" was cancelled because the item is no longer available.',
@@ -216,6 +217,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
                   )
                 else
                   ..._buildOrderItems(items),
+
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,

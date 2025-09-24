@@ -991,14 +991,33 @@ class OnlineOrderListSerializer(serializers.ModelSerializer):
     customer_email = serializers.CharField(source='customer.email', read_only=True)
     pickup_schedule = serializers.DateTimeField(read_only=True)
     fulfilled_timestamp = serializers.DateTimeField(source='date_fulfilled', read_only=True)
-
+    
+    # NEW FIELD
+    deleted_item_name = serializers.SerializerMethodField()
+    
     class Meta:
         model = OnlineOrder
         fields = [
             'id', 'customer_name', 'customer_email', 'date_created',
             'status', 'total_amount_before_discount', 'total_amount_after_discount',
-            'is_pwd', 'items', 'pickup_schedule', 'fulfilled_timestamp'
+            'is_pwd', 'items', 'pickup_schedule', 'fulfilled_timestamp',
+            'deleted_item_name', # ADD THE NEW FIELD HERE
         ]
+
+    # NEW METHOD TO GET THE DELETED ITEM NAME
+    def get_deleted_item_name(self, obj):
+        """
+        Returns the name of a deleted item if the order has been cancelled
+        and contains no valid items.
+        """
+        if obj.status == 'cancelled' and obj.total_amount_after_discount == 0:
+            # Try to get the first (and only) item from the order's history.
+            # We use .first() in case of a multi-item order that was cancelled,
+            # though the logic is primarily for single-item cancellations.
+            first_item = obj.items.first()
+            if first_item:
+                return first_item.medicine_name
+        return None
 
     def to_representation(self, instance):
         """
@@ -1028,8 +1047,7 @@ class OnlineOrderListSerializer(serializers.ModelSerializer):
             # Update the representation to reflect the new status
             representation['status'] = 'cancelled'
         
-        return representation    
-        
+        return representation         
     
     
 
