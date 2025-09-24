@@ -168,12 +168,11 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
   }
 
   Widget _buildOrderCard(Map<String, dynamic> order) {
-    final totalAmount = double.tryParse(order['total_amount_after_discount'].toString()) ?? 0.0;
     final canBeCancelled = order['status'] == 'pending';
     final items = order['items'] as List<dynamic>;
-    
-    // Get the deleted item name from the new field
-    final deletedItemName = order['deleted_item_name'] as String?;
+
+    // Check if the order is cancelled and if all its items are marked as deleted.
+    final allItemsDeleted = order['status'] == 'cancelled' && items.every((item) => item['medicine'] != null && (item['medicine']['is_deleted'] ?? false));
 
     return Card(
       margin: const EdgeInsets.all(8.0),
@@ -204,34 +203,26 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
               children: [
                 const Text('Items:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 8),
-                
-                if (items.isEmpty && deletedItemName != null && deletedItemName.isNotEmpty)
-                  Text(
-                    'Order for "$deletedItemName" was cancelled because the item is no longer available.',
-                    style: const TextStyle(fontSize: 14, color: Colors.red),
-                  )
-                else if (items.isEmpty)
-                  const Text(
-                    'Order is cancelled. Item/s in this order are no longer available due to being removed by the pharmacy.',
-                    style: TextStyle(fontSize: 14, color: Colors.red),
-                  )
-                else
-                  ..._buildOrderItems(items),
+
+                ..._buildOrderItems(items),
 
                 const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Total Amount:',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      '₱${totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
+                
+                // This condition now correctly hides the total amount for cancelled orders with all deleted items.
+                if (!allItemsDeleted)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Total Amount:',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        '₱${(double.tryParse(order['total_amount_after_discount'].toString()) ?? 0.0).toStringAsFixed(2)}',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
                 if (canBeCancelled)
                   Padding(
                     padding: const EdgeInsets.only(top: 16.0),
@@ -244,6 +235,11 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
                       ),
                       child: const Text('Cancel'),
                     ),
+                  ),
+                if (allItemsDeleted)
+                  const Text(
+                    'This order was cancelled because the item/s are no longer available.',
+                    style: TextStyle(fontSize: 14, color: Colors.red),
                   ),
               ],
             ),
@@ -260,15 +256,14 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
       final price = double.tryParse(item['price_at_sale'].toString()) ?? 0.0;
       final itemTotal = price * quantitySold;
 
-      // New logic to handle deleted items
       final medicine = item['medicine'];
       final isDeleted = medicine != null && (medicine['is_deleted'] ?? false);
-      final medicineName = isDeleted ? 'Item Unavailable' : (medicine['name'] ?? 'N/A');
-      final genericName = isDeleted ? '' : (medicine['generic_name'] ?? 'N/A');
-      final imageUrl = isDeleted ? '' : (medicine['image'] ?? '');
-      final requiresPrescription = isDeleted ? false : (medicine['requires_prescription'] ?? false);
 
-      // New logic to handle image or placeholder
+      final medicineName = medicine != null ? medicine['name'] ?? 'N/A' : 'N/A';
+      final genericName = medicine != null ? medicine['generic_name'] ?? 'N/A' : 'N/A';
+      final imageUrl = isDeleted ? '' : (medicine['image'] ?? '');
+      final requiresPrescription = medicine != null ? medicine['requires_prescription'] ?? false : false;
+
       final imageOrPlaceholder = imageUrl.isNotEmpty
           ? Image.network(
         imageUrl,
