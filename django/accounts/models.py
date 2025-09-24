@@ -201,10 +201,6 @@ class InStoreOrderItem(models.Model):
         return f"{self.inventory_id.medicine.name} - {self.quantity_sold} sold"
 
 
-
-
-
-
 #Model for Employee Log
 class EmployeeLog(models.Model):
     ACTION_CHOICES = [
@@ -304,23 +300,6 @@ class OnlineOrderItem(models.Model):
             return f"Medicine Not Found - {self.quantity_sold} sold"
 
 
-#============================================================================================================================
-#model for instore sales tranaction
-# class InStoreOrderApproval(models.Model):
-#     class Meta:
-#         db_table = 'in_store_order_approvals_tbl'
-        
-#     order = models.OneToOneField('InStoreOrder', on_delete=models.CASCADE, related_name='approval')
-#     cashier = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, related_name='approved_in_store_orders')
-#     approval_date = models.DateTimeField(auto_now_add=True)
-
-#     def __str__(self):
-#         return f"Order #{self.order.id} approved by {self.cashier.name if self.cashier else 'Unknown'}"
-    
-#--presc
-# Models for Prescription
-#============================================================================================================================
-
 class Prescription(models.Model):
     class Meta:
         db_table = 'prescriptions_tbl'
@@ -378,16 +357,6 @@ class ForecastReport(models.Model):
         return f"Forecast Report for the week of {self.week_start_date}"
 
 
-
-
-
-
-
-
-
-
-
-
 #----------9/23/25
 # This is the child table for your two-table approach
 class ForecastItem(models.Model):
@@ -419,23 +388,6 @@ class ForecastItem(models.Model):
 #----------9/23/25
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-    
-    
-    
 #-----EXPIRY NOTIFICATION
 class StaffFCMToken(models.Model):
     """Model to store FCM tokens for staff members."""

@@ -115,6 +115,11 @@ from rest_framework import status
 from datetime import datetime, time
 import pytz # Import pytz for timezone support
 
+
+#---
+from django.db.models import F, ExpressionWrapper, DecimalField, Sum
+from django.db.models.functions import Coalesce
+
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
 
@@ -1400,13 +1405,54 @@ def create_online_order(request):
 def get_online_customer_orders(request, customer_id):
     """
     API endpoint to retrieve all online orders for a specific customer.
+    Dynamically recalculates total amount for orders with deleted items.
     """
     try:
+        # Get all orders for the customer
         orders = OnlineOrder.objects.filter(customer__id=customer_id).order_by('-date_created')
+
+        for order in orders:
+            # Check if the order status is 'pending' or 'ready for pickup'
+            if order.status in ['pending', 'ready for pickup']:
+                # Calculate the new total based on available items
+                new_total_before = order.items.filter(
+                    inventory_id__isnull=False
+                ).aggregate(
+                    total_before=Coalesce(
+                        Sum(F('price_at_sale') * F('quantity_sold')),
+                        Decimal('0.00')
+                    )
+                )['total_before']
+
+                # Check if all items in the order were deleted
+                if new_total_before == 0 and order.items.count() > 0:
+                    # Cancel the order and save the change
+                    order.status = 'cancelled'
+                    order.total_amount_before_discount = new_total_before
+                    order.total_amount_after_discount = new_total_before
+                    order.save(update_fields=['status', 'total_amount_before_discount', 'total_amount_after_discount'])
+                    continue  # Move to the next order
+
+                # Apply discount if applicable
+                new_total_after = new_total_before
+                if order.is_pwd:
+                    new_total_after = new_total_before - (new_total_before * Decimal('0.20'))
+
+                # Update the order in the database only if the total has changed
+                if order.total_amount_after_discount != new_total_after:
+                    order.total_amount_before_discount = new_total_before
+                    order.total_amount_after_discount = new_total_after
+                    order.save(update_fields=['total_amount_before_discount', 'total_amount_after_discount'])
+        
+        # Re-fetch the queryset to get the updated values from the database
+        orders = OnlineOrder.objects.filter(customer__id=customer_id).order_by('-date_created')
+
         serializer = OnlineOrderListSerializer(orders, many=True, context={'request': request})
         return Response(serializer.data)
+
     except OnlineOrder.DoesNotExist:
         return Response({"detail": "No online orders found for this customer."}, status=status.HTTP_404_NOT_FOUND)
+    
 
 @api_view(['PUT'])
 def cancel_online_order(request, order_id):
