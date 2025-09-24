@@ -783,37 +783,33 @@ class OrderLogSerializer(serializers.ModelSerializer):
 
 
 
-
+#.__                          
+#|  |__   ___________   ____  
+#|  |  \_/ __ \_  __ \_/ __ \ 
+#|   Y  \  ___/|  | \/\  ___/ 
+#|___|  /\___  >__|    \___  >
+#     \/     \/            \/ 
 #----------9/23/25
 #=================================9/1/25=============================================================
+class OrderMedicineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Medicine
+        fields = ['name', 'generic_name', 'requires_prescription', 'image']
+        
 # --- Online Orders Serializers ---
 class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
-    # This correctly uses a SerializerMethodField to prevent crashes
-    medicine_name = serializers.SerializerMethodField()
-    generic_name = serializers.SerializerMethodField()
-
+    # This will now create a nested 'medicine' object
+    medicine = OrderMedicineSerializer(source='inventory_id.medicine', read_only=True)
+    
     class Meta:
         model = OnlineOrderItem
         fields = [
             'id', 
-            'medicine_name', 
-            'generic_name',
+            'medicine', # New field for the nested medicine object
             'quantity_sold', 
             'free_quantity_given', 
             'price_at_sale'
         ]
-
-    def get_medicine_name(self, obj):
-        # Gracefully handles the case where the inventory_id is null
-        if obj.inventory_id and obj.inventory_id.medicine:
-            return obj.inventory_id.medicine.name
-        # Fallback to the name stored directly on the item if the link is broken
-        return obj.medicine_name if obj.medicine_name else "N/A"
-
-    def get_generic_name(self, obj):
-        if obj.inventory_id and obj.inventory_id.medicine:
-            return obj.inventory_id.medicine.generic_name
-        return obj.generic_name if obj.generic_name else "N/A"
     
     #----------9/23/25
     
@@ -872,40 +868,33 @@ class OnlineOrderLogDetailsSerializer(serializers.ModelSerializer):
 
 
 
-
+#.__                          
+#|  |__   ___________   ____  
+#|  |  \_/ __ \_  __ \_/ __ \ 
+#|   Y  \  ___/|  | \/\  ___/ 
+#|___|  /\___  >__|    \___  >
+#     \/     \/            \/ 
 #----------9/23/25
 #--------------------09/14/2025--------------------------- fixing return medicine
+class OrderMedicineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Medicine
+        fields = ['name', 'generic_name', 'requires_prescription', 'image']
+        
 # --- Online Orders Serializers ---
 class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
-    # Use SerializerMethodField for both name and generic name
-    medicine_name = serializers.SerializerMethodField()
-    generic_name = serializers.SerializerMethodField()
-
+    # This will now create a nested 'medicine' object
+    medicine = OrderMedicineSerializer(source='inventory_id.medicine', read_only=True)
+    
     class Meta:
         model = OnlineOrderItem
         fields = [
             'id', 
-            'medicine_name', 
-            'generic_name',
+            'medicine', # New field for the nested medicine object
             'quantity_sold', 
             'free_quantity_given', 
             'price_at_sale'
-        ]
-
-    def get_medicine_name(self, obj):
-        # 1. Try to get the name from the live inventory link
-        if obj.inventory_id and obj.inventory_id.medicine:
-            return obj.inventory_id.medicine.name
-        # 2. Fall back to the snapshot field on the model
-        return obj.medicine_name if obj.medicine_name else "N/A"
-
-    def get_generic_name(self, obj):
-        # 1. Try to get the generic name from the live inventory link
-        if obj.inventory_id and obj.inventory_id.medicine:
-            return obj.inventory_id.medicine.generic_name
-        # 2. Fall back to the snapshot field on the model
-        return obj.generic_name if obj.generic_name else "N/A"
-        
+        ]        
         #----------9/23/25
         
         
@@ -988,6 +977,13 @@ class OnlineOrderItemCreateSerializer(serializers.ModelSerializer):
 
 
 
+
+#.__                          
+#|  |__   ___________   ____  
+#|  |  \_/ __ \_  __ \_/ __ \ 
+#|   Y  \  ___/|  | \/\  ___/ 
+#|___|  /\___  >__|    \___  >
+#     \/     \/            \/ 
 #--------------------09/14/2025--------------------------- fixing return medicine
 class OnlineOrderCreateSerializer(serializers.ModelSerializer):
     items = OnlineOrderItemCreateSerializer(many=True, write_only=True)
@@ -996,10 +992,11 @@ class OnlineOrderCreateSerializer(serializers.ModelSerializer):
     )
     pickup_schedule = serializers.DateTimeField(write_only=True)
     id = serializers.IntegerField(read_only=True)
+    date_created = serializers.DateTimeField(read_only=True) # Added this line
 
     class Meta:
         model = OnlineOrder
-        fields = ['id', 'customer_id', 'is_pwd', 'items', 'pickup_schedule']
+        fields = ['id', 'customer_id', 'is_pwd', 'items', 'pickup_schedule', 'date_created'] # Added 'date_created' here
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')
@@ -1009,21 +1006,20 @@ class OnlineOrderCreateSerializer(serializers.ModelSerializer):
         
         total_before = Decimal('0.00')
         order_items_to_create = []
-        is_prescription_required = False # Flag to check if any item needs a prescription
+        is_prescription_required = False
 
         try:
             with transaction.atomic():
                 for item_data in items_data:
+                    # ... (rest of the create method remains the same) ...
                     medicine = item_data['medicine_id']
                     quantity_sold_initial = item_data['quantity_sold']
                     free_quantity_given_initial = item_data.get('free_quantity_given', 0)
                     is_promo = item_data['is_promo']
 
-                    # Check if any medicine in the order requires a prescription
                     if medicine.requires_prescription:
                         is_prescription_required = True
                     
-                    # Prepare the order item without affecting inventory
                     try:
                         inventory_batch = Inventory.objects.filter(
                             medicine=medicine,
@@ -1036,21 +1032,16 @@ class OnlineOrderCreateSerializer(serializers.ModelSerializer):
                             raise serializers.ValidationError(
                                 f"No available inventory batch found for {medicine.name}."
                             )
-
-                        # 💡 START OF ADDITION 💡
-                        # Capture the medicine's name and generic name from the Inventory's medicine
-                        # right here before creating the object.
+                        
                         medicine_name = inventory_batch.medicine.name
-                        generic_name = inventory_batch.medicine.generic_name
-                        # 💡 END OF ADDITION 💡
-
+                        generic_name = inventory_batch.medicine.name
+                        
                         order_items_to_create.append(
                             OnlineOrderItem(
                                 inventory_id=inventory_batch,
                                 quantity_sold=quantity_sold_initial,
                                 free_quantity_given=free_quantity_given_initial,
                                 price_at_sale=medicine.price,
-                                # New fields added here:
                                 medicine_name=medicine_name,
                                 generic_name=generic_name,
                             )
@@ -1062,7 +1053,6 @@ class OnlineOrderCreateSerializer(serializers.ModelSerializer):
 
                     total_before += quantity_sold_initial * medicine.price
 
-                # Create the order once all checks pass
                 order = OnlineOrder.objects.create(
                     customer=customer,
                     is_pwd=is_pwd,
@@ -1072,14 +1062,11 @@ class OnlineOrderCreateSerializer(serializers.ModelSerializer):
                     total_amount_after_discount=total_before - (total_before * Decimal('0.20') if is_pwd else Decimal('0.00'))
                 )
 
-                # Assign the newly created order to each order item
                 for item in order_items_to_create:
                     item.order = order
 
-                # Bulk create order items
                 OnlineOrderItem.objects.bulk_create(order_items_to_create)
 
-                # NEW LOGIC: Create a prescription if required
                 if is_prescription_required:
                     Prescription.objects.create(
                         online_order=order,
@@ -1090,6 +1077,8 @@ class OnlineOrderCreateSerializer(serializers.ModelSerializer):
         except Exception as e:
             raise serializers.ValidationError(f"Failed to process order: {str(e)}")
 #=================================9/1/25=============================================================
+
+
 
 
 

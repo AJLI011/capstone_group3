@@ -121,6 +121,8 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
     return Scaffold(
       appBar: AppBar(
         title: const Text('Online Orders'),
+        backgroundColor: const Color(0xFF5C7C9A),
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
