@@ -791,30 +791,81 @@ class OrderLogSerializer(serializers.ModelSerializer):
 #     \/     \/            \/ 
 #----------9/23/25
 #=================================9/1/25=============================================================
-class OrderMedicineSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Medicine
-        fields = ['name', 'generic_name', 'requires_prescription', 'image']
-        
-# --- Online Orders Serializers ---
+# class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
+#     # Change 'medicine' to a SerializerMethodField
+#     medicine = serializers.SerializerMethodField()
+    
+#     class Meta:
+#         model = OnlineOrderItem
+#         fields = [
+#             'id', 
+#             'medicine',
+#             'quantity_sold', 
+#             'free_quantity_given', 
+#             'price_at_sale'
+#         ]
+
+#     def get_medicine(self, obj):
+#         # Check if the inventory link and the related medicine still exist
+#         if obj.inventory_id and obj.inventory_id.medicine:
+#             # If they exist, return the medicine's data.
+#             # You can customize which fields to include here.
+#             return {
+#                 'name': obj.inventory_id.medicine.name,
+#                 'generic_name': obj.inventory_id.medicine.generic_name,
+#                 'requires_prescription': obj.inventory_id.medicine.requires_prescription,
+#                 'image': obj.inventory_id.medicine.image.url if obj.inventory_id.medicine.image else None,
+#             }
+#         else:
+#             # If the medicine is deleted or the link is broken,
+#             # return a placeholder object with an 'is_deleted' flag.
+#             return {
+#                 'name': 'Item Unavailable',
+#                 'generic_name': 'N/A',
+#                 'requires_prescription': False,
+#                 'image': None,
+#                 'is_deleted': True
+#             }
+    
+    #----------9/23/25
+    
 class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
-    # This will now create a nested 'medicine' object
-    medicine = OrderMedicineSerializer(source='inventory_id.medicine', read_only=True)
+    # Change 'medicine' to a SerializerMethodField
+    medicine = serializers.SerializerMethodField()
     
     class Meta:
         model = OnlineOrderItem
         fields = [
             'id', 
-            'medicine', # New field for the nested medicine object
+            'medicine',
             'quantity_sold', 
             'free_quantity_given', 
             'price_at_sale'
         ]
-    
-    #----------9/23/25
-    
-    
-    
+
+    def get_medicine(self, obj):
+        # Check if the inventory link and the related medicine still exist
+        if obj.inventory_id and obj.inventory_id.medicine:
+            # If they exist, return the medicine's data.
+            # You can customize which fields to include here.
+            return {
+                'name': obj.inventory_id.medicine.name,
+                'generic_name': obj.inventory_id.medicine.generic_name,
+                'requires_prescription': obj.inventory_id.medicine.requires_prescription,
+                'image': obj.inventory_id.medicine.image.url if obj.inventory_id.medicine.image else None,
+                'is_deleted': False
+            }
+        else:
+            # If the medicine is deleted or the link is broken,
+            # return a placeholder object with an 'is_deleted' flag,
+            # but use the snapshot fields for the name.
+            return {
+                'name': obj.medicine_name,
+                'generic_name': obj.generic_name,
+                'requires_prescription': False,
+                'image': None,
+                'is_deleted': True
+            }
     
     
     
@@ -876,25 +927,41 @@ class OnlineOrderLogDetailsSerializer(serializers.ModelSerializer):
 #     \/     \/            \/ 
 #----------9/23/25
 #--------------------09/14/2025--------------------------- fixing return medicine
-class OrderMedicineSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Medicine
-        fields = ['name', 'generic_name', 'requires_prescription', 'image']
-        
-# --- Online Orders Serializers ---
-class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
-    # This will now create a nested 'medicine' object
-    medicine = OrderMedicineSerializer(source='inventory_id.medicine', read_only=True)
+# class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
+#     # Change 'medicine' to a SerializerMethodField
+#     medicine = serializers.SerializerMethodField()
     
-    class Meta:
-        model = OnlineOrderItem
-        fields = [
-            'id', 
-            'medicine', # New field for the nested medicine object
-            'quantity_sold', 
-            'free_quantity_given', 
-            'price_at_sale'
-        ]        
+#     class Meta:
+#         model = OnlineOrderItem
+#         fields = [
+#             'id', 
+#             'medicine',
+#             'quantity_sold', 
+#             'free_quantity_given', 
+#             'price_at_sale'
+#         ]
+
+#     def get_medicine(self, obj):
+#         # Check if the inventory link and the related medicine still exist
+#         if obj.inventory_id and obj.inventory_id.medicine:
+#             # If they exist, return the medicine's data.
+#             # You can customize which fields to include here.
+#             return {
+#                 'name': obj.inventory_id.medicine.name,
+#                 'generic_name': obj.inventory_id.medicine.generic_name,
+#                 'requires_prescription': obj.inventory_id.medicine.requires_prescription,
+#                 'image': obj.inventory_id.medicine.image.url if obj.inventory_id.medicine.image else None,
+#             }
+#         else:
+#             # If the medicine is deleted or the link is broken,
+#             # return a placeholder object with an 'is_deleted' flag.
+#             return {
+#                 'name': 'Item Unavailable',
+#                 'generic_name': 'N/A',
+#                 'requires_prescription': False,
+#                 'image': None,
+#                 'is_deleted': True
+#             }  
         #----------9/23/25
         
         
@@ -917,14 +984,12 @@ class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
         
         
         
-        
+#original without the medicine name indicated pag order item         
 class OnlineOrderListSerializer(serializers.ModelSerializer):
     items = OnlineOrderItemReadSerializer(many=True, read_only=True)
     customer_name = serializers.CharField(source='customer.name', read_only=True)
     customer_email = serializers.CharField(source='customer.email', read_only=True)
     pickup_schedule = serializers.DateTimeField(read_only=True)
-
-    # ADD THIS LINE to map the fulfilled_timestamp to the date_fulfilled model field
     fulfilled_timestamp = serializers.DateTimeField(source='date_fulfilled', read_only=True)
 
     class Meta:
@@ -934,6 +999,39 @@ class OnlineOrderListSerializer(serializers.ModelSerializer):
             'status', 'total_amount_before_discount', 'total_amount_after_discount',
             'is_pwd', 'items', 'pickup_schedule', 'fulfilled_timestamp'
         ]
+
+    def to_representation(self, instance):
+        """
+        Customizes the representation to handle deleted items.
+        Removes deleted items from the order and cancels the order if all items are deleted.
+        """
+        representation = super().to_representation(instance)
+        
+        # Get the serialized items from the representation
+        serialized_items = representation['items']
+        
+        # Filter out items that are marked as deleted
+        available_items = [
+            item for item in serialized_items
+            if not item.get('medicine', {}).get('is_deleted', False)
+        ]
+
+        # Update the representation's items to only include available items
+        representation['items'] = available_items
+        
+        # If the order is pending/ready for pickup and has no available items left, cancel it.
+        if representation['status'] in ['pending', 'ready for pickup'] and not available_items:
+            # Update the order status to 'cancelled' in the database
+            instance.status = 'cancelled'
+            instance.save(update_fields=['status'])
+            
+            # Update the representation to reflect the new status
+            representation['status'] = 'cancelled'
+        
+        return representation    
+        
+    
+    
 
 class OnlineOrderItemCreateSerializer(serializers.ModelSerializer):
     medicine_id = serializers.PrimaryKeyRelatedField(

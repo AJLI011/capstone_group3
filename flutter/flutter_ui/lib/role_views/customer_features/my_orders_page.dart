@@ -130,8 +130,8 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
           } else {
             final orders = snapshot.data!;
             final ongoingOrders = orders.where((order) => order['status'] == 'pending' || order['status'] == 'ready for pickup').toList();
-            final pastOrders = orders.where((order) => 
-              order['status'] == 'completed' || order['status'] == 'cancelled'
+            final pastOrders = orders.where((order) =>
+                order['status'] == 'completed' || order['status'] == 'cancelled'
             ).toList();
 
             return TabBarView(
@@ -142,22 +142,22 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
                   child: ongoingOrders.isEmpty
                       ? const Center(child: Text('You have no ongoing orders.'))
                       : ListView.builder(
-                          itemCount: ongoingOrders.length,
-                          itemBuilder: (context, index) {
-                            return _buildOrderCard(ongoingOrders[index]);
-                          },
-                        ),
+                    itemCount: ongoingOrders.length,
+                    itemBuilder: (context, index) {
+                      return _buildOrderCard(ongoingOrders[index]);
+                    },
+                  ),
                 ),
                 RefreshIndicator(
                   onRefresh: _refreshOrders,
                   child: pastOrders.isEmpty
                       ? const Center(child: Text('You have no past orders.'))
                       : ListView.builder(
-                          itemCount: pastOrders.length,
-                          itemBuilder: (context, index) {
-                            return _buildOrderCard(pastOrders[index]);
-                          },
-                        ),
+                    itemCount: pastOrders.length,
+                    itemBuilder: (context, index) {
+                      return _buildOrderCard(pastOrders[index]);
+                    },
+                  ),
                 ),
               ],
             );
@@ -170,6 +170,10 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
   Widget _buildOrderCard(Map<String, dynamic> order) {
     final totalAmount = double.tryParse(order['total_amount_after_discount'].toString()) ?? 0.0;
     final canBeCancelled = order['status'] == 'pending';
+    final items = order['items'] as List<dynamic>;
+    
+    // Get the deleted item name from the new field
+    final deletedItemName = order['deleted_item_name'] as String?;
 
     return Card(
       margin: const EdgeInsets.all(8.0),
@@ -200,7 +204,18 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
               children: [
                 const Text('Items:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 8),
-                ..._buildOrderItems(order['items']),
+                if (items.isEmpty && deletedItemName != null && deletedItemName.isNotEmpty)
+                  Text(
+                    'Order for "$deletedItemName" was cancelled because the item is no longer available.',
+                    style: const TextStyle(fontSize: 14, color: Colors.red),
+                  )
+                else if (items.isEmpty)
+                  const Text(
+                    'Order is cancelled. Item/s in this order are no longer available due to being removed by the pharmacy.',
+                    style: TextStyle(fontSize: 14, color: Colors.red),
+                  )
+                else
+                  ..._buildOrderItems(items),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -242,22 +257,24 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
       final freeQuantity = int.tryParse(item['free_quantity_given'].toString()) ?? 0;
       final price = double.tryParse(item['price_at_sale'].toString()) ?? 0.0;
       final itemTotal = price * quantitySold;
-      
-      final medicine = item['medicine'] as Map<String, dynamic>;
-      final medicineName = medicine['name'] ?? 'N/A';
-      final genericName = medicine['generic_name'] ?? 'N/A';
-      final imageUrl = medicine['image'] ?? '';
-      final requiresPrescription = medicine['requires_prescription'] ?? false;
+
+      // New logic to handle deleted items
+      final medicine = item['medicine'];
+      final isDeleted = medicine != null && (medicine['is_deleted'] ?? false);
+      final medicineName = isDeleted ? 'Item Unavailable' : (medicine['name'] ?? 'N/A');
+      final genericName = isDeleted ? '' : (medicine['generic_name'] ?? 'N/A');
+      final imageUrl = isDeleted ? '' : (medicine['image'] ?? '');
+      final requiresPrescription = isDeleted ? false : (medicine['requires_prescription'] ?? false);
 
       // New logic to handle image or placeholder
       final imageOrPlaceholder = imageUrl.isNotEmpty
           ? Image.network(
-              imageUrl,
-              width: 60,
-              height: 60,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => const Icon(Icons.medication, size: 60, color: Colors.grey),
-            )
+        imageUrl,
+        width: 60,
+        height: 60,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => const Icon(Icons.medication, size: 60, color: Colors.grey),
+      )
           : const Icon(Icons.medication, size: 60, color: Colors.grey);
 
       return Padding(
@@ -278,13 +295,23 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
                     medicineName,
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  Text(
-                    genericName,
-                    style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.grey),
-                  ),
+                  if (!isDeleted)
+                    Text(
+                      genericName,
+                      style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.grey),
+                    ),
                   if (requiresPrescription)
                     const Text(
                       'Prescription Required',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.red,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  if (isDeleted)
+                    const Text(
+                      'This item is no longer available.',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.red,
@@ -305,10 +332,11 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
                 ],
               ),
             ),
-            Text(
-              '₱${itemTotal.toStringAsFixed(2)}',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
+            if (!isDeleted)
+              Text(
+                '₱${itemTotal.toStringAsFixed(2)}',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
           ],
         ),
       );
