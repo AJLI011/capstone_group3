@@ -1401,6 +1401,22 @@ def create_online_order(request):
             return Response({"error": f"Failed to process order: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#----------9/23/25-----------------------------------------------------------------------------------[as of 4:30 pm aaron]
 @api_view(['GET'])
 def get_online_customer_orders(request, customer_id):
     """
@@ -1452,6 +1468,25 @@ def get_online_customer_orders(request, customer_id):
 
     except OnlineOrder.DoesNotExist:
         return Response({"detail": "No online orders found for this customer."}, status=status.HTTP_404_NOT_FOUND)
+    
+#----------9/23/25-----------------------------------------------------------------------------------[as of 4:30 pm aaron]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     
 
 @api_view(['PUT'])
