@@ -81,7 +81,6 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
   // It calls the parent's function to trigger the API call.
   void _onPwdCheckboxChanged(bool? newValue) {
     // Safely get the order ID, providing a default of 0 if null.
-    // The API call will then fail gracefully with a 404.
     final orderId = widget.order['id'] as int? ?? 0;
     widget.onUpdateDiscount(orderId, newValue ?? false);
   }
@@ -109,13 +108,20 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
       // Safely parse the quantity and price, defaulting to 0 if null or invalid
       final quantitySold = int.tryParse(item['quantity_sold'].toString()) ?? 0;
       final freeQuantity = int.tryParse(item['free_quantity_given'].toString()) ?? 0;
-      final price = double.tryParse(item['price_at_sale'].toString()) ?? 0.0;
-      final itemTotal = price * quantitySold;
+      final priceAtSale = double.tryParse(item['price_at_sale'].toString()) ?? 0.0;
+      final itemTotal = priceAtSale * quantitySold;
       
+      // ⭐ UPDATED LOGIC: Determine if the item is considered deleted/unavailable.
+      // We assume a total of 0.0 means the item or its price was removed by the system.
+      final isDeleted = itemTotal == 0.0 && quantitySold > 0;
+      const deletedMessage = 'This item is no longer available';
+
       final medicine = item['medicine'] as Map<String, dynamic>;
       final medicineName = medicine['name'] ?? 'N/A';
       final genericName = medicine['generic_name'] ?? 'N/A';
-      final imageUrl = medicine['image'] ?? '';
+      
+      // Only use the image URL if the item is NOT deleted
+      final imageUrl = isDeleted ? '' : (medicine['image'] ?? ''); 
       final requiresPrescription = medicine['requires_prescription'] ?? false;
       
       String fullImageUrl = imageUrl.isNotEmpty && !imageUrl.startsWith('http')
@@ -153,44 +159,67 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                     medicineName,
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  Text(
-                    genericName,
-                    style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.grey),
-                  ),
-                  if (requiresPrescription)
+                  
+                  // ⭐ ADDED LOGIC: Display the deleted message if applicable
+                  if (isDeleted)
                     const Text(
-                      'Prescription Required',
+                      deletedMessage,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.red,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
-                  const SizedBox(height: 4),
-                  if (freeQuantity > 0)
+                  
+                  // Show item details only if NOT deleted
+                  if (!isDeleted) ...[ 
                     Text(
-                      'Quantity: $quantitySold, Promo: $freeQuantity',
-                      style: const TextStyle(fontSize: 14),
-                    )
-                  else
-                    Text(
-                      'Quantity: $quantitySold',
-                      style: const TextStyle(fontSize: 14),
+                      genericName,
+                      style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.grey),
                     ),
+                    if (requiresPrescription)
+                      const Text(
+                        'Prescription Required',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.red,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    const SizedBox(height: 4),
+                    if (freeQuantity > 0)
+                      Text(
+                        'Quantity: $quantitySold, Promo: $freeQuantity',
+                        style: const TextStyle(fontSize: 14),
+                      )
+                    else
+                      Text(
+                        'Quantity: $quantitySold',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                  ]
                 ],
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              // Enable the button only if both orderId and itemId are not null
-              onPressed: (orderId != null && itemId != null)
-                  ? () => _onRemoveItem(orderId, itemId)
-                  : null, // Disable the button if IDs are null
-            ),
-            Text(
-              '₱${itemTotal.toStringAsFixed(2)}',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
+            
+            // ⭐ ADDED LOGIC: Hide delete button and price if item is deleted/unavailable
+            if (!isDeleted)
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                // Enable the button only if both orderId and itemId are not null
+                onPressed: (orderId != null && itemId != null)
+                    ? () => _onRemoveItem(orderId, itemId)
+                    : null, // Disable the button if IDs are null
+              ),
+            
+            if (!isDeleted)
+              Text(
+                '₱${itemTotal.toStringAsFixed(2)}',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              )
+            else 
+              // Add spacing for alignment when price/delete icon are hidden
+              const SizedBox(width: 48), 
           ],
         ),
       );
@@ -283,7 +312,7 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () async {
-                               final bool? confirm = await showConfirmationDialog(
+                              final bool? confirm = await showConfirmationDialog(
                                 context,
                                 'Finalize Order?',
                                 'Are you sure the customer has picked up this order? This will deduct from the inventory.'
@@ -537,8 +566,22 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
     List<dynamic> readyForPickupOrders = _allOrders.where((order) => order['status'] == 'ready for pickup').toList();
     if (_selectedDate != null) {
       readyForPickupOrders = readyForPickupOrders.where((order) {
-        final pickupDate = DateTime.parse(order['pickup_schedule']).toLocal();
-        return pickupDate.year == _selectedDate!.year &&
+        // Check for null or invalid pickup_schedule before parsing
+        final pickupScheduleString = order['pickup_schedule']?.toString();
+        if (pickupScheduleString == null || pickupScheduleString.isEmpty) {
+          return false; // Skip orders with no pickup schedule
+        }
+        
+        DateTime? pickupDate;
+        try {
+          pickupDate = DateTime.parse(pickupScheduleString).toLocal();
+        } catch (e) {
+          // Handle parsing errors gracefully by skipping the order
+          print('Error parsing date for order ${order['id']}: $e');
+          return false;
+        }
+
+        return pickupDate!.year == _selectedDate!.year &&
                pickupDate.month == _selectedDate!.month &&
                pickupDate.day == _selectedDate!.day;
       }).toList();

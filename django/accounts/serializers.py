@@ -785,7 +785,7 @@ class OrderLogSerializer(serializers.ModelSerializer):
 
 
 
-
+# ---------------9/26/25
 #----------9/23/25-----------------------------------------------------------------------------------[as of 4:30 pm aaron]
 #=================================9/1/25===============================
     
@@ -826,7 +826,21 @@ class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
                 'is_deleted': True
             }
             
+    # ⭐ NEW: Override to_representation to set price_at_sale to 0 for deleted items
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        
+        # Check if the medicine is marked as deleted by the get_medicine method logic
+        # This is the most reliable way to check for a broken link
+        is_deleted = not (instance.inventory_id and instance.inventory_id.medicine)
+        
+        if is_deleted:
+            # If the item is deleted/unavailable, ensure the price is 0.00.
+            # This will make the itemTotal in the Flutter app 0.0, triggering 
+            # the "deleted" UI logic.
+            representation['price_at_sale'] = Decimal('0.00').quantize(Decimal('.01'))
 
+        return representation
 
 #----------9/23/25-----------------------------------------------------------------------------------[as of 4:30 pm aaron]
     
@@ -874,7 +888,7 @@ class OnlineOrderLogDetailsSerializer(serializers.ModelSerializer):
         
         
 
-
+# ---------------9/26/25
 #----------9/23/25-----------------------------------------------------------------------------------[as of 4:30 pm aaron]       
 class OnlineOrderListSerializer(serializers.ModelSerializer):
     items = OnlineOrderItemReadSerializer(many=True, read_only=True)
@@ -914,19 +928,19 @@ class OnlineOrderListSerializer(serializers.ModelSerializer):
             return representation
 
         # For all other statuses, filter out deleted items.
-        serialized_items = representation['items']
-        available_items = [
-            item for item in serialized_items
-            if not item.get('medicine', {}).get('is_deleted', False)
-        ]
-        representation['items'] = available_items
+        #serialized_items = representation['items']
+        #available_items = [
+            #item for item in serialized_items
+            #if not item.get('medicine', {}).get('is_deleted', False)
+        #]
+        #representation['items'] = available_items
         
         # This logic is now handled in the view, so this part is redundant,
         # but leaving it here doesn't hurt.
-        if representation['status'] in ['pending', 'ready for pickup'] and not available_items:
-            instance.status = 'cancelled'
-            instance.save(update_fields=['status'])
-            representation['status'] = 'cancelled'
+        #if representation['status'] in ['pending', 'ready for pickup'] and not available_items:
+            #instance.status = 'cancelled'
+            #instance.save(update_fields=['status'])
+            #representation['status'] = 'cancelled'
         
         return representation
     

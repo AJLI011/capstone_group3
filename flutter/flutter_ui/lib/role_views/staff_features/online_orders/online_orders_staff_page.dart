@@ -313,9 +313,61 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
       final imageUrl = medicine['image'] ?? '';
       final requiresPrescription = medicine['requires_prescription'] ?? false;
       
+      final isDeleted = medicine['is_deleted'] ?? false; 
+      
       String fullImageUrl = imageUrl.isNotEmpty && !imageUrl.startsWith('http')
           ? '$_baseUrl$imageUrl'
           : imageUrl;
+
+      // ---------------------------------------------
+      // UPDATED LOGIC: Display deleted message if necessary
+      // REMOVED ICON AND STRIKETHROUGH
+      // ---------------------------------------------
+      if (isDeleted) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Use the placeholder icon
+              const Icon(Icons.medication, color: Colors.grey, size: 40), 
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      // Keep the original item name without strikethrough
+                      medicineName, 
+                      style: const TextStyle(
+                        fontSize: 16, 
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    // Display the unavailability message
+                    const Text(
+                      'This item is no longer available.',
+                      style: TextStyle(
+                        fontSize: 14, 
+                        color: Colors.red, 
+                        fontStyle: FontStyle.italic
+                      ),
+                    ),
+                    // Display quantity below the message
+                    Text(
+                      'Quantity: $quantitySold',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+              // Display '---' instead of the price
+              const Text('---', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), 
+            ],
+          ),
+        );
+      }
+      // ---------------------------------------------
 
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -332,7 +384,11 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 60),
                 ),
-              ),
+              )
+            else
+              // Placeholder for non-deleted, non-image item
+              const Icon(Icons.medication, color: Colors.grey, size: 40), 
+              
             const SizedBox(width: 16),
             Expanded(
               child: Column(

@@ -445,7 +445,7 @@ def medicine_list(request):
 
 
 
-
+# ---------------9/26/25
 @api_view(['GET', 'PUT', 'DELETE'])
 @parser_classes([MultiPartParser, FormParser])
 def medicine_detail(request, pk):
@@ -529,13 +529,57 @@ def medicine_detail(request, pk):
 
         try:
             with transaction.atomic():
-                # Step 1: Delete related inventory batches.
+
+                # ⭐ CRITICAL FIX: Find and permanently update the excluded items ⭐
+                # 1. Identify all OnlineOrderItems linked to this medicine 
+                #    in 'pending' or 'ready for pickup' orders.
+                affected_items_qs = OnlineOrderItem.objects.filter(
+                    order__status__in=['pending', 'ready for pickup'],
+                    inventory_id__medicine=medicine 
+                ).select_related('order').distinct()
+                
+                from decimal import Decimal
+
+                # 2. Iterate and permanently set the price of the excluded item to 0.00
+                for item in affected_items_qs:
+                    item.price_at_sale = Decimal('0.00') 
+                    # The deletion of Inventory below will set inventory_id=NULL (due to models.SET_NULL), 
+                    # but we are setting the crucial financial field here.
+                    item.save(update_fields=['price_at_sale']) 
+                
+                # 3. Recalculate totals for all affected orders 
+                # (to reflect the 0.00 item price immediately in the UI)
+                orders_to_recalculate_ids = {item.order_id for item in affected_items_qs}
+                
+                for order_id in orders_to_recalculate_ids:
+                    order = OnlineOrder.objects.get(id=order_id)
+                    
+                    # Recalculate based on available items (which now includes 0.00 price for excluded item)
+                    new_total_before = order.items.aggregate(
+                        total_before=Coalesce(
+                            Sum(F('price_at_sale') * F('quantity_sold')),
+                            Decimal('0.00')
+                        )
+                    )['total_before']
+
+                    # Apply discount if applicable
+                    new_total_after = new_total_before
+                    if order.is_pwd:
+                        new_total_after = new_total_before - (new_total_before * Decimal('0.20'))
+
+                    order.total_amount_before_discount = new_total_before
+                    order.total_amount_after_discount = new_total_after
+                    order.save(update_fields=['total_amount_before_discount', 'total_amount_after_discount'])
+                
+                
+                # Step 4: Proceed with the deletion of Inventory and Medicine (original logic)
+                # Delete related inventory batches.
                 Inventory.objects.filter(medicine=medicine).delete()
 
-                # Step 2: Delete related total quantity record.
+                # Delete related total quantity record.
                 TotalQuantity.objects.filter(medicine=medicine).delete()
 
-                # Step 3: Now, safely delete the Medicine record itself.
+                # Now, safely delete the Medicine record itself.
                 medicine.delete()
 
             if staff_id:
@@ -1183,7 +1227,7 @@ def employee_logs_view(request):
 
 
 
-
+# ---------------9/26/25
 #------------ PENDING ORDER----------
 #----------ORDER LOGS PT 1 - FOR CASHER (INSTORE)---------
 #modified some parts of the pending order view for the order logs
@@ -1257,7 +1301,7 @@ class InStoreOrderProcessingView(APIView):
                         staff_user=cashier_user,
                         in_store_order=order,
                         action_type='in_store_approve',
-                        description=f'Sale transaction approved by {cashier_user.name}'
+                        description=f'Sale transaction approved'
                     )
                     
                     return Response({'message': 'Order approved and inventory updated'}, status=status.HTTP_200_OK)
@@ -1271,7 +1315,7 @@ class InStoreOrderProcessingView(APIView):
                         staff_user=cashier_user,
                         in_store_order=order,
                         action_type='in_store_reject',
-                        description=f'Sale transaction rejected by {cashier_user.name}'
+                        description=f'Sale transaction rejected'
                     )
                     return Response({'message': 'Order rejected'}, status=status.HTTP_200_OK)
 
@@ -1544,7 +1588,7 @@ def cancel_online_order(request, order_id):
 
 
 
-
+# ---------------9/26/25
 # Cashier and Staff Confirm Online Order
 # -------------------------------
 # Get Pending Online Orders
@@ -1564,8 +1608,48 @@ def get_pending_online_orders(request):
                 queryset=OnlineOrderItem.objects.select_related('inventory_id__medicine')
             )
         ).order_by('-date_created')
+
+
+        # 💡 NEW/MODIFIED LOGIC: Loop through orders to recalculate and save totals 💡
+        for order in orders:
+            # Only need to check the items for active status since it's already pending/ready
+            new_total_before = order.items.filter(
+                inventory_id__isnull=False
+            ).aggregate(
+                total_before=Coalesce(
+                    Sum(F('price_at_sale') * F('quantity_sold')),
+                    Decimal('0.00')
+                )
+            )['total_before']
+
+            # Apply discount if applicable
+            new_total_after = new_total_before
+            if order.is_pwd:
+                new_total_after = new_total_before - (new_total_before * Decimal('0.20'))
+
+            # Check if all items in the order were deleted, and auto-cancel if so
+            if new_total_before == 0 and order.items.count() > 0:
+                order.status = 'cancelled'
+                order.total_amount_before_discount = new_total_before
+                order.total_amount_after_discount = new_total_before
+                order.save(update_fields=['status', 'total_amount_before_discount', 'total_amount_after_discount'])
+            
+            # Update the order in the database only if the total has changed
+            # This is crucial for subsequent staff actions (confirm/finalize)
+            elif order.total_amount_after_discount != new_total_after:
+                order.total_amount_before_discount = new_total_before
+                order.total_amount_after_discount = new_total_after
+                order.save(update_fields=['total_amount_before_discount', 'total_amount_after_discount'])
+
+
+        # Re-fetch the queryset to get the updated values from the database
+        orders = OnlineOrder.objects.filter(
+            status__in=['pending', 'ready for pickup']
+        ).order_by('-date_created')
+
         serializer = OnlineOrderListSerializer(orders, many=True)
         return Response(serializer.data)
+        
     except Exception as e:
         print(f"[GET PENDING ONLINE ORDERS ERROR] {e}")
         return Response(
@@ -1856,7 +1940,7 @@ def cancel_online_order_cashier(request, orderId):
 
 
 
-
+# ---------------9/26/25
 #=====================9/1/25===================    ===================== 9/4/25 (online orders added in inventory logs)===================
 @api_view(['PUT'])
 def finalize_online_order(request, orderId):
@@ -1883,6 +1967,11 @@ def finalize_online_order(request, orderId):
             promo_items_to_deduct = {}
             
             for item in order.items.all():
+                # CRITICAL FIX: Skip items that are deleted/unlinked from inventory.
+                # This prevents the 500 error (AttributeError).
+                if not item.inventory_id or not item.inventory_id.medicine:
+                    continue
+                    
                 medicine_id = item.inventory_id.medicine.id
                 quantity_needed = item.quantity_sold + item.free_quantity_given
                 
@@ -1989,7 +2078,7 @@ def finalize_online_order(request, orderId):
                 staff_user=staff_user,
                 online_order=order,
                 action_type='online_picked_up',
-                description=f'Online order marked as picked up by cashier {staff_user.name}.'
+                description=f'Online order marked as picked up'
             )
 
             # The serializer automatically handles the date formatting correctly
@@ -2052,7 +2141,7 @@ class InStoreSalesTransactionView(generics.ListAPIView):
 
 
 
-
+# ---------------9/26/25
 # Online Orders Transaction for Manager View
 #--------------------09/14/2025--------------------------- fixing return medicine
 # Online Orders Transaction
@@ -2118,7 +2207,10 @@ def completed_online_orders_report(request):
             
             # Get items
             items_data = []
-            for item in order.items.all():
+            # ⭐ CRITICAL FIX: Filter out items with a zero sale price.
+            # This safely excludes the item that was removed while pending 
+            # (Ascof), without using inventory_id which breaks historical data.
+            for item in order.items.filter(price_at_sale__gt=0):
                 # 💡 SIMPLIFIED AND FIXED LOGIC 💡
                 # The medicine_name is now stored directly on the OnlineOrderItem
                 # So you don't need to check the inventory_id at all for the name.
@@ -2257,7 +2349,7 @@ class InStoreSalesReportView(APIView):
 
 
 
-
+# ---------------9/26/25
 #--------------------09/14/2025--------------------------- fixing return medicine
 #===================Online Sales Report=================  
 class OnlineSalesReportView(APIView):
@@ -2309,7 +2401,8 @@ class OnlineSalesReportView(APIView):
             else:
                 discount_percentage = Decimal('0.00')
 
-            order_items = OnlineOrderItem.objects.filter(order=order)
+            # ⭐ THE FINAL FIX APPLIED CORRECTLY: Filter out excluded items (price_at_sale = 0)
+            order_items = OnlineOrderItem.objects.filter(order=order, price_at_sale__gt=0)
             
             # Iterate through each item in the order to aggregate sales and quantities.
             for item in order_items:
