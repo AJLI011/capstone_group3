@@ -266,7 +266,7 @@ class InventoryLogSerializer(serializers.ModelSerializer):
 
     def get_medicine_name(self, obj):
         # ✅ It's better to return None or a predictable empty string
-        return obj.medicine.name if obj.medicine else None
+        return obj.medicine_name_log
 #===========================09/13/25 (ELTON)========================================================
 
 

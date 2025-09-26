@@ -430,7 +430,8 @@ def medicine_list(request):
                         medicine=medicine,
                         action_type='Add',
                         description=f"Added new medicine: {medicine.name}",
-                        timestamp=timezone.now() # Manually set the timestamp
+                        medicine_name_log=medicine.name, # <-- Add this line
+                        timestamp=timezone.now()
                     )
                 except Staff.DoesNotExist:
                     print(f"Staff ID {staff_id} not found while logging action.")
@@ -509,6 +510,7 @@ def medicine_detail(request, pk):
                             medicine=updated_medicine,
                             action_type='Update',
                             description=description,
+                            medicine_name_log=updated_medicine.name, # <-- Add this line for the name
                             timestamp=timezone.now() # Manually set the timestamp
                         )
 
@@ -518,9 +520,10 @@ def medicine_detail(request, pk):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    #(Corrected DELETE block)
     elif request.method == 'DELETE':
         staff_id = request.GET.get('staff_id')
-        medicine_name = medicine.name
+        medicine_name = medicine.name  # This line is correct, you're capturing the name.
 
         try:
             with transaction.atomic():
@@ -536,12 +539,14 @@ def medicine_detail(request, pk):
             if staff_id:
                 try:
                     staff_user = Staff.objects.get(id=staff_id)
+                    # ✅ THIS IS THE KEY CHANGE:
                     InventoryLog.objects.create(
                         user=staff_user,
                         medicine=None,
                         action_type='Delete',
                         description=f"Deleted medicine: {medicine_name}",
-                        timestamp=timezone.now() # Manually set the timestamp
+                        medicine_name_log=medicine_name, # <-- Add this line to save the name
+                        timestamp=timezone.now()
                     )
                 except Staff.DoesNotExist:
                     print(f"Staff ID {staff_id} not found while logging delete.")
@@ -550,8 +555,7 @@ def medicine_detail(request, pk):
 
         except Exception as e:
             print(f"Error during medicine deletion: {e}")
-            return Response({'error': 'An error occurred during the deletion process.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)        
-        
+            return Response({'error': 'An error occurred during the deletion process.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     #----------9/23/25
     
     
@@ -591,7 +595,8 @@ class InventoryCreateView(APIView):
                         user=staff_user,
                         medicine=medicine,
                         action_type='Restock',
-                        description=f"Restocked {qty_to_add} units (Batch: {batch})"
+                        description=f"Restocked {qty_to_add} units (Batch: {batch})",
+                        medicine_name_log=medicine.name, # ✅ Add this line
                     )
                 except Staff.DoesNotExist:
                     print(f"Staff ID {staff_id} not found while logging restock action.")
@@ -836,7 +841,8 @@ def delete_expired_batch(request, pk):
                 user=staff_user,
                 medicine=medicine,
                 action_type='Expiration Return',
-                description=f"Returned {quantity} units of {medicine.name} (Batch: {batch}) due to expiration"
+                description=f"Returned {quantity} units of {medicine.name} (Batch: {batch}) due to expiration",
+                medicine_name_log=medicine.name # ✅ Add this line
             )
 
         # Now, and only now, delete the item from the Inventory table
@@ -886,7 +892,8 @@ def set_promo(request, inventory_id):
                 user=staff,
                 medicine=inventory_item.medicine,
                 action_type='Promo Set',
-                description=f"Set promo for batch {inventory_item.batch_num} from {start_date} to {end_date}"
+                description=f"Set promo for batch {inventory_item.batch_num} from {start_date} to {end_date}",
+                medicine_name_log=inventory_item.medicine.name # ✅ Add this line
             )
         except Staff.DoesNotExist:
             print(f"Staff with ID {staff_id} not found for promo logging.")
@@ -916,7 +923,8 @@ def remove_promo(request):
                     user=staff,
                     medicine=inventory.medicine,
                     action_type='Promo Removed',
-                    description=f"Removed promo for batch {inventory.batch_num}"
+                    description=f"Removed promo for batch {inventory.batch_num}",
+                    medicine_name_log=inventory.medicine.name # ✅ Add this line
                 )
             except Staff.DoesNotExist:
                 print(f"Staff with ID {staff_id} not found for promo logging.")
@@ -1057,7 +1065,6 @@ class PromoMedicineDetailView(APIView):
 
 
 #========= 9/13/25 UPDATED 4 LAZY LOADING ================
-#For Normal Medicine 
 #For Normal Medicine 
 @api_view(['GET'])
 def get_customer_medicines(request):
@@ -1236,12 +1243,13 @@ class InStoreOrderProcessingView(APIView):
                         batch.save(update_fields=['quantity'])
                         
                         InventoryLog.objects.create(
-                            user=cashier_user, # Corrected to use cashier user
+                            user=cashier_user,
                             medicine=batch.medicine,
                             action_type='Sold',
                             description=f"Approved sale of {total_to_deduct} units "
-                                        f"of {batch.medicine.name} (Batch: {batch.batch_num}) "
-                                        f"from In-Store Order #{order.id}."
+                                         f"of {batch.medicine.name} (Batch: {batch.batch_num}) "
+                                         f"from In-Store Order #{order.id}.",
+                            medicine_name_log=batch.medicine.name # <-- Add this line
                         )
                     
                     order.cashier = cashier_user
@@ -1855,7 +1863,8 @@ def finalize_online_order(request, orderId):
                         user=staff_user,
                         medicine=batch.medicine,
                         action_type='Sold',
-                        description=f"Sold {amount_to_take} units of '{batch.medicine.name}' (Batch: {batch.batch_num}) from online order #{orderId}."
+                        description=f"Sold {amount_to_take} units of '{batch.medicine.name}' (Batch: {batch.batch_num}) from online order #{orderId}.",
+                        medicine_name_log=batch.medicine.name # <-- Add this line
                     )
 
             # Step 3: Deduct from promo inventory batches (is_promo=True)
@@ -1892,7 +1901,8 @@ def finalize_online_order(request, orderId):
                         medicine=batch.medicine,
                         action_type='Sold',
                         description=f"Sold {amount_to_take} units of '{batch.medicine.name}' (Batch: {batch.batch_num}) from online order #{orderId}."
-                        f"({item.quantity_sold} paid, {item.free_quantity_given} free)."
+                        f"({item.quantity_sold} paid, {item.free_quantity_given} free).",
+                        medicine_name_log=batch.medicine.name # <-- Add this line
                     )
 
             # Step 4: Update the order status and create a log entry after successful deduction.
