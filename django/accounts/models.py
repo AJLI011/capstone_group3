@@ -123,7 +123,7 @@ class Promo(models.Model):
         return f"Promo for {self.inventory_id.medicine.name}"
 
 
-#================================8/31/25 changes
+#================================09/26/25 ELTON=================================================================================
 # Model for Inventory Logs
 class InventoryLog(models.Model):
     ACTION_CHOICES = [
@@ -139,9 +139,11 @@ class InventoryLog(models.Model):
     user = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True)
     # Corrected line below:
     medicine = models.ForeignKey('Medicine', on_delete=models.SET_NULL, null=True, blank=True)
+    medicine_name_log = models.CharField(max_length=100, default='[Unknown]') # Add this new field to store the medicine's name
     action_type = models.CharField(max_length=20, choices=ACTION_CHOICES)
     timestamp = models.DateTimeField(auto_now_add=True)
     description = models.TextField()
+    
 
     class Meta:
         db_table = 'inventory_logs'
@@ -154,7 +156,7 @@ class InventoryLog(models.Model):
         else:
             return f"{self.user} - {self.action_type} - [Medicine Deleted]"
 
-#================================8/31/25 changes
+#================================09/26/25 ELTON=================================================================================
 
         
 
