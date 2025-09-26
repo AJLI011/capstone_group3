@@ -7,104 +7,48 @@ import 'dart:developer';
 
 const String _baseUrl = 'http://10.0.2.2:8000';
 
-// Your existing data models (OnlineOrderItem, OnlineOrderDetails, etc.) go here
-// ... (The models you provided are unchanged and should be kept as is) ...
+// The helper function _parseMedicineName is removed as it was only used by the removed item models.
 
-// NEW: Data model for OnlineOrderItem
-class OnlineOrderItem {
-  final String medicineName;
-  final int quantitySold;
-  final int freeQuantity; // Added new field
-  final double priceAtSale;
+// OnlineOrderItem class is removed (as it is no longer used by OnlineOrderDetails)
+// InStoreOrderItem class is removed (as it is no longer used by InStoreOrderDetails)
 
-  OnlineOrderItem({
-    required this.medicineName,
-    required this.quantitySold,
-    required this.freeQuantity, // Updated constructor
-    required this.priceAtSale,
-  });
-
-  factory OnlineOrderItem.fromJson(Map<String, dynamic> json) {
-    return OnlineOrderItem(
-      medicineName: json['medicine_name'] ?? 'Unknown',
-      quantitySold: json['quantity_sold'] ?? 0,
-      freeQuantity: json['free_quantity_given'] ?? 0, // Updated factory
-      priceAtSale: double.tryParse(json['price_at_sale']?.toString() ?? '0.0') ?? 0.0,
-    );
-  }
-}
-
-// NEW: Data model for OnlineOrderDetails
 class OnlineOrderDetails {
   final int id;
   final String customerName;
   final String customerEmail;
-  final List<OnlineOrderItem> items;
 
   OnlineOrderDetails({
     required this.id,
     required this.customerName,
     required this.customerEmail,
-    required this.items,
   });
 
   factory OnlineOrderDetails.fromJson(Map<String, dynamic> json) {
-    var list = json['items'] as List;
-    List<OnlineOrderItem> itemsList = list.map((i) => OnlineOrderItem.fromJson(i)).toList();
     return OnlineOrderDetails(
       id: json['id'] ?? 0,
       customerName: json['customer_name'] ?? 'Unknown',
       customerEmail: json['customer_email'] ?? 'Unknown',
-      items: itemsList,
     );
   }
 }
 
-// Existing InStoreOrderItem model (unchanged)
-class InStoreOrderItem {
-  final String medicineName;
-  final int quantitySold;
-  final double priceAtSale;
-
-  InStoreOrderItem({
-    required this.medicineName,
-    required this.quantitySold,
-    required this.priceAtSale,
-  });
-
-  factory InStoreOrderItem.fromJson(Map<String, dynamic> json) {
-    return InStoreOrderItem(
-      medicineName: json['medicine_name'] ?? 'Unknown',
-      quantitySold: json['quantity_sold'] ?? 0,
-      priceAtSale: double.tryParse(json['price_at_sale']?.toString() ?? '0.0') ?? 0.0,
-    );
-  }
-}
-
-// Existing InStoreOrderDetails model (unchanged)
 class InStoreOrderDetails {
   final int id;
   final String staffName;
-  final List<InStoreOrderItem> items;
 
   InStoreOrderDetails({
     required this.id,
     required this.staffName,
-    required this.items,
   });
 
   factory InStoreOrderDetails.fromJson(Map<String, dynamic> json) {
-    var list = json['items'] as List;
-    List<InStoreOrderItem> itemsList = list.map((i) => InStoreOrderItem.fromJson(i)).toList();
     return InStoreOrderDetails(
       id: json['id'] ?? 0,
       staffName: json['staff_name'] ?? 'Unknown',
-      items: itemsList,
     );
   }
 }
 
-// UPDATED: OrderLog model with dynamic orderDetails field
 class OrderLog {
   final int id;
   final String staffName;
@@ -112,7 +56,7 @@ class OrderLog {
   final String actionType;
   final String description;
   final DateTime timestamp;
-  final dynamic orderDetails; // Can be InStoreOrderDetails or OnlineOrderDetails
+  final dynamic orderDetails;
 
   OrderLog({
     required this.id,
@@ -128,10 +72,8 @@ class OrderLog {
     dynamic parsedDetails;
     if (json['order_details'] != null) {
       if (json['order_details'].containsKey('customer_name')) {
-        // It's an online order because it has a customer_name
         parsedDetails = OnlineOrderDetails.fromJson(json['order_details']);
       } else if (json['order_details'].containsKey('staff_name')) {
-        // It's an in-store order because it has a staff_name
         parsedDetails = InStoreOrderDetails.fromJson(json['order_details']);
       }
     }
@@ -157,13 +99,12 @@ class OrderLogsScreen extends StatefulWidget {
 }
 
 class _OrderLogsScreenState extends State<OrderLogsScreen> {
-  // NEW: State variables for pagination
   List<OrderLog> _orderLogs = [];
   bool _isLoading = true;
   bool _isLoadingMore = false;
   bool _hasMoreData = true;
   int _currentPage = 1;
-  final int _pageSize = 10; // New page size
+  final int _pageSize = 10;
   final _scrollController = ScrollController();
 
   @override
@@ -185,13 +126,12 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
       setState(() {
         _orderLogs = logs;
         _isLoading = false;
-        _hasMoreData = logs.length == _pageSize; // Check if there's potentially more data
+        _hasMoreData = logs.length == _pageSize;
       });
     } catch (e) {
       log('Error fetching initial logs: $e');
       setState(() {
         _isLoading = false;
-        // Optionally, show an error message
       });
     }
   }
@@ -278,7 +218,6 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
       controller: _scrollController,
       itemCount: _orderLogs.length + (_isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
-        // Show a loading indicator at the bottom
         if (index == _orderLogs.length) {
           return const Center(
             child: Padding(
@@ -289,21 +228,88 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
         }
 
         final log = _orderLogs[index];
+        final isOnlineOrder = log.orderDetails is OnlineOrderDetails;
+
+        IconData actionIcon;
+        Color iconColor;
+        switch (log.actionType) {
+          case 'In-store Purchase':
+            actionIcon = Icons.store_rounded;
+            iconColor = Colors.green;
+            break;
+          case 'Online Order':
+            actionIcon = Icons.web_rounded;
+            iconColor = Colors.blue;
+            break;
+          case 'Order Cancelled':
+            actionIcon = Icons.cancel_rounded;
+            iconColor = Colors.red;
+            break;
+          case 'Order Updated':
+            actionIcon = Icons.update_rounded;
+            iconColor = Colors.orange;
+            break;
+          default:
+            actionIcon = Icons.info_outline;
+            iconColor = Colors.grey;
+        }
+
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: ExpansionTile(
-            title: Text(
-              '${log.actionType.replaceAll('_', ' ')} by ${log.staffName}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            leading: Icon(
+              actionIcon,
+              color: iconColor,
+              size: 30,
             ),
-            subtitle: Text(DateFormat('yyyy-MM-dd h:mm a').format(log.timestamp)),
+            title: Text(
+              '${log.actionType.replaceAll('_', ' ')}',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: iconColor,
+              ),
+            ),
+            subtitle: Text(
+              isOnlineOrder ? (log.orderDetails as OnlineOrderDetails).customerName : log.staffName,
+              style: const TextStyle(
+                color: Colors.black54,
+              ),
+            ),
+            trailing: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  DateFormat('MM-dd-yyyy').format(log.timestamp),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+                Text(
+                  DateFormat('hh:mm a').format(log.timestamp),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
             children: <Widget>[
+              const Divider(height: 1, indent: 16, endIndent: 16),
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Description: ${log.description}', style: const TextStyle(fontSize: 16)),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Description: ${log.description}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     if (log.orderDetails is InStoreOrderDetails)
                       _buildInStoreOrderDetails(log.orderDetails as InStoreOrderDetails)
@@ -325,12 +331,6 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
       children: [
         const Text('In-Store Order Details:', style: TextStyle(fontWeight: FontWeight.bold)),
         Text('Order ID: #${details.id}'),
-        Text('Cashier: ${details.staffName}'),
-        const SizedBox(height: 8),
-        const Text('Items:', style: TextStyle(fontWeight: FontWeight.bold)),
-        ...details.items.map((item) => Text(
-          ' - ${item.medicineName} (x${item.quantitySold}) - Php${item.priceAtSale.toStringAsFixed(2)}',
-        )).toList(),
       ],
     );
   }
@@ -342,17 +342,6 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
         const Text('Online Order Details:', style: TextStyle(fontWeight: FontWeight.bold)),
         Text('Order ID: #${details.id}'),
         Text('Customer: ${details.customerName} (${details.customerEmail})'),
-        const SizedBox(height: 8),
-        const Text('Items:', style: TextStyle(fontWeight: FontWeight.bold)),
-        ...details.items.map((item) {
-          String quantityText = ' (x${item.quantitySold})';
-          if (item.freeQuantity > 0) {
-            quantityText = ' (x${item.quantitySold} + ${item.freeQuantity} Promo)';
-          }
-          return Text(
-            ' - ${item.medicineName}${quantityText} - Php${item.priceAtSale.toStringAsFixed(2)}',
-          );
-        }).toList(),
       ],
     );
   }

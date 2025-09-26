@@ -267,90 +267,78 @@ class _CashierViewState extends State<CashierView>
                     child: Material(
                       color: Colors.white,
                       elevation: 16,
-                      child: isLoading
-                          ? const Center(child: CircularProgressIndicator())
-                          : Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Profile Section
+                          Container(
+                            color: const Color(0xFF5C7C9A),
+                            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                            child: Column(
                               children: [
-                                const SizedBox(height: 60),
                                 const CircleAvatar(
                                   radius: 40,
-                                  child: Icon(Icons.person, size: 50),
+                                  backgroundColor: Colors.white,
+                                  child: Icon(Icons.person, size: 50, color: Color(0xFF5C7C9A)),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 10),
                                 Text(
-                                  staffName ?? 'User Name',
-                                  textAlign: TextAlign.center,
+                                  staffName ?? 'Cashier Name',
                                   style: const TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
+                                    color: Colors.white,
                                   ),
                                 ),
                                 Text(
-                                  staffEmail ?? 'user.email@example.com',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(color: Colors.grey),
-                                ),
-                                const Divider(height: 40),
-                                Expanded(
-                                  child: SingleChildScrollView(
-                                    child: Column(
-                                      children: [
-                                        _drawerItem(
-                                            Icons.assignment,
-                                            'Pending Orders',
-                                            () => _open(PendingOrdersScreen(
-                                                cashierId: widget.staffId))),
-                                        _drawerItem(
-                                            Icons.store,
-                                            'Online Orders',
-                                            () => _open(
-                                                const CashierOnlineOrdersPage())),
-                                        _drawerItem(
-                                            Icons.shopping_bag,
-                                            'In-store Sales Transaction',
-                                            () => _open(
-                                                const InStoreTransactionPage())),
-                                        _drawerItem(
-                                            Icons.smartphone,
-                                            'Online Sales Transaction',
-                                            () => _open(
-                                                const OnlineOrdersReportPage())),
-                                        _drawerItem(
-                                            Icons.edit,
-                                            'Edit Profile',
-                                            () => _open(EditCashierProfilePage(
-                                                staffId: widget.staffId))),
-                                        _drawerItem(
-                                            Icons.lock,
-                                            'Change Password',
-                                            () => _open(
-                                                ChangeCashierPasswordPage(
-                                                    staffId: widget.staffId))),
-                                        _drawerItem(
-                                            Icons.receipt_long,
-                                            'Prescriptions',
-                                            () => _open(
-                                                const PrescriptionsCashier())),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blue.shade700,
-                                    ),
-                                    onPressed: _confirmLogout,
-                                    child: const Text(
-                                      'Logout',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
+                                  staffEmail ?? 'cashier.email@example.com',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
                                   ),
                                 ),
                               ],
                             ),
+                          ),
+                          // Menu Items List
+                          Expanded(
+                            child: ListView(
+                              padding: EdgeInsets.zero,
+                              children: [
+                                _drawerItem(Icons.assignment, 'Pending Orders',
+                                    () => _open(PendingOrdersScreen(cashierId: widget.staffId))),
+                                _drawerItem(Icons.store, 'Online Orders',
+                                    () => _open(const CashierOnlineOrdersPage())),
+                                _drawerItem(Icons.shopping_bag, 'In-store Sales Transaction',
+                                    () => _open(const InStoreTransactionPage())),
+                                _drawerItem(Icons.smartphone, 'Online Sales Transaction',
+                                    () => _open(const OnlineOrdersReportPage())),
+                                _drawerItem(Icons.receipt_long, 'Prescriptions',
+                                    () => _open(const PrescriptionsCashier())),
+                                _drawerItem(Icons.edit, 'Edit Profile',
+                                    () => _open(EditCashierProfilePage(staffId: widget.staffId))),
+                                _drawerItem(Icons.lock, 'Change Password',
+                                    () => _open(ChangeCashierPasswordPage(staffId: widget.staffId))),
+                              ],
+                            ),
+                          ),
+                          // Logout Button
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF5C7C9A),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: _confirmLogout,
+                              child: const Text('Logout'),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -553,11 +541,22 @@ class _CashierViewState extends State<CashierView>
   }
 
   Widget _drawerItem(IconData icon, String title, VoidCallback onTap) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      onTap: onTap,
-      hoverColor: Colors.blue.shade50,
+    return Column(
+      children: [
+        ListTile(
+          leading: Icon(icon, color: Colors.blueGrey.shade700),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: Colors.blueGrey.shade700,
+              fontSize: 16,
+            ),
+          ),
+          onTap: onTap,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        ),
+        const Divider(height: 1, color: Colors.black12),
+      ],
     );
   }
 }

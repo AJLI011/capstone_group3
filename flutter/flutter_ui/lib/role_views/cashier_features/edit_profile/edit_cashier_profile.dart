@@ -3,6 +3,20 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// -------------------------------------------------------------------
+// Constants
+// -------------------------------------------------------------------
+
+const String _apiUrlBase = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000',
+);
+const Color _primaryColor = Color(0xFF5C7C9A);
+
+// -------------------------------------------------------------------
+// Edit Cashier Profile Page
+// -------------------------------------------------------------------
+
 class EditCashierProfilePage extends StatefulWidget {
   final int staffId;
 
@@ -13,52 +27,84 @@ class EditCashierProfilePage extends StatefulWidget {
 }
 
 class _EditCashierProfilePageState extends State<EditCashierProfilePage> {
-  final _formKey = GlobalKey<FormState>();
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController contactController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController roleController = TextEditingController();
+  // --- State & Controllers ---
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  bool isLoading = true;
+  late final TextEditingController _nameController;
+  late final TextEditingController _contactController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _roleController;
 
+  bool _isLoading = true;
+  bool _isSaving = false;
+
+  // --- Lifecycle ---
   @override
   void initState() {
     super.initState();
-    fetchCashierData();
+    _nameController = TextEditingController();
+    _contactController = TextEditingController();
+    _emailController = TextEditingController();
+    _roleController = TextEditingController();
+    _fetchCashierData();
   }
 
-  void fetchCashierData() async {
-    final response = await http.get(
-      Uri.parse('http://10.0.2.2:8000/api/staff/${widget.staffId}/profile/'),
-      headers: {'Content-Type': 'application/json'},
-    );
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _contactController.dispose();
+    _emailController.dispose();
+    _roleController.dispose();
+    super.dispose();
+  }
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      setState(() {
-        nameController.text = data['name'] ?? '';
-        contactController.text = data['contact_num'] ?? '';
-        emailController.text = data['email'] ?? '';
-        roleController.text = data['role'] ?? 'cashier';
-        isLoading = false;
-      });
-    } else {
-      print('Failed to load cashier data: ${response.statusCode}');
-      setState(() {
-        isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load profile data')),
-      );
+  // --- API Methods ---
+
+  /// Fetches the current cashier data from the API.
+  Future<void> _fetchCashierData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final url = Uri.parse('$_apiUrlBase/api/staff/${widget.staffId}/profile/');
+      final response = await http.get(url, headers: {'Content-Type': 'application/json'});
+
+      if (mounted) {
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          _nameController.text = data['name'] ?? '';
+          _contactController.text = data['contact_num'] ?? '';
+          _emailController.text = data['email'] ?? '';
+          _roleController.text = data['role'] ?? 'cashier';
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Failed to load profile: ${response.statusCode}')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Network error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  Future<void> saveProfile() async {
-    final url = Uri.parse('http://10.0.2.2:8000/api/staff/${widget.staffId}/update-profile/');
+  /// Saves the profile changes to the API.
+  Future<void> _saveProfile() async {
+    if (!mounted) return;
+    setState(() => _isSaving = true);
+
+    final url = Uri.parse('$_apiUrlBase/api/staff/${widget.staffId}/update-profile/');
     final body = json.encode({
-      'email': emailController.text.trim(),
-      'name': nameController.text.trim(),
-      'contact_num': contactController.text.trim(),
+      'email': _emailController.text.trim(),
+      'name': _nameController.text.trim(),
+      'contact_num': _contactController.text.trim(),
     });
 
     try {
@@ -68,20 +114,24 @@ class _EditCashierProfilePageState extends State<EditCashierProfilePage> {
         body: body,
       );
 
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final updatedStaffData = data['staff'];
 
+        // Update SharedPreferences on successful save
         if (updatedStaffData != null) {
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('name', updatedStaffData['name'] ?? nameController.text.trim());
-          await prefs.setString('email', updatedStaffData['email'] ?? emailController.text.trim());
+          await prefs.setString('name', updatedStaffData['name'] ?? _nameController.text.trim());
+          await prefs.setString('email', updatedStaffData['email'] ?? _emailController.text.trim());
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully!')),
         );
-        Navigator.pop(context, true);
+        Navigator.pop(context, true); // Pop and signal success
       } else {
         final data = json.decode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -89,88 +139,162 @@ class _EditCashierProfilePageState extends State<EditCashierProfilePage> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Something went wrong')),
-      );
-      print('Error: $e');
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Something went wrong, please try again.')),
+        );
+      }
     }
   }
 
+  // --- UI Handler ---
+
+  /// Displays a confirmation dialog before saving.
   Future<void> _confirmSaveProfile() async {
-    final confirm = await showDialog<bool>(
+    if (!_formKey.currentState!.validate()) return;
+    
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Confirm Save'),
+        title: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w600)),
         content: const Text('Are you sure you want to save these changes?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(context, false), // User cancelled
             child: const Text('Cancel'),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true), // User confirmed
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryColor,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Save'),
           ),
         ],
       ),
     );
 
-    if (confirm == true) {
-      saveProfile();
+    if (confirmed == true) {
+      _saveProfile();
     }
   }
 
+  // --- Helper Widget for consistent input design ---
+  Widget _buildTextFormField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool readOnly = false,
+    String? Function(String?)? validator,
+    Color? readOnlyBackground,
+  }) {
+    return TextFormField(
+      controller: controller,
+      readOnly: readOnly,
+      style: TextStyle(color: readOnly ? Colors.grey.shade700 : Colors.black),
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        prefixIcon: Icon(icon),
+        fillColor: readOnlyBackground,
+        filled: readOnlyBackground != null,
+      ),
+      validator: validator,
+    );
+  }
+
+  // --- Main Build Method ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Edit Profile"),
-      backgroundColor: const Color(0xFF5C7C9A), // Updated color
-      foregroundColor: Colors.white, // Updated color for font and icon
-      
+      appBar: AppBar(
+        title: const Text(
+          "Edit Profile",
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: _primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
+      body: _isLoading
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: _primaryColor),
+                  SizedBox(height: 16),
+                  Text('Loading profile...',
+                      style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
               child: Form(
                 key: _formKey,
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    TextFormField(
-                      controller: nameController,
-                      decoration: const InputDecoration(labelText: "Name"),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your name';
-                        }
-                        return null;
-                      },
+                    _buildTextFormField(
+                      controller: _nameController,
+                      label: "Name",
+                      icon: Icons.person_rounded,
+                      validator: (value) =>
+                          value!.trim().isEmpty ? 'Please enter a name' : null,
                     ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: contactController,
-                      decoration: const InputDecoration(labelText: "Contact"),
+                    const SizedBox(height: 24),
+                    _buildTextFormField(
+                      controller: _contactController,
+                      label: "Contact",
+                      icon: Icons.phone_rounded,
                     ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: roleController,
-                      decoration: const InputDecoration(labelText: "Role"),
+                    const SizedBox(height: 24),
+                    _buildTextFormField(
+                      controller: _roleController,
+                      label: "Role",
+                      icon: Icons.badge_rounded,
                       readOnly: true,
+                      readOnlyBackground: Colors.grey.shade100,
                     ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: emailController,
-                      decoration: const InputDecoration(labelText: "Email"),
+                    const SizedBox(height: 24),
+                    _buildTextFormField(
+                      controller: _emailController,
+                      label: "Email",
+                      icon: Icons.email_rounded,
                       readOnly: true,
+                      readOnlyBackground: Colors.grey.shade100,
                     ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          _confirmSaveProfile();
-                        }
-                      },
-                      child: const Text("Save Changes"),
+                    const SizedBox(height: 40),
+                    ElevatedButton.icon(
+                      onPressed: _isSaving ? null : _confirmSaveProfile,
+                      icon: _isSaving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save_rounded),
+                      label: Text(
+                        _isSaving ? 'SAVING...' : 'SAVE CHANGES',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primaryColor,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(55),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 5,
+                      ),
                     ),
                   ],
                 ),

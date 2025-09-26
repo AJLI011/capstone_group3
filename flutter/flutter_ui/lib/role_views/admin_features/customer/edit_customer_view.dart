@@ -3,7 +3,13 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 //import 'package:shared_preferences/shared_preferences.dart';
+
+/// -------------------------------------------------------------------
+/// Customer Edit Form View
+/// -------------------------------------------------------------------
+
 class EditCustomerView extends StatefulWidget {
+  // --- Data (Immutable) ---
   final int id;
   final String name;
   final String email;
@@ -22,58 +28,92 @@ class EditCustomerView extends StatefulWidget {
 }
 
 class _EditCustomerViewState extends State<EditCustomerView> {
-  final _formKey = GlobalKey<FormState>();
-  late TextEditingController nameCtrl;
-  late TextEditingController emailCtrl;
-  late TextEditingController contactCtrl;
+  // --- State & Controllers ---
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  static const Color _primaryColor = Color(0xFF5C7C9A);
+  static const String _apiUrl = 'http://10.0.2.2:8000/api/customers/';
 
-  bool isSaving = false;
+  late TextEditingController _nameController;
+  late TextEditingController _emailController;
+  late TextEditingController _contactController;
 
+  bool _isSaving = false;
+
+  // --- Lifecycle ---
   @override
   void initState() {
     super.initState();
-    nameCtrl    = TextEditingController(text: widget.name);
-    emailCtrl   = TextEditingController(text: widget.email);
-    contactCtrl = TextEditingController(text: widget.contact ?? '');
+    _nameController = TextEditingController(text: widget.name);
+    _emailController = TextEditingController(text: widget.email);
+    _contactController = TextEditingController(text: widget.contact ?? '');
   }
 
-  // ── actually sends the PUT request ─────────────────────────
-  Future<void> _saveChanges() async {
-    setState(() => isSaving = true);
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _contactController.dispose();
+    super.dispose();
+  }
 
-    final url  = Uri.parse('http://10.0.2.2:8000/api/customers/${widget.id}/');
+  // --- API Method ---
+
+  /// Sends the PUT request to update the customer data.
+  Future<void> _saveChanges() async {
+    if (!mounted) return;
+    setState(() => _isSaving = true);
+
+    final url = Uri.parse('$_apiUrl${widget.id}/');
     final body = {
-      'name'        : nameCtrl.text.trim(),
-      'email'       : emailCtrl.text.trim(), // Even though it's uneditable, still send it in the payload
-      'contact_num' : contactCtrl.text.trim(),
+      'name': _nameController.text.trim(),
+      // Email must be included in payload, even if uneditable (logic retained)
+      'email': _emailController.text.trim(), 
+      'contact_num': _contactController.text.trim(),
     };
 
-    final res = await http.put(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    try {
+      final res = await http.put(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
 
-    setState(() => isSaving = false);
+      if (!mounted) return;
+      setState(() => _isSaving = false);
 
-    if (res.statusCode == 200) {
-      Navigator.pop(context, true);   // go back & signal success
-    } else {
+      if (res.statusCode == 200) {
+        // Go back and signal success (true) to refresh the parent list
+        Navigator.pop(context, true); 
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Customer profile updated successfully')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Failed to update: Status ${res.statusCode}')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed: ${res.statusCode}')),
+        SnackBar(content: Text('An error occurred: $e')),
       );
     }
   }
 
-  // ── show confirm dialog then call _saveChanges ─────────────
+  // --- UI Handler ---
+
+  /// Shows confirmation dialog and proceeds to save if confirmed.
   Future<void> _confirmAndSave() async {
+    // Validate form before showing confirmation
     if (!_formKey.currentState!.validate()) return;
 
-    final confirmed = await showDialog<bool>(
+    final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Confirm Update'),
-        content: const Text('Save these changes to the customer profile?'),
+        title: const Text('Save Changes',
+            style: TextStyle(fontWeight: FontWeight.w600)),
+        content: const Text('Are you sure you want to save these changes?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -81,7 +121,11 @@ class _EditCustomerViewState extends State<EditCustomerView> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Proceed'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF5C7C9A),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Save'),
           ),
         ],
       ),
@@ -92,48 +136,118 @@ class _EditCustomerViewState extends State<EditCustomerView> {
     }
   }
 
+  // --- Widget Build ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Customer Profile'),
-      backgroundColor: const Color(0xFF5C7C9A), // Updated color
-      foregroundColor: Colors.white, // Updated color for font and icon
-      
+      appBar: AppBar(
+        title: const Text(
+          'Edit Customer Profile',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: _primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded, size: 24),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
         child: Form(
           key: _formKey,
-          child: ListView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextFormField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Name'),
-                validator: (v) => v!.isEmpty ? 'Enter a name' : null,
+              // Name Field
+              _buildTextFormField(
+                controller: _nameController,
+                label: 'Full Name',
+                icon: Icons.person_rounded,
+                validator: (v) => v!.trim().isEmpty ? 'Customer name is required' : null,
               ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: contactCtrl,
-                decoration: const InputDecoration(labelText: 'Contact Number'),
+              const SizedBox(height: 24),
+
+              // Contact Number Field
+              _buildTextFormField(
+                controller: _contactController,
+                label: 'Contact Number',
+                icon: Icons.phone_rounded,
+                keyboardType: TextInputType.phone,
+                hintText: 'Optional',
               ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: emailCtrl,
-                decoration: const InputDecoration(labelText: 'Email'),
-                readOnly: true, // <-- Make the email field uneditable
-                validator: (v) => v!.isEmpty ? 'Enter an email' : null,
+              const SizedBox(height: 24),
+
+              // Email Field (Read-Only)
+              _buildTextFormField(
+                controller: _emailController,
+                label: 'Email Address',
+                icon: Icons.email_rounded,
+                readOnly: true,
+                validator: (v) => v!.trim().isEmpty ? 'Email is required' : null,
+                readOnlyBackground: Colors.grey.shade100, // Visual hint for read-only
               ),
-              const SizedBox(height: 30),
-              ElevatedButton(
-                onPressed: isSaving ? null : _confirmAndSave,   // ← use confirm
-                child: isSaving
-                    ? const CircularProgressIndicator()
-                    : const Text('Save'),
+              const SizedBox(height: 40),
+
+              // Save Button
+              ElevatedButton.icon(
+                onPressed: _isSaving ? null : _confirmAndSave,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_rounded),
+                label: Text(
+                  _isSaving ? 'SAVING...' : 'SAVE CHANGES',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryColor,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(55),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 5,
+                ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  // --- Helper Widget for consistent input design ---
+  Widget _buildTextFormField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool readOnly = false,
+    TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
+    Color? readOnlyBackground,
+    String? hintText,
+  }) {
+    return TextFormField(
+      controller: controller,
+      readOnly: readOnly,
+      keyboardType: keyboardType,
+      style: TextStyle(color: readOnly ? Colors.grey.shade700 : Colors.black),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hintText,
+        border: const OutlineInputBorder(),
+        prefixIcon: Icon(icon),
+        fillColor: readOnlyBackground,
+        filled: readOnlyBackground != null,
+      ),
+      validator: validator,
     );
   }
 }

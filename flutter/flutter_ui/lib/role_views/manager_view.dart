@@ -1,3 +1,4 @@
+// manager_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_ui/role_views/manager_features/expiration_dashboard/expiry_dashboard_view.dart';
 import 'package:flutter_ui/role_views/manager_features/online_sales_report/online_sales_report_page.dart';
@@ -298,102 +299,89 @@ class _ManagerViewState extends State<ManagerView>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const SizedBox(height: 60),
-                          const CircleAvatar(
-                            radius: 40,
-                            child: Icon(Icons.person, size: 50),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            staffName ?? 'Manager Name',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
+                          // Profile Section
+                          Container(
+                            color: const Color(0xFF5C7C9A),
+                            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                            child: Column(
+                              children: [
+                                const CircleAvatar(
+                                  radius: 40,
+                                  backgroundColor: Colors.white,
+                                  child: Icon(Icons.person, size: 50, color: Color(0xFF5C7C9A)),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  staffName ?? 'Manager Name',
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                Text(
+                                  staffEmail ?? 'manager.email@example.com',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          Text(
-                            staffEmail ?? 'manager.email@example.com',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.grey),
-                          ),
-                          const Divider(height: 40),
+                          // Menu Items List
                           Expanded(
-                            child: SingleChildScrollView(
-                              child: Column(
-                                children: [
-                                  _drawerItem(
-                                      Icons.inventory_outlined,
-                                      'Inventory',
-                                      () => _open(const InventoryGridScreen())),
-                                  _drawerItem(
-                                      Icons.shelves,
-                                      'Restock',
-                                      () =>
-                                          _open(const RestockBarcodeScreen())),
-                                  _drawerItem(
-                                      Icons.store,
-                                      'In Store Sales Transaction',
-                                      () => _open(const InStoreTransactionPage())),
-                                  _drawerItem(
-                                      Icons.phone_android_outlined,
-                                      'Online Sales Transaction',
-                                      () => _open(const OnlineOrdersReportPage())),
-                                  _drawerItem(Icons.priority_high, 'Expiry',
-                                      () => _open(const ExpiryDashboardView())),
-                                  _drawerItem(Icons.assignment_return,
-                                      'Return Medicines',
-                                      () => _open(const ReturnMedicinePage())),
-                                  _drawerItem(Icons.local_offer, 'Promo Medicines',
-                                      () => _open(const PromoMedicinePage())),
-                                  _drawerItem(Icons.point_of_sale,
-                                      'In Store Sales Report',
-                                      () => _open(const InStoreSalesReportPage())),
-                                  _drawerItem(Icons.trending_up,
-                                      'Online Sales Report',
-                                      () => _open(const OnlineSalesReportPage())),
-                                  _drawerItem(
-                                      Icons.insights,
-                                      'Demand Forecast',
-                                      () => _open(const DemandForecastScreen())),
-                                  _drawerItem(Icons.shopping_cart, 
-                                      'Purchase Request',
-                                      () => _open(const PurchaseRequestPage())),
-                                  _drawerItem(Icons.list_alt, 
-                                      'Medicine List',
-                                      () => _open(const MedicineListView())),
-                                  _drawerItem(Icons.history, 
-                                      'Inventory Logs',
-                                      () => _open(const InventoryLogsPage())),
-                                  _drawerItem(Icons.receipt_long, 
-                                      'Order Logs',
-                                      () => _open(const OrderLogsScreen())),
-                                  _drawerItem(
-                                      Icons.person_outline,
-                                      'Edit Profile',
-                                      () => _open(EditManagerProfilePage(
-                                          staffId: widget.staffId))),
-                                  _drawerItem(
-                                      Icons.vpn_key,
-                                      'Change Password',
-                                      () => _open(ChangeManagerPasswordPage(
-                                          staffId: widget.staffId))),
-                                ],
-                              ),
+                            child: ListView(
+                              padding: EdgeInsets.zero,
+                              children: [
+                                _drawerItem(Icons.inventory_outlined, 'Inventory',
+                                    () => _open(const InventoryGridScreen())),
+                                _drawerItem(Icons.shelves, 'Restock',
+                                    () => _open(const RestockBarcodeScreen())),
+                                _drawerItem(Icons.store, 'In Store Sales Transaction',
+                                    () => _open(const InStoreTransactionPage())),
+                                _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction',
+                                    () => _open(const OnlineOrdersReportPage())),
+                                _drawerItem(Icons.priority_high, 'Expiry',
+                                    () => _open(const ExpiryDashboardView())),
+                                _drawerItem(Icons.assignment_return, 'Return Medicines',
+                                    () => _open(const ReturnMedicinePage())),
+                                _drawerItem(Icons.local_offer, 'Promo Medicines',
+                                    () => _open(const PromoMedicinePage())),
+                                _drawerItem(Icons.point_of_sale, 'In Store Sales Report',
+                                    () => _open(const InStoreSalesReportPage())),
+                                _drawerItem(Icons.trending_up, 'Online Sales Report',
+                                    () => _open(const OnlineSalesReportPage())),
+                                _drawerItem(Icons.insights, 'Demand Forecast',
+                                    () => _open(const DemandForecastScreen())),
+                                _drawerItem(Icons.shopping_cart, 'Purchase Request',
+                                    () => _open(const PurchaseRequestPage())),
+                                _drawerItem(Icons.list_alt, 'Medicine List',
+                                    () => _open(const MedicineListView())),
+                                _drawerItem(Icons.history, 'Inventory Logs',
+                                    () => _open(const InventoryLogsPage())),
+                                _drawerItem(Icons.receipt_long, 'Order Logs',
+                                    () => _open(const OrderLogsScreen())),
+                                _drawerItem(Icons.person_outline, 'Edit Profile',
+                                    () => _open(EditManagerProfilePage(staffId: widget.staffId))),
+                                _drawerItem(Icons.vpn_key, 'Change Password',
+                                    () => _open(ChangeManagerPasswordPage(staffId: widget.staffId))),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 20),
+                          // Logout Button
                           Padding(
                             padding: const EdgeInsets.all(16),
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue.shade700,
+                                backgroundColor: const Color(0xFF5C7C9A),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
                               ),
                               onPressed: _confirmLogout,
-                              child: const Text(
-                                'Logout',
-                                style: TextStyle(color: Colors.white),
-                              ),
+                              child: const Text('Logout'),
                             ),
                           ),
                         ],
@@ -620,11 +608,22 @@ class _ManagerViewState extends State<ManagerView>
   }
 
   Widget _drawerItem(IconData icon, String title, VoidCallback onTap) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      onTap: onTap,
-      hoverColor: Colors.blue.shade50,
+    return Column(
+      children: [
+        ListTile(
+          leading: Icon(icon, color: Colors.blueGrey.shade700),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: Colors.blueGrey.shade700,
+              fontSize: 16,
+            ),
+          ),
+          onTap: onTap,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        ),
+        const Divider(height: 1, color: Colors.black12),
+      ],
     );
   }
 }

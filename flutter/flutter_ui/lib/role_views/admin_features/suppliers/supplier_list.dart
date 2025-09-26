@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-//import 'package:shared_preferences/shared_preferences.dart';
+//import 'package:shared_preferences/shared_preferences.dart'; // Retained commented import
+
+/// -------------------------------------------------------------------
+/// Supplier List Main Page
+/// -------------------------------------------------------------------
 
 class SupplierListPage extends StatefulWidget {
   const SupplierListPage({super.key});
@@ -11,86 +15,105 @@ class SupplierListPage extends StatefulWidget {
 }
 
 class _SupplierListPageState extends State<SupplierListPage> {
+  // --- Data & API Endpoints ---
   List<dynamic> suppliers = [];
-  final String apiUrl = 'http://10.0.2.2:8000/api/suppliers/';
-  final String token = 'YOUR_ADMIN_TOKEN_HERE'; // Replace with actual token
+  final String _apiUrl = 'http://10.0.2.2:8000/api/suppliers/';
+  // NOTE: In a production app, the token should be secured, not hardcoded.
+  final String _token = 'YOUR_ADMIN_TOKEN_HERE'; 
 
+  // --- Lifecycle & Initialization ---
   @override
   void initState() {
     super.initState();
-    fetchSuppliers();
+    _fetchSuppliers(); // Use leading underscore for private methods
   }
 
-  Future<void> fetchSuppliers() async {
+  // --- API Methods ---
+
+  /// Fetches the list of suppliers from the backend API.
+  Future<void> _fetchSuppliers() async {
     final response = await http.get(
-      Uri.parse(apiUrl),
-      headers: {'Authorization': 'Token $token'},
+      Uri.parse(_apiUrl),
+      headers: {'Authorization': 'Token $_token'},
     );
+
     if (response.statusCode == 200) {
       setState(() {
         suppliers = json.decode(response.body);
       });
     } else {
-      print('Failed to fetch suppliers');
+      // Use proper error handling, e.g., show a Snackbar or error state
+      debugPrint('Failed to fetch suppliers: ${response.statusCode}'); 
     }
   }
 
-  Future<void> addSupplier(String name, String contact) async {
+  /// Adds a new supplier to the backend.
+  Future<void> _addSupplier(String name, String contact) async {
     final response = await http.post(
-      Uri.parse(apiUrl),
+      Uri.parse(_apiUrl),
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Token $token',
+        'Authorization': 'Token $_token',
       },
       body: json.encode({'name': name, 'contact': contact}),
     );
+
     if (response.statusCode == 201) {
-      fetchSuppliers();
+      // Success, refresh the list
+      await _fetchSuppliers(); 
     } else {
-      print('Failed to add supplier');
+      debugPrint('Failed to add supplier: ${response.statusCode}');
     }
   }
 
-  Future<void> editSupplier(int id, String name, String contact) async {
+  /// Edits an existing supplier via their ID.
+  Future<void> _editSupplier(int id, String name, String contact) async {
     final response = await http.put(
-      Uri.parse('$apiUrl$id/'),
+      Uri.parse('$_apiUrl$id/'),
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Token $token',
+        'Authorization': 'Token $_token',
       },
       body: json.encode({'name': name, 'contact': contact}),
     );
+
     if (response.statusCode == 200) {
-      fetchSuppliers();
+      // Success, refresh the list
+      await _fetchSuppliers();
     } else {
-      print('Failed to update supplier');
+      debugPrint('Failed to update supplier: ${response.statusCode}');
     }
   }
 
-  Future<void> deleteSupplier(int id) async {
+  /// Deletes a supplier using their ID.
+  Future<void> _deleteSupplier(int id) async {
     final response = await http.delete(
-      Uri.parse('$apiUrl$id/'),
-      headers: {'Authorization': 'Token $token'},
+      Uri.parse('$_apiUrl$id/'),
+      headers: {'Authorization': 'Token $_token'},
     );
+
     if (response.statusCode == 204) {
-      fetchSuppliers();
+      // Success (No Content), refresh the list
+      await _fetchSuppliers();
     } else {
-      print('Failed to delete supplier');
+      debugPrint('Failed to delete supplier: ${response.statusCode}');
     }
   }
 
-  void openAddPage() {
+  // --- Navigation & UI Handlers ---
+
+  void _openAddPage() {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => SupplierFormPage(
-          onSubmit: (name, contact) => addSupplier(name, contact),
+          onSubmit: (name, contact) => _addSupplier(name, contact),
         ),
       ),
     );
   }
 
-  void openEditPage(int id, String name, String contact) {
+  void _openEditPage(int id, String name, String contact) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -99,90 +122,156 @@ class _SupplierListPageState extends State<SupplierListPage> {
           initialName: name,
           initialContact: contact,
           onSubmit: (newName, newContact) =>
-              editSupplier(id, newName, newContact),
+              _editSupplier(id, newName, newContact),
         ),
       ),
     );
   }
 
+  // --- Widget Build ---
+
   @override
   Widget build(BuildContext context) {
+    // Define a modern, formal color palette
+    const Color primaryColor = Color(0xFF5C7C9A); // A clean slate-blue/gray
+    const Color accentColor = Color(0xFF007BFF); // A subtle, standard blue for actions
+    const Color deleteColor = Colors.redAccent;
+    const Color editColor = Colors.orangeAccent;
+
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context), // Back to AdminView
+        // Use an elevated, subtle app bar for a modern look
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 4, // Subtle shadow
+        title: const Text(
+          'Supplier Management',
+          style: TextStyle(fontWeight: FontWeight.w600), // Slightly bolder title
         ),
-        title: const Text('Supplier List'),
-        backgroundColor: const Color(0xFF5C7C9A), // Updated color
-        foregroundColor: Colors.white, // Updated color for font and icon
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20), // Modern back icon
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
-          IconButton(icon: const Icon(Icons.add), onPressed: openAddPage),
+          IconButton(
+            icon: const Icon(Icons.person_add_alt_1_rounded), // A more specific icon for "Add"
+            onPressed: _openAddPage,
+            tooltip: 'Add New Supplier',
+          ),
+          const SizedBox(width: 8), // Added spacing
         ],
       ),
       body: suppliers.isEmpty
-          ? const Center(child: Text('No suppliers found'))
-          : ListView.builder(
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20.0),
+                child: Text(
+                  'No supplier records found. Tap the (+) icon to add one.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey, fontSize: 16),
+                ),
+              ),
+            )
+          : ListView.separated( // Use ListView.separated for clean division lines
+              padding: const EdgeInsets.symmetric(vertical: 8),
               itemCount: suppliers.length,
+              separatorBuilder: (context, index) => const Divider(
+                height: 1, 
+                indent: 16, 
+                endIndent: 16, 
+                color: Color(0xFFE0E0E0), // Light divider color
+              ),
               itemBuilder: (context, index) {
                 final supplier = suppliers[index];
-                return ListTile(
-                  title: Text(supplier['name']),
-                  subtitle: Text(supplier['contact']),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.orange),
-                        onPressed: () => openEditPage(
-                          supplier['id'],
-                          supplier['name'],
-                          supplier['contact'],
+                return InkWell( // Use InkWell for a slight tap effect on the whole tile
+                  onTap: () => _openEditPage(
+                      supplier['id'], supplier['name'], supplier['contact']),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
+                    leading: CircleAvatar(
+                      backgroundColor: primaryColor.withOpacity(0.1),
+                      child: Text(
+                        supplier['name'][0].toUpperCase(),
+                        style: TextStyle(
+                            color: primaryColor, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    title: Text(
+                      supplier['name'],
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w500, fontSize: 16),
+                    ),
+                    subtitle: Text(
+                      supplier['contact'],
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Edit Button
+                        IconButton(
+                          icon: Icon(Icons.edit_note_rounded, color: editColor),
+                          tooltip: 'Edit Supplier',
+                          onPressed: () => _openEditPage(
+                            supplier['id'],
+                            supplier['name'],
+                            supplier['contact'],
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (_) => AlertDialog(
-                              title: const Text('Confirm Deletion'),
-                              content: const Text(
-                                  'Are you sure you want to delete this supplier?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.pop(context, false),
-                                  child: const Text('Cancel'),
-                                ),
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.pop(context, true),
-                                  child: const Text(
-                                    'Delete',
-                                    style: TextStyle(color: Colors.red),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            deleteSupplier(supplier['id']);
-                          }
-                        },
-                      ),
-                    ],
+                        // Delete Button
+                        IconButton(
+                          icon: Icon(Icons.delete_outline_rounded,
+                              color: deleteColor),
+                          tooltip: 'Delete Supplier',
+                          onPressed: () => _showDeleteConfirmation(
+                              context, supplier['id']),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
             ),
     );
   }
+
+  /// Extracts the delete confirmation logic to a separate, clean function.
+  Future<void> _showDeleteConfirmation(BuildContext context, int id) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Confirm Deletion',
+            style: TextStyle(fontWeight: FontWeight.w600)),
+        content: const Text(
+            'Are you sure you want to permanently delete this supplier record?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton( // Used an elevated button for the primary, destructive action
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _deleteSupplier(id);
+    }
+  }
 }
 
-// ─────────────────────────────────────────────
-// Fullscreen Add/Edit Page (Reusable)
-// ─────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────
+// Supplier Add/Edit Form Page (Reusable)
+// ───────────────────────────────────────────────────────────────────
+
 class SupplierFormPage extends StatefulWidget {
   final int? supplierId;
   final String? initialName;
@@ -202,122 +291,157 @@ class SupplierFormPage extends StatefulWidget {
 }
 
 class _SupplierFormPageState extends State<SupplierFormPage> {
-  late TextEditingController nameController;
-  late TextEditingController contactController;
+  // Use a GlobalKey for form validation (better practice for forms)
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>(); 
 
+  late TextEditingController _nameController;
+  late TextEditingController _contactController;
+
+  // --- Lifecycle ---
   @override
   void initState() {
     super.initState();
-    nameController = TextEditingController(text: widget.initialName ?? '');
-    contactController =
+    _nameController = TextEditingController(text: widget.initialName ?? '');
+    _contactController =
         TextEditingController(text: widget.initialContact ?? '');
   }
 
   @override
   void dispose() {
-    nameController.dispose();
-    contactController.dispose();
+    _nameController.dispose();
+    _contactController.dispose();
     super.dispose();
   }
 
-  void _handleSubmit() async {
-    final isEdit = widget.supplierId != null;
-    final name = nameController.text.trim();
-    final contact = contactController.text.trim();
-
-    if (name.isEmpty || contact.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
-      );
+  // --- Handler ---
+  Future<void> _handleSubmit() async {
+    // Basic validation check
+    if (!_formKey.currentState!.validate()) {
       return;
     }
+    
+    final bool isEdit = widget.supplierId != null;
+    final String name = _nameController.text.trim();
+    final String contact = _contactController.text.trim();
 
-    if (isEdit) {
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Confirm Edit'),
-          content: const Text('Are you sure you want to save changes?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      );
+    // Determine confirmation dialog details
+    final String dialogTitle = isEdit ? 'Save Changes' : 'Confirm Add';
+    final String dialogContent = isEdit
+        ? 'Are you sure you want to save these changes?'
+        : 'Are you sure you want to add this new supplier?';
+    final String actionText = isEdit ? 'Save' : 'Add Supplier';
+    final Color actionColor = isEdit ? const Color(0xFF5C7C9A) : Colors.green;
 
-      if (confirm == true) {
-        widget.onSubmit(name, contact);
-        Navigator.pop(context);
-      }
-    } else {
-      // New confirmation prompt for adding a supplier
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Confirm Add'),
-          content: const Text('Are you sure you want to add this supplier?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(dialogTitle,
+            style: const TextStyle(fontWeight: FontWeight.w600)),
+        content: Text(dialogContent),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: actionColor,
+              foregroundColor: Colors.white,
             ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Add'),
-            ),
-          ],
-        ),
-      );
+            child: Text(actionText),
+          ),
+        ],
+      ),
+    );
 
-      if (confirm == true) {
-        widget.onSubmit(name, contact);
-        Navigator.pop(context);
-      }
+    if (confirm == true) {
+      widget.onSubmit(name, contact);
+      // Navigate back only after successful action
+      if (mounted) Navigator.pop(context); 
     }
   }
-
+  
+  // --- Widget Build ---
   @override
   Widget build(BuildContext context) {
-    final isEdit = widget.supplierId != null;
+    final bool isEdit = widget.supplierId != null;
+    const Color primaryColor = Color(0xFF5C7C9A);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEdit ? 'Edit Supplier' : 'Add Supplier'),
-        backgroundColor: const Color(0xFF5C7C9A), // Updated color
-        foregroundColor: Colors.white, 
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        title: Text(
+          isEdit ? 'Edit Supplier' : 'Add New Supplier',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.close_rounded, size: 24), // Use a close icon for modal form
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(labelText: 'Supplier Name'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: contactController,
-              decoration: const InputDecoration(labelText: 'Contact Info'),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: _handleSubmit,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Form( // Wrapped fields in a Form widget
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch, // Stretch button/fields
+            children: [
+              // Supplier Name Field
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Supplier Name',
+                  border: OutlineInputBorder(), // Modern outlined input
+                  prefixIcon: Icon(Icons.business_rounded),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a supplier name';
+                  }
+                  return null;
+                },
               ),
-              child: Text(isEdit ? 'Save Changes' : 'Add Supplier'),
-            ),
-          ],
+              const SizedBox(height: 24),
+              // Contact Info Field
+              TextFormField(
+                controller: _contactController,
+                keyboardType: TextInputType.text, // Assuming contact can be phone/email/etc
+                decoration: const InputDecoration(
+                  labelText: 'Contact Information',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.contact_mail_rounded),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter contact information';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 40),
+              // Submission Button
+              ElevatedButton.icon(
+                onPressed: _handleSubmit,
+                icon: Icon(isEdit ? Icons.save_rounded : Icons.add_circle_rounded),
+                label: Text(
+                  isEdit ? 'SAVE CHANGES' : 'ADD SUPPLIER',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isEdit ? primaryColor : Colors.green[600],
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(55),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10), // Slightly rounded button
+                  ),
+                  elevation: 5,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

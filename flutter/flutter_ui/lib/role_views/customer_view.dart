@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../login_function/login_customer.dart'; // UPDATED: Changed import from main.dart to login_customer.dart
+import '../login_function/login_customer.dart';
 import 'customer_features/promo_grid_view.dart';
 import 'customer_features/medicine_view.dart';
 import 'customer_features/edit_profile/edit_customer_profile.dart';
@@ -22,7 +22,7 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
   String _customerName = '';
   String _customerEmail = '';
   int _customerId = 0;
-  String _searchQuery = ''; // <--- Added this line for working search bar 
+  String _searchQuery = '';
 
   late AnimationController _ctrl;
   bool _isMenuOpen = false;
@@ -95,7 +95,6 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
     await prefs.clear();
 
     if (!mounted) return;
-    // FIX: Navigate to LoginCustomer() instead of the removed ToggleLoginScreen()
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const LoginCustomer()),
@@ -136,11 +135,22 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
   }
 
   Widget _drawerItem(IconData icon, String title, VoidCallback onTap) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      onTap: onTap,
-      hoverColor: Colors.blue.shade50,
+    return Column(
+      children: [
+        ListTile(
+          leading: Icon(icon, color: Colors.blueGrey.shade700),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: Colors.blueGrey.shade700,
+              fontSize: 16,
+            ),
+          ),
+          onTap: onTap,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        ),
+        const Divider(height: 1, color: Colors.black12),
+      ],
     );
   }
 
@@ -217,29 +227,29 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
         const SizedBox(height: 20),
         _currentIndex == 0
             ? Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: TextField(
-                 onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                  });
-                },
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    icon: const Icon(Icons.search),
-                    hintText: 'Search',
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.tune),
-                      onPressed: _showCategoryFilterDialog,
-                      tooltip: 'Filter by Category',
-                    ),
-                  ),
-                ),
-              )
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: TextField(
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              icon: const Icon(Icons.search),
+              hintText: 'Search',
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.tune),
+                onPressed: _showCategoryFilterDialog,
+                tooltip: 'Filter by Category',
+              ),
+            ),
+          ),
+        )
             : Container(),
       ],
     );
@@ -253,7 +263,7 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
       MedicineView(
         customerId: _customerId,
         selectedCategory: _selectedCategory,
-        searchQuery: _searchQuery, // <--- Add this line
+        searchQuery: _searchQuery,
       ),
       PromoView(customerId: _customerId),
       CheckoutPage(customerId: _customerId),
@@ -284,7 +294,7 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
                         end: Alignment.bottomCenter,
                       ),
                       borderRadius:
-                          BorderRadius.vertical(bottom: Radius.circular(20)),
+                      BorderRadius.vertical(bottom: Radius.circular(20)),
                     ),
                     child: _buildHeader(),
                   ),
@@ -306,72 +316,82 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
                       child: isLoading
                           ? const Center(child: CircularProgressIndicator())
                           : Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Container(
+                            color: const Color.fromARGB(255, 10, 84, 182),
+                            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                            child: Column(
                               children: [
-                                const SizedBox(height: 60),
                                 const CircleAvatar(
                                   radius: 40,
-                                  child: Icon(Icons.person, size: 50),
+                                  backgroundColor: Colors.white,
+                                  child: Icon(Icons.person, size: 50, color: Color(0xFF5C7C9A)),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 10),
                                 Text(
                                   _customerName,
-                                  textAlign: TextAlign.center,
                                   style: const TextStyle(
-                                      fontSize: 20, fontWeight: FontWeight.bold),
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
                                 Text(
                                   _customerEmail,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(color: Colors.grey),
-                                ),
-                                const Divider(height: 40),
-                                Expanded(
-                                  child: SingleChildScrollView(
-                                    child: Column(
-                                      children: [
-                                        _drawerItem(
-                                            Icons.shopping_bag_outlined,
-                                            'My Orders',
-                                            () => _open(
-                                                MyOrdersPage(customerId: _customerId))),
-                                        _drawerItem(
-                                            Icons.assignment_outlined,
-                                            'Medicine Order Agreement',
-                                            () => _open(const MedicineOrderAgreementPage())),
-                                        _drawerItem(
-                                            Icons.edit,
-                                            'Edit Profile',
-                                            () => _open(EditCustomerProfilePage(
-                                                customerId: _customerId))),
-                                        _drawerItem(
-                                            Icons.lock,
-                                            'Change Password',
-                                            () => _open(ChangeCustomerPasswordPage(
-                                                customerId: _customerId))),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blue.shade700,
-                                      padding: const EdgeInsets.symmetric(vertical: 14),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    onPressed: _confirmLogout,
-                                    child: const Text(
-                                      'Logout',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
+                                  style: const TextStyle(
+                                    color: Colors.white70,
                                   ),
                                 ),
                               ],
                             ),
+                          ),
+                          Expanded(
+                            child: ListView(
+                              padding: EdgeInsets.zero,
+                              children: [
+                                _drawerItem(
+                                  Icons.shopping_bag_outlined,
+                                  'My Orders',
+                                      () => _open(
+                                    MyOrdersPage(customerId: _customerId),
+                                  ),
+                                ),
+                                _drawerItem(
+                                  Icons.assignment_outlined,
+                                  'Medicine Order Agreement',
+                                      () => _open(const MedicineOrderAgreementPage()),
+                                ),
+                                _drawerItem(
+                                  Icons.edit,
+                                  'Edit Profile',
+                                      () => _open(EditCustomerProfilePage(customerId: _customerId)),
+                                ),
+                                _drawerItem(
+                                  Icons.lock,
+                                  'Change Password',
+                                      () => _open(ChangeCustomerPasswordPage(customerId: _customerId)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color.fromARGB(255, 10, 84, 182),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: _confirmLogout,
+                              child: const Text('Logout'),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -382,27 +402,27 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
         bottomNavigationBar: _isMenuOpen
             ? null
             : BottomNavigationBar(
-                backgroundColor: const Color(0xFF002B64),
-                elevation: 0.0,
-                selectedItemColor: Colors.white,
-                unselectedItemColor: Colors.white70,
-                currentIndex: _currentIndex,
-                onTap: _onItemTapped,
-                items: const [
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.medication),
-                    label: 'Medicines',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.local_offer),
-                    label: 'Promos',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.shopping_cart),
-                    label: 'Check Out',
-                  ),
-                ],
-              ),
+          backgroundColor: const Color(0xFF002B64),
+          elevation: 0.0,
+          selectedItemColor: Colors.white,
+          unselectedItemColor: Colors.white70,
+          currentIndex: _currentIndex,
+          onTap: _onItemTapped,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.medication),
+              label: 'Medicines',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.local_offer),
+              label: 'Promos',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.shopping_cart),
+              label: 'Check Out',
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -2,12 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-//import 'package:shared_preferences/shared_preferences.dart';
+// -------------------------------------------------------------------
+// Constants
+// -------------------------------------------------------------------
+
+const String _apiUrlBase = String.fromEnvironment(
+  'API_BASE',
+  defaultValue: 'http://10.0.2.2:8000',
+);
+const Color _primaryColor = Color(0xFF5C7C9A);
+
+// -------------------------------------------------------------------
+// Change Admin Password Page
+// -------------------------------------------------------------------
 
 class ChangeAdminPasswordPage extends StatefulWidget {
   final int staffId;
-
-  
 
   const ChangeAdminPasswordPage({super.key, required this.staffId});
 
@@ -16,46 +26,39 @@ class ChangeAdminPasswordPage extends StatefulWidget {
 }
 
 class _ChangeAdminPasswordPageState extends State<ChangeAdminPasswordPage> {
-  final _formKey = GlobalKey<FormState>();
-  final TextEditingController currentPwController = TextEditingController();
-  final TextEditingController newPwController = TextEditingController();
-  final TextEditingController confirmPwController = TextEditingController();
+  // --- State & Controllers ---
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  
+  final TextEditingController _currentPasswordController = TextEditingController();
+  final TextEditingController _newPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
 
-  bool isLoading = false;
-  String? errorMessage;
+  bool _isSaving = false;
+  String? _errorMessage;
 
+  // --- Lifecycle ---
+  @override
+  void dispose() {
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  // --- API Method ---
+
+  /// Submits the password change request to the API.
   Future<void> _changePassword() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!mounted) return;
+    setState(() => _isSaving = true);
+    
+    // Clear any previous error message
+    setState(() => _errorMessage = null);
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Confirm Password Change'),
-        content: const Text('Are you sure you want to change your password?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
-
-    final url = Uri.parse('http://10.0.2.2:8000/api/staff/${widget.staffId}/change-password/');
+    final url = Uri.parse('$_apiUrlBase/api/staff/${widget.staffId}/change-password/');
     final body = json.encode({
-      'current_password': currentPwController.text.trim(),
-      'new_password': newPwController.text.trim(),
+      'current_password': _currentPasswordController.text.trim(),
+      'new_password': _newPasswordController.text.trim(),
     });
 
     try {
@@ -65,99 +68,193 @@ class _ChangeAdminPasswordPageState extends State<ChangeAdminPasswordPage> {
         body: body,
       );
 
-      print('STATUS CODE: ${response.statusCode}');
-      print('RESPONSE BODY: ${response.body}');
+      if (!mounted) return;
+      setState(() => _isSaving = false);
 
       if (response.statusCode == 200) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Password changed successfully!')),
-          );
-          Navigator.pop(context);
-        }
+        // Success
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Password changed successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
       } else {
+        // Handle API errors
         final data = json.decode(response.body);
         setState(() {
-          errorMessage = data['error'] ?? 'Something went wrong';
+          _errorMessage = data['error'] ?? 'Failed to change password.';
         });
       }
     } catch (e) {
-      print('ERROR: $e');
+      // Handle network or other exceptions
+      if (!mounted) return;
       setState(() {
-        errorMessage = 'Something went wrong';
+        _isSaving = false;
+        _errorMessage = 'An unexpected error occurred. Please try again.';
       });
     }
-
-    setState(() {
-      isLoading = false;
-    });
   }
 
-  @override
-  void dispose() {
-    currentPwController.dispose();
-    newPwController.dispose();
-    confirmPwController.dispose();
-    super.dispose();
+  // --- UI Handler ---
+
+  /// Displays a confirmation dialog before proceeding with password change.
+  Future<void> _confirmPasswordChange() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Confirm Password Change', style: TextStyle(fontWeight: FontWeight.w600)),
+        content: const Text('Are you sure you want to change your password?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      _changePassword();
+    }
   }
+
+  // --- Main Build Method ---
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Change Password'),
-      backgroundColor: const Color(0xFF5C7C9A), // Updated color
-      foregroundColor: Colors.white, // Updated color for font and icon
-      
+      appBar: AppBar(
+        title: const Text(
+          'Change Password',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: _primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 4, // Added elevation
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    if (errorMessage != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_errorMessage != null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.red.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline_rounded, color: Colors.red),
+                      const SizedBox(width: 12),
+                      Expanded(
                         child: Text(
-                          errorMessage!,
-                          style: const TextStyle(color: Colors.red),
+                          _errorMessage!,
+                          style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.w500),
                         ),
                       ),
-                    TextFormField(
-                      controller: currentPwController,
-                      decoration: const InputDecoration(labelText: 'Current Password'),
-                      obscureText: true,
-                      validator: (value) =>
-                          value == null || value.isEmpty ? 'Enter current password' : null,
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: newPwController,
-                      decoration: const InputDecoration(labelText: 'New Password'),
-                      obscureText: true,
-                      validator: (value) =>
-                          value == null || value.length < 5 ? 'Minimum 5 characters' : null,
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: confirmPwController,
-                      decoration: const InputDecoration(labelText: 'Confirm New Password'),
-                      obscureText: true,
-                      validator: (value) => value != newPwController.text
-                          ? 'Passwords do not match'
-                          : null,
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: _changePassword,
-                      child: const Text('Change Password'),
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+                
+              TextFormField(
+                controller: _currentPasswordController,
+                decoration: const InputDecoration(
+                  labelText: 'Current Password',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.lock_rounded),
+                ),
+                obscureText: true,
+                validator: (value) => value!.isEmpty ? 'Please enter your current password' : null,
+              ),
+              const SizedBox(height: 24),
+
+              TextFormField(
+                controller: _newPasswordController,
+                decoration: const InputDecoration(
+                  labelText: 'New Password',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.lock_open_rounded),
+                ),
+                obscureText: true,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a new password';
+                  }
+                  if (value.length < 5) {
+                    return 'Password must be at least 5 characters long';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+
+              TextFormField(
+                controller: _confirmPasswordController,
+                decoration: const InputDecoration(
+                  labelText: 'Confirm New Password',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.lock_reset_rounded),
+                ),
+                obscureText: true,
+                validator: (value) {
+                  if (value != _newPasswordController.text) {
+                    return 'Passwords do not match';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 40),
+
+              ElevatedButton.icon(
+                onPressed: _isSaving ? null : _confirmPasswordChange,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Icon(Icons.key_rounded),
+                label: Text(
+                  _isSaving ? 'CHANGING...' : 'CHANGE PASSWORD',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryColor,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(55),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 5,
                 ),
               ),
-            ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

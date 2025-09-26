@@ -265,102 +265,109 @@ class _StaffViewState extends State<StaffView>
                 final dx = (-screenW) + (_ctrl.value * screenW);
                 return Transform.translate(
                   offset: Offset(dx, 0),
-                  child: SizedBox(
-                    width: screenW,
-                    height: double.infinity,
-                    child: Material(
-                      color: Colors.white,
-                      elevation: 16,
-                      child: isLoading
-                          ? const Center(child: CircularProgressIndicator())
-                          : Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                const SizedBox(height: 60),
-                                const CircleAvatar(
-                                  radius: 40,
-                                  child: Icon(Icons.person, size: 50),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  staffName ?? 'Staff Name',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  staffEmail ?? 'staff@email.com',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(color: Colors.grey),
-                                ),
-                                const Divider(height: 40),
-                                Expanded(
-                                  child: SingleChildScrollView(
-                                    child: Column(
-                                      children: [
-                                        _drawerItem(
-                                            Icons.inventory_outlined,
-                                            'Inventory',
-                                            () => _open(const InventoryGridScreen())),
-                                        _drawerItem(
-                                            Icons.sell,
-                                            'Sale',
-                                            () => _open(SalesBarcodeScreen(
-                                                staffId: widget.staffId,
-                                                cartItems: const []))),
-                                        _drawerItem(
-                                            Icons.mobile_friendly,
-                                            'Online Orders',
-                                            () => _open(const StaffOrdersPage())),
-                                        _drawerItem(
-                                            Icons.priority_high,
-                                            'Expiry',
-                                            () => _open(
-                                                const ExpiryDashboardStaffView())),
-                                        _drawerItem(
-                                            Icons.receipt_long,
-                                            'Prescriptions',
-                                            () => _open(
-                                                const PrescriptionsStaff())),
-                                        _drawerItem(
-                                            Icons.person_outline,
-                                            'Edit Profile',
-                                            () => _open(EditStaffProfilePage(
-                                                staffId: widget.staffId))),
-                                        _drawerItem(
-                                            Icons.vpn_key,
-                                            'Change Password',
-                                            () => _open(ChangeStaffPasswordPage(
-                                                staffId: widget.staffId))),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blue.shade700,
-                                    ),
-                                    onPressed: _confirmLogout,
-                                    child: const Text(
-                                      'Logout',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
+                  child: _buildSideMenu(),
                 );
               },
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSideMenu() {
+    final screenW = MediaQuery.of(context).size.width;
+
+    return SizedBox(
+      width: screenW,
+      height: double.infinity,
+      child: Material(
+        color: Colors.white,
+        elevation: 16,
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Profile Section
+                  Container(
+                    color: const Color(0xFF5C7C9A),
+                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                    child: Column(
+                      children: [
+                        const CircleAvatar(
+                          radius: 40,
+                          backgroundColor: Colors.white,
+                          child: Icon(Icons.person, size: 50, color: Color(0xFF5C7C9A)),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          staffName ?? 'Staff Name',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          staffEmail ?? 'staff@email.com',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Menu Items List
+                  Expanded(
+                    child: ListView(
+                      padding: EdgeInsets.zero,
+                      children: [
+                        _drawerItem(Icons.inventory_outlined, 'Inventory',
+                            () => _open(const InventoryGridScreen())),
+                        _drawerItem(
+                            Icons.sell,
+                            'Sale',
+                            () => _open(SalesBarcodeScreen(
+                                staffId: widget.staffId,
+                                cartItems: const []))),
+                        _drawerItem(
+                            Icons.mobile_friendly,
+                            'Online Orders',
+                            () => _open(const StaffOrdersPage())),
+                        _drawerItem(
+                            Icons.priority_high,
+                            'Expiry',
+                            () => _open(const ExpiryDashboardStaffView())),
+                        _drawerItem(
+                            Icons.receipt_long,
+                            'Prescriptions',
+                            () => _open(const PrescriptionsStaff())),
+                        _drawerItem(Icons.person_outline, 'Edit Profile',
+                            () => _open(EditStaffProfilePage(staffId: widget.staffId))),
+                        _drawerItem(Icons.vpn_key, 'Change Password',
+                            () => _open(ChangeStaffPasswordPage(staffId: widget.staffId))),
+                      ],
+                    ),
+                  ),
+                  // Logout Button
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF5C7C9A),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: _confirmLogout,
+                      child: const Text('Logout'),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -440,9 +447,12 @@ class _StaffViewState extends State<StaffView>
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _buildIndicator(Icons.check_circle_outline, 'Good Stock', goodStockCount, Colors.green),
-        _buildIndicator(Icons.warning_amber_outlined, 'Expiring Soon', expiringSoonCount, Colors.orange),
-        _buildIndicator(Icons.error_outline, 'Expired', expiredCount, Colors.red),
+        _buildIndicator(
+            Icons.check_circle_outline, 'Good Stock', goodStockCount, Colors.green),
+        _buildIndicator(Icons.warning_amber_outlined, 'Expiring Soon',
+            expiringSoonCount, Colors.orange),
+        _buildIndicator(
+            Icons.error_outline, 'Expired', expiredCount, Colors.red),
       ],
     );
   }
@@ -507,7 +517,8 @@ class _StaffViewState extends State<StaffView>
             _buildActionButton(
               icon: Icons.sell,
               label: 'Sale',
-              onTap: () => _open(SalesBarcodeScreen(staffId: widget.staffId, cartItems: const [])),
+              onTap: () => _open(
+                  SalesBarcodeScreen(staffId: widget.staffId, cartItems: const [])),
             ),
             _buildActionButton(
               icon: Icons.inventory_outlined,
@@ -557,11 +568,22 @@ class _StaffViewState extends State<StaffView>
   }
 
   Widget _drawerItem(IconData icon, String title, VoidCallback onTap) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      onTap: onTap,
-      hoverColor: Colors.blue.shade50,
+    return Column(
+      children: [
+        ListTile(
+          leading: Icon(icon, color: Colors.blueGrey.shade700),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: Colors.blueGrey.shade700,
+              fontSize: 16,
+            ),
+          ),
+          onTap: onTap,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        ),
+        const Divider(height: 1, color: Colors.black12),
+      ],
     );
   }
 }

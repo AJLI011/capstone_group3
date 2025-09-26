@@ -237,59 +237,71 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
                           : Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                const SizedBox(height: 60),
-                                const CircleAvatar(
-                                  radius: 40,
-                                  child: Icon(Icons.person, size: 50),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  staffName ?? 'User Name',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
+                                // Profile Section
+                                Container(
+                                  color: const Color(0xFF5C7C9A), // Background color from the image
+                                  padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                                  child: Column(
+                                    children: [
+                                      const CircleAvatar(
+                                        radius: 40,
+                                        backgroundColor: Colors.white,
+                                        child: Icon(Icons.person, size: 50, color: Color(0xFF5C7C9A)),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        staffName ?? 'User Name',
+                                        style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      Text(
+                                        staffEmail ?? 'user.email@example.com',
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                Text(
-                                  staffEmail ?? 'user.email@example.com',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(color: Colors.grey),
-                                ),
-                                const Divider(height: 40),
+                                // Menu Items List
                                 Expanded(
-                                  child: SingleChildScrollView(
-                                    child: Column(
-                                      children: [
-                                        _drawerItem(Icons.group, 'Employees',
-                                            () => _open(const EmployeesManagementPage())),
-                                        _drawerItem(Icons.person, 'Customers',
-                                            () => _open(const CustomerManagementScreen())),
-                                        _drawerItem(Icons.local_shipping, 'Suppliers',
-                                            () => _open(const SupplierListPage())),
-                                        _drawerItem(Icons.list_alt, 'Employees Logs',
-                                            () => _open(const EmployeeLogsPage())),
-                                        _drawerItem(Icons.bar_chart, 'Daily Reports', // ADD THIS NEW ITEM
-                                            () => _open(DailyReportsPage())),
-                                        _drawerItem(Icons.edit, 'Edit Profile',
-                                            () => _open(EditAdminProfilePage(staffId: widget.staffId))),
-                                        _drawerItem(Icons.lock, 'Change Password',
-                                            () => _open(ChangeAdminPasswordPage(staffId: widget.staffId))),
-                                      ],
-                                    ),
+                                  child: ListView(
+                                    padding: EdgeInsets.zero,
+                                    children: [
+                                      _drawerItem(Icons.group_outlined, 'Employees',
+                                          () => _open(const EmployeesManagementPage())),
+                                      _drawerItem(Icons.person_outline, 'Customers',
+                                          () => _open(const CustomerManagementScreen())),
+                                      _drawerItem(Icons.local_shipping_outlined, 'Suppliers',
+                                          () => _open(const SupplierListPage())),
+                                      _drawerItem(Icons.playlist_add_check, 'Employees Logs',
+                                          () => _open(const EmployeeLogsPage())),
+                                      _drawerItem(Icons.bar_chart_outlined, 'Daily Reports', // ADDED NEW ITEM
+                                          () => _open(DailyReportsPage())),
+                                      _drawerItem(Icons.edit_outlined, 'Edit Profile',
+                                          () => _open(EditAdminProfilePage(staffId: widget.staffId))),
+                                      _drawerItem(Icons.lock_outline, 'Change Password',
+                                          () => _open(ChangeAdminPasswordPage(staffId: widget.staffId))),
+                                    ],
                                   ),
                                 ),
+                                // Logout Button
                                 Padding(
                                   padding: const EdgeInsets.all(16),
                                   child: ElevatedButton(
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blue.shade700,
+                                      backgroundColor: const Color(0xFF5C7C9A),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
                                     ),
                                     onPressed: _confirmLogout,
-                                    child: const Text(
-                                      'Logout',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
+                                    child: const Text('Logout'),
                                   ),
                                 ),
                               ],
@@ -306,11 +318,22 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
   }
 
   Widget _drawerItem(IconData icon, String title, VoidCallback onTap) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      onTap: onTap,
-      hoverColor: Colors.blue.shade50,
+    return Column(
+      children: [
+        ListTile(
+          leading: Icon(icon, color: Colors.blueGrey.shade700),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: Colors.blueGrey.shade700,
+              fontSize: 16,
+            ),
+          ),
+          onTap: onTap,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        ),
+        const Divider(height: 1, color: Colors.black12), // Separator line
+      ],
     );
   }
 }
