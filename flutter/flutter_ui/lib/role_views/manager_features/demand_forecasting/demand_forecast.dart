@@ -112,11 +112,14 @@ class ApiService {
   static const String _baseUrl = "http://10.0.2.2:8000/api";
   // static const String _baseUrl = "http://127.0.0.1:8000/api";
 
-  Future<ForecastReport> fetchLatestForecast() async {
+  Future<ForecastReport?> fetchLatestForecast() async {
     final response = await http.get(Uri.parse('$_baseUrl/forecast/latest/'));
 
     if (response.statusCode == 200) {
       return ForecastReport.fromJson(jsonDecode(response.body));
+    } else if (response.statusCode == 404) {
+      // If no forecast exists, return null to signify an empty state
+      return null;
     } else {
       throw Exception('Failed to load forecast data');
     }
@@ -158,7 +161,7 @@ class DemandForecastScreen extends StatefulWidget {
 }
 
 class _DemandForecastScreenState extends State<DemandForecastScreen> {
-  Future<ForecastReport>? futureForecast;
+  Future<ForecastReport?>? futureForecast;
   bool isGenerating = false;
 
   @override
@@ -348,9 +351,9 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
             Text(
               'Generate a report of the top forecasted medicines.',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: const Color(0xFF5C7C9A),
-                    fontWeight: FontWeight.bold,
-                  ),
+                      color: const Color(0xFF5C7C9A),
+                      fontWeight: FontWeight.bold,
+                    ),
             ),
             const SizedBox(height: 16),
             Center(
@@ -379,7 +382,7 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
                         style: TextStyle(fontSize: 16, color: Colors.grey),
                       ),
                     )
-                  : FutureBuilder<ForecastReport>(
+                  : FutureBuilder<ForecastReport?>(
                       future: futureForecast,
                       builder: (context, snapshot) {
                         if (snapshot.connectionState == ConnectionState.done) {
@@ -396,7 +399,7 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
                           return const Center(child: CircularProgressIndicator());
                         } else if (snapshot.hasError) {
                           return Center(child: Text('Error: ${snapshot.error}'));
-                        } else if (snapshot.hasData) {
+                        } else if (snapshot.hasData && snapshot.data != null) {
                           final forecastReport = snapshot.data!;
 
                           if (forecastReport.items.isEmpty) {

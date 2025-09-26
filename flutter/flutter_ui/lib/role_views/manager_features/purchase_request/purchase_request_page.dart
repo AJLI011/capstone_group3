@@ -65,6 +65,12 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
           }).toList().cast<Map<String, dynamic>>(); // Corrected line
           _isLoading = false;
         });
+      } else if (response.statusCode == 404) {
+        // Handle 404 specifically by not setting an error message
+        // This will let the UI show the 'No items to purchase' message
+        setState(() {
+          _isLoading = false;
+        });
       } else {
         setState(() {
           _errorMessage = 'Failed to load purchase requests. Status code: ${response.statusCode}';
