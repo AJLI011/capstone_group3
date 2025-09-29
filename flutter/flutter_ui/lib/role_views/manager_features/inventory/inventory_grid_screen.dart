@@ -166,7 +166,6 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
       return matchesCategory && matchesSearch;
     }).toList();
 
-    filtered.sort((a, b) => _sortAZ ? a.name.compareTo(b.name) : b.name.compareTo(a.name));
     return filtered;
   }
 
