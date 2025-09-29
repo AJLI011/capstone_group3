@@ -679,7 +679,7 @@ class InventoryCreateView(APIView):
 
 
 
-#======== 9/13/25 LAZY LOADING CHANGE===================================
+#======== 9/29/25 LAZY LOADING CHANGE===================================
 @api_view(['GET'])
 def get_inventory_list(request):
     # Retrieve limit and offset from query parameters, with default values
@@ -689,8 +689,8 @@ def get_inventory_list(request):
     # Clean expired promos (assuming this is a necessary pre-processing step)
     clean_expired_promos()
 
-    # Get the base queryset
-    queryset = TotalQuantity.objects.select_related('medicine').all()
+    # Get the base queryset and ORDER IT BY NAME before slicing
+    queryset = TotalQuantity.objects.select_related('medicine').all().order_by('medicine__name')
     
     # Apply slicing to the queryset based on offset and limit
     paginated_queryset = queryset[offset:offset + limit]
@@ -757,7 +757,7 @@ def get_medicine_by_barcode(request, barcode):
     serializer = InventoryBatchDetailSerializer(batches, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
-#======= 9/13/25 LAZY LOADING CHANGE ===============
+#======= 9/29/25 LAZY LOADING CHANGE ===============
 @api_view(['GET'])
 def get_batch_details(request, medicine_id):
     today = timezone.now().date()
@@ -766,10 +766,12 @@ def get_batch_details(request, medicine_id):
     limit = int(request.query_params.get('limit', 10))
     offset = int(request.query_params.get('offset', 0))
 
+    # IMPORTANT: Order the queryset first before slicing.
+    # We'll order by expiration date in ascending order.
     batches = Inventory.objects.filter(
         medicine__id=medicine_id,
         exp_date__gt=today  # strictly greater than today → exclude expired
-    )#.order_by('exp_date') # MODIFIED: Add a default ordering for consistent pagination.
+    ).order_by('exp_date') 
 
     if not batches.exists():
         return Response({'message': 'No active batches found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -779,6 +781,7 @@ def get_batch_details(request, medicine_id):
 
     serializer = InventoryBatchDetailSerializer(paginated_batches, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
 #============================================
 
 
@@ -1113,7 +1116,7 @@ class PromoMedicineDetailView(APIView):
         return Response(serializer.data)
 
 
-#========= 9/13/25 UPDATED 4 LAZY LOADING ================
+#========= 9/24/25 UPDATED 4 LAZY LOADING ================
 #For Normal Medicine 
 #For Normal Medicine 
 @api_view(['GET'])
@@ -1129,10 +1132,8 @@ def get_customer_medicines(request):
     category = request.query_params.get('category', None)
     search_query = request.query_params.get('search', None)
 
-    # Start with all medicine objects and then filter based on parameters.
-    # Note: Using .all() on TotalQuantity then list comprehension is not scalable.
-    # It's better to filter the queryset directly.
-    queryset = TotalQuantity.objects.select_related('medicine').all()
+    # Start with the base queryset and apply sorting first.
+    queryset = TotalQuantity.objects.select_related('medicine').all().order_by('medicine__name')
     
     # Apply category filter
     if category and category != 'all':
@@ -1154,6 +1155,7 @@ def get_customer_medicines(request):
     # Serialize the paginated list of medicines.
     serializer = CustomerMedicineSerializer(medicines, many=True, context={'request': request})
     return Response(serializer.data, status=status.HTTP_200_OK)
+
 #===================================================================
 
 @api_view(['GET'])
@@ -1241,7 +1243,11 @@ def employee_logs_view(request):
 #modified some parts of the pending order view for the order logs
 
 #combined logic from previous InStoreOrderProcessingView with recent 8/12/25
+#--9/29/25 MODIFIED FOR CASHIER PRESCRIPTION DIALOGUE BOX
 class InStoreOrderProcessingView(APIView):
+    """
+    API endpoint for cashiers to view, approve, or reject pending in-store orders.
+    """
 
     def get(self, request):
         """
@@ -1253,10 +1259,14 @@ class InStoreOrderProcessingView(APIView):
         serializer = CashierInStoreOrderSerializer(pending_orders, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # Indent the 'put' method to be inside the class
     def put(self, request, order_id):
+        """
+        Approve or reject a pending in-store order.
+        Includes a check for prescription-required items to prompt a warning.
+        """
         new_status = request.data.get('status')
-        cashier_id = request.data.get('cashier_id') # Changed variable name to be consistent
+        cashier_id = request.data.get('cashier_id')
+        force_approve = request.data.get('force_approve', False) # NEW: Get the force_approve flag
         
         if not new_status or new_status not in ['approved', 'rejected']:
             return Response({'error': 'Invalid status provided'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1268,20 +1278,46 @@ class InStoreOrderProcessingView(APIView):
                 except InStoreOrder.DoesNotExist:
                     return Response({'error': 'Pending order not found'}, status=status.HTTP_404_NOT_FOUND)
                 
+                # Retrieve cashier user once to avoid duplicate calls
                 try:
-                    # You should use the Staff model, which represents the cashier in this context.
                     cashier_user = Staff.objects.get(id=cashier_id)
                 except Staff.DoesNotExist:
                     return Response({'error': f'Cashier with ID {cashier_id} not found'}, status=status.HTTP_404_NOT_FOUND)
-                
+
                 if new_status == 'approved':
+                    # --- NEWLY ADDED DEBUGGING LINES HERE ---
+                    print(f"DEBUG: order.has_prescription_required_item: {order.has_prescription_required_item}")
+                    
+                    # We now check if an image exists in the related PrescriptionImage table
+                    # This is the correct way to query for the image's existence
+                    has_image = PrescriptionImage.objects.filter(prescription__in_store_order=order).exists()
+                    
+                    print(f"DEBUG: Prescription image exists?: {has_image}")
+                    print(f"DEBUG: force_approve flag: {force_approve}")
+                    # --- END OF DEBUGGING LINES ---
+
+                    # CORRECTED LOGIC: The condition is now that a prescription is required, BUT no image has been uploaded YET.
+                    if order.has_prescription_required_item and not has_image and not force_approve:
+                        return Response(
+                            {'warning': 'This order requires a prescription, but none was uploaded. Do you want to approve it anyway?'},
+                            status=status.HTTP_202_ACCEPTED
+                        )
+
+                    # Process each item in the order to update inventory
                     order_items = InStoreOrderItem.objects.filter(order=order)
                     for item in order_items:
+                        # ADDED CHECK: Ensure the order item is linked to an inventory item
+                        if not item.inventory_id:
+                            transaction.set_rollback(True)
+                            return Response(
+                                {'error': f"Order item for '{item.medicine_name}' is not linked to an inventory item."},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                        
                         total_to_deduct = item.quantity_sold + item.free_quantity_given
                         batch = item.inventory_id
                         
                         if batch.quantity < total_to_deduct:
-                            # Revert any changes if stock is insufficient
                             transaction.set_rollback(True)
                             return Response(
                                 {'error': f"Insufficient stock for {batch.medicine.name}. "
@@ -1293,30 +1329,29 @@ class InStoreOrderProcessingView(APIView):
                         batch.save(update_fields=['quantity'])
                         
                         InventoryLog.objects.create(
-                            user=cashier_user, # Corrected to use cashier user
+                            user=cashier_user, #NEW
                             medicine=batch.medicine,
                             action_type='Sold',
                             description=f"Approved sale of {total_to_deduct} units "
                                         f"of {batch.medicine.name} (Batch: {batch.batch_num}) "
-                                        f"from In-Store Order #{order.id}.",
-                            medicine_name_log=batch.medicine.name # <-- Add this line
+                                        f"from In-Store Order #{order.id}."
                         )
                     
-                    order.cashier = cashier_user
+                    order.cashier = cashier_user #NEW
                     order.status = 'approved'
                     order.save(update_fields=['status', 'cashier'])
-
+                    
                     OrderLog.objects.create(
                         staff_user=cashier_user,
                         in_store_order=order,
                         action_type='in_store_approve',
-                        description=f'Sale transaction approved'
+                        description=f'Sale transaction approved by {cashier_user.name}'
                     )
                     
                     return Response({'message': 'Order approved and inventory updated'}, status=status.HTTP_200_OK)
                 
                 elif new_status == 'rejected':
-                    order.cashier = cashier_user # Also set cashier for rejected orders for auditing
+                    order.cashier = cashier_user
                     order.status = 'rejected'
                     order.save(update_fields=['status', 'cashier'])
                     
@@ -1324,17 +1359,18 @@ class InStoreOrderProcessingView(APIView):
                         staff_user=cashier_user,
                         in_store_order=order,
                         action_type='in_store_reject',
-                        description=f'Sale transaction rejected'
+                        description=f'Sale transaction rejected by {cashier_user.name}'
                     )
                     return Response({'message': 'Order rejected'}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            # Handle any other exceptions
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)        
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+       
         
         
     
 #----------ORDER LOGS PT 2 - FOR STAFF (INSTORE)---------
+#
 @api_view(['POST'])
 def process_instore_order(request):
     """

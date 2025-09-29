@@ -605,11 +605,14 @@ class CashierInStoreOrderSerializer(serializers.ModelSerializer):
     staff_name = serializers.CharField(source='staff.name', read_only=True)
     # **THIS IS THE NEW FIELD
     cashier_name = serializers.CharField(source='cashier.name', read_only=True)
+    # --9/29/25-- ADDED
+    has_prescription_required_item = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = InStoreOrder
         # **ADD 'cashier_name' to the fields list**
-        fields = ['id', 'staff_name', 'cashier_name', 'is_pwd', 'total_amount_before_discount', 'total_amount_after_discount', 'items']
+        # --9/29/25 ADDED 'has_prescription_required_item'
+        fields = ['id', 'staff_name', 'cashier_name', 'is_pwd', 'total_amount_before_discount', 'total_amount_after_discount', 'items', 'has_prescription_required_item']
 
 
 

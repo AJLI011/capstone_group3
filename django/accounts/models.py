@@ -178,6 +178,8 @@ class InStoreOrder(models.Model):
     is_pwd = models.BooleanField(default=False)
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total_amount_after_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    #--9/29/25-- ADDED
+    has_prescription_required_item = models.BooleanField(default=False)
     
     
 
