@@ -1370,12 +1370,11 @@ class InStoreOrderProcessingView(APIView):
         
     
 #----------ORDER LOGS PT 2 - FOR STAFF (INSTORE)---------
-#
+#--9/29/25 MODIFIED FOR CASHIER DIALOGUE BOX 
 @api_view(['POST'])
 def process_instore_order(request):
     """
     API endpoint for staff to create a pending in-store order.
-    Does NOT deduct from inventory yet.
     """
     serializer = InStoreOrderSerializer(data=request.data)
     if serializer.is_valid():
@@ -1383,6 +1382,27 @@ def process_instore_order(request):
             # 1. Save the order with a 'pending' status.
             order = serializer.save()
 
+            # NEW LOGIC --9/25/25--
+            # Check if any items in the order require a prescription
+            prescription_needed = False
+            for item_data in request.data.get('items', []):
+                # We need to get the medicine instance from the inventory ID
+                inventory_id = item_data.get('inventory_id')
+                if inventory_id:
+                    try:
+                        inventory_item = Inventory.objects.get(id=inventory_id)
+                        if inventory_item.medicine.requires_prescription:
+                            prescription_needed = True
+                            break  # We found one, no need to check others
+                    except Inventory.DoesNotExist:
+                        # Log or handle this case if necessary, but don't stop the process
+                        pass
+            
+            # Update the order object if a prescription is needed
+            if prescription_needed:
+                order.has_prescription_required_item = True
+                order.save(update_fields=['has_prescription_required_item'])
+            
             # 2. Get the staff user ID from the request data
             staff_id = request.data.get('staff')
             staff_user = Staff.objects.get(id=staff_id)
@@ -1987,6 +2007,7 @@ def cancel_online_order_cashier(request, orderId):
 
 # ---------------9/26/25
 #=====================9/1/25===================    ===================== 9/4/25 (online orders added in inventory logs)===================
+#--9/29/25-- MODIFIED FOR DIALOGUE BOX
 @api_view(['PUT'])
 def finalize_online_order(request, orderId):
     """
@@ -1998,6 +2019,7 @@ def finalize_online_order(request, orderId):
     """
     try:
         staff_id = request.data.get('staff_id')
+        force_approve = request.data.get('force_approve', False) # <-- Add this line
         if not staff_id:
             return Response({'error': 'Staff ID is required'}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -2005,6 +2027,38 @@ def finalize_online_order(request, orderId):
 
         with transaction.atomic():
             order = OnlineOrder.objects.get(id=orderId, status='ready for pickup')
+
+            # ======== NEW PRESCRIPTION LOGIC FOR DIALOGUE BOX ========
+            force_approve = request.data.get('force_approve', False)
+            
+            # Determine if any item in the order requires a prescription
+            order_requires_prescription = any(
+                item.inventory_id.medicine.requires_prescription for item in order.items.all()
+            )
+
+            # Check for a prescription image if required and force_approve is not set
+            if order_requires_prescription and not force_approve:
+                has_image = PrescriptionImage.objects.filter(prescription__online_order=order).exists()
+
+                if has_image:
+                    return Response(
+                        {
+                            "warning": "This order contains items that require a prescription. An image has been uploaded.",
+                            "has_image": True
+                        },
+                        status=status.HTTP_202_ACCEPTED
+                    )
+                else:
+                    return Response(
+                        {
+                            "warning": "This order contains items that require a prescription, and no image has been uploaded.",
+                            "has_image": False
+                        },
+                        status=status.HTTP_202_ACCEPTED
+                    )
+            # ==========================================================
+
+            # ORIGINAL CODE CONTINUES HERE
             
             # Step 1: Aggregate the total quantity required for each medicine,
             # separating regular and promo items.
