@@ -4,8 +4,14 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// New widget to display a confirmation dialog. This replaces standard alerts.
-Future<bool?> showConfirmationDialog(BuildContext context, String title, String content) async {
+// The updated confirmation dialog function to allow for custom button text.
+Future<bool?> showConfirmationDialog({
+  required BuildContext context,
+  required String title,
+  required String content,
+  String confirmText = 'Confirm',
+  String cancelText = 'Cancel',
+}) async {
   return showDialog<bool>(
     context: context,
     barrierDismissible: false, // User must tap a button to dismiss
@@ -15,13 +21,13 @@ Future<bool?> showConfirmationDialog(BuildContext context, String title, String 
         content: Text(content),
         actions: <Widget>[
           TextButton(
-            child: const Text('Cancel'),
+            child: Text(cancelText),
             onPressed: () {
               Navigator.of(context).pop(false); // Dismiss dialog, return false
             },
           ),
           TextButton(
-            child: const Text('Confirm'),
+            child: Text(confirmText),
             onPressed: () {
               Navigator.of(context).pop(true); // Dismiss dialog, return true
             },
@@ -81,15 +87,16 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
   // It calls the parent's function to trigger the API call.
   void _onPwdCheckboxChanged(bool? newValue) {
     // Safely get the order ID, providing a default of 0 if null.
+    // The API call will then fail gracefully with a 404.
     final orderId = widget.order['id'] as int? ?? 0;
     widget.onUpdateDiscount(orderId, newValue ?? false);
   }
 
   void _onRemoveItem(int orderId, int itemId) async {
     bool? confirmed = await showConfirmationDialog(
-      context,
-      'Remove Item?',
-      'Are you sure you want to remove this item from the order?'
+      context: context,
+      title: 'Remove Item?',
+      content: 'Are you sure you want to remove this item from the order?'
     );
     if (confirmed == true) {
       widget.onRemoveItem(orderId, itemId);
@@ -108,35 +115,24 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
       // Safely parse the quantity and price, defaulting to 0 if null or invalid
       final quantitySold = int.tryParse(item['quantity_sold'].toString()) ?? 0;
       final freeQuantity = int.tryParse(item['free_quantity_given'].toString()) ?? 0;
-      final priceAtSale = double.tryParse(item['price_at_sale'].toString()) ?? 0.0;
-      final itemTotal = priceAtSale * quantitySold;
+      final price = double.tryParse(item['price_at_sale'].toString()) ?? 0.0;
+      final itemTotal = price * quantitySold;
       
-      // ⭐ UPDATED LOGIC: Determine if the item is considered deleted/unavailable.
-      // We assume a total of 0.0 means the item or its price was removed by the system.
-      final isDeleted = itemTotal == 0.0 && quantitySold > 0;
-      const deletedMessage = 'This item is no longer available';
-
       final medicine = item['medicine'] as Map<String, dynamic>;
       final medicineName = medicine['name'] ?? 'N/A';
       final genericName = medicine['generic_name'] ?? 'N/A';
-      
-      // Only use the image URL if the item is NOT deleted
-      final imageUrl = isDeleted ? '' : (medicine['image'] ?? ''); 
+      final imageUrl = medicine['image'] ?? '';
       final requiresPrescription = medicine['requires_prescription'] ?? false;
       
       String fullImageUrl = imageUrl.isNotEmpty && !imageUrl.startsWith('http')
           ? '${widget.baseUrl}$imageUrl'
           : imageUrl;
 
-      // Debugging print statement to check if IDs are present
-      print('Building item card. Order ID: $orderId, Item ID: $itemId');
-
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // UPDATED: Image loading logic with a fallback
             if (fullImageUrl.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
@@ -159,67 +155,43 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                     medicineName,
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  
-                  // ⭐ ADDED LOGIC: Display the deleted message if applicable
-                  if (isDeleted)
+                  Text(
+                    genericName,
+                    style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.grey),
+                  ),
+                  if (requiresPrescription)
                     const Text(
-                      deletedMessage,
+                      'Prescription Required',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.red,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
-                  
-                  // Show item details only if NOT deleted
-                  if (!isDeleted) ...[ 
+                  const SizedBox(height: 4),
+                  if (freeQuantity > 0)
                     Text(
-                      genericName,
-                      style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.grey),
+                      'Quantity: $quantitySold, Promo: $freeQuantity',
+                      style: const TextStyle(fontSize: 14),
+                    )
+                  else
+                    Text(
+                      'Quantity: $quantitySold',
+                      style: const TextStyle(fontSize: 14),
                     ),
-                    if (requiresPrescription)
-                      const Text(
-                        'Prescription Required',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.red,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    const SizedBox(height: 4),
-                    if (freeQuantity > 0)
-                      Text(
-                        'Quantity: $quantitySold, Promo: $freeQuantity',
-                        style: const TextStyle(fontSize: 14),
-                      )
-                    else
-                      Text(
-                        'Quantity: $quantitySold',
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                  ]
                 ],
               ),
             ),
-            
-            // ⭐ ADDED LOGIC: Hide delete button and price if item is deleted/unavailable
-            if (!isDeleted)
-              IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                // Enable the button only if both orderId and itemId are not null
-                onPressed: (orderId != null && itemId != null)
-                    ? () => _onRemoveItem(orderId, itemId)
-                    : null, // Disable the button if IDs are null
-              ),
-            
-            if (!isDeleted)
-              Text(
-                '₱${itemTotal.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              )
-            else 
-              // Add spacing for alignment when price/delete icon are hidden
-              const SizedBox(width: 48), 
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: (orderId != null && itemId != null)
+                  ? () => _onRemoveItem(orderId, itemId)
+                  : null, // Disable the button if IDs are null
+            ),
+            Text(
+              '₱${itemTotal.toStringAsFixed(2)}',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
       );
@@ -228,7 +200,6 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
 
   @override
   Widget build(BuildContext context) {
-    // The total amount for the UI is now directly from the order data
     final totalAmount = double.tryParse(_currentOrder['total_amount_after_discount'].toString()) ?? 0.0;
     
     return Card(
@@ -255,16 +226,12 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
               children: [
                 const Text('Items:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 8),
-                // Use the order data for the UI
                 ..._buildOrderItems(_currentOrder['items']),
                 const SizedBox(height: 16),
-                // PWD checkbox for ready for pickup orders
                 Row(
                   children: [
-                    // The checkbox's value is taken directly from the current order data
                     Checkbox(
                       value: _currentOrder['is_pwd'] ?? false,
-                      // When the checkbox is tapped, this function is called.
                       onChanged: _onPwdCheckboxChanged,
                     ),
                     const Text('Apply PWD/Senior Citizen Discount'),
@@ -293,9 +260,9 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                         child: ElevatedButton(
                           onPressed: () async {
                               final bool? confirm = await showConfirmationDialog(
-                                context,
-                                'Cancel Order?',
-                                'Are you sure you want to cancel this entire order? This cannot be undone.'
+                                context: context,
+                                title: 'Cancel Order?',
+                                content: 'Are you sure you want to cancel this entire order? This cannot be undone.'
                               );
                               if (confirm == true) {
                                 widget.onCancel(_currentOrder['id'] as int);
@@ -311,16 +278,9 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () async {
-                              final bool? confirm = await showConfirmationDialog(
-                                context,
-                                'Finalize Order?',
-                                'Are you sure the customer has picked up this order? This will deduct from the inventory.'
-                              );
-                              if (confirm == true) {
-                                widget.onFinalize(_currentOrder['id'] as int);
-                              }
-                            },
+                          onPressed: () {
+                            widget.onFinalize(_currentOrder['id'] as int);
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
                             foregroundColor: Colors.white,
@@ -368,7 +328,6 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         setState(() {
-          // Filter orders directly after fetching to only show 'ready for pickup'
           _allOrders = jsonDecode(response.body)
               .where((order) => order['status'] == 'ready for pickup')
               .toList();
@@ -387,17 +346,13 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
     }
   }
 
-  // UPDATED: This function now checks the status of the order before updating.
   void _updateOrderInList(Map<String, dynamic> updatedOrder) {
     setState(() {
       final orderIndex = _allOrders.indexWhere((order) => order['id'] == updatedOrder['id']);
       if (orderIndex != -1) {
-        // Check if the order status has changed to 'cancelled'
         if (updatedOrder['status'] == 'cancelled') {
-          // If the order is cancelled, remove it from the list entirely
           _allOrders.removeAt(orderIndex);
         } else {
-          // Otherwise, just update the order data
           _allOrders[orderIndex] = updatedOrder;
         }
       }
@@ -458,28 +413,108 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
       return;
     }
 
-    final body = jsonEncode({
-      'staff_id': staffId,
-    });
-
-    try {
-      final response = await http.put(
+    // Step 1: Send a check request to the backend. The backend will determine if a prescription is required.
+    Future<http.Response> checkRequest() {
+      return http.put(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
-        body: body,
+        body: jsonEncode({
+          'staff_id': staffId,
+        }),
       );
+    }
 
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Order finalized successfully.')),
+    try {
+      http.Response response = await checkRequest();
+
+      // Case A: The order requires a prescription (backend returns 202).
+      if (response.statusCode == 202) {
+        final warningBody = jsonDecode(response.body);
+        final bool hasImage = warningBody['has_image'] ?? false;
+        
+        String dialogTitle;
+        String dialogContent;
+        
+        // Sub-case A1: Prescription order with an uploaded image.
+        if (hasImage) {
+          dialogTitle = 'Verify Prescription';
+          dialogContent = 'A prescription has been uploaded. Please verify the image before finalizing this order.';
+        } else {
+          // Sub-case A2: Prescription order without an uploaded image.
+          dialogTitle = 'Prescription Required';
+          dialogContent = 'No prescription image has been uploaded. Do you want to proceed anyway?';
+        }
+        
+        // Show the first dialog with the "Approve Anyway" option.
+        final bool? firstConfirm = await showConfirmationDialog(
+          context: context,
+          title: dialogTitle,
+          content: dialogContent,
+          confirmText: 'Approve Anyway',
         );
-        _fetchCashierOrders();
-      } else {
+
+        if (firstConfirm == true) {
+          // If the cashier approves, show the final "Are you sure?" dialog.
+          final bool? finalConfirm = await showConfirmationDialog(
+            context: context,
+            title: 'Finalize Order',
+            content: 'Are you sure you want to finalize this order? This will deduct from the inventory.',
+          );
+          
+          if (finalConfirm == true) {
+            // Send the final request with the `force_approve` flag.
+            final finalResponse = await http.put(
+              Uri.parse(url),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({
+                'staff_id': staffId,
+                'force_approve': true,
+              }),
+            );
+
+            if (finalResponse.statusCode == 200) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Order finalized successfully.')),
+              );
+              _fetchCashierOrders(); // Refresh the list
+            } else {
+              final errorBody = jsonDecode(finalResponse.body);
+              final errorMessage = errorBody['detail'] ?? errorBody['error'] ?? 'Failed to finalize order.';
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(errorMessage)),
+              );
+            }
+          }
+        }
+        return; // Exit the function after the prescription workflow is handled.
+      } 
+      
+      // Case B: The order does NOT require a prescription (backend returns 200).
+      else if (response.statusCode == 200) {
+        // Show a simple, single confirmation dialog.
+        final bool? confirm = await showConfirmationDialog(
+          context: context,
+          title: 'Finalize Order?',
+          content: 'Are you sure the customer has picked up this order? This will deduct from the inventory.',
+        );
+
+        if (confirm == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Order finalized successfully.')),
+          );
+          _fetchCashierOrders();
+        }
+        return; // Exit the function.
+      } 
+      
+      // Case C: The request failed for other reasons.
+      else {
         final errorBody = jsonDecode(response.body);
-        final errorMessage = errorBody['detail'] ?? 'Failed to finalize order.';
+        final errorMessage = errorBody['detail'] ?? 'Failed to finalize order due to an error.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage)),
         );
+        return;
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -488,24 +523,17 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
     }
   }
 
-  // UPDATED: This function now parses the API response to see if the order was
-  // cancelled. If so, it removes the order from the list. Otherwise, it updates
-  // the order card with the new data.
   Future<void> _removeOrderItem(int orderId, int itemId) async {
     final url = '$_baseUrl/api/cashier/online-orders/$orderId/items/$itemId/';
     final response = await http.delete(Uri.parse(url));
 
     if (response.statusCode == 200) {
-      // Decode the response to get the updated order data
       final responseData = jsonDecode(response.body);
 
-      // Check if the order was cancelled because it became empty
       if (responseData['detail'] != null && responseData['detail'].contains('cancelled')) {
-        // Since the order is cancelled, we need to remove it from the list
         _allOrders.removeWhere((order) => order['id'] == orderId);
-        setState(() {}); // Trigger a rebuild to remove the entire order card
+        setState(() {});
       } else {
-        // If the order is not empty, use the returned data to update the specific order card
         _updateOrderInList(responseData['order']);
       }
       ScaffoldMessenger.of(context).showSnackBar(
@@ -520,8 +548,6 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
     }
   }
 
-  // The function that is called by the child widget (CashierOrderCard)
-  // to initiate the API call for the discount.
   Future<void> _updateOrderDiscount(int orderId, bool isPwd) async {
     final url = '$_baseUrl/api/cashier/online-orders/$orderId/update-discount/';
     final response = await http.put(
@@ -531,14 +557,12 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
     );
 
     if (response.statusCode == 200) {
-      // If the API call is successful, update the specific order in our local list.
       final responseData = jsonDecode(response.body);
       _updateOrderInList(responseData['order']);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('PWD discount updated successfully.')),
       );
     } else {
-      // If the API call fails, show an error message.
       final errorBody = jsonDecode(response.body);
       final errorMessage = errorBody['detail'] ?? 'Failed to update discount.';
       ScaffoldMessenger.of(context).showSnackBar(
@@ -566,24 +590,10 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
     List<dynamic> readyForPickupOrders = _allOrders.where((order) => order['status'] == 'ready for pickup').toList();
     if (_selectedDate != null) {
       readyForPickupOrders = readyForPickupOrders.where((order) {
-        // Check for null or invalid pickup_schedule before parsing
-        final pickupScheduleString = order['pickup_schedule']?.toString();
-        if (pickupScheduleString == null || pickupScheduleString.isEmpty) {
-          return false; // Skip orders with no pickup schedule
-        }
-        
-        DateTime? pickupDate;
-        try {
-          pickupDate = DateTime.parse(pickupScheduleString).toLocal();
-        } catch (e) {
-          // Handle parsing errors gracefully by skipping the order
-          print('Error parsing date for order ${order['id']}: $e');
-          return false;
-        }
-
-        return pickupDate!.year == _selectedDate!.year &&
-               pickupDate.month == _selectedDate!.month &&
-               pickupDate.day == _selectedDate!.day;
+        final pickupDate = DateTime.parse(order['pickup_schedule']).toLocal();
+        return pickupDate.year == _selectedDate!.year &&
+                pickupDate.month == _selectedDate!.month &&
+                pickupDate.day == _selectedDate!.day;
       }).toList();
     }
 

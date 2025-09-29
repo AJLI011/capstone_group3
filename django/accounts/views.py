@@ -1285,23 +1285,28 @@ class InStoreOrderProcessingView(APIView):
                     return Response({'error': f'Cashier with ID {cashier_id} not found'}, status=status.HTTP_404_NOT_FOUND)
 
                 if new_status == 'approved':
-                    # --- NEWLY ADDED DEBUGGING LINES HERE ---
-                    print(f"DEBUG: order.has_prescription_required_item: {order.has_prescription_required_item}")
-                    
-                    # We now check if an image exists in the related PrescriptionImage table
-                    # This is the correct way to query for the image's existence
-                    has_image = PrescriptionImage.objects.filter(prescription__in_store_order=order).exists()
-                    
-                    print(f"DEBUG: Prescription image exists?: {has_image}")
-                    print(f"DEBUG: force_approve flag: {force_approve}")
-                    # --- END OF DEBUGGING LINES ---
-
-                    # CORRECTED LOGIC: The condition is now that a prescription is required, BUT no image has been uploaded YET.
-                    if order.has_prescription_required_item and not has_image and not force_approve:
-                        return Response(
-                            {'warning': 'This order requires a prescription, but none was uploaded. Do you want to approve it anyway?'},
-                            status=status.HTTP_202_ACCEPTED
-                        )
+                    # Check if the order requires a prescription
+                    if order.has_prescription_required_item and not force_approve:
+                        has_image = PrescriptionImage.objects.filter(prescription__in_store_order=order).exists()
+                        
+                        if has_image:
+                            # Scenario 1: Image exists. Trigger a verification dialogue.
+                            return Response(
+                                {
+                                    "warning": "This order contains items that require a prescription. An image has been uploaded. Please verify before approving.",
+                                    "has_image": True
+                                },
+                                status=status.HTTP_202_ACCEPTED
+                            )
+                        else:
+                            # Scenario 2: No image exists. Trigger a warning dialogue.
+                            return Response(
+                                {
+                                    "warning": "This order contains items that require a prescription, and no image has been uploaded. Do you want to approve it anyway?",
+                                    "has_image": False
+                                },
+                                status=status.HTTP_202_ACCEPTED
+                            )
 
                     # Process each item in the order to update inventory
                     order_items = InStoreOrderItem.objects.filter(order=order)
