@@ -9,25 +9,60 @@ const String API_BASE = String.fromEnvironment(
   defaultValue: 'http://10.0.2.2:8000/',
 );
 
+// NEW: Define a class to hold the paginated data response from the backend
+class InventoryResponse {
+  final List<TotalQuantity> items;
+  final int totalCount;
+  final bool hasMore;
+
+  InventoryResponse({
+    required this.items,
+    required this.totalCount,
+    required this.hasMore,
+  });
+}
+
 class InventoryApiService {
-  // MODIFIED: Replaced the hardcoded URL with a constant that uses the API_BASE.
   static const String inventoryPath = 'api/inventory/';
   static const String totalQuantitiesPath = 'api/inventory/total-quantities/';
 
-  // MODIFIED: Added limit and offset parameters to support lazy loading.
-  static Future<List<TotalQuantity>> fetchInventoryItems({
+  // MODIFIED: Accepts search and category, and returns the new InventoryResponse.
+  static Future<InventoryResponse> fetchInventoryItems({
     int limit = 10,
     int offset = 0,
+    String? searchQuery, // NEW parameter
+    String? category, // NEW parameter
   }) async {
     try {
-      // MODIFIED: Use the API_BASE constant to construct the full URL.
-      // The limit and offset query parameters are appended to the URL.
-      final url = '$API_BASE$inventoryPath?limit=$limit&offset=$offset';
+      // 1. Construct the base URL with pagination parameters
+      String url = '$API_BASE$inventoryPath?limit=$limit&offset=$offset';
+
+      // 2. Append search query if provided (using Uri.encodeQueryComponent for safety)
+      if (searchQuery != null && searchQuery.isNotEmpty) {
+        url += '&q=${Uri.encodeQueryComponent(searchQuery)}';
+      }
+
+      // 3. Append category filter if provided
+      if (category != null && category.isNotEmpty) {
+        url += '&category=$category';
+      }
+
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.map((json) => TotalQuantity.fromJson(json)).toList();
+        // MODIFIED: Decode the entire JSON response object
+        final Map<String, dynamic> responseData = json.decode(response.body);
+
+        // Extract the list of items
+        final List<dynamic> data = responseData['items'] ?? [];
+        final List<TotalQuantity> items = data.map((json) => TotalQuantity.fromJson(json)).toList();
+
+        // Return the InventoryResponse object with the total count from the server
+        return InventoryResponse(
+          items: items,
+          totalCount: responseData['total_count'] ?? 0,
+          hasMore: responseData['has_more'] ?? false,
+        );
       } else {
         throw Exception('Failed to load inventory data: ${response.statusCode}');
       }
@@ -36,10 +71,9 @@ class InventoryApiService {
     }
   }
 
-  // ✅ Total quantity sync function
+  // ✅ Total quantity sync function (no changes)
   static Future<void> syncTotalQuantities() async {
     try {
-      // MODIFIED: Use the API_BASE constant to construct the full URL.
       final url = '$API_BASE$totalQuantitiesPath';
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
@@ -61,7 +95,6 @@ class InventoryGridScreen extends StatefulWidget {
 }
 
 class _InventoryGridScreenState extends State<InventoryGridScreen> {
-  // NEW: A ScrollController to listen for scrolling events.
   final ScrollController _scrollController = ScrollController();
   List<TotalQuantity> _items = [];
   String _selectedCategory = '';
@@ -69,11 +102,13 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
   bool _showSearch = false;
   String _searchQuery = '';
 
-  // NEW: State variables to manage the lazy loading process.
+  // Lazy loading state variables
   int _offset = 0;
   final int _limit = 10;
   bool _isLoading = false;
   bool _hasMoreItems = true;
+  // NEW: Total count of items that match the current search/filter (from backend)
+  int _totalCount = 0;
 
   final List<Map<String, String>> _categoryChoices = [
     {'value': '', 'label': 'Categories'},
@@ -95,54 +130,71 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
   @override
   void initState() {
     super.initState();
-    // NEW: Add a listener to the ScrollController.
     _scrollController.addListener(_onScroll);
     syncAndLoadInventory();
   }
 
   @override
   void dispose() {
-    // NEW: Dispose the ScrollController to prevent memory leaks.
     _scrollController.dispose();
     super.dispose();
   }
 
-  // NEW: Function to check if the user has reached the end of the list.
+  // MODIFIED: Function to check if the user has reached the end of the list.
   void _onScroll() {
-    if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent &&
+    // Load a little earlier (e.g., 200 pixels from the end)
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent - 200 &&
         !_isLoading &&
         _hasMoreItems) {
       loadMoreItems();
     }
   }
+  
+  // NEW: Handler for search query changes that triggers a full reset and API reload
+  void _onSearchChanged(String value) {
+     setState(() => _searchQuery = value);
+     syncAndLoadInventory(); // Full reset and load with new query
+  }
+  
+  // NEW: Handler for category changes that triggers a full reset and API reload
+  void _onCategoryChanged(String value) {
+     setState(() => _selectedCategory = value);
+     syncAndLoadInventory(); // Full reset and load with new filter
+  }
 
+  // MODIFIED: Function to reset state and load the first page (used for initial load, search, and filter)
   Future<void> syncAndLoadInventory() async {
-    // NEW: Reset state variables before a new data load.
     setState(() {
       _items = [];
       _offset = 0;
+      _totalCount = 0; // Reset total count
       _hasMoreItems = true;
     });
     await InventoryApiService.syncTotalQuantities();
     await loadInventory();
   }
 
+  // MODIFIED: Core function to fetch data
   Future<void> loadInventory() async {
-    // NEW: Prevent multiple simultaneous API calls.
-    if (_isLoading) return;
+    // Prevent multiple simultaneous API calls or loading when no more items exist.
+    if (_isLoading || !_hasMoreItems) return;
     setState(() => _isLoading = true);
     try {
-      // MODIFIED: Pass limit and offset to the API service.
-      final fetchedItems = await InventoryApiService.fetchInventoryItems(
+      // MODIFIED: Pass all filter/search parameters
+      final response = await InventoryApiService.fetchInventoryItems(
         limit: _limit,
         offset: _offset,
+        searchQuery: _searchQuery,
+        category: _selectedCategory,
       );
+
       setState(() {
-        _items.addAll(fetchedItems);
-        // NEW: Update the offset for the next fetch.
+        _items.addAll(response.items);
         _offset += _limit;
-        // NEW: Check if there are more items to load.
-        _hasMoreItems = fetchedItems.length == _limit;
+        // UPDATE state based on backend response
+        _totalCount = response.totalCount;
+        _hasMoreItems = response.hasMore;
         _isLoading = false;
       });
     } catch (e) {
@@ -151,26 +203,40 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
     }
   }
 
-  // NEW: A dedicated function to load more items when scrolled.
   Future<void> loadMoreItems() async {
     if (_isLoading || !_hasMoreItems) return;
     await loadInventory();
   }
 
-  List<TotalQuantity> get _filteredItems {
-    final filtered = _items.where((item) {
-      final matchesCategory = _selectedCategory.isEmpty || item.category == _selectedCategory;
-      final matchesSearch = _searchQuery.isEmpty ||
-          item.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          item.genericName.toLowerCase().contains(_searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    }).toList();
+  // MODIFIED: Renamed to _sortedItems. The backend now handles filtering/searching. 
+  // This local getter only handles sorting.
+List<TotalQuantity> get _sortedItems {
+    // 1. Create a mutable copy of ALL loaded items
+    final List<TotalQuantity> items = List.from(_items); 
 
-    return filtered;
-  }
+    // 2. Define the comparison function (case-insensitive)
+    int compareName(TotalQuantity a, TotalQuantity b) {
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    }
+
+    // 3. Apply the sort based on the toggle state
+    if (_sortAZ) {
+      // Sort A-Z (Default behavior)
+      items.sort(compareName);
+    } else {
+      // Sort Z-A
+      items.sort((a, b) => compareName(b, a)); // Reverse comparison
+    }
+    
+    // 4. Return the fully sorted, accumulated list.
+    return items;
+}
 
   @override
   Widget build(BuildContext context) {
+    // Use the locally sorted list for display
+    final displayItems = _sortedItems;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Inventory'),
@@ -188,7 +254,10 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
             onPressed: () {
               setState(() {
                 _showSearch = !_showSearch;
-                _searchQuery = '';
+                // Important: When closing the search, reset the query and reload
+                if (!_showSearch) {
+                   _onSearchChanged(''); 
+                }
               });
             },
           ),
@@ -201,7 +270,8 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               color: Colors.white,
               child: TextField(
-                onChanged: (value) => setState(() => _searchQuery = value),
+                // MODIFIED: Use the new search handler that resets pagination
+                onChanged: _onSearchChanged, 
                 decoration: const InputDecoration(
                   hintText: 'Search...',
                   isDense: true,
@@ -229,8 +299,9 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
                         child: Text(choice['label']!),
                       );
                     }).toList(),
+                    // MODIFIED: Use the new category handler that resets pagination
                     onChanged: (value) {
-                      setState(() => _selectedCategory = value ?? '');
+                      _onCategoryChanged(value ?? '');
                     },
                   ),
                 ),
@@ -239,10 +310,10 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: _filteredItems.isEmpty && !_isLoading
-                ? const Center(child: Text('No medicines available.'))
+            // MODIFIED: Check against total count and loading state for "No medicines" message
+            child: displayItems.isEmpty && !_isLoading 
+                ? Center(child: Text(_totalCount == 0 ? 'No medicines available.' : 'Loading...'))
                 : GridView.builder(
-                    // NEW: Assign the ScrollController to the GridView.
                     controller: _scrollController,
                     padding: const EdgeInsets.all(12),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -251,14 +322,14 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
                       mainAxisSpacing: 12,
                       childAspectRatio: 0.75,
                     ),
-                    // NEW: Add an item for the loading indicator if more items are available.
-                    itemCount: _filteredItems.length + (_isLoading && _hasMoreItems ? 1 : 0),
+                    // MODIFIED: Use displayItems.length for the item count
+                    itemCount: displayItems.length + (_isLoading && _hasMoreItems ? 1 : 0),
                     itemBuilder: (context, index) {
-                      // NEW: Check if the current index is the last item.
-                      if (index == _filteredItems.length) {
+                      // Check if the current index is the last item (for the loading indicator)
+                      if (index == displayItems.length) {
                         return const Center(child: CircularProgressIndicator());
                       }
-                      final item = _filteredItems[index];
+                      final item = displayItems[index];
                       return Container(
                         decoration: BoxDecoration(
                           color: Colors.grey[200],

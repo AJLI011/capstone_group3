@@ -680,17 +680,40 @@ class InventoryCreateView(APIView):
 
 
 #======== 9/29/25 LAZY LOADING CHANGE===================================
+
 @api_view(['GET'])
 def get_inventory_list(request):
     # Retrieve limit and offset from query parameters, with default values
     limit = int(request.GET.get('limit', 10))
     offset = int(request.GET.get('offset', 0))
+    
+    # NEW: Retrieve search query and category filter
+    search_query = request.GET.get('q', None)
+    category_filter = request.GET.get('category', None)
 
     # Clean expired promos (assuming this is a necessary pre-processing step)
     clean_expired_promos()
 
-    # Get the base queryset and ORDER IT BY NAME before slicing
-    queryset = TotalQuantity.objects.select_related('medicine').all().order_by('medicine__name')
+    # Get the base queryset
+    queryset = TotalQuantity.objects.select_related('medicine').all()
+    
+    # NEW: Apply filtering based on category
+    if category_filter:
+        # Assuming the 'category' is a field on the 'medicine' model
+        queryset = queryset.filter(medicine__category=category_filter) 
+    
+    # NEW: Apply search filtering based on name or generic name
+    if search_query:
+        queryset = queryset.filter(
+            Q(medicine__name__icontains=search_query) |
+            Q(medicine__generic_name__icontains=search_query)
+        )
+
+    # ORDER IT BY NAME before slicing
+    queryset = queryset.order_by('medicine__name') 
+
+    # Get the total count of items AFTER filtering, but BEFORE pagination
+    total_count = queryset.count() 
     
     # Apply slicing to the queryset based on offset and limit
     paginated_queryset = queryset[offset:offset + limit]
@@ -698,8 +721,12 @@ def get_inventory_list(request):
     # Serialize the paginated data
     serializer = InventoryListSerializer(paginated_queryset, many=True, context={'request': request})
     
-    # Return the paginated data in the response
-    return Response(serializer.data)
+    # MODIFIED: Return the paginated data along with the total count
+    return Response({
+        'items': serializer.data,
+        'total_count': total_count,
+        'has_more': (offset + limit) < total_count, # Helpful boolean for the front end
+    })
 #=====================================================
 
 
