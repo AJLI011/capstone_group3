@@ -1339,7 +1339,8 @@ class InStoreOrderProcessingView(APIView):
                             action_type='Sold',
                             description=f"Approved sale of {total_to_deduct} units "
                                         f"of {batch.medicine.name} (Batch: {batch.batch_num}) "
-                                        f"from In-Store Order #{order.id}."
+                                        f"from In-Store Order #{order.id}.",
+                            medicine_name_log=batch.medicine.name # <-- Add this line
                         )
                     
                     order.cashier = cashier_user #NEW
