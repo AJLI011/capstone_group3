@@ -22,7 +22,7 @@ class _PrescriptionDetailsStaffState extends State<PrescriptionDetailsStaff> {
   // Function to pick images
   Future<void> _pickImages() async {
     final List<XFile> selected = await _picker.pickMultiImage();
-    if (selected != null && selected.isNotEmpty) {
+    if (selected.isNotEmpty) {
       setState(() {
         _selectedImages.addAll(selected);
       });
