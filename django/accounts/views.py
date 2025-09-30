@@ -434,6 +434,8 @@ def medicine_list(request):
                         user=staff_user,
                         medicine=medicine,
                         action_type='Add',
+                        staff_name=staff_user.name,
+                        staff_role=staff_user.role,
                         description=f"Added new medicine: {medicine.name}",
                         medicine_name_log=medicine.name, # <-- Add this line
                         timestamp=timezone.now()
@@ -515,6 +517,8 @@ def medicine_detail(request, pk):
                             medicine=updated_medicine,
                             action_type='Update',
                             description=description,
+                            staff_name=staff_user.name,
+                            staff_role=staff_user.role,
                             medicine_name_log=updated_medicine.name, # <-- Add this line for the name
                             timestamp=timezone.now() # Manually set the timestamp
                         )
@@ -594,7 +598,9 @@ def medicine_detail(request, pk):
                         action_type='Delete',
                         description=f"Deleted medicine: {medicine_name}",
                         medicine_name_log=medicine_name, # <-- Add this line to save the name
-                        timestamp=timezone.now()
+                        timestamp=timezone.now(),
+                        staff_name=staff_user.name,
+                        staff_role=staff_user.role,
                     )
                 except Staff.DoesNotExist:
                     print(f"Staff ID {staff_id} not found while logging delete.")
@@ -646,6 +652,8 @@ class InventoryCreateView(APIView):
                         action_type='Restock',
                         description=f"Restocked {qty_to_add} units (Batch: {batch})",
                         medicine_name_log=medicine.name, # ✅ Add this
+                        staff_name=staff_user.name,
+                        staff_role=staff_user.role,
                     )
                 except Staff.DoesNotExist:
                     print(f"Staff ID {staff_id} not found while logging restock action.")
@@ -921,7 +929,9 @@ def delete_expired_batch(request, pk):
                 medicine=medicine,
                 action_type='Expiration Return',
                 description=f"Returned {quantity} units of {medicine.name} (Batch: {batch}) due to expiration",
-                medicine_name_log=medicine.name # ✅ Add this line
+                medicine_name_log=medicine.name, # ✅ Add this line
+                staff_name=staff_user.name,
+                staff_role=staff_user.role,
             )
 
         # Now, and only now, delete the item from the Inventory table
@@ -971,6 +981,8 @@ def set_promo(request, inventory_id):
                 user=staff,
                 medicine=inventory_item.medicine,
                 action_type='Promo Set',
+                staff_name=staff_user.name,
+                staff_role=staff_user.role,
                 description=f"Set promo for batch {inventory_item.batch_num} from {start_date} to {end_date}",
                 medicine_name_log=inventory_item.medicine.name # ✅ Add this line
             )
@@ -1002,6 +1014,8 @@ def remove_promo(request):
                     user=staff,
                     medicine=inventory.medicine,
                     action_type='Promo Removed',
+                    staff_name=staff_user.name,
+                    staff_role=staff_user.role,
                     description=f"Removed promo for batch {inventory.batch_num}",
                     medicine_name_log=inventory.medicine.name # ✅ Add this line
                 )
@@ -1051,7 +1065,9 @@ def inventory_logs(request):
     paginator = InventoryLogPagination()
     
     # Get all logs, sorted by timestamp
-    logs = InventoryLog.objects.select_related('user', 'medicine').all()
+    # MODIFIED: Removed 'user' from select_related for a slight performance optimization, 
+    # as the staff name/role is now read directly from the log record (snapshot).
+    logs = InventoryLog.objects.select_related('medicine').all() 
 
     # Paginate the queryset
     paginated_logs = paginator.paginate_queryset(logs, request)
@@ -1364,6 +1380,8 @@ class InStoreOrderProcessingView(APIView):
                             user=cashier_user, #NEW
                             medicine=batch.medicine,
                             action_type='Sold',
+                            staff_name=staff_user.name,
+                            staff_role=staff_user.role,
                             description=f"Approved sale of {total_to_deduct} units "
                                         f"of {batch.medicine.name} (Batch: {batch.batch_num}) "
                                         f"from In-Store Order #{order.id}.",
@@ -2156,6 +2174,8 @@ def finalize_online_order(request, orderId):
                     InventoryLog.objects.create(
                         user=staff_user,
                         medicine=batch.medicine,
+                        staff_name=staff_user.name,
+                        staff_role=staff_user.role,
                         action_type='Sold',
                         description=f"Sold {amount_to_take} units of '{batch.medicine.name}' (Batch: {batch.batch_num}) from online order #{orderId}.",
                         medicine_name_log=batch.medicine.name # <-- Add this line
@@ -2194,6 +2214,8 @@ def finalize_online_order(request, orderId):
                         user=staff_user,
                         medicine=batch.medicine,
                         action_type='Sold',
+                        staff_name=staff_user.name,
+                        staff_role=staff_user.role,
                         description=f"Sold {amount_to_take} units of '{batch.medicine.name}' (Batch: {batch.batch_num}) from online order #{orderId}."
                         f"({item.quantity_sold} paid, {item.free_quantity_given} free).",
                         medicine_name_log=batch.medicine.name # <-- Add this line

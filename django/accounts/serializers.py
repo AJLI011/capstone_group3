@@ -250,22 +250,39 @@ class PromoSerializer(serializers.ModelSerializer):
 
 
 #===========================09/13/25 (ELTON)========================================================
-# For Inventory Logs
 class InventoryLogSerializer(serializers.ModelSerializer):
     user_name = serializers.SerializerMethodField()
     medicine_name = serializers.SerializerMethodField()
 
     class Meta:
         model = InventoryLog
-        fields = ['id', 'user_name', 'medicine_name', 'action_type', 'timestamp', 'description']
+        # ADD the new snapshot fields to the Meta.fields list
+        fields = [
+            'id', 
+            'user_name', 
+            'medicine_name', 
+            'action_type', 
+            'timestamp', 
+            'description',
+            # --- NEW FIELDS EXPOSED ---
+            'staff_name', 
+            'staff_role'
+            # ---------------------------
+        ]
 
     def get_user_name(self, obj):
-        if obj.user:
-            return f"{obj.user.name}, {obj.user.role}"
-        return "Unknown"
+        # MODIFIED LOGIC: We now use the snapshot fields (which are always populated)
+        # to guarantee the name and role are displayed.
+        # This keeps the 'user_name' key for the Flutter app but makes it robust.
+        
+        # If the user Foreign Key is NULL, it means the staff was deleted, 
+        # but the snapshot fields hold the preserved name/role.
+        # The snapshot fields are mandatory (have defaults) so this should always work.
+        return f"{obj.staff_name}, {obj.staff_role}"
+
 
     def get_medicine_name(self, obj):
-        # ✅ It's better to return None or a predictable empty string
+        # This part remains correct, referencing the medicine name log field.
         return obj.medicine_name_log
 #===========================09/13/25 (ELTON)========================================================
 

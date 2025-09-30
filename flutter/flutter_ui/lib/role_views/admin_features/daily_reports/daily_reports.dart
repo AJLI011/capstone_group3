@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_ui/services/pdf_daily_report_service.dart';
 
-// --- Data Models (Keep as is) ---
+// --- Data Models (Only InventoryLog is modified) ---
 class DailyReport {
   final List<EmployeeLog> employeeLogs;
   final List<OrderLog> orderLogs;
@@ -136,6 +136,9 @@ class OnlineOrderDetails {
   }
 }
 
+// -----------------------------------------------------------------
+// ⬇️ MODIFIED: InventoryLog model to include staffName and staffRole
+// -----------------------------------------------------------------
 class InventoryLog {
   final int id;
   final String actionType;
@@ -143,6 +146,9 @@ class InventoryLog {
   final String timestamp;
   final String? userName;
   final String? medicineName;
+  // NEW: Snapshot fields
+  final String? staffName;
+  final String? staffRole;
 
   InventoryLog({
     required this.id,
@@ -151,6 +157,9 @@ class InventoryLog {
     required this.timestamp,
     this.userName,
     this.medicineName,
+    // NEW:
+    this.staffName,
+    this.staffRole,
   });
 
   factory InventoryLog.fromJson(Map<String, dynamic> json) {
@@ -159,11 +168,18 @@ class InventoryLog {
       actionType: json['action_type'] ?? 'N/A',
       description: json['description'],
       timestamp: json['timestamp'],
-      userName: json['user_name'],
+      // Keep old key for compatibility, but its value is now from the backend's snapshot field
+      userName: json['user_name'], 
       medicineName: json['medicine_name'] ?? 'N/A',
+      // NEW: Map the new snapshot fields
+      staffName: json['staff_name'], 
+      staffRole: json['staff_role'],
     );
   }
 }
+// -----------------------------------------------------------------
+// -----------------------------------------------------------------
+
 
 // --- Main Widget ---
 class DailyReportsPage extends StatefulWidget {
@@ -283,7 +299,7 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
                         : Expanded(
                             child: Column(
                               children: [
-                                // Employee Logs Section
+                                // Employee Logs Section (No change needed)
                                 Expanded(
                                   child: _buildLogSection(
                                     'Employee Logs',
@@ -299,7 +315,7 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
                                 ),
                                 SizedBox(height: 20),
 
-                                // Order Logs Section
+                                // Order Logs Section (No change needed)
                                 Expanded(
                                   child: _buildLogSection(
                                     'Order Logs',
@@ -330,13 +346,21 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
                                 ),
                                 SizedBox(height: 20),
 
-                                // Inventory Logs Section
+                                // ----------------------------------------------------------------------
+                                // ⬇️ MODIFIED: Inventory Logs Section to display staff info
+                                // ----------------------------------------------------------------------
                                 Expanded(
                                   child: _buildLogSection(
                                     'Inventory Logs',
                                     _dailyReport!.inventoryLogs.map((log) {
+                                      // Get the robust staff name and role
+                                      final String staffInfo = log.staffName != null && log.staffRole != null
+                                          ? '${log.staffName} (${log.staffRole})'
+                                          : log.staffName ?? 'N/A Staff';
+
                                       String subtitle =
-                                          '${log.description ?? ''}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}';
+                                          'Staff: $staffInfo\n${log.description ?? ''}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}';
+                                      
                                       return _buildLogCard(
                                         title:
                                             '${log.actionType} - ${log.medicineName ?? 'N/A'}',
@@ -347,6 +371,7 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
                                         'No inventory logs for this date.',
                                   ),
                                 ),
+                                // ----------------------------------------------------------------------
                               ],
                             ),
                           ),
@@ -373,11 +398,11 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
               child: FilledButton.icon(
                 onPressed: _dailyReport != null
                     ? () {
-                        PdfDailyReportService.generateAndSavePdf(
-                          dailyReport: _dailyReport!,
-                          selectedDate: _selectedDate,
-                        );
-                      }
+                          PdfDailyReportService.generateAndSavePdf(
+                              dailyReport: _dailyReport!,
+                              selectedDate: _selectedDate,
+                            );
+                        }
                     : null,
                 icon: Icon(Icons.download),
                 label: Text('Download as PDF'),

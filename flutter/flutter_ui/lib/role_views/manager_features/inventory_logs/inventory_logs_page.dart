@@ -112,6 +112,12 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
         } else {
           medicineNameText = 'Medicine: ${log['medicine_name']}';
         }
+        
+        // --- START: MODIFIED FOR STAFF SNAPSHOT ---
+        // Use the new staff snapshot fields from the Django API response
+        final String staffName = log['staff_name'] ?? 'Unknown Staff';
+        final String staffRole = log['staff_role'] ?? 'N/A';
+        // --- END: MODIFIED FOR STAFF SNAPSHOT ---
 
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -129,7 +135,8 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
               ),
             ),
             subtitle: Text(
-              '${log['user_name']}',
+              // MODIFIED LINE: Use the robust staffName snapshot
+              staffName,
               style: const TextStyle(
                 color: Colors.black54,
               ),
@@ -161,6 +168,17 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ADDED: Display the Staff Role explicitly for better traceback
+                    Text(
+                      'Staff Role: $staffRole', 
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
                     Text(
                       medicineNameText, // Use the new variable here
                       style: const TextStyle(

@@ -137,9 +137,14 @@ class InventoryLog(models.Model):
     ]
 
     user = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True)
-    # Corrected line below:
+    
+    # --- START OF NEW FIELDS ---
+    staff_name = models.CharField(max_length=100, default='[Deleted Staff]') # NEW FIELD
+    staff_role = models.CharField(max_length=20, default='[Deleted Role]') # NEW FIELD
+    # --- END OF NEW FIELDS ---
+    
     medicine = models.ForeignKey('Medicine', on_delete=models.SET_NULL, null=True, blank=True)
-    medicine_name_log = models.CharField(max_length=100, default='[Unknown]') # Add this new field to store the medicine's name
+    medicine_name_log = models.CharField(max_length=100, default='[Unknown]')
     action_type = models.CharField(max_length=20, choices=ACTION_CHOICES)
     timestamp = models.DateTimeField(auto_now_add=True)
     description = models.TextField()
@@ -150,11 +155,13 @@ class InventoryLog(models.Model):
         ordering = ['-timestamp']
 
     def __str__(self):
-        # You may need to update this to handle the case where medicine is null
+        # Update __str__ to use the snapshot for robustness
+        staff_display = self.staff_name_snapshot if self.user is None else str(self.user)
+        
         if self.medicine:
-            return f"{self.user} - {self.action_type} - {self.medicine.name}"
+            return f"{staff_display} - {self.action_type} - {self.medicine.name}"
         else:
-            return f"{self.user} - {self.action_type} - [Medicine Deleted]"
+            return f"{staff_display} - {self.action_type} - [Medicine Deleted]"
 
 #================================09/26/25 ELTON=================================================================================
 
