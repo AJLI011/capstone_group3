@@ -525,30 +525,36 @@ class CustomerMedicineDetailSerializer(serializers.ModelSerializer):
 
 
 
-#----------9/23/25
+#----------9/30/25
 
 
 # Employee Logs serializer
 class EmployeeLogSerializer(serializers.ModelSerializer):
-    # Accept staff ID on write (this is already correct)
+    # Accept staff ID on write (keep as is)
     staff = serializers.PrimaryKeyRelatedField(queryset=Staff.objects.all(), write_only=True)
 
-    # ✅ Use SerializerMethodField for related fields to handle them properly
-    staff_name = serializers.SerializerMethodField()
-    staff_role = serializers.SerializerMethodField()
-
+    # 💡 FIX: Removed redundant source='staff_name' 💡
+    staff_name = serializers.CharField(read_only=True)
+    
+    # 💡 FIX: Removed redundant source='staff_role' 💡
+    staff_role = serializers.CharField(read_only=True)
+    
     class Meta:
         model = EmployeeLog
         fields = ['id', 'staff', 'staff_name', 'staff_role', 'action', 'timestamp']
-        # read_only_fields are not needed for SerializerMethodField
-        # read_only_fields = ['id', 'staff_name', 'staff_role', 'timestamp']
-
-    def get_staff_name(self, obj):
-        return obj.staff.name if obj.staff else None
-
-    def get_staff_role(self, obj):
-        return obj.staff.role if obj.staff else None
-
+        
+    # CRITICAL: Keep the overridden create method as it handles the snapshot
+    def create(self, validated_data):
+        staff = validated_data.pop('staff')
+        
+        # Snapshot the name and role from the Staff object
+        validated_data['staff_name'] = staff.name
+        validated_data['staff_role'] = staff.role
+        
+        # Add the staff object back under the correct field name for the model
+        validated_data['staff'] = staff
+        
+        return EmployeeLog.objects.create(**validated_data)
 # =====================================
 # IN-STORE ORDERS SERIALIZERS
 

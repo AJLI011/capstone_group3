@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_ui/services/pdf_daily_report_service.dart';
 
-// --- Data Models (Only InventoryLog is modified) ---
+// --- Data Models (EmployeeLog is modified) ---
 class DailyReport {
   final List<EmployeeLog> employeeLogs;
   final List<OrderLog> orderLogs;
@@ -32,15 +32,20 @@ class DailyReport {
   }
 }
 
+// -----------------------------------------------------------------
+// ⬇️ MODIFIED: EmployeeLog model to include staffRole
+// -----------------------------------------------------------------
 class EmployeeLog {
   final int id;
   final String staffName;
+  final String? staffRole; // 🚨 ADDED: Snapshot role field
   final String action;
   final String timestamp;
 
   EmployeeLog({
     required this.id,
     required this.staffName,
+    this.staffRole, // 🚨 ADDED
     required this.action,
     required this.timestamp,
   });
@@ -49,11 +54,13 @@ class EmployeeLog {
     return EmployeeLog(
       id: json['id'],
       staffName: json['staff_name'] ?? 'N/A',
+      staffRole: json['staff_role'] as String?, // 🚨 ADDED
       action: json['action'] ?? 'N/A',
       timestamp: json['timestamp'],
     );
   }
 }
+// -----------------------------------------------------------------
 
 class OrderLog {
   final int id;
@@ -137,7 +144,7 @@ class OnlineOrderDetails {
 }
 
 // -----------------------------------------------------------------
-// ⬇️ MODIFIED: InventoryLog model to include staffName and staffRole
+// InventoryLog model (Already correct from previous update)
 // -----------------------------------------------------------------
 class InventoryLog {
   final int id;
@@ -177,7 +184,6 @@ class InventoryLog {
     );
   }
 }
-// -----------------------------------------------------------------
 // -----------------------------------------------------------------
 
 
@@ -299,20 +305,29 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
                         : Expanded(
                             child: Column(
                               children: [
-                                // Employee Logs Section (No change needed)
+                                // ----------------------------------------------------------------------
+                                // ⬇️ MODIFIED: Employee Logs Section to display staff role
+                                // ----------------------------------------------------------------------
                                 Expanded(
                                   child: _buildLogSection(
-                                    'Employee Logs',
+                                    'Employee Logs (Login/Logout)',
                                     _dailyReport!.employeeLogs.map((log) {
+                                      // Get the robust staff name and role
+                                      final String staffInfo = log.staffRole != null
+                                          ? '${log.staffName} (${log.staffRole})'
+                                          : log.staffName; // Fallback to just name
+                                          
                                       return _buildLogCard(
-                                        title: log.staffName,
+                                        title: log.action.toUpperCase(),
                                         subtitle:
-                                            '${log.action}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}',
+                                            'Staff: ${staffInfo}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}',
                                       );
                                     }).toList(),
                                     emptyMessage: 'No employee logs for this date.',
                                   ),
                                 ),
+                                // ----------------------------------------------------------------------
+                                
                                 SizedBox(height: 20),
 
                                 // Order Logs Section (No change needed)
@@ -347,7 +362,7 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
                                 SizedBox(height: 20),
 
                                 // ----------------------------------------------------------------------
-                                // ⬇️ MODIFIED: Inventory Logs Section to display staff info
+                                // Inventory Logs Section (Already correct from previous update)
                                 // ----------------------------------------------------------------------
                                 Expanded(
                                   child: _buildLogSection(

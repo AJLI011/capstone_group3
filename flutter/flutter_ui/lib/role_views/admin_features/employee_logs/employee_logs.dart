@@ -17,6 +17,7 @@ const Color _primaryColor = Color(0xFF5C7C9A);
 
 class EmployeeLog {
   final int id;
+  // These fields are correctly defined to receive the snapshot data
   final String? staffName;
   final String? staffRole;
   final String action;
@@ -33,8 +34,9 @@ class EmployeeLog {
   factory EmployeeLog.fromJson(Map<String, dynamic> json) {
     return EmployeeLog(
       id: json['id'] as int,
-      staffName: json['staff_name'] as String?,
-      staffRole: json['staff_role'] as String?,
+      // Mapping the snapshot fields from the API response
+      staffName: json['staff_name'] as String?, 
+      staffRole: json['staff_role'] as String?, 
       action: json['action'] as String,
       timestamp: json['timestamp'] as String,
     );
@@ -151,6 +153,7 @@ class _EmployeeLogsPageState extends State<EmployeeLogsPage> {
 
   /// Capitalizes the first letter of the role.
   String _prettyRole(String? role) {
+    // Correctly uses the snapshot field
     if (role == null || role.isEmpty) return 'N/A';
     return role[0].toUpperCase() + role.substring(1);
   }
@@ -229,11 +232,13 @@ class _EmployeeLogsPageState extends State<EmployeeLogsPage> {
       child: Row(
         children: [
           Expanded(
+            // Correctly uses the staffName snapshot field
               flex: 3,
               child: Text(log.staffName ?? 'Unknown Staff',
                   style: const TextStyle(
                       fontSize: 14, fontWeight: FontWeight.w500))),
           Expanded(
+            // Correctly uses the staffRole snapshot field
               flex: 2,
               child: Text(_prettyRole(log.staffRole),
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade700))),

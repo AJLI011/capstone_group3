@@ -409,7 +409,7 @@ def change_staff_password(request, staff_id):
 
 
 
-#----------9/23/25
+#----------9/30/25
 # ─────────── MEDICINE MANAGEMENT ───────────
 
 @api_view(['GET', 'POST'])
@@ -448,7 +448,7 @@ def medicine_list(request):
 
 
 
-# ---------------9/26/25
+# ---------------9/30/25
 @api_view(['GET', 'PUT', 'DELETE'])
 @parser_classes([MultiPartParser, FormParser])
 def medicine_detail(request, pk):
@@ -611,7 +611,7 @@ def medicine_detail(request, pk):
             print(f"Error during medicine deletion: {e}")
             return Response({'error': 'An error occurred during the deletion process.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)        
         
-    #----------9/23/25
+    #----------9/30/25
     
     
     
@@ -629,7 +629,9 @@ def medicine_detail(request, pk):
     
     
     
-    
+
+
+#-----------9/30/25    
 # =================== INVENTORY MANAGEMENT -------------------- # Renamed comment for clarity
 class InventoryCreateView(APIView):
     def post(self, request, *args, **kwargs):
@@ -882,8 +884,8 @@ class ExpiredView(generics.ListAPIView):
             quantity__gt=0 # ✅ NEW: Exclude batches with 0 quantity
         )
 
-#--------------------09/14/2025--------------------------- fixing return medicine
-#Return Medicine 
+#--------------------09/30/2025--------------------------- 
+# #Return Medicine 
 @api_view(['DELETE'])
 def delete_expired_batch(request, pk):
     try:
@@ -946,6 +948,8 @@ def delete_expired_batch(request, pk):
         return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+
+#--------------------09/30/2025--------------------------- 
 # Promo Medicine
 @api_view(['POST'])
 def set_promo(request, inventory_id):
@@ -992,6 +996,7 @@ def set_promo(request, inventory_id):
     return Response({'message': 'Promo set successfully'}, status=status.HTTP_200_OK)
 
 
+#--------------------09/30/2025--------------------------- 
 @api_view(['POST'])
 def remove_promo(request):
     try:
@@ -1280,7 +1285,7 @@ def employee_logs_view(request):
 
 
 
-# ---------------9/26/25
+# ---------------9/30/25
 #------------ PENDING ORDER----------
 #----------ORDER LOGS PT 1 - FOR CASHER (INSTORE)---------
 #modified some parts of the pending order view for the order logs
@@ -2056,7 +2061,7 @@ def cancel_online_order_cashier(request, orderId):
 
 
 
-# ---------------9/26/25
+# ---------------9/30/25
 #=====================9/1/25===================    ===================== 9/4/25 (online orders added in inventory logs)===================
 #--9/29/25-- MODIFIED FOR DIALOGUE BOX
 @api_view(['PUT'])

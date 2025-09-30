@@ -213,6 +213,8 @@ class InStoreOrderItem(models.Model):
 
 
 #Model for Employee Log
+# models.py
+
 class EmployeeLog(models.Model):
     ACTION_CHOICES = [
         ('login', 'Login'),
@@ -223,14 +225,29 @@ class EmployeeLog(models.Model):
     action = models.CharField(max_length=20, choices=ACTION_CHOICES)
     timestamp = models.DateTimeField(auto_now_add=True)
 
+    #Snapshot Fields 
+    staff_name = models.CharField(
+        max_length=255, 
+        null=True, 
+        blank=True, 
+        default='[Deleted Staff]'
+    )
+    staff_role = models.CharField(
+        max_length=50, 
+        null=True, 
+        blank=True, 
+        default='[Deleted Role]'
+    )
+    # ----------------------------------------
 
     class Meta:
         db_table = 'employee_logs'
         ordering = ['-timestamp']
 
     def __str__(self):
-        staff_str = self.staff.email if self.staff else 'Unknown staff'
-        return f"{staff_str} - {self.action} at {self.timestamp}"
+        # Update the __str__ to use the snapshot name if staff is null
+        staff_display = self.staff_name if not self.staff else self.staff.email
+        return f"{staff_display} - {self.action} at {self.timestamp}"
 
 # Model for Order Logs
 class OrderLog(models.Model):
