@@ -59,7 +59,7 @@ class _EmployeeLogsPageState extends State<EmployeeLogsPage> {
   bool _isLoading = false;
   bool _hasMore = true; // Indicates if there are more logs to load
   String? _error;
-  List<EmployeeLog> _logs = [];
+  final List<EmployeeLog> _logs = [];
   final ScrollController _scrollController = ScrollController();
 
   // --- Lifecycle & Initialization ---

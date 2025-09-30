@@ -7,7 +7,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 class PromoMedicinePage extends StatefulWidget {
-  const PromoMedicinePage({Key? key}) : super(key: key);
+  const PromoMedicinePage({super.key});
 
   @override
   State<PromoMedicinePage> createState() => _PromoMedicinePageState();

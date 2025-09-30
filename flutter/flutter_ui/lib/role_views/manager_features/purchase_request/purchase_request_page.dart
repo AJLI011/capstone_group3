@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter_ui/services/pdf_purchase_request_service.dart';
 
 class PurchaseRequestPage extends StatefulWidget {
-  const PurchaseRequestPage({Key? key}) : super(key: key);
+  const PurchaseRequestPage({super.key});
 
   @override
   State<PurchaseRequestPage> createState() => _PurchaseRequestPageState();

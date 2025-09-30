@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 class ExpiredStockStaffPage extends StatefulWidget {
-  const ExpiredStockStaffPage({Key? key}) : super(key: key);
+  const ExpiredStockStaffPage({super.key});
 
   @override
   State<ExpiredStockStaffPage> createState() => _ExpiredStockStaffPageState();

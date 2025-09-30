@@ -5,7 +5,7 @@ import 'dart:convert';
 class PendingOrdersScreen extends StatefulWidget {
   final int cashierId;
 
-  const PendingOrdersScreen({Key? key, required this.cashierId}) : super(key: key);
+  const PendingOrdersScreen({super.key, required this.cashierId});
 
   @override
   _PendingOrdersScreenState createState() => _PendingOrdersScreenState();
@@ -155,7 +155,7 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
             ),
             const SizedBox(height: 16),
             // List of Items
-            ...order.items.map((item) => _buildOrderItem(item)).toList(),
+            ...order.items.map((item) => _buildOrderItem(item)),
             const SizedBox(height: 16),
             // Totals
             _buildTotalsSection(order),

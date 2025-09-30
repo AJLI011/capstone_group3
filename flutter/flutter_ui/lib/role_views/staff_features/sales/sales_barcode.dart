@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:http/http.dart' as http;
-import 'sales_details.dart';
 
 // Import the new BatchSelectionPage
 import 'batch_selection.dart';

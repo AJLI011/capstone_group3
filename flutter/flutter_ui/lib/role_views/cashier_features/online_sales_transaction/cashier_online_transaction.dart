@@ -267,7 +267,7 @@ class _OnlineOrdersReportPageState extends State<OnlineOrdersReportPage> {
                                     ],
                                   ),
                                 );
-                              }).toList(),
+                              }),
                               const Divider(height: 20),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

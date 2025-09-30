@@ -15,13 +15,13 @@ class PrescriptionDetailsStaff extends StatefulWidget {
 }
 
 class _PrescriptionDetailsStaffState extends State<PrescriptionDetailsStaff> {
-  List<XFile> _selectedImages = [];
+  final List<XFile> _selectedImages = [];
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
 
   // Function to pick images
   Future<void> _pickImages() async {
-    final List<XFile>? selected = await _picker.pickMultiImage();
+    final List<XFile> selected = await _picker.pickMultiImage();
     if (selected != null && selected.isNotEmpty) {
       setState(() {
         _selectedImages.addAll(selected);
@@ -251,7 +251,7 @@ class _PrescriptionDetailsStaffState extends State<PrescriptionDetailsStaff> {
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   );
-                }).toList(),
+                }),
                 const Divider(height: 32),
 
                 // Summary Section

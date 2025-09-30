@@ -154,7 +154,7 @@ class ApiService {
 // ====================================================================
 
 class DemandForecastScreen extends StatefulWidget {
-  const DemandForecastScreen({Key? key}) : super(key: key);
+  const DemandForecastScreen({super.key});
 
   @override
   State<DemandForecastScreen> createState() => _DemandForecastScreenState();
@@ -439,7 +439,7 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
                                           restockAmount: item.restockAmount,
                                         ),
                                       );
-                                    }).toList(),
+                                    }),
                                   ],
                                 ),
                               ),

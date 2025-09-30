@@ -11,7 +11,7 @@ import 'customer_features/medicine_order_agreement_form/medicine_order_agreement
 import 'customer_features/my_orders_page.dart';
 
 class CustomerView extends StatefulWidget {
-  const CustomerView({Key? key}) : super(key: key);
+  const CustomerView({super.key});
 
   @override
   State<CustomerView> createState() => _CustomerViewState();
@@ -259,7 +259,7 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     final screenW = MediaQuery.of(context).size.width;
 
-    final List<Widget> _views = [
+    final List<Widget> views = [
       MedicineView(
         customerId: _customerId,
         selectedCategory: _selectedCategory,
@@ -298,7 +298,7 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
                     ),
                     child: _buildHeader(),
                   ),
-                Expanded(child: _views[_currentIndex]),
+                Expanded(child: views[_currentIndex]),
               ],
             ),
             AnimatedBuilder(

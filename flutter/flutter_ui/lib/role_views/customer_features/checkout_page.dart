@@ -93,7 +93,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
                           // Corrected image loading with a placeholder
                           Widget itemImageWidget;
-                          if (item.image != null && item.image.isNotEmpty) {
+                          if (item.image.isNotEmpty) {
                             itemImageWidget = Image.network(
                               item.image,
                               width: 70,

@@ -7,7 +7,7 @@ import 'expiring_soon_staff_page.dart';
 import 'expired_stock_staff_page.dart';
 
 class ExpiryDashboardStaffView extends StatefulWidget {
-  const ExpiryDashboardStaffView({Key? key}) : super(key: key);
+  const ExpiryDashboardStaffView({super.key});
 
   @override
   State<ExpiryDashboardStaffView> createState() => _ExpiryDashboardStaffViewState();

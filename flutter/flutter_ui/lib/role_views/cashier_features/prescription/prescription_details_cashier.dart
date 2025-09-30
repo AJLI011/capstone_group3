@@ -126,7 +126,7 @@ class PrescriptionDetailsCashier extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   );
-                }).toList(),
+                }),
                 const Divider(height: 32),
 
                 // Summary Section

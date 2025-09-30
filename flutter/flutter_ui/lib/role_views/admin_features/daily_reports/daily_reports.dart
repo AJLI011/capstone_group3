@@ -167,6 +167,8 @@ class InventoryLog {
 
 // --- Main Widget ---
 class DailyReportsPage extends StatefulWidget {
+  const DailyReportsPage({super.key});
+
   @override
   _DailyReportsPageState createState() => _DailyReportsPageState();
 }

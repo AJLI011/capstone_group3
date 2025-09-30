@@ -91,7 +91,7 @@ class InventoryDetailScreen extends StatefulWidget {
 class _InventoryDetailScreenState extends State<InventoryDetailScreen> {
   // NEW: A ScrollController to listen for scroll events.
   final ScrollController _scrollController = ScrollController();
-  List<BatchDetail> _batches = [];
+  final List<BatchDetail> _batches = [];
   // NEW: State variables for lazy loading.
   bool _isLoading = false;
   bool _hasMoreItems = true;

@@ -581,7 +581,7 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
           return false;
         }
 
-        return pickupDate!.year == _selectedDate!.year &&
+        return pickupDate.year == _selectedDate!.year &&
                pickupDate.month == _selectedDate!.month &&
                pickupDate.day == _selectedDate!.day;
       }).toList();
