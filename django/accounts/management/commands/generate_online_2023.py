@@ -23,15 +23,15 @@ class Command(BaseCommand):
 
         supplier_names = ['PharmaCorp', 'MediSupply', 'Global Drugs Inc.']
         suppliers = []
+        fake = Faker()
         for name in supplier_names:
-            supplier, created = Supplier.objects.get_or_create(name=name, defaults={'contact': Faker().phone_number()})
+            supplier, created = Supplier.objects.get_or_create(name=name, defaults={'contact': fake.phone_number()})
             suppliers.append(supplier)
             if created:
                 self.stdout.write(f'Created supplier: {name}')
 
         categories = [choice[0] for choice in Medicine.CATEGORY_CHOICES]
         
-        # --- START OF CHANGES ---
         MEDICINE_DATA = {
             'Biogesic': 'Paracetamol',
             'Alaxan': 'Ibuprofen + Paracetamol',
@@ -87,62 +87,23 @@ class Command(BaseCommand):
         
         # Define the prices for each medicine
         MEDICINE_PRICES = {
-            'Biogesic': 5.00,
-            'Alaxan': 8.75,
-            'Decolgen': 8.75,
-            'Neozep': 7.00,
-            'Bioflu': 9.00,
-            'Amoxicillin': 20.75,
-            'Mefenamic Acid': 5.25,
-            'Paracetamol': 2.75,
-            'Cetirizine': 16.00,
-            'Loperamide': 8.50,
-            'Ibuprofen': 9.00,
-            'Cefalexin': 21.25,
-            'Metformin': 4.25,
-            'Omeprazole': 39.75,
-            'Loratadine': 19.25,
-            'Ventolin': 339.75,
-            'Salbutamol': 5.00,
-            'Aspirin': 2.50,
-            'Diatabs': 8.50,
-            'Kremil-S': 21.25,
-            'Ascof': 8.75,
-            'Solmux': 12.50,
-            'Tuseran Forte': 11.25,
-            'Robitussin': 12.00,
-            'Mucosolvan': 20.75,
-            'Advil': 9.00,
-            'Voltaren': 42.50,
-            'Plavix': 75.75,
-            'Lipitor': 35.25,
-            'Norvasc': 21.75,
-            'Losartan': 17.00,
-            'Cozaar': 23.25,
-            'Zestril': 28.25,
-            'Gabapentin': 42.25,
-            'Augmentin': 67.25,
-            'Medicol': 7.25,
-            'Novaluzid': 16.00,
-            'Maalox': 12.25,
-            'Motilium': 42.75,
-            'Buscopan': 34.50,
-            'Lincocin': 38.00,
-            'Clindamycin': 38.50,
-            'Azithromycin': 67.20,
-            'Bactrim': 33.00,
-            'Zithromax': 151.43,
-            'Celebrex': 55.50,
-            'Arcoxia': 72.75,
-            'Dolfenal': 20.75,
-            'Ponstan': 40.50,
-            'Virlix': 37.00
+            'Biogesic': 5.00, 'Alaxan': 8.75, 'Decolgen': 8.75, 'Neozep': 7.00, 'Bioflu': 9.00,
+            'Amoxicillin': 20.75, 'Mefenamic Acid': 5.25, 'Paracetamol': 2.75, 'Cetirizine': 16.00,
+            'Loperamide': 8.50, 'Ibuprofen': 9.00, 'Cefalexin': 21.25, 'Metformin': 4.25,
+            'Omeprazole': 39.75, 'Loratadine': 19.25, 'Ventolin': 339.75, 'Salbutamol': 5.00,
+            'Aspirin': 2.50, 'Diatabs': 8.50, 'Kremil-S': 21.25, 'Ascof': 8.75, 'Solmux': 12.50,
+            'Tuseran Forte': 11.25, 'Robitussin': 12.00, 'Mucosolvan': 20.75, 'Advil': 9.00,
+            'Voltaren': 42.50, 'Plavix': 75.75, 'Lipitor': 35.25, 'Norvasc': 21.75, 'Losartan': 17.00,
+            'Cozaar': 23.25, 'Zestril': 28.25, 'Gabapentin': 42.25, 'Augmentin': 67.25,
+            'Medicol': 7.25, 'Novaluzid': 16.00, 'Maalox': 12.25, 'Motilium': 42.75,
+            'Buscopan': 34.50, 'Lincocin': 38.00, 'Clindamycin': 38.50, 'Azithromycin': 67.20,
+            'Bactrim': 33.00, 'Zithromax': 151.43, 'Celebrex': 55.50, 'Arcoxia': 72.75,
+            'Dolfenal': 20.75, 'Ponstan': 40.50, 'Virlix': 37.00
         }
 
         for name, generic_name in MEDICINE_DATA.items():
-            barcode = Faker().unique.ean13()
+            barcode = fake.unique.ean13()
             
-            # --- UPDATED LINE: Get the price from the new dictionary ---
             price = MEDICINE_PRICES.get(name, round(random.uniform(6, 150), 2))
             
             category = random.choice(categories)
@@ -158,6 +119,9 @@ class Command(BaseCommand):
                     'category': category,
                     'dosage_form': dosage_form,
                     'supplier': supplier,
+                    # ⭐ FIX: Add the supplier_name snapshot field here
+                    'supplier_name': supplier.name, 
+                    # ⭐ END FIX
                     'restock_quantity': random.choice([50, 100]),
                     'price': price,
                     'requires_prescription': random.choice([True, False]),
@@ -167,6 +131,11 @@ class Command(BaseCommand):
             if created:
                 self.stdout.write(f'Created medicine: {medicine.name} with price: {medicine.price}')
             else:
+                # Optional: Update existing medicine's supplier_name if its FK is still valid
+                if medicine.supplier and medicine.supplier.name != medicine.supplier_name:
+                    medicine.supplier_name = medicine.supplier.name
+                    medicine.save(update_fields=['supplier_name'])
+                    self.stdout.write(f'Updated existing medicine: {medicine.name} supplier_name.')
                 self.stdout.write(f'Medicine already exists: {medicine.name}')
 
         self.stdout.write(self.style.SUCCESS('Finished creating dummy suppliers and medicines.'))
@@ -179,9 +148,10 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('No medicines found. Please run create_dummy_medicines first.'))
             return
 
+        fake = Faker()
         for medicine in medicines:
-            batch_num = Faker().unique.isbn13()
-            exp_date = Faker().date_between(start_date='now', end_date='+2y')
+            batch_num = fake.unique.isbn13()
+            exp_date = fake.date_between(start_date='now', end_date='+2y')
             quantity = random.randint(30, 70)
             
             Inventory.objects.create(
@@ -197,28 +167,31 @@ class Command(BaseCommand):
     def create_dummy_users(self):
         self.stdout.write(self.style.NOTICE('Creating dummy customers and staff...'))
         
+        fake = Faker()
+
         # Create 10 dummy customers as they are required for OnlineOrder
         for _ in range(10):
             Customer.objects.get_or_create(
-                email=Faker().unique.email(),
+                email=fake.unique.email(),
                 defaults={
-                    'name': Faker().name(),
-                    'contact_num': Faker().msisdn()[:20],
+                    'name': fake.name(),
+                    'contact_num': fake.msisdn()[:20],
                     'password': 'testpassword123'
                 }
             )
             
-        # Create staff and cashier users for the logs
-        staff_roles = ['cashier', 'staff']
+        # Create staff, cashier, and manager users
+        # ⭐ CRITICAL CHANGE: Added 'manager' role
+        staff_roles = ['cashier', 'staff', 'manager']
         for role in staff_roles:
             email = f'{role}@example.com'
             Staff.objects.get_or_create(
                 email=email,
                 defaults={
                     'password': 'testpassword123',
-                    'name': Faker().name(),
+                    'name': 'Dummy Manager' if role == 'manager' else fake.name(),
                     'role': role,
-                    'contact_num': Faker().msisdn()[:20]
+                    'contact_num': fake.msisdn()[:20]
                 }
             )
             
@@ -228,12 +201,17 @@ class Command(BaseCommand):
         self.stdout.write(self.style.NOTICE('Creating a large set of dummy online sales records for 2023...'))
         self.stdout.write(self.style.WARNING('This process will take a significant amount of time and resources. Please be patient.'))
         
-        customers = Customer.objects.all()
-        inventory_items = Inventory.objects.all()
-        
-        # Get staff and cashier users for the logs
-        staff_user = Staff.objects.get(role='staff')
-        cashier_user = Staff.objects.get(role='cashier')
+        try:
+            customers = Customer.objects.all()
+            inventory_items = Inventory.objects.all()
+            staff_user = Staff.objects.get(role='staff')
+            cashier_user = Staff.objects.get(role='cashier')
+        except Staff.DoesNotExist:
+            self.stdout.write(self.style.WARNING('Staff/Cashier user not found. Please run create_dummy_users first.'))
+            return
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(f'Prerequisite data setup failed: {e}'))
+            return
         
         if not customers.exists() or not inventory_items.exists():
             self.stdout.write(self.style.WARNING('Prerequisite data (customers, inventory) not found. Please run previous functions first.'))

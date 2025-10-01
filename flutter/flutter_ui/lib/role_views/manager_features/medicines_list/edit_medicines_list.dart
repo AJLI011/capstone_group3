@@ -35,9 +35,11 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
   @override
   void initState() {
     super.initState();
-    _fetchSuppliers();
-    _fetchCategoryAndDosageChoices();
+    // Initialize form first with potential placeholder value
     _initializeForm();
+    // Fetch suppliers, which might cause a rebuild and re-evaluation of the dropdown
+    _fetchSuppliers(); 
+    _fetchCategoryAndDosageChoices();
   }
 
   void _initializeForm() {
@@ -50,7 +52,18 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
     _requiresPrescription = med['requires_prescription'] ?? false;
     _categoryController.text = med['category'] ?? '';
     _dosageFormController.text = med['dosage_form'] ?? '';
-    _selectedSupplier = med['supplier_name'];
+    
+    // ⭐ FIX: Handle the '[Supplier Deleted]' placeholder
+    const deletedPlaceholder = '[Supplier Deleted]';
+    final currentSupplierName = med['supplier_name'];
+    
+    if (currentSupplierName != null && currentSupplierName != deletedPlaceholder) {
+      // Set the supplier name if it is valid (not the placeholder)
+      _selectedSupplier = currentSupplierName;
+    } else {
+      // If placeholder or null, ensure the dropdown starts as unselected (null value)
+      _selectedSupplier = null; 
+    }
   }
 
   Future<void> _fetchSuppliers() async {
@@ -108,7 +121,7 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
     request.fields['dosage_form'] = _dosageFormController.text;
     request.fields['requires_prescription'] = _requiresPrescription.toString();
 
-    // ✅ Add staff_id from SharedPreferences
+    // Add staff_id from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     final staffId = prefs.getInt('staff_id');
     if (staffId == null) {
@@ -119,17 +132,22 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
       }
       return;
     }
-    request.fields['staff_id'] = staffId.toString(); // ✅ Send to backend
+    request.fields['staff_id'] = staffId.toString();
 
-
+    // Find the supplier ID from the selected name
     if (_selectedSupplier != null) {
       final supplier = _supplierList.firstWhere(
         (s) => s['name'] == _selectedSupplier,
         orElse: () => null,
       );
       if (supplier != null) {
+        // Send the FK ID to the backend
         request.fields['supplier'] = supplier['id'].toString();
       }
+    } else {
+        // If _selectedSupplier is null (meaning the user cleared it or it was 
+        // initialized as deleted), explicitly send 'null' for the FK.
+        request.fields['supplier'] = '';
     }
 
     if (_selectedImage != null) {
@@ -164,19 +182,13 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
 
   @override
   Widget build(BuildContext context) {
-    // --- Start of added/modified debug code ---
     final String? imageUrlFromWidget = widget.medicine['image'];
     String? fullImageUrl;
 
     if (imageUrlFromWidget != null) {
-      // Ensure the path starts with a '/' for correct URL construction
       final cleanImageUrl = imageUrlFromWidget.startsWith('/') ? imageUrlFromWidget : '/$imageUrlFromWidget';
       fullImageUrl = 'http://10.0.2.2:8000$cleanImageUrl';
-      print('DEBUG: Attempting to load image from: $fullImageUrl');
-    } else {
-      print('DEBUG: Image URL from widget.medicine is null for this entry.');
     }
-    // --- End of added/modified debug code ---
 
     return Scaffold(
       appBar: AppBar(
@@ -190,30 +202,26 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
           key: _formKey,
           child: Column(
             children: [
-              // Display existing image from network if available and no new image selected
+              // Image Display Section (Unchanged)
               if (fullImageUrl != null && _selectedImage == null)
                 Image.network(
                   fullImageUrl,
                   height: 100,
                   fit: BoxFit.cover,
-                  // Add error handling for network images
                   errorBuilder: (context, error, stackTrace) {
                     print('Image loading error: $error');
-                    // Show the icon placeholder if the network image fails to load
                     return const Icon(
-                      Icons.medication, // Updated to the new icon
+                      Icons.medication,
                       size: 100,
                       color: Colors.grey,
                     );
                   },
                 )
               else if (_selectedImage != null)
-                // Display newly selected image from file
                 Image.file(_selectedImage!, height: 100, fit: BoxFit.cover,)
               else
-                // This is the new part: show the placeholder icon
                 const Icon(
-                  Icons.medication, // Updated to the new icon
+                  Icons.medication,
                   size: 100,
                   color: Colors.grey,
                 ),
@@ -264,8 +272,11 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
                   });
                 },
               ),
+              // ⭐ Supplier Dropdown FIX applied here
               DropdownButtonFormField<String>(
-                value: _selectedSupplier,
+                // Use _selectedSupplier, which is correctly initialized to null 
+                // if the supplier is deleted.
+                value: _selectedSupplier, 
                 decoration: const InputDecoration(labelText: 'Supplier'),
                 items: _supplierList.map<DropdownMenuItem<String>>((supplier) {
                   return DropdownMenuItem(
@@ -275,7 +286,7 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
                 }).toList(),
                 onChanged: (value) {
                   setState(() {
-                    _selectedSupplier = value!;
+                    _selectedSupplier = value; // Value can be null if cleared
                   });
                 },
               ),

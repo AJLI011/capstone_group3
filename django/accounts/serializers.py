@@ -1428,23 +1428,23 @@ class CustomerFCMTokenSerializer(serializers.ModelSerializer):
 
 
 
-#====================================09/13/24 DASHBOARD (ELTON) ===================================#
+#====================================10/1/25 ===================================#
 #low stocks & totalqty
 
 class LowStockSerializer(serializers.ModelSerializer):
-    # This correctly gets the medicine's name
+    # This correctly gets the medicine's name (safe, as 'medicine' must exist)
     name = serializers.CharField(source='medicine.name')
     # This correctly gets the medicine's generic name
     generic_name = serializers.CharField(source='medicine.generic_name')
     
-    # NEW: Get the restock_quantity directly from the related Medicine model
+    # Get the restock_quantity from the related Medicine model
     restock_quantity = serializers.IntegerField(source='medicine.restock_quantity')
 
-    # NEW: Get the supplier's name by following the 'medicine' and 'supplier' relationships
-    supplier_name = serializers.CharField(source='medicine.supplier.name')
+    # FIX 1: Use SerializerMethodField for supplier_name to handle NoneType errors
+    supplier_name = serializers.SerializerMethodField()
     
-    # NEW: Get the supplier's contact number
-    contact_num = serializers.CharField(source='medicine.supplier.contact')
+    # FIX 2: Use SerializerMethodField for contact_num to handle NoneType errors
+    contact_num = serializers.SerializerMethodField()
 
     class Meta:
         model = TotalQuantity
@@ -1457,7 +1457,22 @@ class LowStockSerializer(serializers.ModelSerializer):
             'contact_num'
         ]
 
-#====================================09/13/24 DASHBOARD (ELTON) ===================================# 
+    # Method to safely retrieve the supplier's name
+    def get_supplier_name(self, obj):
+        # obj is the TotalQuantity instance
+        # Safely check if medicine and its supplier exist before accessing the name
+        if obj.medicine and obj.medicine.supplier:
+            return obj.medicine.supplier.name
+        return 'N/A' # Returns 'N/A' if the supplier is not set
+
+    # Method to safely retrieve the supplier's contact number
+    def get_contact_num(self, obj):
+        # Safely check if medicine and its supplier exist before accessing the contact
+        if obj.medicine and obj.medicine.supplier:
+            return obj.medicine.supplier.contact
+        return 'N/A' # Returns 'N/A' if the supplier is not set
+
+#====================================10/1/24 ===================================# 
 
 
 #Demand Forecasting
