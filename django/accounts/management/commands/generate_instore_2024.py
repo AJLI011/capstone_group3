@@ -23,10 +23,13 @@ class Command(BaseCommand):
 
         supplier_names = ['PharmaCorp', 'MediSupply', 'Global Drugs Inc.']
         suppliers = []
-        fake = Faker()
+        # --- ADDED: Dictionary to store supplier contact numbers for the new field ---
+        supplier_contacts = {} 
         for name in supplier_names:
-            supplier, created = Supplier.objects.get_or_create(name=name, defaults={'contact': fake.phone_number()})
+            contact_num = Faker().phone_number()
+            supplier, created = Supplier.objects.get_or_create(name=name, defaults={'contact': contact_num})
             suppliers.append(supplier)
+            supplier_contacts[supplier.name] = contact_num # Store contact number
             if created:
                 self.stdout.write(f'Created supplier: {name}')
 
@@ -85,24 +88,64 @@ class Command(BaseCommand):
             'Virlix': 'Cetirizine'
         }
         
+        # --- NEW CODE: Define the prices for each medicine ---
         MEDICINE_PRICES = {
-            'Biogesic': 5.00, 'Alaxan': 8.75, 'Decolgen': 8.75, 'Neozep': 7.00, 'Bioflu': 9.00,
-            'Amoxicillin': 20.75, 'Mefenamic Acid': 5.25, 'Paracetamol': 2.75, 'Cetirizine': 16.00,
-            'Loperamide': 8.50, 'Ibuprofen': 9.00, 'Cefalexin': 21.25, 'Metformin': 4.25,
-            'Omeprazole': 39.75, 'Loratadine': 19.25, 'Ventolin': 339.75, 'Salbutamol': 5.00,
-            'Aspirin': 2.50, 'Diatabs': 8.50, 'Kremil-S': 21.25, 'Ascof': 8.75, 'Solmux': 12.50,
-            'Tuseran Forte': 11.25, 'Robitussin': 12.00, 'Mucosolvan': 20.75, 'Advil': 9.00,
-            'Voltaren': 42.50, 'Plavix': 75.75, 'Lipitor': 35.25, 'Norvasc': 21.75, 'Losartan': 17.00,
-            'Cozaar': 23.25, 'Zestril': 28.25, 'Gabapentin': 42.25, 'Augmentin': 67.25,
-            'Medicol': 7.25, 'Novaluzid': 16.00, 'Maalox': 12.25, 'Motilium': 42.75,
-            'Buscopan': 34.50, 'Lincocin': 38.00, 'Clindamycin': 38.50, 'Azithromycin': 67.20,
-            'Bactrim': 33.00, 'Zithromax': 151.43, 'Celebrex': 55.50, 'Arcoxia': 72.75,
-            'Dolfenal': 20.75, 'Ponstan': 40.50, 'Virlix': 37.00
+            'Biogesic': 5.00,
+            'Alaxan': 8.75,
+            'Decolgen': 8.75,
+            'Neozep': 7.00,
+            'Bioflu': 9.00,
+            'Amoxicillin': 20.75,
+            'Mefenamic Acid': 5.25,
+            'Paracetamol': 2.75,
+            'Cetirizine': 16.00,
+            'Loperamide': 8.50,
+            'Ibuprofen': 9.00,
+            'Cefalexin': 21.25,
+            'Metformin': 4.25,
+            'Omeprazole': 39.75,
+            'Loratadine': 19.25,
+            'Ventolin': 339.75,
+            'Salbutamol': 5.00,
+            'Aspirin': 2.50,
+            'Diatabs': 8.50,
+            'Kremil-S': 21.25,
+            'Ascof': 8.75,
+            'Solmux': 12.50,
+            'Tuseran Forte': 11.25,
+            'Robitussin': 12.00,
+            'Mucosolvan': 20.75,
+            'Advil': 9.00,
+            'Voltaren': 42.50,
+            'Plavix': 75.75,
+            'Lipitor': 35.25,
+            'Norvasc': 21.75,
+            'Losartan': 17.00,
+            'Cozaar': 23.25,
+            'Zestril': 28.25,
+            'Gabapentin': 42.25,
+            'Augmentin': 67.25,
+            'Medicol': 7.25,
+            'Novaluzid': 16.00,
+            'Maalox': 12.25,
+            'Motilium': 42.75,
+            'Buscopan': 34.50,
+            'Lincocin': 38.00,
+            'Clindamycin': 38.50,
+            'Azithromycin': 67.20,
+            'Bactrim': 33.00,
+            'Zithromax': 151.43,
+            'Celebrex': 55.50,
+            'Arcoxia': 72.75,
+            'Dolfenal': 20.75,
+            'Ponstan': 40.50,
+            'Virlix': 37.00
         }
         
         for name, generic_name in MEDICINE_DATA.items():
-            barcode = fake.unique.ean13()
+            barcode = Faker().unique.ean13()
             
+            # --- UPDATED LINE: Get the price from the new dictionary ---
             price = MEDICINE_PRICES.get(name, round(random.uniform(6, 150), 2))
             
             category = random.choice(categories)
@@ -111,6 +154,11 @@ class Command(BaseCommand):
             
             supplier = random.choice(suppliers)
 
+            # --- NEW FIELD ADDITION: Get the supplier name and contact number ---
+            supplier_name = supplier.name
+            supplier_contact_num = supplier_contacts.get(supplier_name, 'N/A')
+            # ----------------------------------------------------------------------
+            
             medicine, created = Medicine.objects.get_or_create(
                 name=name,
                 defaults={
@@ -118,33 +166,20 @@ class Command(BaseCommand):
                     'category': category,
                     'dosage_form': dosage_form,
                     'supplier': supplier,
-                    'supplier_name': supplier.name, 
-                    'supplier_contact_num': supplier.contact, # <--- ADDED THE NEW FIELD
                     'restock_quantity': random.choice([50, 100]),
                     'price': price,
                     'requires_prescription': random.choice([True, False]),
-                    'barcode': barcode 
+                    'barcode': barcode,
+                    # --- NEW FIELD ADDITION: Assign values to the new fields ---
+                    'supplier_name': supplier_name,
+                    'supplier_contact_num': supplier_contact_num
+                    # -----------------------------------------------------------
                 }
             )
             if created:
                 self.stdout.write(f'Created medicine: {medicine.name} with price: {medicine.price}')
             else:
-                updated = False
-                if medicine.supplier:
-                    # Update supplier_name snapshot
-                    if medicine.supplier.name != medicine.supplier_name:
-                        medicine.supplier_name = medicine.supplier.name
-                        updated = True
-                    # Update new supplier_contact_num snapshot
-                    if medicine.supplier.contact != medicine.supplier_contact_num:
-                        medicine.supplier_contact_num = medicine.supplier.contact
-                        updated = True
-                
-                if updated:
-                    medicine.save(update_fields=['supplier_name', 'supplier_contact_num']) # <--- UPDATED save FIELDS
-                    self.stdout.write(f'Updated existing medicine: {medicine.name} supplier details.')
-                else:
-                    self.stdout.write(f'Medicine already exists: {medicine.name}')
+                self.stdout.write(f'Medicine already exists: {medicine.name}')
                 
         self.stdout.write(self.style.SUCCESS('Finished creating dummy suppliers and medicines.'))
     
@@ -156,10 +191,9 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('No medicines found. Please run create_dummy_medicines first.'))
             return
 
-        fake = Faker()
         for medicine in medicines:
-            batch_num = fake.unique.isbn13()
-            exp_date = fake.date_between(start_date='now', end_date='+2y')
+            batch_num = Faker().unique.isbn13()
+            exp_date = Faker().date_between(start_date='now', end_date='+2y')
             quantity = random.randint(30, 70)
             
             Inventory.objects.create(
@@ -175,19 +209,16 @@ class Command(BaseCommand):
     def create_dummy_users(self):
         self.stdout.write(self.style.NOTICE('Creating dummy staff...'))
         
-        fake = Faker()
-        # ⭐ CRITICAL CHANGE: Added 'manager' role
-        staff_roles = ['cashier', 'staff', 'manager'] 
+        staff_roles = ['cashier', 'staff']
         for role in staff_roles:
             email = f'{role}@example.com'
             Staff.objects.get_or_create(
                 email=email,
                 defaults={
                     'password': 'testpassword123',
-                    # Using a recognizable name for the manager
-                    'name': 'Dummy Manager' if role == 'manager' else fake.name(), 
+                    'name': Faker().name(),
                     'role': role,
-                    'contact_num': fake.msisdn()[:20]
+                    'contact_num': Faker().msisdn()[:20]
                 }
             )
         
@@ -197,23 +228,17 @@ class Command(BaseCommand):
         self.stdout.write(self.style.NOTICE('Creating a large set of dummy in-store sales records for 2024...'))
         self.stdout.write(self.style.WARNING('This process will take a significant amount of time and resources. Please be patient.'))
         
-        try:
-            staff_user = Staff.objects.get(role='staff')
-            cashier_user = Staff.objects.get(role='cashier')
-            # manager_user = Staff.objects.get(role='manager') # Not strictly needed for sales, but available
-        except Staff.DoesNotExist:
-            self.stdout.write(self.style.WARNING('Staff/Cashier user not found. Please run create_dummy_users first.'))
-            return
-
+        staff_user = Staff.objects.get(role='staff')
+        cashier_user = Staff.objects.get(role='cashier')
         inventory_items = Inventory.objects.all()
         
-        if not inventory_items.exists():
-            self.stdout.write(self.style.WARNING('Inventory not found. Please run create_dummy_inventory first.'))
+        if not staff_user or not cashier_user or not inventory_items.exists():
+            self.stdout.write(self.style.WARNING('Prerequisite data (staff, cashier, inventory) not found. Please run previous functions first.'))
             return
 
         manila_tz = pytz.timezone(settings.TIME_ZONE)
         
-        # Updated for 2024 (including leap year)
+        # Updated for 2024
         start_date = date(2024, 1, 1)
         end_date = date(2024, 12, 31)
         total_days = (end_date - start_date).days
