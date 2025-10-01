@@ -39,6 +39,7 @@ class Supplier(models.Model):
         return self.name
 
 
+#--------10/1/25
 class Medicine(models.Model):
     class Meta:
         db_table = 'medicines_list'
@@ -70,7 +71,18 @@ class Medicine(models.Model):
     barcode = models.CharField(max_length=50, unique=True)
     category = models.CharField(max_length=100, choices=CATEGORY_CHOICES)
     dosage_form = models.CharField(max_length=50, choices=DOSAGE_CHOICES)
+    
+    # Existing Foreign Key
     supplier = models.ForeignKey('Supplier', on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # snapshot for supplier if deleted
+    supplier_name = models.CharField(
+        max_length=255, 
+        null=True, 
+        blank=True,
+        default='[Supplier Deleted]' # Fallback for safety and readability
+    )
+    
     restock_quantity = models.PositiveIntegerField(default=0)
     price = models.DecimalField(max_digits=8, decimal_places=2)
     requires_prescription = models.BooleanField(default=False)
@@ -80,7 +92,6 @@ class Medicine(models.Model):
 
     def __str__(self):
         return self.name
-
 
 class Inventory(models.Model): 
     class Meta:

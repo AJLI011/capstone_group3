@@ -12,6 +12,9 @@ from django.db.models import F, Sum
 from django.utils.timezone import now
 from django.utils import timezone # add this (elton)
 from rest_framework.validators import UniqueValidator
+from rest_framework import serializers
+from rest_framework.validators import UniqueValidator 
+# Assuming Medicine is imported
 
 
 
@@ -68,12 +71,15 @@ class SupplierSerializer(serializers.ModelSerializer):
 
 
 
-#=================================================================================================
+#======================10/1/25========================================================================
 #MODIFIED THE FF FOR BARCODE DUPLICATION PREVENTION WHEN ADDING
 class MedicineSerializer(serializers.ModelSerializer):
-    supplier_name = serializers.StringRelatedField(source='supplier', read_only=True)
+    # This keeps the supplier_name field linked to the model's snapshot field,
+    # but we will manually override its value in to_representation for reads.
+    supplier_name = serializers.CharField(read_only=True)
+    
     barcode = serializers.CharField(
-        required=False,  # Make the field optional for partial updates
+        required=False,
         validators=[UniqueValidator(queryset=Medicine.objects.all())]
     )
 
@@ -87,7 +93,7 @@ class MedicineSerializer(serializers.ModelSerializer):
             'category',
             'dosage_form',
             'supplier',
-            'supplier_name',
+            'supplier_name', # Maps to the snapshot field
             'restock_quantity',
             'price',
             'requires_prescription',
@@ -95,14 +101,62 @@ class MedicineSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'supplier_name'] 
+
+
+    def _snapshot_supplier_name(self, validated_data, instance=None):
+        # Determine the supplier object being used for the operation
+        supplier = validated_data.get('supplier', instance.supplier if instance else None)
+        
+        # Capture the name and put it back into the validated data
+        if supplier:
+            # If a supplier is linked (or being linked), snapshot its current name
+            validated_data['supplier_name'] = supplier.name
+        elif 'supplier' in validated_data and validated_data['supplier'] is None:
+            # Case: Supplier is explicitly set to null (cleared by user)
+            validated_data['supplier_name'] = None # Clear snapshot
+            
+        return validated_data
+
+
+    def create(self, validated_data):
+        validated_data = self._snapshot_supplier_name(validated_data)
+        return super().create(validated_data)
+
 
     def update(self, instance, validated_data):
-        # Your existing update logic
+        # Your existing update logic for barcode
         if 'barcode' in validated_data and validated_data['barcode'] == instance.barcode:
             validated_data.pop('barcode')
+        
+        # APPLY SNAPSHOT LOGIC ON UPDATE 
+        validated_data = self._snapshot_supplier_name(validated_data, instance=instance)
+        
         return super().update(instance, validated_data)
-
+        
+        
+    # ⭐ CRITICAL FIX: Override to_representation to ensure the current supplier name 
+    # is prioritized over the snapshot field when the FK is still linked.
+    def to_representation(self, instance):
+        # 1. Get the default serialization (includes the snapshot value for supplier_name)
+        data = super().to_representation(instance)
+        
+        # 2. Check if the Foreign Key (FK) is still pointing to a Supplier
+        if instance.supplier:
+            # If the FK exists, ALWAYS use the current name from the Supplier object.
+            # This is the behavior you want: prioritize the linked supplier's name.
+            data['supplier_name'] = instance.supplier.name
+            
+        elif data.get('supplier_name') is None:
+            # Handle the case where the snapshot was explicitly set to None 
+            # (e.g., cleared on update), and the FK is also null. Use the default.
+            data['supplier_name'] = '[Supplier Deleted]'
+        
+        # NOTE: If instance.supplier is None (FK is NULL), the serializer sends 
+        # the *snapshot* value already stored in the DB (e.g., '[Supplier Deleted]' 
+        # or the old name). This is correct for showing deletion/unlinking.
+        
+        return data
 #=================================================================================================
 
 

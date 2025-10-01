@@ -28,6 +28,21 @@ class _SupplierListPageState extends State<SupplierListPage> {
     _fetchSuppliers(); // Use leading underscore for private methods
   }
 
+  // ----------------------------------------------------------------------
+  // ⬇️ NEW: Snackbar Utility Method
+  // ----------------------------------------------------------------------
+  void _showSnackbar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+  // ----------------------------------------------------------------------
+
   // --- API Methods ---
 
   /// Fetches the list of suppliers from the backend API.
@@ -61,8 +76,10 @@ class _SupplierListPageState extends State<SupplierListPage> {
     if (response.statusCode == 201) {
       // Success, refresh the list
       await _fetchSuppliers(); 
+      _showSnackbar('Supplier "$name" added successfully.');
     } else {
       debugPrint('Failed to add supplier: ${response.statusCode}');
+      _showSnackbar('Failed to add supplier.');
     }
   }
 
@@ -80,13 +97,22 @@ class _SupplierListPageState extends State<SupplierListPage> {
     if (response.statusCode == 200) {
       // Success, refresh the list
       await _fetchSuppliers();
+      _showSnackbar('Supplier "$name" updated successfully.');
     } else {
       debugPrint('Failed to update supplier: ${response.statusCode}');
+      _showSnackbar('Failed to update supplier.');
     }
   }
 
   /// Deletes a supplier using their ID.
   Future<void> _deleteSupplier(int id) async {
+    // ----------------------------------------------------------------------
+    // ⬇️ MODIFIED: Capture supplier name before deletion for the Snackbar
+    // ----------------------------------------------------------------------
+    final int index = suppliers.indexWhere((s) => s['id'] == id);
+    final String deletedName = (index != -1) ? suppliers[index]['name'] : 'Supplier';
+    // ----------------------------------------------------------------------
+    
     final response = await http.delete(
       Uri.parse('$_apiUrl$id/'),
       headers: {'Authorization': 'Token $_token'},
@@ -95,8 +121,18 @@ class _SupplierListPageState extends State<SupplierListPage> {
     if (response.statusCode == 204) {
       // Success (No Content), refresh the list
       await _fetchSuppliers();
+      // ----------------------------------------------------------------------
+      // ⬇️ NEW: Show simple success Snackbar
+      // ----------------------------------------------------------------------
+      _showSnackbar('$deletedName deleted successfully.');
+      // ----------------------------------------------------------------------
     } else {
       debugPrint('Failed to delete supplier: ${response.statusCode}');
+      // ----------------------------------------------------------------------
+      // ⬇️ NEW: Show error Snackbar
+      // ----------------------------------------------------------------------
+      _showSnackbar('Failed to delete $deletedName.');
+      // ----------------------------------------------------------------------
     }
   }
 

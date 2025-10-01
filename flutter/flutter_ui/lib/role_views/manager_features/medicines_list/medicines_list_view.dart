@@ -67,8 +67,8 @@ class Medicine {
       'generic_name': genericName,
       'category': category,
       'dosage_form': dosageForm,
-      'supplier': supplier, // This should be the supplier ID if your backend expects it for updates
-      'supplier_name': supplierName, // This is usually for display, not for sending back to API
+      'supplier': supplier,
+      'supplier_name': supplierName,
       'requires_prescription': prescriptionRequired,
       'restock_quantity': quantity,
       'price': price,
@@ -220,15 +220,14 @@ class _MedicineListViewState extends State<MedicineListView> {
 
     if (confirm != true) return;
 
-    // ✅ Get staff ID from SharedPreferences
+    // Get staff ID from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     final staffId = prefs.getInt('staff_id'); // assumes it's saved during login
 
-    // ✅ Attach staff_id as query parameter
+    // Attach staff_id as query parameter
     final uri = Uri.parse('http://10.0.2.2:8000/api/medicines/$id/?staff_id=$staffId');
 
-    // ❌ The original code used a hardcoded Uri.parse here instead of the 'uri' variable.
-    final response = await http.delete(uri); // Corrected line
+    final response = await http.delete(uri);
 
     if (response.statusCode == 204) {
       _refreshList();
@@ -301,57 +300,103 @@ class _MedicineListViewState extends State<MedicineListView> {
           ),
         ],
       ),
-      body: _medicines.isEmpty && _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          // *** MODIFIED: CHECK FILTERED LIST FOR EMPTY STATE ***
-          : _filteredMedicines.isEmpty && !_isLoading && !_isSearching
-              ? const Center(child: Text('No medicines found.'))
-              // *** MODIFIED: USE _filteredMedicines LIST FOR THE VIEWS ***
-              : ListView.builder(
-                  controller: _scrollController,
-                  itemCount: _filteredMedicines.length + (_hasMore && !_isSearching ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    // Check if this is the last item and we have more to load
-                    if (index == _filteredMedicines.length) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    
-                    final med = _filteredMedicines[index];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      child: ListTile(
-                        title: Text(med.name ?? 'Unnamed'),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Barcode No: ${med.barcode ?? "-"}'),
-                            Text('Generic Name: ${med.genericName ?? "-"}'),
-                            Text('Category: ${med.category ?? "-"}'),
-                            Text('Dosage Form: ${med.dosageForm ?? "-"}'),
-                            Text('Supplier: ${med.supplierName ?? "-"}'),
-                            Text('Prescription Required: ${med.prescriptionRequired == true ? "Yes" : "No"}'),
-                            Text('Quantity: ${med.quantity ?? 0}'),
-                            Text('Price: ₱${(med.price ?? 0.0).toStringAsFixed(2)}'),
-                          ],
+      body: RefreshIndicator(
+        onRefresh: () async {
+          _refreshList();
+          await Future.delayed(const Duration(milliseconds: 500));
+        },
+        child: _medicines.isEmpty && _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            // *** MODIFIED: CHECK FILTERED LIST FOR EMPTY STATE ***
+            : _filteredMedicines.isEmpty && !_isLoading && !_isSearching
+                ? const Center(child: Text('No medicines found.'))
+                // *** MODIFIED: USE _filteredMedicines LIST FOR THE VIEWS ***
+                : ListView.builder(
+                    controller: _scrollController,
+                    itemCount: _filteredMedicines.length + (_hasMore && !_isSearching ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      // Check if this is the last item and we have more to load
+                      if (index == _filteredMedicines.length) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      
+                      final med = _filteredMedicines[index];
+                      
+                      // ✅ START OF NEW UI LOGIC based on ID Prioritization
+                      const deletedPlaceholder = '[Supplier Deleted]';
+                      
+                      // 1. Check the status
+                      final isSupplierDeletedPlaceholder = med.supplierName == deletedPlaceholder;
+                      final isSupplierIdPresent = med.supplier != null && med.supplier!.isNotEmpty;
+                      
+                      String supplierDisplayString;
+                      TextStyle supplierTextStyle;
+                      
+                      if (isSupplierDeletedPlaceholder) {
+                        if (isSupplierIdPresent) {
+                          // Case A: Name is placeholder, but ID is linked. Alert state.
+                          supplierDisplayString = 'ID: ${med.supplier!} (Name Missing)';
+                          supplierTextStyle = const TextStyle(
+                          );
+                        } else {
+                          // Case B: Name is placeholder, and ID is NOT linked. Confirmed deleted.
+                          supplierDisplayString = deletedPlaceholder;
+                          supplierTextStyle = const TextStyle(
+                          );
+                        }
+                      } else {
+                        // Case C: Name is resolved/present (or null, which is handled by ?? "-")
+                        supplierDisplayString = med.supplierName ?? '-';
+                        supplierTextStyle = TextStyle(
+                          fontWeight: FontWeight.normal,
+                          color: Colors.grey[700],
+                        );
+                      }
+                      // ❌ END OF NEW UI LOGIC ❌
+
+                      return Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        child: ListTile(
+                          title: Text(med.name ?? 'Unnamed'),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Barcode No: ${med.barcode ?? "-"}'),
+                              Text('Generic Name: ${med.genericName ?? "-"}'),
+                              
+                              // *** MODIFIED: Display and style for Supplier Name/ID ***
+                              Text(
+                                'Supplier: $supplierDisplayString',
+                                style: supplierTextStyle,
+                              ),
+                              // *** END OF MODIFICATION ***
+                              
+                              Text('Category: ${med.category ?? "-"}'),
+                              Text('Dosage Form: ${med.dosageForm ?? "-"}'),
+                              Text('Prescription Required: ${med.prescriptionRequired == true ? "Yes" : "No"}'),
+                              Text('Quantity: ${med.quantity ?? 0}'),
+                              Text('Price: ₱${(med.price ?? 0.0).toStringAsFixed(2)}'),
+                            ],
+                          ),
+                          isThreeLine: true,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.blue),
+                                onPressed: () => _editMedicine(med),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _deleteMedicine(med.id),
+                              ),
+                            ],
+                          ),
                         ),
-                        isThreeLine: true,
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () => _editMedicine(med),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _deleteMedicine(med.id),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _onAddMedicine,
         tooltip: 'Add Medicine',

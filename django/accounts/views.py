@@ -448,7 +448,7 @@ def medicine_list(request):
 
 
 
-# ---------------9/30/25
+# ---------------10/1/25
 @api_view(['GET', 'PUT', 'DELETE'])
 @parser_classes([MultiPartParser, FormParser])
 def medicine_detail(request, pk):
@@ -469,12 +469,14 @@ def medicine_detail(request, pk):
             'category': medicine.category,
             'dosage_form': medicine.dosage_form,
             'supplier_id': medicine.supplier.id if medicine.supplier else None,
-            'supplier_name': medicine.supplier.name if medicine.supplier else "None",
+            # 💡 SNAPSHOT CHANGE: Use the new persistent supplier_name field for OLD data
+            'supplier_name': medicine.supplier_name, 
         }
 
         serializer = MedicineSerializer(medicine, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
+            # serializer.save() runs the logic in MedicineSerializer to update the snapshot
+            serializer.save() 
 
             staff_id = request.data.get('staff_id')
             if staff_id:
@@ -490,7 +492,8 @@ def medicine_detail(request, pk):
                         'category': updated_medicine.category,
                         'dosage_form': updated_medicine.dosage_form,
                         'supplier_id': updated_medicine.supplier.id if updated_medicine.supplier else None,
-                        'supplier_name': updated_medicine.supplier.name if updated_medicine.supplier else "None",
+                        # 💡 SNAPSHOT CHANGE: Use the new persistent supplier_name field for NEW data
+                        'supplier_name': updated_medicine.supplier_name,
                     }
 
                     updated_fields = []
@@ -519,7 +522,7 @@ def medicine_detail(request, pk):
                             description=description,
                             staff_name=staff_user.name,
                             staff_role=staff_user.role,
-                            medicine_name_log=updated_medicine.name, # <-- Add this line for the name
+                            medicine_name_log=updated_medicine.name,
                             timestamp=timezone.now() # Manually set the timestamp
                         )
 
@@ -591,7 +594,7 @@ def medicine_detail(request, pk):
             if staff_id:
                 try:
                     staff_user = Staff.objects.get(id=staff_id)
-                    # ✅ THIS IS THE KEY CHANGE:
+                    # This section remains unchanged as it doesn't log supplier name
                     InventoryLog.objects.create(
                         user=staff_user,
                         medicine=None,
@@ -610,8 +613,7 @@ def medicine_detail(request, pk):
         except Exception as e:
             print(f"Error during medicine deletion: {e}")
             return Response({'error': 'An error occurred during the deletion process.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)        
-        
-    #----------9/30/25
+    #----------10/1/25
     
     
     
