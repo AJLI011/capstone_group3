@@ -6,7 +6,6 @@ from datetime import datetime, timedelta, date, time
 import pytz 
 from django.conf import settings
 from django.db import transaction
-from random import choice # Added choice from random since it was removed from the imports
 
 from django.core.management.base import BaseCommand
 from accounts.models import Supplier, Medicine, Inventory, OnlineOrder, OnlineOrderItem, Customer, Staff, OrderLog
@@ -24,25 +23,19 @@ class Command(BaseCommand):
 
         supplier_names = ['PharmaCorp', 'MediSupply', 'Global Drugs Inc.']
         suppliers = []
-        # --- NEW CODE: Store generated contact numbers for suppliers ---
-        supplier_contacts = {} 
-        # -------------------------------------------------------------
+        fake = Faker()
         
         for name in supplier_names:
-            # --- NEW CODE: Generate contact number before get_or_create ---
-            contact_num = Faker().phone_number()
-            # --------------------------------------------------------------
-            supplier, created = Supplier.objects.get_or_create(name=name, defaults={'contact': contact_num})
+            # --- MINIMAL CHANGE #1: Fix Supplier Contact Number generation ---
+            supplier_contact = fake.msisdn()[:20] 
+            supplier, created = Supplier.objects.get_or_create(name=name, defaults={'contact': supplier_contact})
             suppliers.append(supplier)
-            # --- NEW CODE: Store the contact number in the map ---
-            supplier_contacts[supplier.name] = contact_num
-            # ---------------------------------------------------
             if created:
                 self.stdout.write(f'Created supplier: {name}')
 
         categories = [choice[0] for choice in Medicine.CATEGORY_CHOICES]
         
-        # --- START OF CHANGES ---
+        # --- START OF MEDICINE DATA (No changes here) ---
         MEDICINE_DATA = {
             'Biogesic': 'Paracetamol',
             'Alaxan': 'Ibuprofen + Paracetamol',
@@ -55,6 +48,7 @@ class Command(BaseCommand):
             'Cetirizine': 'Cetirizine',
             'Loperamide': 'Loperamide',
             'Ibuprofen': 'Ibuprofen',
+            'Cefalexin': 'Cefalexin',
             'Cefalexin': 'Cefalexin',
             'Metformin': 'Metformin',
             'Omeprazole': 'Omeprazole',
@@ -149,9 +143,10 @@ class Command(BaseCommand):
             'Ponstan': 40.50,
             'Virlix': 37.00
         }
+        # --- END OF MEDICINE DATA ---
 
         for name, generic_name in MEDICINE_DATA.items():
-            barcode = Faker().unique.ean13()
+            barcode = fake.unique.ean13()
             
             # --- UPDATED LINE: Get the price from the new dictionary ---
             price = MEDICINE_PRICES.get(name, round(random.uniform(6, 150), 2))
@@ -161,11 +156,6 @@ class Command(BaseCommand):
             dosage_form = random.choice([choice[0] for choice in Medicine.DOSAGE_CHOICES])
             
             supplier = random.choice(suppliers)
-            
-            # --- NEW CODE: Extract supplier name and contact number for the new fields ---
-            supplier_name = supplier.name
-            supplier_contact_num = supplier_contacts.get(supplier_name, 'N/A')
-            # --------------------------------------------------------------------------
 
             medicine, created = Medicine.objects.get_or_create(
                 name=name,
@@ -174,10 +164,11 @@ class Command(BaseCommand):
                     'category': category,
                     'dosage_form': dosage_form,
                     'supplier': supplier,
-                    # --- NEW CODE: Add the new fields here ---
-                    'supplier_name': supplier_name,
-                    'supplier_contact_num': supplier_contact_num,
-                    # ------------------------------------------
+                    
+                    # --- MINIMAL CHANGE #2: Add new snapshot fields ---
+                    'supplier_name': supplier.name,
+                    'supplier_contact_num': supplier.contact,
+                    
                     'restock_quantity': random.choice([50, 100]),
                     'price': price,
                     'requires_prescription': random.choice([True, False]),

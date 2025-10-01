@@ -22,13 +22,13 @@ class Command(BaseCommand):
 
         supplier_names = ['PharmaCorp', 'MediSupply', 'Global Drugs Inc.']
         suppliers = []
-        # --- MODIFIED: Added contact number for suppliers to use in medicine data ---
-        supplier_contacts = {} 
+        fake = Faker()
+        
         for name in supplier_names:
-            contact_num = Faker().phone_number()
-            supplier, created = Supplier.objects.get_or_create(name=name, defaults={'contact': contact_num})
+            # --- ONLY CHANGE #1: Use msisdn and slice for a clean, limit-friendly contact number for Supplier ---
+            supplier_contact = fake.msisdn()[:20] 
+            supplier, created = Supplier.objects.get_or_create(name=name, defaults={'contact': supplier_contact})
             suppliers.append(supplier)
-            supplier_contacts[supplier.name] = contact_num # Store contact number
             if created:
                 self.stdout.write(f'Created supplier: {name}')
 
@@ -116,7 +116,6 @@ class Command(BaseCommand):
             'Mucosolvan': 20.75,
             'Advil': 9.00,
             'Voltaren': 42.50,
-            'Voltaren': 42.50,
             'Plavix': 75.75,
             'Lipitor': 35.25,
             'Norvasc': 21.75,
@@ -143,7 +142,7 @@ class Command(BaseCommand):
         }
         
         for name, generic_name in MEDICINE_DATA.items():
-            barcode = Faker().unique.ean13()
+            barcode = fake.unique.ean13()
             
             # --- UPDATED LINE: Get the price from the new dictionary ---
             price = MEDICINE_PRICES.get(name, round(random.uniform(6, 150), 2))
@@ -153,11 +152,6 @@ class Command(BaseCommand):
             dosage_form = random.choice([choice[0] for choice in Medicine.DOSAGE_CHOICES])
             
             supplier = random.choice(suppliers)
-            
-            # --- NEW FIELD ADDITION ---
-            supplier_name = supplier.name
-            supplier_contact_num = supplier_contacts.get(supplier_name, 'N/A')
-            # --------------------------
 
             medicine, created = Medicine.objects.get_or_create(
                 name=name,
@@ -166,14 +160,15 @@ class Command(BaseCommand):
                     'category': category,
                     'dosage_form': dosage_form,
                     'supplier': supplier,
+                    
+                    # --- ONLY CHANGE #2: Add the new snapshot fields, using the supplier's current data ---
+                    'supplier_name': supplier.name,
+                    'supplier_contact_num': supplier.contact,
+                    
                     'restock_quantity': random.choice([50, 100]),
                     'price': price, # Price is now the specific price from the dictionary
                     'requires_prescription': random.choice([True, False]),
-                    'barcode': barcode,
-                    # --- NEW FIELD ADDITION: Assign values to the new fields ---
-                    'supplier_name': supplier_name,
-                    'supplier_contact_num': supplier_contact_num 
-                    # -----------------------------------------------------------
+                    'barcode': barcode 
                 }
             )
             if created:

@@ -6,13 +6,13 @@ from datetime import datetime, timedelta, date, time
 import pytz 
 from django.conf import settings
 from django.db import transaction
-from random import choice # Added choice from random since it was removed from the imports
 
 from django.core.management.base import BaseCommand
 from accounts.models import Supplier, Medicine, Inventory, OnlineOrder, OnlineOrderItem, Customer, Staff, OrderLog
 
 
 class Command(BaseCommand):
+    # --- CHANGE #1: Updated help message for 2024 ---
     help = 'Generates dummy online order data for the year 2024.'
     
     def create_dummy_medicines(self):
@@ -24,18 +24,13 @@ class Command(BaseCommand):
 
         supplier_names = ['PharmaCorp', 'MediSupply', 'Global Drugs Inc.']
         suppliers = []
-        # --- START OF REQUIRED CHANGES (1/5): Store generated contact numbers ---
-        supplier_contacts = {} 
-        # -----------------------------------------------------------------------
+        fake = Faker()
         
         for name in supplier_names:
-            # --- START OF REQUIRED CHANGES (2/5): Generate contact num before get_or_create ---
-            contact_num = Faker().phone_number()
-            supplier, created = Supplier.objects.get_or_create(name=name, defaults={'contact': contact_num})
+            # Correct logic for Supplier Contact Number (msisdn to max_length=20)
+            supplier_contact = fake.msisdn()[:20] 
+            supplier, created = Supplier.objects.get_or_create(name=name, defaults={'contact': supplier_contact})
             suppliers.append(supplier)
-            # --- START OF REQUIRED CHANGES (3/5): Store the contact number in the map ---
-            supplier_contacts[supplier.name] = contact_num
-            # --------------------------------------------------------------------------
             if created:
                 self.stdout.write(f'Created supplier: {name}')
 
@@ -94,6 +89,7 @@ class Command(BaseCommand):
             'Virlix': 'Cetirizine'
         }
         
+        # Define the prices for each medicine
         MEDICINE_PRICES = {
             'Biogesic': 5.00,
             'Alaxan': 8.75,
@@ -146,9 +142,9 @@ class Command(BaseCommand):
             'Ponstan': 40.50,
             'Virlix': 37.00
         }
-        
+
         for name, generic_name in MEDICINE_DATA.items():
-            barcode = Faker().unique.ean13()
+            barcode = fake.unique.ean13()
             
             price = MEDICINE_PRICES.get(name, round(random.uniform(6, 150), 2))
             
@@ -158,11 +154,6 @@ class Command(BaseCommand):
             
             supplier = random.choice(suppliers)
 
-            # --- START OF REQUIRED CHANGES (4/5): Extract supplier name and contact number ---
-            supplier_name = supplier.name
-            supplier_contact_num = supplier_contacts.get(supplier_name, 'N/A')
-            # ---------------------------------------------------------------------------------
-
             medicine, created = Medicine.objects.get_or_create(
                 name=name,
                 defaults={
@@ -170,21 +161,22 @@ class Command(BaseCommand):
                     'category': category,
                     'dosage_form': dosage_form,
                     'supplier': supplier,
-                    # --- START OF REQUIRED CHANGES (5/5): Add the new fields to defaults ---
-                    'supplier_name': supplier_name,
-                    'supplier_contact_num': supplier_contact_num,
-                    # ------------------------------------------------------------------------
+                    
+                    # New snapshot fields (already implemented)
+                    'supplier_name': supplier.name,
+                    'supplier_contact_num': supplier.contact,
+                    
                     'restock_quantity': random.choice([50, 100]),
                     'price': price,
                     'requires_prescription': random.choice([True, False]),
-                    'barcode': barcode 
+                    'barcode': barcode
                 }
             )
             if created:
                 self.stdout.write(f'Created medicine: {medicine.name} with price: {medicine.price}')
             else:
                 self.stdout.write(f'Medicine already exists: {medicine.name}')
-                
+
         self.stdout.write(self.style.SUCCESS('Finished creating dummy suppliers and medicines.'))
         
     def create_dummy_inventory(self):
@@ -196,10 +188,6 @@ class Command(BaseCommand):
             return
 
         for medicine in medicines:
-            if Inventory.objects.filter(medicine=medicine).exists():
-                self.stdout.write(self.style.WARNING(f'Inventory for {medicine.name} already exists. Skipping.'))
-                continue
-
             batch_num = Faker().unique.isbn13()
             exp_date = Faker().date_between(start_date='now', end_date='+2y')
             quantity = random.randint(30, 70)
@@ -217,16 +205,19 @@ class Command(BaseCommand):
     def create_dummy_users(self):
         self.stdout.write(self.style.NOTICE('Creating dummy customers and staff...'))
         
+        fake = Faker()
+        # Create 10 dummy customers as they are required for OnlineOrder
         for _ in range(10):
             Customer.objects.get_or_create(
-                email=Faker().unique.email(),
+                email=fake.unique.email(),
                 defaults={
-                    'name': Faker().name(),
-                    'contact_num': Faker().msisdn()[:20],
+                    'name': fake.name(),
+                    'contact_num': fake.msisdn()[:20],
                     'password': 'testpassword123'
                 }
             )
             
+        # Create staff and cashier users for the logs
         staff_roles = ['cashier', 'staff']
         for role in staff_roles:
             email = f'{role}@example.com'
@@ -234,9 +225,9 @@ class Command(BaseCommand):
                 email=email,
                 defaults={
                     'password': 'testpassword123',
-                    'name': Faker().name(),
+                    'name': fake.name(),
                     'role': role,
-                    'contact_num': Faker().msisdn()[:20]
+                    'contact_num': fake.msisdn()[:20]
                 }
             )
             
@@ -249,18 +240,19 @@ class Command(BaseCommand):
         customers = Customer.objects.all()
         inventory_items = Inventory.objects.all()
         
+        # Get staff and cashier users for the logs
         staff_user = Staff.objects.get(role='staff')
         cashier_user = Staff.objects.get(role='cashier')
         
-        if not customers.exists() or not inventory_items.exists():
-            self.stdout.write(self.style.WARNING('Prerequisite data (customers, inventory) not found. Please run previous functions first.'))
+        if not staff_user or not cashier_user or not customers.exists() or not inventory_items.exists():
+            self.stdout.write(self.style.WARNING('Prerequisite data (customers, staff, inventory) not found. Please run previous functions first.'))
             return
 
         manila_tz = pytz.timezone(settings.TIME_ZONE)
         
+        # --- CHANGE #2: Updated start and end dates for 2024 ---
         start_date = date(2024, 1, 1)
         end_date = date(2024, 12, 31)
-        # 2024 is a leap year, total_days should be 365
         total_days = (end_date - start_date).days
         
         seasonality_map = {
@@ -309,12 +301,13 @@ class Command(BaseCommand):
                     pickup_schedule_time_naive = datetime.combine(current_date + timedelta(days=pickup_delta_days), time(random.randint(9, 21), random.randint(0, 59)))
                     pickup_schedule = manila_tz.localize(pickup_schedule_time_naive)
                     
+                    # Date fulfilled is always after the date created
                     date_fulfilled_time = pickup_schedule + timedelta(minutes=random.randint(15, 60))
                     
                     order = OnlineOrder.objects.create(
                         customer=customer,
                         date_created=order_time,
-                        status='completed',
+                        status='completed', # All generated orders are considered completed for this script
                         total_amount_before_discount=0,
                         total_amount_after_discount=0,
                         pickup_schedule=pickup_schedule,
@@ -374,6 +367,7 @@ class Command(BaseCommand):
                     order.save()
             
             if day_offset % 30 == 0:
+                # 2024 is a leap year, so this is 366 total days.
                 self.stdout.write(f'Progress: {day_offset}/{total_days} days generated for 2024.')
 
         self.stdout.write(self.style.SUCCESS('Finished creating dummy online sales records for 2024.'))

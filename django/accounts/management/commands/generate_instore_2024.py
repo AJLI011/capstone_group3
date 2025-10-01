@@ -6,12 +6,12 @@ from datetime import datetime, timedelta, date, time
 import pytz 
 from django.conf import settings
 from django.db import transaction, models
-from random import choice
 
 from django.core.management.base import BaseCommand
 from accounts.models import Supplier, Medicine, Inventory, InStoreOrder, InStoreOrderItem, Staff, OrderLog
 
 class Command(BaseCommand):
+    # --- CHANGE #1: Updated help message for 2024 ---
     help = 'Generates dummy in-store order data for the year 2024.'
     
     def create_dummy_medicines(self):
@@ -23,13 +23,13 @@ class Command(BaseCommand):
 
         supplier_names = ['PharmaCorp', 'MediSupply', 'Global Drugs Inc.']
         suppliers = []
-        # --- ADDED: Dictionary to store supplier contact numbers for the new field ---
-        supplier_contacts = {} 
+        fake = Faker()
+        
         for name in supplier_names:
-            contact_num = Faker().phone_number()
-            supplier, created = Supplier.objects.get_or_create(name=name, defaults={'contact': contact_num})
+            # Using msisdn and slice for a clean, limit-friendly contact number for Supplier
+            supplier_contact = fake.msisdn()[:20] 
+            supplier, created = Supplier.objects.get_or_create(name=name, defaults={'contact': supplier_contact})
             suppliers.append(supplier)
-            supplier_contacts[supplier.name] = contact_num # Store contact number
             if created:
                 self.stdout.write(f'Created supplier: {name}')
 
@@ -143,9 +143,9 @@ class Command(BaseCommand):
         }
         
         for name, generic_name in MEDICINE_DATA.items():
-            barcode = Faker().unique.ean13()
+            barcode = fake.unique.ean13()
             
-            # --- UPDATED LINE: Get the price from the new dictionary ---
+            # Get the price from the dictionary
             price = MEDICINE_PRICES.get(name, round(random.uniform(6, 150), 2))
             
             category = random.choice(categories)
@@ -154,11 +154,6 @@ class Command(BaseCommand):
             
             supplier = random.choice(suppliers)
 
-            # --- NEW FIELD ADDITION: Get the supplier name and contact number ---
-            supplier_name = supplier.name
-            supplier_contact_num = supplier_contacts.get(supplier_name, 'N/A')
-            # ----------------------------------------------------------------------
-            
             medicine, created = Medicine.objects.get_or_create(
                 name=name,
                 defaults={
@@ -166,14 +161,15 @@ class Command(BaseCommand):
                     'category': category,
                     'dosage_form': dosage_form,
                     'supplier': supplier,
+                    
+                    # New snapshot fields
+                    'supplier_name': supplier.name,
+                    'supplier_contact_num': supplier.contact,
+                    
                     'restock_quantity': random.choice([50, 100]),
-                    'price': price,
+                    'price': price, # Price is now the specific price from the dictionary
                     'requires_prescription': random.choice([True, False]),
-                    'barcode': barcode,
-                    # --- NEW FIELD ADDITION: Assign values to the new fields ---
-                    'supplier_name': supplier_name,
-                    'supplier_contact_num': supplier_contact_num
-                    # -----------------------------------------------------------
+                    'barcode': barcode 
                 }
             )
             if created:
@@ -238,7 +234,7 @@ class Command(BaseCommand):
 
         manila_tz = pytz.timezone(settings.TIME_ZONE)
         
-        # Updated for 2024
+        # --- CHANGE #2: Updated start and end dates for 2024 ---
         start_date = date(2024, 1, 1)
         end_date = date(2024, 12, 31)
         total_days = (end_date - start_date).days
@@ -343,6 +339,7 @@ class Command(BaseCommand):
                     order.save()
             
             if day_offset % 30 == 0:
+                # Note: 2024 is a leap year (366 days), but the logic handles the total days correctly.
                 self.stdout.write(f'Progress: {day_offset}/{total_days} days generated for 2024.')
 
         self.stdout.write(self.style.SUCCESS('Finished creating dummy in-store sales records for 2024.'))
