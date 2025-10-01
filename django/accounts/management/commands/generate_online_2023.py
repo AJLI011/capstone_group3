@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, date, time
 import pytz 
 from django.conf import settings
 from django.db import transaction
+from random import choice # Needed for Medicine.CATEGORY_CHOICES
 
 from django.core.management.base import BaseCommand
 from accounts.models import Supplier, Medicine, Inventory, OnlineOrder, OnlineOrderItem, Customer, Staff, OrderLog
@@ -119,9 +120,9 @@ class Command(BaseCommand):
                     'category': category,
                     'dosage_form': dosage_form,
                     'supplier': supplier,
-                    # ⭐ FIX: Add the supplier_name snapshot field here
                     'supplier_name': supplier.name, 
-                    # ⭐ END FIX
+                    # ⭐ ADDED THE NEW FIELD HERE
+                    'supplier_contact_num': supplier.contact, 
                     'restock_quantity': random.choice([50, 100]),
                     'price': price,
                     'requires_prescription': random.choice([True, False]),
@@ -131,12 +132,23 @@ class Command(BaseCommand):
             if created:
                 self.stdout.write(f'Created medicine: {medicine.name} with price: {medicine.price}')
             else:
-                # Optional: Update existing medicine's supplier_name if its FK is still valid
-                if medicine.supplier and medicine.supplier.name != medicine.supplier_name:
-                    medicine.supplier_name = medicine.supplier.name
-                    medicine.save(update_fields=['supplier_name'])
-                    self.stdout.write(f'Updated existing medicine: {medicine.name} supplier_name.')
-                self.stdout.write(f'Medicine already exists: {medicine.name}')
+                # Update existing medicine's supplier snapshots if FK is valid
+                updated = False
+                if medicine.supplier:
+                    if medicine.supplier.name != medicine.supplier_name:
+                        medicine.supplier_name = medicine.supplier.name
+                        updated = True
+                    # Check and update the new field
+                    if medicine.supplier.contact != medicine.supplier_contact_num:
+                        medicine.supplier_contact_num = medicine.supplier.contact
+                        updated = True
+                
+                if updated:
+                    # UPDATED save_fields to include the new field
+                    medicine.save(update_fields=['supplier_name', 'supplier_contact_num'])
+                    self.stdout.write(f'Updated existing medicine: {medicine.name} supplier details.')
+                else:
+                    self.stdout.write(f'Medicine already exists: {medicine.name}')
 
         self.stdout.write(self.style.SUCCESS('Finished creating dummy suppliers and medicines.'))
         
@@ -181,7 +193,6 @@ class Command(BaseCommand):
             )
             
         # Create staff, cashier, and manager users
-        # ⭐ CRITICAL CHANGE: Added 'manager' role
         staff_roles = ['cashier', 'staff', 'manager']
         for role in staff_roles:
             email = f'{role}@example.com'

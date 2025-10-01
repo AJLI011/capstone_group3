@@ -121,6 +121,7 @@ class Command(BaseCommand):
                     'dosage_form': dosage_form,
                     'supplier': supplier,
                     'supplier_name': supplier.name, 
+                    'supplier_contact_num': supplier.contact, # <--- NEW FIELD ADDED HERE
                     'restock_quantity': random.choice([50, 100]),
                     'price': price, 
                     'requires_prescription': random.choice([True, False]),
@@ -130,12 +131,22 @@ class Command(BaseCommand):
             if created:
                 self.stdout.write(f'Created medicine: {medicine.name} with price: {medicine.price}')
             else:
-                # Optional: Update existing medicine's supplier_name if its FK is still valid
-                if medicine.supplier and medicine.supplier.name != medicine.supplier_name:
-                    medicine.supplier_name = medicine.supplier.name
-                    medicine.save(update_fields=['supplier_name'])
-                    self.stdout.write(f'Updated existing medicine: {medicine.name} supplier_name.')
-                self.stdout.write(f'Medicine already exists: {medicine.name}')
+                # Optional: Update existing medicine's supplier_name and contact if its FK is still valid
+                updated = False
+                if medicine.supplier:
+                    if medicine.supplier.name != medicine.supplier_name:
+                        medicine.supplier_name = medicine.supplier.name
+                        updated = True
+                    # Check and update the new field
+                    if medicine.supplier.contact != medicine.supplier_contact_num:
+                        medicine.supplier_contact_num = medicine.supplier.contact
+                        updated = True
+                
+                if updated:
+                    medicine.save(update_fields=['supplier_name', 'supplier_contact_num'])
+                    self.stdout.write(f'Updated existing medicine: {medicine.name} supplier details.')
+                else:
+                    self.stdout.write(f'Medicine already exists: {medicine.name}')
                 
         self.stdout.write(self.style.SUCCESS('Finished creating dummy suppliers and medicines.'))
     

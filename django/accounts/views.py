@@ -3136,7 +3136,7 @@ class MedicineSalesHistoryView(APIView):
 
 
 
-#----------9/23/25
+#----------10/1/25
 
 
 # ==================== PURCHASE REQUEST LOGIC ===========================
@@ -3148,31 +3148,43 @@ class PurchaseRequestListView(APIView):
         if not latest_report:
             return Response({"error": "No forecast reports found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Get all forecast items for the latest report
-        # Filter for items that have a restock amount > 0 and where the medicine is not deleted
+        # CRITICAL: We MUST include 'medicine__supplier' here again.
+        # This allows us to access the Supplier data directly when it exists.
         forecast_items = ForecastItem.objects.filter(
             forecast_report=latest_report,
             restock_amount__gt=0,
             medicine__isnull=False
-        ).select_related('medicine', 'medicine__supplier').order_by('rank')
+        ).select_related('medicine', 'medicine__supplier').order_by('rank') # Re-added 'medicine__supplier'
 
         purchase_request_list = []
         for item in forecast_items:
             medicine = item.medicine
-            supplier = medicine.supplier
-            
-            # Construct the item data using the correct 'restock_quantity' field
+            supplier = medicine.supplier # Will be the Supplier object (if exists) or None (if deleted)
+
+            # --- Conditional Logic to determine Supplier Data Source ---
+            if supplier:
+                # SCENARIO 1: Supplier EXISTS (supplier is a valid object)
+                # Use the LIVE data from the Supplier model to ensure it's up-to-date.
+                supplier_name_data = supplier.name
+                contact_num_data = supplier.contact
+            else:
+                # SCENARIO 2: Supplier is DELETED (supplier is None)
+                # Fall back to the resilient snapshot data on the Medicine model.
+                supplier_name_data = medicine.supplier_name if medicine.supplier_name else '[N/A - Snapshot Missing]'
+                contact_num_data = medicine.supplier_contact_num if medicine.supplier_contact_num else 'N/A'
+            # -----------------------------------------------------------
+
+            # Construct the item data
             purchase_request_list.append({
                 'no': item.rank,
                 'medicine_name': medicine.name,
                 'restock_amount': item.restock_amount,
                 'units_per_items': medicine.restock_quantity,
-                'supplier_name': supplier.name if supplier else 'N/A',
-                'contact_num': supplier.contact if supplier else 'N/A'
+                'supplier_name': supplier_name_data, # Use the determined data
+                'contact_num': contact_num_data      # Use the determined data
             })
 
         return Response(purchase_request_list, status=status.HTTP_200_OK)
-
 # ==================== END PURCHASE REQUEST LOGIC ===========================
 #----------9/23/25
 

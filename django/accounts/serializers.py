@@ -78,6 +78,9 @@ class MedicineSerializer(serializers.ModelSerializer):
     # but we will manually override its value in to_representation for reads.
     supplier_name = serializers.CharField(read_only=True)
     
+    # ⭐ ADDED: Define the contact number snapshot field as read-only
+    supplier_contact_num = serializers.CharField(read_only=True)
+
     barcode = serializers.CharField(
         required=False,
         validators=[UniqueValidator(queryset=Medicine.objects.all())]
@@ -93,7 +96,8 @@ class MedicineSerializer(serializers.ModelSerializer):
             'category',
             'dosage_form',
             'supplier',
-            'supplier_name', # Maps to the snapshot field
+            'supplier_name', # Maps to the name snapshot field
+            'supplier_contact_num', # ⭐ ADDED: Maps to the contact snapshot field
             'restock_quantity',
             'price',
             'requires_prescription',
@@ -101,7 +105,8 @@ class MedicineSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at', 'supplier_name'] 
+        # ⭐ UPDATED: Add supplier_contact_num to read_only_fields
+        read_only_fields = ['created_at', 'updated_at', 'supplier_name', 'supplier_contact_num']
 
 
     def _snapshot_supplier_name(self, validated_data, instance=None):
@@ -112,9 +117,15 @@ class MedicineSerializer(serializers.ModelSerializer):
         if supplier:
             # If a supplier is linked (or being linked), snapshot its current name
             validated_data['supplier_name'] = supplier.name
+            
+            # ⭐ CRITICAL CHANGE: Snapshot the supplier's contact number
+            # Assuming the Supplier model has a field named 'contact'
+            validated_data['supplier_contact_num'] = supplier.contact
+            
         elif 'supplier' in validated_data and validated_data['supplier'] is None:
             # Case: Supplier is explicitly set to null (cleared by user)
-            validated_data['supplier_name'] = None # Clear snapshot
+            validated_data['supplier_name'] = None # Clear name snapshot
+            validated_data['supplier_contact_num'] = None # ⭐ ADDED: Clear contact snapshot
             
         return validated_data
 
@@ -135,26 +146,29 @@ class MedicineSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
         
         
-    # ⭐ CRITICAL FIX: Override to_representation to ensure the current supplier name 
+    # ⭐ CRITICAL FIX: Override to_representation to ensure the current supplier info 
     # is prioritized over the snapshot field when the FK is still linked.
     def to_representation(self, instance):
-        # 1. Get the default serialization (includes the snapshot value for supplier_name)
+        # 1. Get the default serialization (includes the snapshot values)
         data = super().to_representation(instance)
         
         # 2. Check if the Foreign Key (FK) is still pointing to a Supplier
         if instance.supplier:
-            # If the FK exists, ALWAYS use the current name from the Supplier object.
-            # This is the behavior you want: prioritize the linked supplier's name.
+            # If the FK exists, ALWAYS use the current data from the Supplier object.
+            
+            # Update name
             data['supplier_name'] = instance.supplier.name
+            
+            # ⭐ CRITICAL CHANGE: Update contact number
+            data['supplier_contact_num'] = instance.supplier.contact
             
         elif data.get('supplier_name') is None:
             # Handle the case where the snapshot was explicitly set to None 
             # (e.g., cleared on update), and the FK is also null. Use the default.
             data['supplier_name'] = '[Supplier Deleted]'
-        
-        # NOTE: If instance.supplier is None (FK is NULL), the serializer sends 
-        # the *snapshot* value already stored in the DB (e.g., '[Supplier Deleted]' 
-        # or the old name). This is correct for showing deletion/unlinking.
+            
+        # The `supplier_contact_num` snapshot will be returned by default if the FK is null, 
+        # which is the correct behavior.
         
         return data
 #=================================================================================================
@@ -1459,19 +1473,24 @@ class LowStockSerializer(serializers.ModelSerializer):
 
     # Method to safely retrieve the supplier's name
     def get_supplier_name(self, obj):
-        # obj is the TotalQuantity instance
-        # Safely check if medicine and its supplier exist before accessing the name
+        # 1. Prioritize current Supplier's name if FK is intact
         if obj.medicine and obj.medicine.supplier:
             return obj.medicine.supplier.name
-        return 'N/A' # Returns 'N/A' if the supplier is not set
+        
+        # 2. Fallback to the snapshot field if FK is NULL (supplier deleted/unlinked)
+        # The snapshot field on Medicine model is 'supplier_name'
+        return obj.medicine.supplier_name or 'N/A'
 
     # Method to safely retrieve the supplier's contact number
     def get_contact_num(self, obj):
-        # Safely check if medicine and its supplier exist before accessing the contact
+        # 1. Prioritize current Supplier's contact if FK is intact
+        # Assuming the Supplier model has a field named 'contact'
         if obj.medicine and obj.medicine.supplier:
             return obj.medicine.supplier.contact
-        return 'N/A' # Returns 'N/A' if the supplier is not set
-
+        
+        # 2. Fallback to the snapshot field if FK is NULL (supplier deleted/unlinked)
+        # ⭐ CRITICAL FIX: Use the correct snapshot field name: 'supplier_contact_num'
+        return obj.medicine.supplier_contact_num or 'N/A'
 #====================================10/1/24 ===================================# 
 
 

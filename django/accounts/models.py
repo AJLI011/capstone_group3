@@ -75,12 +75,20 @@ class Medicine(models.Model):
     # Existing Foreign Key
     supplier = models.ForeignKey('Supplier', on_delete=models.SET_NULL, null=True, blank=True)
     
-    # snapshot for supplier if deleted
+    # Snapshot for supplier name (already implemented)
     supplier_name = models.CharField(
         max_length=255, 
         null=True, 
         blank=True,
         default='[Supplier Deleted]' # Fallback for safety and readability
+    )
+    
+    # 
+    supplier_contact_num = models.CharField(
+        max_length=20, # Use a max length appropriate for contact numbers
+        null=True, 
+        blank=True,
+        default='N/A' # Fallback for safety and display
     )
     
     restock_quantity = models.PositiveIntegerField(default=0)
@@ -92,7 +100,8 @@ class Medicine(models.Model):
 
     def __str__(self):
         return self.name
-
+    
+    
 class Inventory(models.Model): 
     class Meta:
         db_table = 'inventory_tbl'

@@ -85,6 +85,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
     }
   }
 
+  // ⭐ UPDATED METHOD: Includes mapping logic for lowStockItems
   Future<void> _generateAndSavePdf() async {
     if (_editablePurchaseRequests.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -98,11 +99,32 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
     });
 
     try {
-      // Step 1: Fetch the low stock data
+      // Step 1: Fetch the raw low stock data
       final lowStockResponse = await http.get(Uri.parse('http://10.0.2.2:8000/api/medicines/low-stock/'));
-      List<dynamic> lowStockItems = [];
+      
+      // Initialize the list that holds the PROCESSED low stock requests
+      List<Map<String, dynamic>> lowStockRequests = [];
+      
       if (lowStockResponse.statusCode == 200) {
-        lowStockItems = json.decode(lowStockResponse.body);
+        List<dynamic> fetchedLowStockData = json.decode(lowStockResponse.body);
+        
+        // CRITICAL FIX: Map the raw low stock data to align with the purchase request structure.
+        // The backend fix ensures that 'supplier_name' and 'contact_num' are present here.
+        lowStockRequests = fetchedLowStockData.asMap().entries.map((entry) {
+          int index = entry.key;
+          Map<String, dynamic> item = entry.value as Map<String, dynamic>;
+          
+          return {
+            // Assign sequential 'no' starting after the main purchase requests
+            'no': _editablePurchaseRequests.length + index + 1, 
+            'medicine_name': item['name'] ?? 'Unknown Medicine',
+            'restock_amount': item['restock_quantity'] ?? 0, 
+            'units_per_items': 1, // Defaulting to 1 as it's not provided by the low-stock endpoint
+            'supplier_name': item['supplier_name'] ?? 'N/A', // Uses the fixed backend field
+            'contact_num': item['contact_num'] ?? 'N/A',     // Uses the fixed backend field
+          };
+        }).toList();
+        
       } else {
         // Handle case where low stock data fails to load, but don't stop the process
         print('Warning: Failed to load low stock items. Status code: ${lowStockResponse.statusCode}');
@@ -119,7 +141,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
       // Step 3: Pass both lists to the PDF service
       await PdfPurchaseRequestService.generateAndSavePdf(
         purchaseRequests: finalPurchaseRequests,
-        lowStockItems: lowStockItems,
+        lowStockItems: lowStockRequests, // Pass the MAPPED low stock data
       );
 
       if (mounted) {

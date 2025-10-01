@@ -103,7 +103,6 @@ class Command(BaseCommand):
         for name, generic_name in MEDICINE_DATA.items():
             barcode = fake.unique.ean13()
             
-            # --- UPDATED LINE: Get the price from the new dictionary ---
             price = MEDICINE_PRICES.get(name, round(random.uniform(6, 150), 2))
             
             category = random.choice(categories)
@@ -119,9 +118,8 @@ class Command(BaseCommand):
                     'category': category,
                     'dosage_form': dosage_form,
                     'supplier': supplier,
-                    # ⭐ FIX: Add the supplier_name snapshot field here
                     'supplier_name': supplier.name, 
-                    # ⭐ END FIX
+                    'supplier_contact_num': supplier.contact, # <--- ADDED THE NEW FIELD
                     'restock_quantity': random.choice([50, 100]),
                     'price': price,
                     'requires_prescription': random.choice([True, False]),
@@ -131,12 +129,22 @@ class Command(BaseCommand):
             if created:
                 self.stdout.write(f'Created medicine: {medicine.name} with price: {medicine.price}')
             else:
-                # Optional: Update existing medicine's supplier_name if its FK is still valid
-                if medicine.supplier and medicine.supplier.name != medicine.supplier_name:
-                    medicine.supplier_name = medicine.supplier.name
-                    medicine.save(update_fields=['supplier_name'])
-                    self.stdout.write(f'Updated existing medicine: {medicine.name} supplier_name.')
-                self.stdout.write(f'Medicine already exists: {medicine.name}')
+                updated = False
+                if medicine.supplier:
+                    # Update supplier_name snapshot
+                    if medicine.supplier.name != medicine.supplier_name:
+                        medicine.supplier_name = medicine.supplier.name
+                        updated = True
+                    # Update new supplier_contact_num snapshot
+                    if medicine.supplier.contact != medicine.supplier_contact_num:
+                        medicine.supplier_contact_num = medicine.supplier.contact
+                        updated = True
+                
+                if updated:
+                    medicine.save(update_fields=['supplier_name', 'supplier_contact_num']) # <--- UPDATED save FIELDS
+                    self.stdout.write(f'Updated existing medicine: {medicine.name} supplier details.')
+                else:
+                    self.stdout.write(f'Medicine already exists: {medicine.name}')
                 
         self.stdout.write(self.style.SUCCESS('Finished creating dummy suppliers and medicines.'))
     
