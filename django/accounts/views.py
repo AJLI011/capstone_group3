@@ -987,8 +987,8 @@ def set_promo(request, inventory_id):
                 user=staff,
                 medicine=inventory_item.medicine,
                 action_type='Promo Set',
-                staff_name=staff_user.name,
-                staff_role=staff_user.role,
+                staff_name=staff.name,
+                staff_role=staff.role,
                 description=f"Set promo for batch {inventory_item.batch_num} from {start_date} to {end_date}",
                 medicine_name_log=inventory_item.medicine.name # ✅ Add this line
             )
@@ -1021,8 +1021,8 @@ def remove_promo(request):
                     user=staff,
                     medicine=inventory.medicine,
                     action_type='Promo Removed',
-                    staff_name=staff_user.name,
-                    staff_role=staff_user.role,
+                    staff_name=staff.name,
+                    staff_role=staff.role,
                     description=f"Removed promo for batch {inventory.batch_num}",
                     medicine_name_log=inventory.medicine.name # ✅ Add this line
                 )
@@ -1387,8 +1387,8 @@ class InStoreOrderProcessingView(APIView):
                             user=cashier_user, #NEW
                             medicine=batch.medicine,
                             action_type='Sold',
-                            staff_name=staff_user.name,
-                            staff_role=staff_user.role,
+                            staff_name=cashier_user.name,
+                            staff_role=cashier_user.role,
                             description=f"Approved sale of {total_to_deduct} units "
                                         f"of {batch.medicine.name} (Batch: {batch.batch_num}) "
                                         f"from In-Store Order #{order.id}.",
