@@ -1264,12 +1264,23 @@ class ManagerInStoreOrderItemSerializer(serializers.ModelSerializer):
     
     
     
+  
+  
+  
+  
+  
+  
+  
+  
     
-    
+#--------------------------10-2-25----------------------------------------
 # Main serializer for the manager's sales log
 class InStoreSalesTransactionSerializer(serializers.ModelSerializer):
-    staff = serializers.CharField(source='staff.name', read_only=True)
+    
+    # 1. FIX: Revert to SerializerMethodField for custom fallback logic
+    staff = serializers.SerializerMethodField()
     cashier = serializers.SerializerMethodField()
+    
     items = ManagerInStoreOrderItemSerializer(many=True, read_only=True)
 
     # Custom fields for subtotal and discount
@@ -1282,8 +1293,8 @@ class InStoreSalesTransactionSerializer(serializers.ModelSerializer):
             'id',
             'date_created',
             'is_pwd',
-            'staff',
-            'cashier',
+            'staff',           # Now calls get_staff
+            'cashier',         # Now calls get_cashier
             'subtotal',
             'discount_amount',
             'total_amount_after_discount',
@@ -1291,20 +1302,38 @@ class InStoreSalesTransactionSerializer(serializers.ModelSerializer):
             'status'
         ]
 
+    # --- FALLBACK METHOD 1: STAFF NAME ---
+    def get_staff(self, obj):
+        """
+        Prioritizes the active staff user's name (FK) and falls back to 
+        the snapshot name (staff_name) if the user is deleted (FK is null).
+        """
+        if obj.staff:
+            return obj.staff.name
+        
+        # Fallback to the stable snapshot name
+        return obj.staff_name
+
+    # --- FALLBACK METHOD 2: CASHIER NAME ---
     def get_cashier(self, obj):
-        try:
-            # Correctly use the related name 'logs'
-            approval_log = obj.logs.get(action_type='in_store_approve')
-            return approval_log.staff_user.name
-        except OrderLog.DoesNotExist:
-            return "N/A"
+        """
+        Prioritizes the active cashier user's name (FK) and falls back to 
+        the snapshot name (cashier_name) if the user is deleted (FK is null).
+        """
+        if obj.cashier:
+            return obj.cashier.name
             
+        # Fallback to the stable snapshot name
+        return obj.cashier_name
+            
+    # --- END FALLBACK METHODS ---
+
     def get_discount_amount(self, obj):
         if obj.is_pwd:
             return obj.total_amount_before_discount - obj.total_amount_after_discount
         return Decimal('0.00')
-
-
+    
+    
 #---presc---------------------------------------
 # =====================================
 # PRESCRIPTION VIEW SERIALIZERS

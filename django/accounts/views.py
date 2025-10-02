@@ -1287,7 +1287,7 @@ def employee_logs_view(request):
 
 
 
-# ---------------9/30/25
+#--------------------------10-2-25----------------------------------------
 #------------ PENDING ORDER----------
 #----------ORDER LOGS PT 1 - FOR CASHER (INSTORE)---------
 #modified some parts of the pending order view for the order logs
@@ -1303,6 +1303,7 @@ class InStoreOrderProcessingView(APIView):
         """
         Get all orders that are pending cashier approval.
         """
+        # (This method remains unchanged as it only reads data)
         pending_orders = InStoreOrder.objects.filter(status='pending').select_related('staff').prefetch_related(
             Prefetch('items', queryset=InStoreOrderItem.objects.select_related('inventory_id__medicine'))
         )
@@ -1316,7 +1317,7 @@ class InStoreOrderProcessingView(APIView):
         """
         new_status = request.data.get('status')
         cashier_id = request.data.get('cashier_id')
-        force_approve = request.data.get('force_approve', False) # NEW: Get the force_approve flag
+        force_approve = request.data.get('force_approve', False)
         
         if not new_status or new_status not in ['approved', 'rejected']:
             return Response({'error': 'Invalid status provided'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1376,7 +1377,7 @@ class InStoreOrderProcessingView(APIView):
                             transaction.set_rollback(True)
                             return Response(
                                 {'error': f"Insufficient stock for {batch.medicine.name}. "
-                                          f"Available: {batch.quantity}, Required: {total_to_deduct}"},
+                                         f"Available: {batch.quantity}, Required: {total_to_deduct}"},
                                 status=status.HTTP_400_BAD_REQUEST
                             )
                         
@@ -1392,12 +1393,15 @@ class InStoreOrderProcessingView(APIView):
                             description=f"Approved sale of {total_to_deduct} units "
                                         f"of {batch.medicine.name} (Batch: {batch.batch_num}) "
                                         f"from In-Store Order #{order.id}.",
-                            medicine_name_log=batch.medicine.name # <-- Add this line
+                            medicine_name_log=batch.medicine.name 
                         )
                     
-                    order.cashier = cashier_user #NEW
+                    # --- CRITICAL FIX ---
+                    order.cashier = cashier_user
+                    order.cashier_name = cashier_user.name # <-- Snapshot the name
                     order.status = 'approved'
-                    order.save(update_fields=['status', 'cashier'])
+                    order.save(update_fields=['status', 'cashier', 'cashier_name']) # <-- Include the snapshot field
+                    # --- END CRITICAL FIX ---
                     
                     OrderLog.objects.create(
                         staff_user=cashier_user,
@@ -1409,9 +1413,12 @@ class InStoreOrderProcessingView(APIView):
                     return Response({'message': 'Order approved and inventory updated'}, status=status.HTTP_200_OK)
                 
                 elif new_status == 'rejected':
+                    # --- CRITICAL FIX ---
                     order.cashier = cashier_user
+                    order.cashier_name = cashier_user.name # <-- Snapshot the name
                     order.status = 'rejected'
-                    order.save(update_fields=['status', 'cashier'])
+                    order.save(update_fields=['status', 'cashier', 'cashier_name']) # <-- Include the snapshot field
+                    # --- END CRITICAL FIX ---
                     
                     OrderLog.objects.create(
                         staff_user=cashier_user,
@@ -1422,13 +1429,16 @@ class InStoreOrderProcessingView(APIView):
                     return Response({'message': 'Order rejected'}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
-       
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)       
         
         
     
+
+
+
+#--------------------------10-2-25----------------------------------------
 #----------ORDER LOGS PT 2 - FOR STAFF (INSTORE)---------
-#--9/29/25 MODIFIED FOR CASHIER DIALOGUE BOX 
+#-- MODIFIED FOR CASHIER DIALOGUE BOX 
 @api_view(['POST'])
 def process_instore_order(request):
     """
@@ -1465,6 +1475,14 @@ def process_instore_order(request):
             staff_id = request.data.get('staff')
             staff_user = Staff.objects.get(id=staff_id)
             
+            # --- CRITICAL FIX FOR STAFF NAME SNAPSHOT ---
+            if not order.staff_name or order.staff_name == "[STAFF NAME]":
+                order.staff_name = staff_user.name
+                # Note: We use order.save() here as we might have updated has_prescription_required_item previously.
+                # A single save is cleaner than separate save(update_fields=...)
+                order.save() 
+            # --- END CRITICAL FIX ---
+            
             # 3. Create a log entry for the 'initiate sale' action
             OrderLog.objects.create(
                 staff_user=staff_user,
@@ -1484,7 +1502,6 @@ def process_instore_order(request):
         except Exception as e:
             return Response({"error": f"Failed to process order: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
     return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 
@@ -2273,16 +2290,17 @@ def finalize_online_order(request, orderId):
 
 
 
-        
+  
+#--------------------------10-2-25----------------------------------------      
 #------instore sales transaction views----------------
-
 class InStoreSalesTransactionView(generics.ListAPIView):
-    # Make sure this serializer is imported correctly
-    # from .serializers import InStoreSalesTransactionSerializer
     serializer_class = InStoreSalesTransactionSerializer
 
     def get_queryset(self):
-        queryset = InStoreOrder.objects.all().order_by('-date_created')
+        # --- RECOMMENDED OPTIMIZATION ---
+        # Fetch related staff and cashier objects in a single query
+        queryset = InStoreOrder.objects.all().select_related('staff', 'cashier').order_by('-date_created')
+        # --- END OPTIMIZATION ---
 
         filter_date_str = self.request.query_params.get('date', None)
 
@@ -2297,8 +2315,7 @@ class InStoreSalesTransactionView(generics.ListAPIView):
             except ValueError:
                 pass
 
-        return queryset    
-
+        return queryset
 
 
 
