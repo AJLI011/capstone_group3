@@ -3,20 +3,26 @@ import django
 import random
 from faker import Faker
 from datetime import datetime, timedelta, date, time
-import pytz 
+import pytz
 from django.conf import settings
 from django.db import transaction, models
 
 from django.core.management.base import BaseCommand
-from accounts.models import Supplier, Medicine, Inventory, InStoreOrder, InStoreOrderItem, Staff, OrderLog
+# Assuming these models are correctly defined in your 'accounts' app
+from accounts.models import Supplier, Medicine, Inventory, InStoreOrder, InStoreOrderItem, Staff, OrderLog 
+
+# Helper function to get a random choice from a field's choices tuple
+def get_random_choice(choices):
+    return random.choice([choice[0] for choice in choices])
 
 class Command(BaseCommand):
-    # --- CHANGE #1: Updated help message for 2024 ---
+    # UPDATED: Changed the year in the help message to 2024
     help = 'Generates dummy in-store order data for the year 2024.'
     
     def create_dummy_medicines(self):
         self.stdout.write(self.style.NOTICE('Checking for existing suppliers and medicines...'))
         
+        # Stop if enough medicines already exist
         if Medicine.objects.count() >= 50:
             self.stdout.write(self.style.SUCCESS('50 medicines already exist. Skipping creation.'))
             return
@@ -26,15 +32,16 @@ class Command(BaseCommand):
         fake = Faker()
         
         for name in supplier_names:
-            # Using msisdn and slice for a clean, limit-friendly contact number for Supplier
+            # Use msisdn and slice for a clean, limit-friendly contact number for Supplier
             supplier_contact = fake.msisdn()[:20] 
             supplier, created = Supplier.objects.get_or_create(name=name, defaults={'contact': supplier_contact})
             suppliers.append(supplier)
             if created:
                 self.stdout.write(f'Created supplier: {name}')
 
-        categories = [choice[0] for choice in Medicine.CATEGORY_CHOICES]
+        categories = get_random_choice(Medicine.CATEGORY_CHOICES) # Get the list of category keys
         
+        # Data for Medicine names and their generic counterparts
         MEDICINE_DATA = {
             'Biogesic': 'Paracetamol',
             'Alaxan': 'Ibuprofen + Paracetamol',
@@ -88,7 +95,7 @@ class Command(BaseCommand):
             'Virlix': 'Cetirizine'
         }
         
-        # --- NEW CODE: Define the prices for each medicine ---
+        # Prices for specific medicines
         MEDICINE_PRICES = {
             'Biogesic': 5.00,
             'Alaxan': 8.75,
@@ -145,12 +152,14 @@ class Command(BaseCommand):
         for name, generic_name in MEDICINE_DATA.items():
             barcode = fake.unique.ean13()
             
-            # Get the price from the dictionary
+            # Get the price from the new dictionary, or a random one if not found
             price = MEDICINE_PRICES.get(name, round(random.uniform(6, 150), 2))
             
-            category = random.choice(categories)
+            # Use the helper function to select a random category key
+            category = get_random_choice(Medicine.CATEGORY_CHOICES)
             
-            dosage_form = random.choice([choice[0] for choice in Medicine.DOSAGE_CHOICES])
+            # Use the helper function to select a random dosage form key
+            dosage_form = get_random_choice(Medicine.DOSAGE_CHOICES)
             
             supplier = random.choice(suppliers)
 
@@ -162,12 +171,12 @@ class Command(BaseCommand):
                     'dosage_form': dosage_form,
                     'supplier': supplier,
                     
-                    # New snapshot fields
+                    # Add the snapshot fields, using the supplier's current data
                     'supplier_name': supplier.name,
                     'supplier_contact_num': supplier.contact,
                     
                     'restock_quantity': random.choice([50, 100]),
-                    'price': price, # Price is now the specific price from the dictionary
+                    'price': price,
                     'requires_prescription': random.choice([True, False]),
                     'barcode': barcode 
                 }
@@ -188,7 +197,12 @@ class Command(BaseCommand):
             return
 
         for medicine in medicines:
+            # Check if inventory already exists for this medicine to prevent duplicates
+            if Inventory.objects.filter(medicine=medicine).exists():
+                continue
+
             batch_num = Faker().unique.isbn13()
+            # Set expiry date relative to 2024
             exp_date = Faker().date_between(start_date='now', end_date='+2y')
             quantity = random.randint(30, 70)
             
@@ -221,24 +235,37 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Finished creating dummy staff.'))
     
     def create_in_store_sales(self):
+        # UPDATED: Changed the year in the notice message to 2024
         self.stdout.write(self.style.NOTICE('Creating a large set of dummy in-store sales records for 2024...'))
         self.stdout.write(self.style.WARNING('This process will take a significant amount of time and resources. Please be patient.'))
         
-        staff_user = Staff.objects.get(role='staff')
-        cashier_user = Staff.objects.get(role='cashier')
+        try:
+            staff_user = Staff.objects.get(role='staff')
+            cashier_user = Staff.objects.get(role='cashier')
+        except Staff.DoesNotExist:
+            self.stdout.write(self.style.WARNING('Staff or Cashier user not found. Please run create_dummy_users first.'))
+            return
+            
         inventory_items = Inventory.objects.all()
         
-        if not staff_user or not cashier_user or not inventory_items.exists():
-            self.stdout.write(self.style.WARNING('Prerequisite data (staff, cashier, inventory) not found. Please run previous functions first.'))
+        if not inventory_items.exists():
+            self.stdout.write(self.style.WARNING('No inventory items found. Please run create_dummy_inventory first.'))
             return
 
-        manila_tz = pytz.timezone(settings.TIME_ZONE)
+        # Ensure TIME_ZONE is set correctly in settings.py (e.g., 'Asia/Manila')
+        try:
+            manila_tz = pytz.timezone(settings.TIME_ZONE)
+        except AttributeError:
+            self.stdout.write(self.style.ERROR('TIME_ZONE not set in settings.py or invalid. Using UTC.'))
+            manila_tz = pytz.utc
         
-        # --- CHANGE #2: Updated start and end dates for 2024 ---
+        # UPDATED: Start and end dates are now set for 2024
         start_date = date(2024, 1, 1)
         end_date = date(2024, 12, 31)
         total_days = (end_date - start_date).days
         
+        # Note: The original CATEGORY_CHOICES keys must match these keys for seasonality to work.
+        # Assuming Medicine.CATEGORY_CHOICES has keys like 'cough_and_cold_medicines', etc.
         seasonality_map = {
             'cough_and_cold_medicines': {'wet_season': 2.0, 'dry_season': 0.8},
             'antihistamines': {'dry_season': 1.5, 'wet_season': 0.8},
@@ -248,16 +275,17 @@ class Command(BaseCommand):
 
         time_of_day_map = {
             'morning': (9, 11, 1.2),
-            'afternoon': (12, 17, 1.5),
+            'afternoon': (12, 17, 1.5), # Peak sales
             'evening': (18, 21, 1.0),
         }
         
-        num_orders_per_day_range = (40, 60)
+        num_orders_per_day_range = (40, 60) # Generate 40-60 orders per day
 
         for day_offset in range(total_days + 1):
             current_date = start_date + timedelta(days=day_offset)
             current_month = current_date.month
 
+            # Define wet vs dry season (Wet season in PH is typically June to November)
             season = 'dry_season'
             if current_month in [6, 7, 8, 9, 10, 11]:
                 season = 'wet_season'
@@ -266,6 +294,7 @@ class Command(BaseCommand):
 
             for _ in range(num_orders_per_day):
                 with transaction.atomic():
+                    # Select a random time for the order within operating hours (9am to 9pm)
                     random_hour = random.randint(9, 21)
                     random_minute = random.randint(0, 59)
                     random_time = time(random_hour, random_minute, random.randint(0, 59))
@@ -273,6 +302,7 @@ class Command(BaseCommand):
                     order_time_naive = datetime.combine(current_date, random_time)
                     order_time = manila_tz.localize(order_time_naive)
                     
+                    # Determine the time-of-day sales multiplier
                     sales_multiplier = 1.0
                     for time_period, (start_h, end_h, multiplier) in time_of_day_map.items():
                         if start_h <= random_hour <= end_h:
@@ -282,12 +312,16 @@ class Command(BaseCommand):
                     order = InStoreOrder.objects.create(
                         staff=staff_user, 
                         cashier=cashier_user,
+                        # Snapshot fields capture the user's name on creation
+                        staff_name=staff_user.name,
+                        cashier_name=cashier_user.name,
                         date_created=order_time,
                         status='approved', 
                         total_amount_before_discount=0,
                         total_amount_after_discount=0
                     )
                     
+                    # Log the order initiation
                     OrderLog.objects.create(
                         in_store_order=order,
                         staff_user=staff_user,
@@ -296,6 +330,7 @@ class Command(BaseCommand):
                         timestamp=order_time
                     )
                     
+                    # Log the order approval/completion
                     OrderLog.objects.create(
                         in_store_order=order,
                         staff_user=cashier_user,
@@ -308,17 +343,36 @@ class Command(BaseCommand):
                     total_before = 0
                     total_after = 0
                     
+                    # Use a set to ensure unique items in one order
+                    items_added = set() 
+
                     for _ in range(num_items_in_order):
                         selected_item = random.choice(inventory_items)
+                        
+                        # Skip if this item is already in the order
+                        if selected_item.id in items_added:
+                            continue
+                        items_added.add(selected_item.id)
+
                         medicine_category = selected_item.medicine.category
                         
+                        # Apply seasonality factor based on category
                         item_multiplier = seasonality_map.get(medicine_category, {}).get(season, 1.0)
                         
+                        # Calculate quantity sold, factoring in time-of-day and seasonality
                         base_quantity = random.randint(1, 5)
                         quantity_sold = int(base_quantity * sales_multiplier * item_multiplier)
                         
+                        # Ensure a minimum of 1 unit is sold
                         if quantity_sold < 1:
                             quantity_sold = 1
+
+                        # Cap quantity sold to what is available in inventory (prevents negative stock in a real scenario)
+                        quantity_sold = min(quantity_sold, selected_item.quantity)
+                        
+                        # Only proceed if we can sell at least 1 item
+                        if quantity_sold < 1:
+                            continue 
 
                         price_at_sale = selected_item.medicine.price
                         
@@ -332,19 +386,27 @@ class Command(BaseCommand):
                         )
                         
                         total_before += price_at_sale * quantity_sold
-                        total_after = total_before
-                    
-                    order.total_amount_before_discount = total_before
-                    order.total_amount_after_discount = total_after
-                    order.save()
+                        total_after = total_before # Simple scenario: no discount applied
+                        
+                        # *** CRITICAL: Update inventory stock (simulating a real sale) ***
+                        selected_item.quantity -= quantity_sold
+                        selected_item.save(update_fields=['quantity'])
+
+                    # Update the order totals only if items were actually added
+                    if items_added:
+                        order.total_amount_before_discount = total_before
+                        order.total_amount_after_discount = total_after
+                        order.save()
+                    else:
+                        # If no items were added (due to unique item check or low stock), delete the empty order
+                        order.delete()
             
+            # UPDATED: Progress message reflects 2024
             if day_offset % 30 == 0:
-                # Note: 2024 is a leap year (366 days), but the logic handles the total days correctly.
                 self.stdout.write(f'Progress: {day_offset}/{total_days} days generated for 2024.')
 
-        self.stdout.write(self.style.SUCCESS('Finished creating dummy in-store sales records for 2024.'))
-
     def handle(self, *args, **options):
+        # UPDATED: Changed the year in the success message to 2024
         self.stdout.write(self.style.SUCCESS('Starting dummy data generation for in-store 2024...'))
         
         self.create_dummy_medicines()
@@ -352,4 +414,5 @@ class Command(BaseCommand):
         self.create_dummy_users()
         self.create_in_store_sales()
         
+        # UPDATED: Final success message reflects 2024
         self.stdout.write(self.style.SUCCESS('In-store data generation for 2024 completed successfully!'))

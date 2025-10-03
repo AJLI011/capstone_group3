@@ -216,8 +216,8 @@ class InStoreOrder(models.Model):
     )
     staff = models.ForeignKey('Staff', on_delete=models.CASCADE)
     cashier = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_orders')
-    date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    #date_created = models.DateTimeField()
+    #date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    date_created = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     is_pwd = models.BooleanField(default=False)
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -302,8 +302,8 @@ class OrderLog(models.Model):
     action_type = models.CharField(max_length=20, choices=ACTION_CHOICES)
     description = models.TextField(blank=True, null=True)
     
-    timestamp = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    #timestamp = models.DateTimeField()
+    #timestamp = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    timestamp = models.DateTimeField()
     class Meta:
         db_table = 'order_logs'
         ordering = ['-timestamp']
@@ -327,8 +327,8 @@ class OnlineOrder(models.Model):
         ('cancelled', 'Cancelled'),
     ]
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    #date_created = models.DateTimeField()
+    #date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    date_created = models.DateTimeField()
     status = models.CharField(max_length=20, choices=ORDER_STATUS, default='pending')
     is_pwd = models.BooleanField(default=False)
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
