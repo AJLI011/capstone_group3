@@ -243,13 +243,13 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('Staff or Cashier user not found. Please run create_dummy_users first.'))
             return
             
-        inventory_items = Inventory.objects.all()
+        # FIX: Get the *full* list of inventory items once.
+        initial_inventory_items = list(Inventory.objects.all())
         
-        if not inventory_items.exists():
+        if not initial_inventory_items:
             self.stdout.write(self.style.WARNING('No inventory items found. Please run create_dummy_inventory first.'))
             return
 
-        # Ensure TIME_ZONE is set correctly in settings.py (e.g., 'Asia/Manila')
         try:
             manila_tz = pytz.timezone(settings.TIME_ZONE)
         except AttributeError:
@@ -260,8 +260,6 @@ class Command(BaseCommand):
         end_date = date(2023, 12, 31)
         total_days = (end_date - start_date).days
         
-        # Note: The original CATEGORY_CHOICES keys must match these keys for seasonality to work.
-        # Assuming Medicine.CATEGORY_CHOICES has keys like 'cough_and_cold_medicines', etc.
         seasonality_map = {
             'cough_and_cold_medicines': {'wet_season': 2.0, 'dry_season': 0.8},
             'antihistamines': {'dry_season': 1.5, 'wet_season': 0.8},
@@ -271,11 +269,11 @@ class Command(BaseCommand):
 
         time_of_day_map = {
             'morning': (9, 11, 1.2),
-            'afternoon': (12, 17, 1.5), # Peak sales
+            'afternoon': (12, 17, 1.5),
             'evening': (18, 21, 1.0),
         }
         
-        num_orders_per_day_range = (40, 60) # Generate 40-60 orders per day
+        num_orders_per_day_range = (40, 60)
 
         for day_offset in range(total_days + 1):
             current_date = start_date + timedelta(days=day_offset)
@@ -290,7 +288,6 @@ class Command(BaseCommand):
 
             for _ in range(num_orders_per_day):
                 with transaction.atomic():
-                    # Select a random time for the order within operating hours (9am to 9pm)
                     random_hour = random.randint(9, 21)
                     random_minute = random.randint(0, 59)
                     random_time = time(random_hour, random_minute, random.randint(0, 59))
@@ -298,7 +295,6 @@ class Command(BaseCommand):
                     order_time_naive = datetime.combine(current_date, random_time)
                     order_time = manila_tz.localize(order_time_naive)
                     
-                    # Determine the time-of-day sales multiplier
                     sales_multiplier = 1.0
                     for time_period, (start_h, end_h, multiplier) in time_of_day_map.items():
                         if start_h <= random_hour <= end_h:
@@ -308,16 +304,13 @@ class Command(BaseCommand):
                     order = InStoreOrder.objects.create(
                         staff=staff_user, 
                         cashier=cashier_user,
-                        # Snapshot fields capture the user's name on creation
                         staff_name=staff_user.name,
                         cashier_name=cashier_user.name,
                         date_created=order_time,
-                        status='approved', 
-                        total_amount_before_discount=0,
-                        total_amount_after_discount=0
+                        status='approved',
+                        # No need to set these to 0 here, as they'll be updated later
                     )
                     
-                    # Log the order initiation
                     OrderLog.objects.create(
                         in_store_order=order,
                         staff_user=staff_user,
@@ -326,7 +319,6 @@ class Command(BaseCommand):
                         timestamp=order_time
                     )
                     
-                    # Log the order approval/completion
                     OrderLog.objects.create(
                         in_store_order=order,
                         staff_user=cashier_user,
@@ -338,38 +330,29 @@ class Command(BaseCommand):
                     num_items_in_order = random.randint(1, 3)
                     total_before = 0
                     total_after = 0
-                    
-                    # Use a set to ensure unique items in one order
-                    items_added = set() 
+                    items_added = set()
 
                     for _ in range(num_items_in_order):
-                        selected_item = random.choice(inventory_items)
+                        # FIX: Use the original list of items instead of the depleted queryset
+                        selected_item = random.choice(initial_inventory_items)
                         
-                        # Skip if this item is already in the order
                         if selected_item.id in items_added:
                             continue
                         items_added.add(selected_item.id)
 
                         medicine_category = selected_item.medicine.category
-                        
-                        # Apply seasonality factor based on category
                         item_multiplier = seasonality_map.get(medicine_category, {}).get(season, 1.0)
                         
-                        # Calculate quantity sold, factoring in time-of-day and seasonality
                         base_quantity = random.randint(1, 5)
                         quantity_sold = int(base_quantity * sales_multiplier * item_multiplier)
                         
-                        # Ensure a minimum of 1 unit is sold
                         if quantity_sold < 1:
                             quantity_sold = 1
 
-                        # Cap quantity sold to what is available in inventory (prevents negative stock in a real scenario)
-                        quantity_sold = min(quantity_sold, selected_item.quantity)
+                        # FIX: The `quantity_sold = min(quantity_sold, selected_item.quantity)` line
+                        # is what was causing the issue. We should not use a live query.
+                        # Instead, simply create the order item with a random quantity.
                         
-                        # Only proceed if we can sell at least 1 item
-                        if quantity_sold < 1:
-                            continue 
-
                         price_at_sale = selected_item.medicine.price
                         
                         InStoreOrderItem.objects.create(
@@ -382,24 +365,17 @@ class Command(BaseCommand):
                         )
                         
                         total_before += price_at_sale * quantity_sold
-                        total_after = total_before # Simple scenario: no discount applied
-                        
-                        # *** CRITICAL: Update inventory stock (simulating a real sale) ***
-                        selected_item.quantity -= quantity_sold
-                        selected_item.save(update_fields=['quantity'])
-
-                    # Update the order totals only if items were actually added
+                        total_after = total_before
+                    
                     if items_added:
                         order.total_amount_before_discount = total_before
                         order.total_amount_after_discount = total_after
                         order.save()
                     else:
-                        # If no items were added (due to unique item check or low stock), delete the empty order
                         order.delete()
             
             if day_offset % 30 == 0:
                 self.stdout.write(f'Progress: {day_offset}/{total_days} days generated for 2023.')
-
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('Starting dummy data generation for in-store 2023...'))
         
