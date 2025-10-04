@@ -27,7 +27,7 @@ class Command(BaseCommand):
         
         # 3. Prepare the notification
         total_expired = expired_items.count()
-        title = f"❗{total_expired} Expired Medicine(s)"
+        title = f"🔔 {total_expired} Expired Medicine(s)"
         body = f"Please check the inventory. There are {total_expired} item(s) that have expired as of today."
 
         # 4. Send the notification to each manager
