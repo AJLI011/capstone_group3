@@ -214,7 +214,7 @@ class InStoreOrder(models.Model):
         blank=True,
         default= "[CASHIER NAME]",
     )
-    staff = models.ForeignKey('Staff', on_delete=models.CASCADE)
+    staff = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True)
     cashier = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_orders')
     date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
     #date_created = models.DateTimeField()
