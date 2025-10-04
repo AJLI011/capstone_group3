@@ -2780,10 +2780,24 @@ def list_all_pending_prescriptions(request):
     """
     API endpoint to retrieve all pending in-store prescriptions and 
     'ready for pickup' online prescriptions for staff.
-    This version only shows prescriptions that do not have images yet.
+    This version only shows prescriptions that do not have images yet AND
+    the associated order is NOT CANCELLED.
     """
-    pending_prescriptions = Prescription.objects.filter(
-        (Q(status='pending') | Q(status='ready for pickup')) & Q(images__isnull=True)
+    
+    # 1. Define the base filters for the Prescription status and image presence
+    base_prescription_filters = (
+        Q(status__in=['pending', 'ready for pickup']) & Q(images__isnull=True)
+    )
+
+    # 2. Define the filters to EXCLUDE cancelled orders
+    # We use ~Q (NOT Q) to exclude cancelled orders in BOTH relationships
+    cancelled_order_filters = (
+        Q(in_store_order__status='cancelled') | Q(online_order__status='cancelled')
+    )
+
+    # 3. Combine the filters: Base filters AND NOT Cancelled filters
+    pending_prescriptions = Prescription.objects.filter(base_prescription_filters).exclude(
+        cancelled_order_filters
     ).select_related(
         'in_store_order__staff', 
         'online_order__customer'
