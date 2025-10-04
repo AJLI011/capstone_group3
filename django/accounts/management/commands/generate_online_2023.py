@@ -245,6 +245,12 @@ class Command(BaseCommand):
         # Get staff and cashier users for the logs
         staff_user = Staff.objects.get(role='staff')
         cashier_user = Staff.objects.get(role='cashier')
+
+        # 10-04-25 Get the snapshot data for both users
+        staff_name = staff_user.name
+        staff_role = staff_user.role
+        cashier_name = cashier_user.name
+        cashier_role = cashier_user.role
         
         if not customers.exists() or not inventory_items.exists():
             self.stdout.write(self.style.WARNING('Prerequisite data (customers, inventory) not found. Please run previous functions first.'))
@@ -312,7 +318,15 @@ class Command(BaseCommand):
                         total_amount_before_discount=0,
                         total_amount_after_discount=0,
                         pickup_schedule=pickup_schedule,
-                        date_fulfilled=date_fulfilled_time
+                        date_fulfilled=date_fulfilled_time,
+                        # 10-04-25 ADD THESE LINES FOR THE NEW FIELDS:
+                        initiated_by=staff_user,
+                        approved_by=cashier_user,
+                        initiated_by_name=staff_name,
+                        approved_by_name=cashier_name,
+                        initiated_by_role_snapshot=staff_role,
+                        approved_by_role_snapshot=cashier_role,
+                        # END OF NEW FIELDS
                     )
                     
                     # Log the 'online_confirmed' action by the staff

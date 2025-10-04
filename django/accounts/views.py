@@ -1821,13 +1821,15 @@ def confirm_online_order(request, orderId):
                 # Update the order status 
                 # 10-04-25 NEW LOGIC: CAPTURE INITIATING STAFF FK AND NAME SNAPSHOT 
                 # 1. Save the Foreign Key
-                order.initiated_by_staff = staff_user
+                order.initiated_by = staff_user
                 # 2. Save the Name Snapshot
                 order.initiated_by_name = staff_user.name
+                # 3. Save the Role Snapshot
+                order.initiated_by_role_snapshot = staff_user.role
                 
                 # Update the order status
                 order.status = 'ready for pickup'
-                order.save(update_fields=['status', 'initiated_by_staff', 'initiated_by_name']) # Explicitly save new fields
+                order.save(update_fields=['status', 'initiated_by_name', 'initiated_by_id', 'initiated_by_role_snapshot'])
 
                 # Check for and update related Prescription status
                 try:
@@ -2258,14 +2260,15 @@ def finalize_online_order(request, orderId):
             from .serializers import OnlineOrderListSerializer
 
             # 10-04-25  NEW LOGIC: CAPTURE APPROVING CASHIER FK AND NAME SNAPSHOT
-            order.approved_by_cashier = staff_user
+            order.approved_by = staff_user
             order.approved_by_name = staff_user.name
+            order.approved_by_role_snapshot = staff_user.role
 
             order.date_fulfilled = timezone.now()
             order.status = 'completed'
             
             # IMPORTANT: Explicitly include the new fields in the update list
-            order.save(update_fields=['date_fulfilled', 'status', 'approved_by_cashier', 'approved_by_name'])
+            order.save(update_fields=['date_fulfilled', 'status', 'approved_by_id', 'approved_by_name', 'approved_by_role_snapshot'])
             
             # Create the log entry after the order is successfully finalized and saved.
             OrderLog.objects.create(
@@ -2420,20 +2423,14 @@ def completed_online_orders_report(request):
 
             # 10-04-25 NEW LOGIC: Use the SNAPSHOT NAME fields for the names (preserves history) 
             # Get initiated and approved staff from logs (still needed for log data/timestamps)
-            initiated_by_log = OrderLog.objects.filter(online_order=order, action_type='online_confirmed').first()
-            approved_by_log = OrderLog.objects.filter(online_order=order, action_type='online_picked_up').first()
-
-            # 💡 FIX: Use the SNAPSHOT NAME fields for the names (preserves history) 💡
             initiated_by_name = order.initiated_by_name if order.initiated_by_name else 'N/A'
             approved_by_name = order.approved_by_name if order.approved_by_name else 'N/A'
 
-            # 🛠️ CORRECTED ROLE LOGIC 🛠️
-            # We use a temporary variable for clarity and safety.
-            initiated_by_staff = order.initiated_by_staff
-            approved_by_cashier = order.approved_by_cashier
+            # Read the role from the new snapshot fields
+            # This prevents the (N/A) issue when staff are deleted.
+            initiated_by_role = (order.initiated_by_role_snapshot or 'N/A').capitalize()
+            approved_by_role = (order.approved_by_role_snapshot or 'N/A').capitalize()
 
-            initiated_by_role = initiated_by_staff.role.capitalize() if initiated_by_staff else 'N/A'
-            approved_by_role = approved_by_cashier.role.capitalize() if approved_by_cashier else 'N/A'
             # --------------------- END OF REPLACEMENT ---------------------
             
             orders_data.append({
