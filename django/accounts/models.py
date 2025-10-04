@@ -335,6 +335,41 @@ class OnlineOrder(models.Model):
     total_amount_after_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     pickup_schedule = models.DateTimeField(null=True, blank=True)
     date_fulfilled = models.DateTimeField(null=True, blank=True) #ADDED THIS FOR ONLINE SALES REPORT!
+
+    # 10-4-25 NEW FIELDS ADDED FOR STAFF REFERENCES (FK + Snapshot)
+    
+    # Foreign Keys (Used SET_NULL so the record doesn't prevent deletion,
+    # and rely on the snapshot fields to keep the name).
+    initiated_by = models.ForeignKey(
+        'Staff', 
+        on_delete=models.SET_NULL, # Allows staff member to be deleted
+        related_name='initiated_online_orders', 
+        null=True, 
+        blank=True
+    )
+    approved_by = models.ForeignKey(
+        'Staff', 
+        on_delete=models.SET_NULL, # Allows staff member to be deleted
+        related_name='approved_online_orders', 
+        null=True, 
+        blank=True
+    )
+    
+    # Snapshot Fields (to preserve the name after staff deletion)
+    initiated_by_name = models.CharField(
+        max_length=100, 
+        null=True, 
+        blank=True,
+        default= "[STAFF NAME]",
+    )
+    approved_by_name = models.CharField(
+        max_length=100, 
+        null=True, 
+        blank=True,
+        default= "[CASHIER NAME]",
+    )
+    
+    # END OF NEW ADDED LINES
     
     class Meta:
         db_table = 'online_orders_tbl'
