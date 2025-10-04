@@ -319,6 +319,7 @@ class OrderLog(models.Model):
         return f"OrderLog - {self.action_type} for {order_str} by {staff_str}"
         
 # =================== NEW MODELS FOR ONLINE ORDERS ===================
+#---------------10-5-25----------------------------------------------
 class OnlineOrder(models.Model):
     ORDER_STATUS = [
         ('pending', 'Pending'),
@@ -327,21 +328,57 @@ class OnlineOrder(models.Model):
         ('cancelled', 'Cancelled'),
     ]
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    #date_created = models.DateTimeField()
+    #date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    date_created = models.DateTimeField()
     status = models.CharField(max_length=20, choices=ORDER_STATUS, default='pending')
     is_pwd = models.BooleanField(default=False)
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total_amount_after_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     pickup_schedule = models.DateTimeField(null=True, blank=True)
-    date_fulfilled = models.DateTimeField(null=True, blank=True) #ADDED THIS FOR ONLINE SALES REPORT!
+    date_fulfilled = models.DateTimeField(null=True, blank=True) #ADDED THIS FOR ONLINE SALES REPORT
+    
+    # Foreign Keys (Used SET_NULL so the record doesn't prevent deletion,
+    # and rely on the snapshot fields to keep the name).
+    initiated_by = models.ForeignKey(
+        'Staff', 
+        on_delete=models.SET_NULL, # Allows staff member to be deleted
+        related_name='initiated_online_orders', 
+        null=True, 
+        blank=True
+    )
+    approved_by = models.ForeignKey(
+        'Staff', 
+        on_delete=models.SET_NULL, # Allows staff member to be deleted
+        related_name='approved_online_orders', 
+        null=True, 
+        blank=True
+    )
+    
+    # Snapshot Fields (to preserve the name after staff deletion)
+    initiated_by_name = models.CharField(
+        max_length=100, 
+        null=True, 
+        blank=True,
+        default= "[STAFF NAME]",
+    )
+    approved_by_name = models.CharField(
+        max_length=100, 
+        null=True, 
+        blank=True,
+        default= "[CASHIER NAME]",
+    )
+
+    # Role Snapshot Fields
+    initiated_by_role_snapshot = models.CharField(max_length=50, null=True, blank=True)
+    approved_by_role_snapshot = models.CharField(max_length=50, null=True, blank=True)
+    
+    # --- END OF NEW ADDED LINES ---
     
     class Meta:
         db_table = 'online_orders_tbl'
 
     def __str__(self):
         return f"Online Order {self.id} by {self.customer.name}"
-
 
 #--------------------09/14/2025--------------------------- fixing return medicine
 class OnlineOrderItem(models.Model):

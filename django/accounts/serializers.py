@@ -982,14 +982,16 @@ class OnlineOrderLogDetailsSerializer(serializers.ModelSerializer):
         
         
 
-# ---------------9/26/25
-#----------9/23/25-----------------------------------------------------------------------------------[as of 4:30 pm aaron]       
+# ---------------10/5/25 
 class OnlineOrderListSerializer(serializers.ModelSerializer):
     items = OnlineOrderItemReadSerializer(many=True, read_only=True)
     customer_name = serializers.CharField(source='customer.name', read_only=True)
     customer_email = serializers.CharField(source='customer.email', read_only=True)
     pickup_schedule = serializers.DateTimeField(read_only=True)
     fulfilled_timestamp = serializers.DateTimeField(source='date_fulfilled', read_only=True)
+    # 10-04-25 ADDED THE NEW STAFF/CASHIER SNAPSHOT FIELDS HERE
+    initiated_by_name = serializers.CharField(read_only=True)
+    approved_by_name = serializers.CharField(read_only=True)
     
     # This field is now redundant. The Flutter side should handle displaying all
     # items from the 'items' list and marking the deleted ones.
@@ -1001,6 +1003,7 @@ class OnlineOrderListSerializer(serializers.ModelSerializer):
             'id', 'customer_name', 'customer_email', 'date_created',
             'status', 'total_amount_before_discount', 'total_amount_after_discount',
             'is_pwd', 'items', 'pickup_schedule', 'fulfilled_timestamp',
+            'initiated_by_name', 'approved_by_name', # 10-04-25 added these two fields
             # 'deleted_item_name', # Remove this line
         ]
 
@@ -1040,7 +1043,7 @@ class OnlineOrderListSerializer(serializers.ModelSerializer):
     
     
 
-#----------9/23/25-----------------------------------------------------------------------------------[as of 4:30 pm aaron]
+#----------10/5/25-----------------------------------------------------------------------------------
 
 
 
