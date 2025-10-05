@@ -1287,7 +1287,7 @@ def employee_logs_view(request):
 
 
 
-#--------------------------10-2-25----------------------------------------
+#--------------------------10-5-25----------------------------------------
 #------------ PENDING ORDER----------
 #----------ORDER LOGS PT 1 - FOR CASHER (INSTORE)---------
 #modified some parts of the pending order view for the order logs
@@ -1407,7 +1407,7 @@ class InStoreOrderProcessingView(APIView):
                         staff_user=cashier_user,
                         in_store_order=order,
                         action_type='in_store_approve',
-                        description=f'Sale transaction approved by {cashier_user.name}'
+                        description=f'In-store order approved by {cashier_user.name}'
                     )
                     
                     return Response({'message': 'Order approved and inventory updated'}, status=status.HTTP_200_OK)
@@ -1489,7 +1489,7 @@ def process_instore_order(request):
                 in_store_order=order,
                 action_type='initiate_sale',
                 # 🎯 FIX: Explicitly include the staff name in the description
-                description=f'Sale submitted for approval by {staff_user.name}'
+                description=f'In-store sale initiated by {staff_user.name}'
             )
 
             return Response({
@@ -1853,7 +1853,7 @@ def confirm_online_order(request, orderId):
                     staff_user=staff_user,
                     online_order=order,
                     action_type='online_confirmed',
-                    description=f'Online order confirmed'
+                    description=f'Online order confirmed by {staff_user.name}',
                 )
 
                 # -------------------------------
@@ -2283,7 +2283,7 @@ def finalize_online_order(request, orderId):
                 staff_user=staff_user,
                 online_order=order,
                 action_type='online_picked_up',
-                description=f'Online order marked as picked up'
+                description=f'Online order picked up and fulfilled by {staff_user.name}'
             )
             #---- end of new lines-----
 
