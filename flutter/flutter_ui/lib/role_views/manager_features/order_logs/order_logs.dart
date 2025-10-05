@@ -229,6 +229,22 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
 
         final log = _orderLogs[index];
         final isOnlineOrder = log.orderDetails is OnlineOrderDetails;
+        
+        // --- START OF SUBTITLE FIX ---
+        final isOnlineStaffAction = log.actionType == 'online_confirmed' || log.actionType == 'online_picked_up';
+
+        String subtitleText;
+        if (isOnlineStaffAction) {
+            // For staff-executed online actions, display the staff name (and role for clarity)
+            subtitleText = '${log.staffName} (${log.staffRole})';
+        } else if (isOnlineOrder) {
+            // For customer-placed online orders (or other general online log events), display the customer name
+            subtitleText = (log.orderDetails as OnlineOrderDetails).customerName;
+        } else {
+            // For all other logs (e.g., in-store), display the staff name
+            subtitleText = log.staffName;
+        }
+        // --- END OF SUBTITLE FIX ---
 
         IconData actionIcon;
         Color iconColor;
@@ -270,7 +286,7 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
               ),
             ),
             subtitle: Text(
-              isOnlineOrder ? (log.orderDetails as OnlineOrderDetails).customerName : log.staffName,
+              subtitleText, // ⬅️ USED THE CORRECTED LOGIC HERE
               style: const TextStyle(
                 color: Colors.black54,
               ),

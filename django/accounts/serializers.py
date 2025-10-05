@@ -837,10 +837,16 @@ class InStoreOrderDetailsSerializer(serializers.ModelSerializer):
         model = InStoreOrder
         fields = ['id', 'staff_name', 'items']
 
+
+
+
+
+#-----------10/5/25
 # Modified OrderLogSerializer to handle both in-store and online orders
 class OrderLogSerializer(serializers.ModelSerializer):
-    staff_name = serializers.CharField(source='staff_user.name', read_only=True)
-    staff_role = serializers.CharField(source='staff_user.role', read_only=True)
+    # Change from CharField(source=...) to SerializerMethodField() for flexibility and fallback logic
+    staff_name = serializers.SerializerMethodField()
+    staff_role = serializers.SerializerMethodField()
 
     order_details = serializers.SerializerMethodField()
 
@@ -848,15 +854,51 @@ class OrderLogSerializer(serializers.ModelSerializer):
         model = OrderLog
         fields = ['id', 'staff_name', 'staff_role', 'order_details', 'action_type', 'description', 'timestamp']
 
+    def get_staff_name(self, obj: OrderLog):
+        # 1. PRIORITY: Try the Foreign Key (Staff still exists)
+        if obj.staff_user: 
+            return obj.staff_user.name
+
+        # 2. SNAPSHOT FALLBACK: Check for Online Order Staff Actions (Staff was deleted)
+        if obj.online_order:
+            order = obj.online_order
+            
+            # Use the 'initiated_by_name' snapshot for 'online_confirmed'
+            if obj.action_type == 'online_confirmed' and order.initiated_by_name:
+                return order.initiated_by_name
+                
+            # Use the 'approved_by_name' snapshot for 'online_picked_up'
+            if obj.action_type == 'online_picked_up' and order.approved_by_name:
+                return order.approved_by_name
+
+        # 3. Final Fallback
+        return 'Unknown'
+        
+    def get_staff_role(self, obj: OrderLog):
+        # 1. PRIORITY: Try the Foreign Key (Staff still exists)
+        if obj.staff_user and hasattr(obj.staff_user, 'role'):
+            # Assuming the 'Staff' model has a 'role' field
+            return obj.staff_user.role.capitalize()
+            
+        # 2. SNAPSHOT FALLBACK: Check for Online Order Staff Actions (Staff was deleted)
+        if obj.online_order:
+             # Since OnlineOrder only stores the NAME snapshot, we must infer the role 
+             # based on the action type for deleted staff.
+             if obj.action_type == 'online_confirmed':
+                 return 'Staff'
+             if obj.action_type == 'online_picked_up':
+                 return 'Cashier' 
+
+        # 3. Final Fallback
+        return 'Unknown'
+
     def get_order_details(self, obj):
+        # This part remains the same
         if obj.in_store_order:
-            # If it's an in-store order, use the existing InStoreOrderDetailsSerializer
             return InStoreOrderDetailsSerializer(obj.in_store_order).data
         elif obj.online_order:
-            # If it's an online order, use the new OnlineOrderLogDetailsSerializer
             return OnlineOrderLogDetailsSerializer(obj.online_order).data
         return None
-
 
 #----------9/23/25-----------------------------------------------------------------------------------
 

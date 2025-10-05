@@ -1804,7 +1804,7 @@ def get_pending_online_orders(request):
 
 
 
-#----10-5-25---------------------------------------------------------------------------------------------
+#----10-5-25---------------------------------------------------------------------------------------------(applied changes with addt'l jermagne)
 # -------------------------------
 # Confirm Online Order
 # -------------------------------
@@ -1852,7 +1852,7 @@ def confirm_online_order(request, orderId):
                     staff_user=staff_user,
                     online_order=order,
                     action_type='online_confirmed',
-                    description=f'Online order confirmed by staff member {staff_user.name} ({staff_user.role}).'
+                    description=f'Online order confirmed'
                 )
 
                 # -------------------------------
