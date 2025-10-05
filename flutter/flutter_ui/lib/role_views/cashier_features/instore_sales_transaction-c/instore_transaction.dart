@@ -64,9 +64,12 @@ class InStoreTransaction {
         .map((itemJson) => TransactionItem.fromJson(itemJson))
         .toList();
 
-    // The backend now sends staff and cashier names as direct strings.
+    // The backend now sends staff and cashier names as direct strings (or null/empty)
     final staffName = json['staff'] as String? ?? 'N/A';
-    final cashierName = json['cashier'] as String? ?? 'N/A';
+    // --- START CLEANUP CHANGE ---
+    // Use String? cast to correctly handle null from the backend
+    final cashierName = json['cashier'] as String?;
+    // --- END CLEANUP CHANGE ---
 
     // Parse the new fields from the backend
     double subtotal = double.tryParse(json['subtotal'].toString()) ?? 0.0;
