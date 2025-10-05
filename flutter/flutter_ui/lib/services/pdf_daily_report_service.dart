@@ -150,6 +150,7 @@ class PdfDailyReportService {
     );
   }
 
+  // 🚨 MODIFIED: Added 'Staff Name' column for Inventory Logs
   static pw.Widget _buildInventoryLogsTable(List<InventoryLog> logs) {
     return pw.Table.fromTextArray(
       border: pw.TableBorder.all(width: 1, color: PdfColors.black),
@@ -158,17 +159,25 @@ class PdfDailyReportService {
       cellStyle: const pw.TextStyle(fontSize: 9),
       columnWidths: {
         0: const pw.FlexColumnWidth(0.5), // No.
-        1: const pw.FlexColumnWidth(1.5), // Action Type
-        2: const pw.FlexColumnWidth(1.5), // Medicine Name
-        3: const pw.FlexColumnWidth(3.0), // Description
-        4: const pw.FlexColumnWidth(1.5), // Timestamp
+        1: const pw.FlexColumnWidth(1.5), // Staff Name
+        2: const pw.FlexColumnWidth(1.5), // Action Type
+        3: const pw.FlexColumnWidth(1.5), // Medicine Name
+        4: const pw.FlexColumnWidth(2.5), // Description
+        5: const pw.FlexColumnWidth(1.5), // Timestamp
       },
-      headers: ['No.', 'Action Type', 'Medicine Name', 'Description', 'Timestamp'],
+      headers: ['No.', 'Staff Name', 'Action Type', 'Medicine Name', 'Description', 'Timestamp'], // 🚨 UPDATED HEADERS
       data: logs.asMap().entries.map((entry) {
         int index = entry.key + 1;
         InventoryLog log = entry.value;
+
+        // Combine staff name and role for a single column if role exists
+        final String staffInfo = log.staffName != null && log.staffRole != null
+             ? '${log.staffName} (${log.staffRole})'
+             : log.staffName ?? 'N/A';
+
         return [
           index.toString(),
+          staffInfo, // 🚨 ADDED STAFF INFO
           log.actionType,
           log.medicineName ?? 'N/A',
           log.description ?? 'N/A',

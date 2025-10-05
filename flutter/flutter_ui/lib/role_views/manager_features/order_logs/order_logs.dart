@@ -32,22 +32,26 @@ class OnlineOrderDetails {
   }
 }
 
+// ----------------------------------------------------------------------
+// FIX 1: Removed staffName from InStoreOrderDetails
+// We rely on the staffName from the top-level OrderLog object instead.
 class InStoreOrderDetails {
   final int id;
-  final String staffName;
 
   InStoreOrderDetails({
     required this.id,
-    required this.staffName,
   });
 
   factory InStoreOrderDetails.fromJson(Map<String, dynamic> json) {
+    // We can no longer check for 'staff_name' to parse, as the backend
+    // might not consistently provide it in the order_details payload.
+    // We fall back to simply parsing the order ID.
     return InStoreOrderDetails(
       id: json['id'] ?? 0,
-      staffName: json['staff_name'] ?? 'Unknown',
     );
   }
 }
+// ----------------------------------------------------------------------
 
 class OrderLog {
   final int id;
@@ -73,9 +77,27 @@ class OrderLog {
     if (json['order_details'] != null) {
       if (json['order_details'].containsKey('customer_name')) {
         parsedDetails = OnlineOrderDetails.fromJson(json['order_details']);
-      } else if (json['order_details'].containsKey('staff_name')) {
+      } 
+      // ------------------------------------------------------------------
+      // FIX 2: Corrected InStoreOrderDetails parsing check
+      // Now we parse InStoreOrderDetails if it's *not* an online order,
+      // and we just need the 'id' from the order_details payload.
+      // A more robust check might be needed if other order types exist.
+      else if (json['order_details'].containsKey('id') && 
+               !json['order_details'].containsKey('customer_name') &&
+               !json['order_details'].containsKey('staff_name')
+      ) {
+         parsedDetails = InStoreOrderDetails.fromJson(json['order_details']);
+      }
+      // Since the API data shows in-store order_details only have 'id' and 'items',
+      // we check for 'id' and the absence of online-specific fields.
+      // A safer, long-term solution is to make the backend always include a clear 'type' field.
+      // For now, we assume if it's not an online order, it's an in-store order.
+      else {
+        // Fallback for an in-store order that doesn't fit the online model
         parsedDetails = InStoreOrderDetails.fromJson(json['order_details']);
       }
+      // ------------------------------------------------------------------
     }
 
     return OrderLog(
@@ -230,7 +252,7 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
         final log = _orderLogs[index];
         final isOnlineOrder = log.orderDetails is OnlineOrderDetails;
         
-        // --- START OF SUBTITLE FIX ---
+        // --- START OF SUBTITLE LOGIC (Kept as is - it was correct) ---
         final isOnlineStaffAction = log.actionType == 'online_confirmed' || log.actionType == 'online_picked_up';
 
         String subtitleText;
@@ -244,7 +266,7 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
             // For all other logs (e.g., in-store), display the staff name
             subtitleText = log.staffName;
         }
-        // --- END OF SUBTITLE FIX ---
+        // --- END OF SUBTITLE LOGIC ---
 
         IconData actionIcon;
         Color iconColor;
@@ -286,7 +308,7 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
               ),
             ),
             subtitle: Text(
-              subtitleText, // ⬅️ USED THE CORRECTED LOGIC HERE
+              subtitleText,
               style: const TextStyle(
                 color: Colors.black54,
               ),
@@ -327,10 +349,13 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
+                    // ----------------------------------------------------------
+                    // FIX 3: Pass the full log object to _buildInStoreOrderDetails
                     if (log.orderDetails is InStoreOrderDetails)
-                      _buildInStoreOrderDetails(log.orderDetails as InStoreOrderDetails)
+                      _buildInStoreOrderDetails(log) // ⬅️ Changed to pass 'log'
                     else if (log.orderDetails is OnlineOrderDetails)
                       _buildOnlineOrderDetails(log.orderDetails as OnlineOrderDetails),
+                    // ----------------------------------------------------------
                   ],
                 ),
               ),
@@ -341,15 +366,21 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
     );
   }
 
-  Widget _buildInStoreOrderDetails(InStoreOrderDetails details) {
+  // ----------------------------------------------------------------------
+  // FIX 4: Updated _buildInStoreOrderDetails to accept OrderLog
+  Widget _buildInStoreOrderDetails(OrderLog log) {
+    final details = log.orderDetails as InStoreOrderDetails;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('In-Store Order Details:', style: TextStyle(fontWeight: FontWeight.bold)),
+        // We now correctly use the staffName/staffRole from the top-level OrderLog
+        Text('Staff: ${log.staffName} (${log.staffRole})'), 
         Text('Order ID: #${details.id}'),
       ],
     );
   }
+  // ----------------------------------------------------------------------
 
   Widget _buildOnlineOrderDetails(OnlineOrderDetails details) {
     return Column(

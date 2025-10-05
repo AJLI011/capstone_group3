@@ -842,7 +842,6 @@ class InStoreOrderDetailsSerializer(serializers.ModelSerializer):
 
 
 #-----------10/5/25
-# Modified OrderLogSerializer to handle both in-store and online orders
 class OrderLogSerializer(serializers.ModelSerializer):
     # Change from CharField(source=...) to SerializerMethodField() for flexibility and fallback logic
     staff_name = serializers.SerializerMethodField()
@@ -858,20 +857,34 @@ class OrderLogSerializer(serializers.ModelSerializer):
         # 1. PRIORITY: Try the Foreign Key (Staff still exists)
         if obj.staff_user: 
             return obj.staff_user.name
+            
+        # ----------------------------------------------------------------------
+        # NEW/UPDATED LOGIC: Use Snapshot Fields for Deleted Staff Fallback
+        # ----------------------------------------------------------------------
 
-        # 2. SNAPSHOT FALLBACK: Check for Online Order Staff Actions (Staff was deleted)
+        # 2. SNAPSHOT FALLBACK for ONLINE Orders
         if obj.online_order:
             order = obj.online_order
-            
             # Use the 'initiated_by_name' snapshot for 'online_confirmed'
-            if obj.action_type == 'online_confirmed' and order.initiated_by_name:
+            if obj.action_type == 'online_confirmed' and hasattr(order, 'initiated_by_name') and order.initiated_by_name:
                 return order.initiated_by_name
-                
             # Use the 'approved_by_name' snapshot for 'online_picked_up'
-            if obj.action_type == 'online_picked_up' and order.approved_by_name:
+            if obj.action_type == 'online_picked_up' and hasattr(order, 'approved_by_name') and order.approved_by_name:
                 return order.approved_by_name
 
-        # 3. Final Fallback
+        # 3. SNAPSHOT FALLBACK for IN-STORE Orders (using your InStoreOrder fields)
+        if obj.in_store_order:
+            order = obj.in_store_order
+            
+            # Use staff_name (the initiator) for 'initiate_sale'
+            if obj.action_type == 'initiate_sale' and order.staff_name and order.staff_name != "[STAFF NAME]":
+                return order.staff_name
+                
+            # Use cashier_name (the approver) for 'in_store_approve'
+            if obj.action_type == 'in_store_approve' and order.cashier_name and order.cashier_name != "[CASHIER NAME]":
+                return order.cashier_name
+
+        # 4. Final Fallback
         return 'Unknown'
         
     def get_staff_role(self, obj: OrderLog):
@@ -880,26 +893,38 @@ class OrderLogSerializer(serializers.ModelSerializer):
             # Assuming the 'Staff' model has a 'role' field
             return obj.staff_user.role.capitalize()
             
-        # 2. SNAPSHOT FALLBACK: Check for Online Order Staff Actions (Staff was deleted)
+        # ----------------------------------------------------------------------
+        # NEW/UPDATED LOGIC: Infer Role for Deleted Staff Fallback
+        # ----------------------------------------------------------------------
+        
+        # 2. INFERRED ROLE for ONLINE Orders
         if obj.online_order:
-             # Since OnlineOrder only stores the NAME snapshot, we must infer the role 
-             # based on the action type for deleted staff.
              if obj.action_type == 'online_confirmed':
                  return 'Staff'
              if obj.action_type == 'online_picked_up':
                  return 'Cashier' 
 
-        # 3. Final Fallback
+        # 3. INFERRED ROLE for IN-STORE Orders
+        if obj.in_store_order:
+             if obj.action_type == 'initiate_sale':
+                 # The staff who initiated the sale
+                 return 'Staff'
+             if obj.action_type == 'in_store_approve':
+                 # The cashier who approved the order
+                 return 'Cashier'
+             
+        # 4. Final Fallback
         return 'Unknown'
 
     def get_order_details(self, obj):
         # This part remains the same
         if obj.in_store_order:
-            return InStoreOrderDetailsSerializer(obj.in_store_order).data
+            # Assuming InStoreOrderDetailsSerializer is defined elsewhere
+            return InStoreOrderDetailsSerializer(obj.in_store_order).data 
         elif obj.online_order:
+            # Assuming OnlineOrderLogDetailsSerializer is defined elsewhere
             return OnlineOrderLogDetailsSerializer(obj.online_order).data
         return None
-
 #----------9/23/25-----------------------------------------------------------------------------------
 
 
