@@ -1436,7 +1436,7 @@ class InStoreOrderProcessingView(APIView):
 
 
 
-#--------------------------10-2-25----------------------------------------
+#--------------------------10-5-25----------------------------------------
 #----------ORDER LOGS PT 2 - FOR STAFF (INSTORE)---------
 #-- MODIFIED FOR CASHIER DIALOGUE BOX 
 @api_view(['POST'])
@@ -1488,7 +1488,8 @@ def process_instore_order(request):
                 staff_user=staff_user,
                 in_store_order=order,
                 action_type='initiate_sale',
-                description='Sale submitted for approval'
+                # 🎯 FIX: Explicitly include the staff name in the description
+                description=f'Sale submitted for approval by {staff_user.name}'
             )
 
             return Response({
