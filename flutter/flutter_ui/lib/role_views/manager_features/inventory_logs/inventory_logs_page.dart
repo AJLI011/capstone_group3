@@ -136,7 +136,7 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
             ),
             subtitle: Text(
               // MODIFIED LINE: Use the robust staffName snapshot
-              staffName,
+              '$staffName (${staffRole})',
               style: const TextStyle(
                 color: Colors.black54,
               ),
@@ -168,17 +168,6 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ADDED: Display the Staff Role explicitly for better traceback
-                    Text(
-                      'Staff Role: $staffRole', 
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
                     Text(
                       medicineNameText, // Use the new variable here
                       style: const TextStyle(
