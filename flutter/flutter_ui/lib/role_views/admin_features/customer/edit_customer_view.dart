@@ -31,7 +31,7 @@ class _EditCustomerViewState extends State<EditCustomerView> {
   // --- State & Controllers ---
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   static const Color _primaryColor = Color(0xFF5C7C9A);
-  static const String _apiUrl = 'http://10.0.2.2:8000/api/customers/';
+  static const String _apiUrl = 'http://bluewhiteph.pythonanywhere.com/api/customers/';
 
   late TextEditingController _nameController;
   late TextEditingController _emailController;

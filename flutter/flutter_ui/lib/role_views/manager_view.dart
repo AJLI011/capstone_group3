@@ -26,7 +26,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://10.0.2.2:8000/',
+  defaultValue: 'http://bluewhiteph.pythonanywhere.com/',
 );
 
 class ManagerView extends StatefulWidget {

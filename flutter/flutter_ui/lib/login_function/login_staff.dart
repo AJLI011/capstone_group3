@@ -16,7 +16,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 // Use dart-define to change base URL for different environments.
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://10.0.2.2:8000/',
+  defaultValue: 'http://bluewhiteph.pythonanywhere.com/',
 );
 
 class LoginStaff extends StatefulWidget {

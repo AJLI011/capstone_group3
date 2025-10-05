@@ -25,7 +25,7 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
   }
 
   Future<void> fetchMedicineDetail() async {
-    final url = 'http://10.0.2.2:8000/api/customer/medicines/${widget.medicineId}/';
+    final url = 'http://bluewhiteph.pythonanywhere.com/api/customer/medicines/${widget.medicineId}/';
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {

@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'dart:developer';
 
-const String _baseUrl = 'http://10.0.2.2:8000';
+const String _baseUrl = 'http://bluewhiteph.pythonanywhere.com';
 
 // The helper function _parseMedicineName is removed as it was only used by the removed item models.
 
