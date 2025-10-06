@@ -206,7 +206,7 @@ class _InventoryDetailScreenState extends State<InventoryDetailScreen> {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    '${widget.item.genericName} (${widget.item.name}) ${showPromo ? "⭐️" : ""}',
+                                    '${widget.item.name} (${widget.item.genericName}) ${showPromo ? "⭐️" : ""}',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
