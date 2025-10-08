@@ -5,7 +5,7 @@ import 'package:flutter_ui/services/sales_report_service.dart';
 import 'package:flutter_ui/services/pdf_online_service.dart';
 
 class OnlineSalesReportPage extends StatefulWidget {
-  const OnlineSalesReportPage({Key? key}) : super(key: key);
+  const OnlineSalesReportPage({super.key});
 
   @override
   _OnlineSalesReportPageState createState() => _OnlineSalesReportPageState();

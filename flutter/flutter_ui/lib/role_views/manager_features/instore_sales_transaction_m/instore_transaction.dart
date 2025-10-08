@@ -364,7 +364,7 @@ class InStoreTransactionCard extends StatelessWidget {
                   ],
                 ),
               );
-            }).toList(),
+            }),
             const Divider(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

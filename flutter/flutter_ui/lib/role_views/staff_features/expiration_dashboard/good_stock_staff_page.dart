@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 class GoodStockStaffPage extends StatefulWidget {
-  const GoodStockStaffPage({Key? key}) : super(key: key);
+  const GoodStockStaffPage({super.key});
 
   @override
   State<GoodStockStaffPage> createState() => _GoodStockStaffPageState();

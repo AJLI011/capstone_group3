@@ -2,10 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:http/http.dart' as http;
-import 'sales_details.dart';
-
-// Import the new BatchSelectionPage
-import 'batch_selection.dart';
+// Assuming this is still used for context, but not directly in the navigation logic here
+import 'batch_selection.dart'; // Import the new BatchSelectionPage
 
 class SalesBarcodeScreen extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -22,36 +20,44 @@ class SalesBarcodeScreen extends StatefulWidget {
 }
 
 class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
+  // 1. Initialize the MobileScannerController
   final MobileScannerController cameraController = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
     torchEnabled: false,
+    autoStart: true, // Default, but good to be explicit
   );
+  
   bool _isTorchOn = false;
   CameraFacing _currentCameraFacing = CameraFacing.back;
-  bool _isScanning = false;
+  // Flag to prevent multiple concurrent detection calls
+  bool _isScanning = false; 
 
+  // 2. Dispose of the controller when the screen is permanently removed
   @override
   void dispose() {
     cameraController.dispose();
     super.dispose();
   }
 
+  // 3. Central logic for barcode detection and navigation
   Future<void> _onBarcodeDetected(String barcode) async {
+    // Prevent multiple calls while processing
     if (_isScanning) return;
     _isScanning = true;
-    cameraController.stop();
+
+    // Stop the camera feed immediately upon detection 
+    // to prevent continuous scanning during API call/navigation
+    cameraController.stop(); 
 
     try {
       final response = await http.get(Uri.parse('http://10.0.2.2:8000/api/sales/barcode/$barcode/'));
 
       if (response.statusCode == 200) {
-        // The API now returns a list of batches, not a single item.
         final List<dynamic> itemData = json.decode(response.body);
         if (!mounted) return;
 
-        // Ensure there is at least one item before navigating
         if (itemData.isNotEmpty) {
-          // Changed the navigation to go to the new BatchSelectionPage
+          // Navigate to BatchSelectionPage
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => BatchSelectionPage(
@@ -59,35 +65,47 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
                 staffId: widget.staffId,
               ),
             ),
-          );
+          ).then((_) {
+            // FIX: This .then() block runs when the user navigates back (pops) 
+            // from the BatchSelectionPage.
+            if (mounted) {
+              // Explicitly restart the camera
+              cameraController.start(); 
+              _isScanning = false; // Reset the flag
+            }
+          });
+          return; // Exit here as navigation is handled
         } else {
-          // Handle the case where the API returns an empty list
+          // No item found, inform user and restart scanner
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('No item found for this barcode')),
           );
-          Navigator.of(context).pop();
         }
       } else {
+        // API call failed, inform user and restart scanner
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No item found for this barcode')),
         );
-        Navigator.of(context).pop();
       }
     } catch (e) {
+      // General error (e.g., network issue), inform user and restart scanner
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-      Navigator.of(context).pop();
-    } finally {
-      _isScanning = false;
-    }
+    } 
+    
+    // If we reach this point, it means no navigation occurred (API fail, no data)
+    // so we restart the camera and reset the scanning flag to allow a new scan attempt.
+    cameraController.start();
+    _isScanning = false;
   }
 
+  // 4. Build the UI
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scan Barcode'),
-        backgroundColor: const Color(0xFF5C7C9A), // Updated color
-        foregroundColor: Colors.white, // Updated color for font and icon
+        backgroundColor: const Color(0xFF5C7C9A), 
+        foregroundColor: Colors.white, 
         actions: [
           IconButton(
             icon: Icon(

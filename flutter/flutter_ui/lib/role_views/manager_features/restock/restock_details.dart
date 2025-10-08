@@ -192,7 +192,7 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
       final cleanImageUrl = imageUrlFromWidget.startsWith('/')
           ? imageUrlFromWidget
           : '/$imageUrlFromWidget';
-      fullImageUrl = '${API_BASE}$cleanImageUrl';
+      fullImageUrl = '$API_BASE$cleanImageUrl';
     }
 
     return PopScope(

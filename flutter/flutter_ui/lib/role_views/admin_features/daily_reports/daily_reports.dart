@@ -189,6 +189,8 @@ class InventoryLog {
 
 // --- Main Widget ---
 class DailyReportsPage extends StatefulWidget {
+  const DailyReportsPage({super.key});
+
   @override
   _DailyReportsPageState createState() => _DailyReportsPageState();
 }
@@ -320,7 +322,7 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
                                       return _buildLogCard(
                                         title: log.action.toUpperCase(),
                                         subtitle:
-                                            'Staff: ${staffInfo}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}',
+                                            'Staff: $staffInfo\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}',
                                       );
                                     }).toList(),
                                     emptyMessage: 'No employee logs for this date.',

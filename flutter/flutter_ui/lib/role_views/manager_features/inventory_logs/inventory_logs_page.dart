@@ -6,7 +6,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 class InventoryLogsPage extends StatefulWidget {
-  const InventoryLogsPage({Key? key}) : super(key: key);
+  const InventoryLogsPage({super.key});
 
   @override
   State<InventoryLogsPage> createState() => _InventoryLogsPageState();
@@ -136,7 +136,7 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
             ),
             subtitle: Text(
               // MODIFIED LINE: Use the robust staffName snapshot
-              '$staffName (${staffRole})',
+              '$staffName ($staffRole)',
               style: const TextStyle(
                 color: Colors.black54,
               ),

@@ -91,7 +91,7 @@ class InventoryDetailScreen extends StatefulWidget {
 class _InventoryDetailScreenState extends State<InventoryDetailScreen> {
   // NEW: A ScrollController to listen for scroll events.
   final ScrollController _scrollController = ScrollController();
-  List<BatchDetail> _batches = [];
+  final List<BatchDetail> _batches = [];
   // NEW: State variables for lazy loading.
   bool _isLoading = false;
   bool _hasMoreItems = true;
@@ -206,7 +206,7 @@ class _InventoryDetailScreenState extends State<InventoryDetailScreen> {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    '${widget.item.genericName} (${widget.item.name}) ${showPromo ? "⭐️" : ""}',
+                                    '${widget.item.name} (${widget.item.genericName}) ${showPromo ? "⭐️" : ""}',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,

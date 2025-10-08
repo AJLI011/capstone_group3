@@ -6,10 +6,10 @@ class BatchSelectionPage extends StatelessWidget {
   final int? staffId;
 
   const BatchSelectionPage({
-    Key? key,
+    super.key,
     required this.batches,
     this.staffId,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
