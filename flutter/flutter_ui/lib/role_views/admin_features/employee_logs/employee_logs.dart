@@ -9,7 +9,7 @@ import 'package:intl/intl.dart';
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://10.0.2.2:8000',
+  defaultValue: 'http://192.168.0.104:8000',
 );
 
 // Define the primary color for consistency

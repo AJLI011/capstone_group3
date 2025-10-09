@@ -67,7 +67,7 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
   }
 
   Future<void> _fetchSuppliers() async {
-    final url = Uri.parse('http://10.0.2.2:8000/api/suppliers/');
+    final url = Uri.parse('http://192.168.0.104:8000/api/suppliers/');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -109,7 +109,7 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
     if (!_formKey.currentState!.validate()) return;
 
     final uri = Uri.parse(
-        'http://10.0.2.2:8000/api/medicines/${widget.medicine['id']}/');
+        'http://192.168.0.104:8000/api/medicines/${widget.medicine['id']}/');
     final request = http.MultipartRequest('PUT', uri);
 
     request.fields['name'] = _nameController.text;
@@ -187,7 +187,7 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
 
     if (imageUrlFromWidget != null) {
       final cleanImageUrl = imageUrlFromWidget.startsWith('/') ? imageUrlFromWidget : '/$imageUrlFromWidget';
-      fullImageUrl = 'http://10.0.2.2:8000$cleanImageUrl';
+      fullImageUrl = 'http://192.168.0.104:8000$cleanImageUrl';
     }
 
     return Scaffold(
