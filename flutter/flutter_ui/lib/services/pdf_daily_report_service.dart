@@ -5,13 +5,29 @@ import 'package:intl/intl.dart';
 import 'package:flutter_ui/services/pdf_service.dart';
 import 'package:flutter_ui/role_views/admin_features/daily_reports/daily_reports.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest.dart' as tz; // NEW: Timezone data import
+import 'package:timezone/timezone.dart' as tz; // NEW: Timezone functionality import
 
 class PdfDailyReportService {
+    
+    // NEW: Initialize timezones and create conversion helper
+    static final tz.Location _manila = tz.getLocation('Asia/Manila');
+    
+    static tz.TZDateTime _convertToManilaTime(String timestamp) {
+        // Assume the backend provides UTC or an unzoned time string
+        final DateTime utcTimestamp = DateTime.parse(timestamp).toUtc();
+        return tz.TZDateTime.from(utcTimestamp, _manila);
+    }
+    // END NEW HELPER
+
     /// Generates a PDF for a daily report and saves it.
     static Future<void> generateAndSavePdf({
         required DailyReport dailyReport,
         required DateTime selectedDate,
     }) async {
+        // NEW: Initialize timezone data once before conversion
+        tz.initializeTimeZones();
+        
         final pdf = pw.Document();
 
         // Fetch the manager's name from shared preferences
@@ -106,11 +122,15 @@ class PdfDailyReportService {
             data: logs.asMap().entries.map((entry) {
                 int index = entry.key + 1;
                 EmployeeLog log = entry.value;
+                
+                // MODIFIED: Apply timezone conversion
+                final manilaTimestamp = _convertToManilaTime(log.timestamp);
+
                 return [
                     index.toString(),
                     log.staffName,
                     log.action,
-                    DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp)),
+                    DateFormat('MMM d, yyyy h:mm a').format(manilaTimestamp), // MODIFIED: Use converted time
                 ];
             }).toList(),
         );
@@ -132,22 +152,22 @@ class PdfDailyReportService {
             data: logs.asMap().entries.map((entry) {
                 int index = entry.key + 1;
                 OrderLog log = entry.value;
+                
+                // MODIFIED: Apply timezone conversion
+                final manilaTimestamp = _convertToManilaTime(log.timestamp);
 
                 String description = log.description ?? 'N/A';
-                // NOTE: Assuming your OrderLog model has these details for display
-                // If these details are not available in your model, you might need to adjust this logic.
-                // It is kept as-is from your previous code block.
                 if (log.inStoreOrderDetails != null) {
-                    description = 'Order #${log.inStoreOrderDetails!.id} | Total: \$${log.inStoreOrderDetails!.totalAmountAfterDiscount.toStringAsFixed(2)}';
+                    description = 'Order #${log.inStoreOrderDetails!.id} | Total: ₱${log.inStoreOrderDetails!.totalAmountAfterDiscount.toStringAsFixed(2)}';
                 } else if (log.onlineOrderDetails != null) {
-                    description = 'Order #${log.onlineOrderDetails!.id} | Customer: ${log.onlineOrderDetails!.customerName} | Total: \$${log.onlineOrderDetails!.totalAmountAfterDiscount.toStringAsFixed(2)}';
+                    description = 'Order #${log.onlineOrderDetails!.id} | Customer: ${log.onlineOrderDetails!.customerName} | Total: ₱${log.onlineOrderDetails!.totalAmountAfterDiscount.toStringAsFixed(2)}';
                 }
 
                 return [
                     index.toString(),
                     log.actionType,
                     description,
-                    DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp)),
+                    DateFormat('MMM d, yyyy h:mm a').format(manilaTimestamp), // MODIFIED: Use converted time
                 ];
             }).toList(),
         );
@@ -172,6 +192,9 @@ class PdfDailyReportService {
             data: logs.asMap().entries.map((entry) {
                 int index = entry.key + 1;
                 InventoryLog log = entry.value;
+                
+                // MODIFIED: Apply timezone conversion
+                final manilaTimestamp = _convertToManilaTime(log.timestamp);
 
                 // Combine staff name and role
                 final String staffInfo = log.staffName != null && log.staffRole != null
@@ -184,7 +207,7 @@ class PdfDailyReportService {
                     // CRITICAL CHANGE 2: Output the staffInfo here, replacing log.medicineName
                     staffInfo, 
                     log.description ?? 'N/A',
-                    DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp)),
+                    DateFormat('MMM d, yyyy h:mm a').format(manilaTimestamp), // MODIFIED: Use converted time
                 ];
             }).toList(),
         );

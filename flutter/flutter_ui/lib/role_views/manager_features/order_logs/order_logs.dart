@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'dart:developer';
+import 'package:timezone/data/latest.dart' as tz; // NEW: Timezone data import
+import 'package:timezone/timezone.dart' as tz; // NEW: Timezone functionality import
 
 const String _baseUrl = 'http://10.0.2.2:8000';
 
@@ -84,10 +86,10 @@ class OrderLog {
       // and we just need the 'id' from the order_details payload.
       // A more robust check might be needed if other order types exist.
       else if (json['order_details'].containsKey('id') && 
-               !json['order_details'].containsKey('customer_name') &&
-               !json['order_details'].containsKey('staff_name')
+              !json['order_details'].containsKey('customer_name') &&
+              !json['order_details'].containsKey('staff_name')
       ) {
-         parsedDetails = InStoreOrderDetails.fromJson(json['order_details']);
+          parsedDetails = InStoreOrderDetails.fromJson(json['order_details']);
       }
       // Since the API data shows in-store order_details only have 'id' and 'items',
       // we check for 'id' and the absence of online-specific fields.
@@ -132,6 +134,7 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
   @override
   void initState() {
     super.initState();
+    tz.initializeTimeZones(); // NEW: Initialize timezone data
     _fetchInitialOrderLogs();
     _scrollController.addListener(_onScroll);
   }
@@ -228,10 +231,10 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
         foregroundColor: Colors.white,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _orderLogs.isEmpty
-              ? const Center(child: Text('No order logs found.'))
-              : _buildOrderLogsList(),
+           ? const Center(child: CircularProgressIndicator())
+           : _orderLogs.isEmpty
+             ? const Center(child: Text('No order logs found.'))
+             : _buildOrderLogsList(),
     );
   }
 
@@ -251,6 +254,15 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
 
         final log = _orderLogs[index];
         final isOnlineOrder = log.orderDetails is OnlineOrderDetails;
+        
+        // --- TIMEZONE CONVERSION FOR ASIA/MANILA --- (NEW BLOCK)
+        // 1. Convert the DateTime object from OrderLog (which is likely UTC or local) to explicit UTC.
+        final DateTime utcTimestamp = log.timestamp.toUtc();
+        // 2. Get the target timezone.
+        final location = tz.getLocation('Asia/Manila');
+        // 3. Convert the UTC timestamp to the Manila timezone.
+        final tz.TZDateTime manilaTimestamp = tz.TZDateTime.from(utcTimestamp, location);
+        // --------------------------------------------
         
         // --- START OF SUBTITLE LOGIC (Kept as is - it was correct) ---
         final isOnlineStaffAction = log.actionType == 'online_confirmed' || log.actionType == 'online_picked_up';
@@ -318,14 +330,14 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  DateFormat('MM-dd-yyyy').format(log.timestamp),
+                  DateFormat('MM-dd-yyyy').format(manilaTimestamp), // MODIFIED: Use manilaTimestamp
                   style: const TextStyle(
                     fontSize: 12,
                     color: Colors.grey,
                   ),
                 ),
                 Text(
-                  DateFormat('hh:mm a').format(log.timestamp),
+                  DateFormat('hh:mm a').format(manilaTimestamp), // MODIFIED: Use manilaTimestamp
                   style: const TextStyle(
                     fontSize: 12,
                     color: Colors.grey,
