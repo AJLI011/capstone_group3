@@ -274,7 +274,7 @@ class InventoryDashboardSerializer(serializers.ModelSerializer):
     medicine_name = serializers.CharField(source='medicine.name')
     generic_name = serializers.CharField(source='medicine.generic_name')
     dosage_form = serializers.CharField(source='medicine.dosage_form')
-    supplier_name = serializers.CharField(source='medicine.supplier.name', default=None)
+    supplier_name = serializers.CharField(source='medicine.supplier_name', default='N/A')
     barcode = serializers.CharField(source='medicine.barcode')
 
     class Meta:
