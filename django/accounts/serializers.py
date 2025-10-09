@@ -269,6 +269,8 @@ class InventoryBatchDetailSerializer(serializers.ModelSerializer):
         return promo.end_date if promo else None
 
 
+
+#------------------10/9/2025---------------------------------
 # For Expiration Dashboard
 class InventoryDashboardSerializer(serializers.ModelSerializer):
     medicine_name = serializers.CharField(source='medicine.name')
@@ -291,6 +293,12 @@ class InventoryDashboardSerializer(serializers.ModelSerializer):
             'barcode',
             'is_promo',
         ]
+        
+        
+        
+        
+        
+        
 
 
 # Total Quantity

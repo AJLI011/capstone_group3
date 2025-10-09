@@ -277,6 +277,13 @@ def supplier_list(request):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+
+
+
+
+
+#---------10/9/2025-------------
 @api_view(['GET', 'PUT', 'DELETE'])
 def supplier_detail(request, pk):
     try:
@@ -296,8 +303,24 @@ def supplier_detail(request, pk):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
+        # 1. Capture the supplier's name and contact
+        deleted_supplier_name = supplier.name
+        deleted_supplier_contact = supplier.contact
+
+        # 2. CRITICAL: Update all linked Medicine objects before deletion
+        #    This ensures the snapshot fields retain the name/contact.
+        Medicine.objects.filter(supplier=supplier).update(
+            supplier_name=deleted_supplier_name,
+            supplier_contact_num=deleted_supplier_contact,
+        )
+        
+        # 3. Delete the supplier (FK on Medicine will be set to NULL due to on_delete=models.SET_NULL)
         supplier.delete()
+        
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
 
 # ─────────── STAFF (EMPLOYEE) MANAGEMENT ───────────
 

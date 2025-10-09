@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_ui/services/pdf_daily_report_service.dart';
+import 'package:timezone/data/latest.dart' as tz; // NEW: Timezone data import
+import 'package:timezone/timezone.dart' as tz; // NEW: Timezone functionality import
 
 // --- Data Models (EmployeeLog is modified) ---
 class DailyReport {
@@ -189,8 +191,6 @@ class InventoryLog {
 
 // --- Main Widget ---
 class DailyReportsPage extends StatefulWidget {
-  const DailyReportsPage({super.key});
-
   @override
   _DailyReportsPageState createState() => _DailyReportsPageState();
 }
@@ -204,7 +204,18 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
   @override
   void initState() {
     super.initState();
+    tz.initializeTimeZones(); // NEW: Initialize timezone data
     _fetchDailyReport(_selectedDate);
+  }
+
+  // NEW: Helper function to convert UTC string to Asia/Manila time
+  tz.TZDateTime _convertToManilaTime(String timestamp) {
+    // 1. Parse the string and convert it to UTC (assuming backend timestamps are UTC or naive)
+    final DateTime utcTimestamp = DateTime.parse(timestamp).toUtc();
+    // 2. Get the target timezone location
+    final location = tz.getLocation('Asia/Manila');
+    // 3. Convert the UTC timestamp to the Manila timezone
+    return tz.TZDateTime.from(utcTimestamp, location);
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -308,12 +319,15 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
                             child: Column(
                               children: [
                                 // ----------------------------------------------------------------------
-                                // ⬇️ MODIFIED: Employee Logs Section to display staff role
+                                // ⬇️ Employee Logs Section - Timezone applied
                                 // ----------------------------------------------------------------------
                                 Expanded(
                                   child: _buildLogSection(
                                     'Employee Logs (Login/Logout)',
                                     _dailyReport!.employeeLogs.map((log) {
+                                      // Apply Timezone Conversion
+                                      final manilaTimestamp = _convertToManilaTime(log.timestamp);
+                                      
                                       // Get the robust staff name and role
                                       final String staffInfo = log.staffRole != null
                                           ? '${log.staffName} (${log.staffRole})'
@@ -321,8 +335,9 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
                                           
                                       return _buildLogCard(
                                         title: log.action.toUpperCase(),
+                                        // MODIFIED: Use converted manilaTimestamp
                                         subtitle:
-                                            'Staff: $staffInfo\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}',
+                                            'Staff: ${staffInfo}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(manilaTimestamp)}',
                                       );
                                     }).toList(),
                                     emptyMessage: 'No employee logs for this date.',
@@ -332,26 +347,32 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
                                 
                                 SizedBox(height: 20),
 
-                                // Order Logs Section (No change needed)
+                                // ----------------------------------------------------------------------
+                                // ⬇️ Order Logs Section - Timezone applied
+                                // ----------------------------------------------------------------------
                                 Expanded(
                                   child: _buildLogSection(
                                     'Order Logs',
                                     _dailyReport!.orderLogs.map((log) {
+                                      // Apply Timezone Conversion
+                                      final manilaTimestamp = _convertToManilaTime(log.timestamp);
+                                      
                                       String title = log.actionType;
                                       String subtitle = log.description ?? '';
+
                                       if (log.inStoreOrderDetails != null) {
                                         title =
                                             'In-Store Order #${log.inStoreOrderDetails!.id}';
                                         subtitle =
-                                            'Amount: \$${log.inStoreOrderDetails!.totalAmountAfterDiscount.toStringAsFixed(2)}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}';
+                                            'Amount: \$${log.inStoreOrderDetails!.totalAmountAfterDiscount.toStringAsFixed(2)}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(manilaTimestamp)}'; // MODIFIED
                                       } else if (log.onlineOrderDetails != null) {
                                         title =
                                             'Online Order #${log.onlineOrderDetails!.id}';
                                         subtitle =
-                                            'Customer: ${log.onlineOrderDetails!.customerName} | Amount: \$${log.onlineOrderDetails!.totalAmountAfterDiscount.toStringAsFixed(2)}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}';
+                                            'Customer: ${log.onlineOrderDetails!.customerName} | Amount: \$${log.onlineOrderDetails!.totalAmountAfterDiscount.toStringAsFixed(2)}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(manilaTimestamp)}'; // MODIFIED
                                       } else {
                                         subtitle =
-                                            '${log.description ?? ''}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}';
+                                            '${log.description ?? ''}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(manilaTimestamp)}'; // MODIFIED
                                       }
                                       return _buildLogCard(
                                         title: title,
@@ -364,19 +385,23 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
                                 SizedBox(height: 20),
 
                                 // ----------------------------------------------------------------------
-                                // Inventory Logs Section (Already correct from previous update)
+                                // ⬇️ Inventory Logs Section - Timezone applied
                                 // ----------------------------------------------------------------------
                                 Expanded(
                                   child: _buildLogSection(
                                     'Inventory Logs',
                                     _dailyReport!.inventoryLogs.map((log) {
+                                      // Apply Timezone Conversion
+                                      final manilaTimestamp = _convertToManilaTime(log.timestamp);
+                                      
                                       // Get the robust staff name and role
                                       final String staffInfo = log.staffName != null && log.staffRole != null
                                           ? '${log.staffName} (${log.staffRole})'
                                           : log.staffName ?? 'N/A Staff';
 
+                                      // MODIFIED: Use converted manilaTimestamp
                                       String subtitle =
-                                          'Staff: $staffInfo\n${log.description ?? ''}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(log.timestamp))}';
+                                          'Staff: $staffInfo\n${log.description ?? ''}\nTimestamp: ${DateFormat('MMM d, yyyy h:mm a').format(manilaTimestamp)}';
                                       
                                       return _buildLogCard(
                                         title:

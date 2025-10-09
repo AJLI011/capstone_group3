@@ -467,8 +467,8 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
       child: Row(
         children: const [
           Expanded(flex: 1, child: Text('No.', style: TextStyle(fontWeight: FontWeight.bold))),
-          Expanded(flex: 3, child: Text('Medicine', style: TextStyle(fontWeight: FontWeight.bold))),
-          Expanded(flex: 2, child: Text('Forecasted', style: TextStyle(fontWeight: FontWeight.bold))),
+          Expanded(flex: 2, child: Text('Medicine', style: TextStyle(fontWeight: FontWeight.bold))),
+          Expanded(flex: 3, child: Text('Forecasted', style: TextStyle(fontWeight: FontWeight.bold))),
           Expanded(flex: 2, child: Text('Current Stock', style: TextStyle(fontWeight: FontWeight.bold))),
           Expanded(flex: 2, child: Text('Restock Amount', style: TextStyle(fontWeight: FontWeight.bold))),
         ],

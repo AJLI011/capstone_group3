@@ -196,6 +196,27 @@ class _LoginStaffState extends State<LoginStaff> {
               ),
             ),
 
+            // 🌟 NEW/MODIFIED: Staff Role Label in Top Left
+            Positioned(
+              top: 50, // Adjust for top padding, accounting for the status bar area
+              left: 20, // Adjust for left padding
+              child: const Text(
+                'Staff', // Changed text to 'Staff'
+                style: TextStyle(
+                  fontSize: 24, // Font size is 24
+                  fontWeight: FontWeight.bold,
+                  color:Color.fromARGB(255, 93, 151, 205), // Color is 0xFF5C7C9A
+                  shadows: [
+                    Shadow(
+                      blurRadius: 5.0,
+                      color: Color.fromARGB(137, 189, 189, 189),
+                      offset: Offset(2.0, 2.0),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
             // Foreground content
             SafeArea(
               child: SingleChildScrollView(
