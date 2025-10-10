@@ -190,7 +190,7 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Returned Medicines'),
+        title: const Text('Return Medicines'),
         backgroundColor: const Color(0xFF5C7C9A),
         foregroundColor: Colors.white,
         actions: [

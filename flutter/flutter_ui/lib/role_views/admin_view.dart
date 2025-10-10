@@ -279,7 +279,7 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
                                       _drawerItem(Icons.local_shipping_outlined, 'Suppliers',
                                           () => _open(const SupplierListPage())),
                                       // 🌟 RETURN MEDICINE AUDIT ITEM 🌟
-                                      _drawerItem(Icons.receipt_long_outlined, 'Return Medicine Audit', 
+                                      _drawerItem(Icons.receipt_long_outlined, 'Returned Medicines', 
                                           () => _open(const ReturnViewPage())),
                                       // ------------------------------------
                                       _drawerItem(Icons.playlist_add_check, 'Employees Logs',
