@@ -909,13 +909,27 @@ class ExpiredView(generics.ListAPIView):
             quantity__gt=0 # ✅ NEW: Exclude batches with 0 quantity
         )
 
-#--------------------09/30/2025--------------------------- 
-# #Return Medicine 
-@api_view(['DELETE'])
-def delete_expired_batch(request, pk):
-    try:
-        inventory_item = Inventory.objects.get(pk=pk)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+#--------------------10/10/2025--------------------------- 
+def process_single_inventory_return(inventory_item, staff_user):
+    """
+    Handles the logging, archiving (ReturnedMedicine), and deletion for a single
+    Inventory item. This logic is extracted from your original view.
+    """
+    try:
         # 1. Check if this inventory item was sold as part of an online order
         online_order_item = OnlineOrderItem.objects.filter(inventory_id=inventory_item).first()
 
@@ -925,15 +939,10 @@ def delete_expired_batch(request, pk):
         batch = inventory_item.batch_num
         exp_date = inventory_item.exp_date
         
-        # 🔐 Get staff from query param (Flutter: ?staff_id=123)
-        staff_id = request.query_params.get('staff_id')
-        staff_user = Staff.objects.filter(id=staff_id).first()
-
         # ✅ CRITICAL SECTION: Create the returned medicine record
         if online_order_item:
             ReturnedMedicine.objects.create(
                 medicine=medicine,
-                # ✅ FINAL, UNAMBIGUOUS FIX: Explicitly pass the ID of the object.
                 online_order_item_id=online_order_item.id,
                 batch_num=batch,
                 exp_date=exp_date,
@@ -949,28 +958,122 @@ def delete_expired_batch(request, pk):
                 returned_by=staff_user
             )
 
-        # Create the inventory log entry
+        # 2. Create the inventory log entry
         if staff_user:
             InventoryLog.objects.create(
                 user=staff_user,
                 medicine=medicine,
                 action_type='Expiration Return',
+                # Add context for batch if necessary, otherwise keep it general
                 description=f"Returned {quantity} units of {medicine.name} (Batch: {batch}) due to expiration",
-                medicine_name_log=medicine.name, # ✅ Add this line
+                medicine_name_log=medicine.name,
                 staff_name=staff_user.name,
                 staff_role=staff_user.role,
             )
 
-        # Now, and only now, delete the item from the Inventory table
+        # 3. Now, delete the item from the Inventory table
         inventory_item.delete()
+        
+        return True # Indicate success
+    except Exception as e:
+        # Log the specific error if needed, but return False to handle failures gracefully
+        print(f"Error processing inventory ID {inventory_item.pk}: {str(e)}")
+        return False # Indicate failure
 
-        return Response({"message": "Batch archived and deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+# ----------------------------------------------------------------------
+# 1. ORIGINAL SINGLE RETURN VIEW (MODIFIED TO USE HELPER)
+# ----------------------------------------------------------------------
+
+# #Return Medicine 
+@api_view(['DELETE'])
+def delete_expired_batch(request, pk):
+    """Handles the single item return based on the original URL structure."""
+    
+    # 🔐 Get staff from query param
+    staff_id = request.query_params.get('staff_id')
+    staff_user = Staff.objects.filter(id=staff_id).first()
+
+    if not staff_user:
+        return Response({"error": "Invalid or missing Staff ID."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        inventory_item = Inventory.objects.get(pk=pk)
+
+        # Use the reusable helper function
+        success = process_single_inventory_return(inventory_item, staff_user)
+        
+        if success:
+            return Response({"message": "Batch archived and deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        else:
+            # Should be caught by the outer try/except, but good for safety
+            return Response({"error": "Failed to process the return archive/log."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     except Inventory.DoesNotExist:
         return Response({"error": "Inventory item not found"}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-
         return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ----------------------------------------------------------------------
+# 2. ✅ NEW BATCH RETURN VIEW
+# ----------------------------------------------------------------------
+
+@api_view(['DELETE'])
+def delete_expired_medicines_batch(request):
+    """
+    Handles the batch return and deletion of multiple expired Inventory items.
+    Expected URL: /api/medicines/batch_delete/?staff_id=<ID>
+    Expects a body: {"inventory_ids": [1, 2, 3]}
+    """
+    # 1. Validate staff_id
+    staff_id = request.query_params.get('staff_id')
+    staff_user = Staff.objects.filter(id=staff_id).first()
+
+    if not staff_user:
+        return Response({"error": "Invalid or missing Staff ID."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 2. Validate request body and extract IDs
+    try:
+        data = request.data
+        inventory_ids = data.get('inventory_ids', [])
+        
+        if not isinstance(inventory_ids, list) or not inventory_ids:
+            return Response({"error": "Missing or invalid 'inventory_ids' list in request body."}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+            
+    except Exception:
+        return Response({"error": "Invalid request body format."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 3. Fetch all Inventory objects
+    inventory_items = Inventory.objects.filter(pk__in=inventory_ids)
+    
+    successful_returns = 0
+    
+    # 4. Process each item using the reusable helper function
+    for item in inventory_items:
+        if process_single_inventory_return(item, staff_user):
+            successful_returns += 1
+
+    # 5. Return summary response
+    total_requested = len(inventory_ids)
+    
+    if successful_returns == 0 and total_requested > 0:
+         return Response({"error": "No items were successfully returned. Check if they were already deleted."}, 
+                         status=status.HTTP_400_BAD_REQUEST)
+                         
+    return Response({
+        "message": f"Successfully returned {successful_returns} out of {total_requested} items.",
+        "successful_count": successful_returns
+    }, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
 
 
 

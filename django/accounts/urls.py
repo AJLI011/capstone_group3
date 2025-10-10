@@ -4,7 +4,7 @@ from django.urls import path
 from . import views
 from .views import (
     medicine_list, medicine_detail,InventoryCreateView,get_inventory_list,GoodStockView, ExpiringSoonView, ExpiredView,
-    delete_expired_batch, remove_promo, get_customer_medicines,inventory_logs, PromoMedicineView, PromoMedicineDetailView, 
+    remove_promo, get_customer_medicines,inventory_logs, PromoMedicineView, PromoMedicineDetailView, 
     get_customer_medicine_detail,InStoreSalesReportView,OnlineSalesReportView, LatestForecastReportView, MedicineSalesHistoryView, 
     PurchaseRequestListView,OrderLogsListView, # Now only imported once
     
@@ -54,7 +54,8 @@ urlpatterns = [
     path('medicines/expired/', ExpiredView.as_view(), name='expired-medicines'),
 
     # Return Medicine
-    path('medicines/delete/<int:pk>/', delete_expired_batch, name='delete-expired-batch'),
+    path('medicines/delete/<int:pk>/', views.delete_expired_batch, name='delete-expired-batch'),
+    path('medicines/batch_delete/', views.delete_expired_medicines_batch, name='delete-expired-medicines-batch'),
 
     # Promo Medicine
     path('inventory/<int:inventory_id>/set-promo/', views.set_promo, name='set_promo'),
