@@ -34,7 +34,7 @@ from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, 
     InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, 
     OnlineOrder, OnlineOrderItem, Prescription, PrescriptionImage,
-    CustomerFCMToken, ForecastReport, ForecastItem, StaffFCMToken, ReturnedMedicine
+    CustomerFCMToken, ForecastReport, ForecastItem, StaffFCMToken, ReturnedMedicine, ReturnTransaction, ReturnVerificationImage
 )
 from .serializers import (
     CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer,
@@ -924,14 +924,18 @@ class ExpiredView(generics.ListAPIView):
 
 
 #--------------------10/10/2025--------------------------- 
-def process_single_inventory_return(inventory_item, staff_user):
+def process_single_inventory_return(inventory_item, return_transaction):
     """
     Handles the logging, archiving (ReturnedMedicine), and deletion for a single
-    Inventory item. This logic is extracted from your original view.
+    Inventory item, linking it to the ReturnTransaction.
     """
     try:
+        # Get staff_user from the transaction object
+        staff_user = return_transaction.staff 
+        
         # 1. Check if this inventory item was sold as part of an online order
-        online_order_item = OnlineOrderItem.objects.filter(inventory_id=inventory_item).first()
+        # Note: inventory_item is an object, but filter takes a kwarg, using pk
+        online_order_item = OnlineOrderItem.objects.filter(inventory_id=inventory_item.pk).first()
 
         # Capture info before deletion
         medicine = inventory_item.medicine
@@ -940,23 +944,14 @@ def process_single_inventory_return(inventory_item, staff_user):
         exp_date = inventory_item.exp_date
         
         # ✅ CRITICAL SECTION: Create the returned medicine record
-        if online_order_item:
-            ReturnedMedicine.objects.create(
-                medicine=medicine,
-                online_order_item_id=online_order_item.id,
-                batch_num=batch,
-                exp_date=exp_date,
-                quantity=quantity,
-                returned_by=staff_user
-            )
-        else:
-            ReturnedMedicine.objects.create(
-                medicine=medicine,
-                batch_num=batch,
-                exp_date=exp_date,
-                quantity=quantity,
-                returned_by=staff_user
-            )
+        ReturnedMedicine.objects.create(
+            return_transaction=return_transaction, # CRITICAL: Link to the transaction
+            medicine=medicine,
+            online_order_item=online_order_item,
+            batch_num=batch,
+            exp_date=exp_date,
+            quantity=quantity,
+        )
 
         # 2. Create the inventory log entry
         if staff_user:
@@ -964,8 +959,7 @@ def process_single_inventory_return(inventory_item, staff_user):
                 user=staff_user,
                 medicine=medicine,
                 action_type='Expiration Return',
-                # Add context for batch if necessary, otherwise keep it general
-                description=f"Returned {quantity} units of {medicine.name} (Batch: {batch}) due to expiration",
+                description=f"Returned {quantity} units of {medicine.name} (Batch: {batch}) due to expiration. Txn ID: {return_transaction.pk}",
                 medicine_name_log=medicine.name,
                 staff_name=staff_user.name,
                 staff_role=staff_user.role,
@@ -976,21 +970,18 @@ def process_single_inventory_return(inventory_item, staff_user):
         
         return True # Indicate success
     except Exception as e:
-        # Log the specific error if needed, but return False to handle failures gracefully
         print(f"Error processing inventory ID {inventory_item.pk}: {str(e)}")
         return False # Indicate failure
 
 
 # ----------------------------------------------------------------------
-# 1. ORIGINAL SINGLE RETURN VIEW (MODIFIED TO USE HELPER)
+# 1. MODIFIED SINGLE RETURN VIEW
 # ----------------------------------------------------------------------
-
-# #Return Medicine 
 @api_view(['DELETE'])
+@transaction.atomic
 def delete_expired_batch(request, pk):
     """Handles the single item return based on the original URL structure."""
     
-    # 🔐 Get staff from query param
     staff_id = request.query_params.get('staff_id')
     staff_user = Staff.objects.filter(id=staff_id).first()
 
@@ -1000,13 +991,23 @@ def delete_expired_batch(request, pk):
     try:
         inventory_item = Inventory.objects.get(pk=pk)
 
-        # Use the reusable helper function
-        success = process_single_inventory_return(inventory_item, staff_user)
+        # Create a ReturnTransaction for this single item
+        new_transaction = ReturnTransaction.objects.create(
+            staff=staff_user,
+            verification_status='PENDING'
+        )
+        
+        success = process_single_inventory_return(inventory_item, new_transaction) 
         
         if success:
-            return Response({"message": "Batch archived and deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+            return Response({
+                "message": "Item archived and deleted successfully. Verification required.",
+                "transaction_id": new_transaction.pk # CRITICAL: Return ID
+            }, status=status.HTTP_200_OK) 
+
         else:
-            # Should be caught by the outer try/except, but good for safety
+            # If processing fails, delete the transaction we just created
+            new_transaction.delete()
             return Response({"error": "Failed to process the return archive/log."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     except Inventory.DoesNotExist:
@@ -1016,15 +1017,14 @@ def delete_expired_batch(request, pk):
 
 
 # ----------------------------------------------------------------------
-# 2. ✅ NEW BATCH RETURN VIEW
+# 2. MODIFIED BATCH RETURN VIEW
 # ----------------------------------------------------------------------
-
 @api_view(['DELETE'])
+@transaction.atomic
 def delete_expired_medicines_batch(request):
     """
     Handles the batch return and deletion of multiple expired Inventory items.
-    Expected URL: /api/medicines/batch_delete/?staff_id=<ID>
-    Expects a body: {"inventory_ids": [1, 2, 3]}
+    Creates a ReturnTransaction and returns its ID.
     """
     # 1. Validate staff_id
     staff_id = request.query_params.get('staff_id')
@@ -1045,30 +1045,170 @@ def delete_expired_medicines_batch(request):
     except Exception:
         return Response({"error": "Invalid request body format."}, status=status.HTTP_400_BAD_REQUEST)
 
+    # CRITICAL: Create the ReturnTransaction first
+    try:
+        new_transaction = ReturnTransaction.objects.create(
+            staff=staff_user,
+            verification_status='PENDING'
+        )
+    except Exception as e:
+         return Response({"error": f"Failed to create new transaction: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     # 3. Fetch all Inventory objects
     inventory_items = Inventory.objects.filter(pk__in=inventory_ids)
-    
     successful_returns = 0
     
     # 4. Process each item using the reusable helper function
     for item in inventory_items:
-        if process_single_inventory_return(item, staff_user):
+        # Pass the ReturnTransaction object
+        if process_single_inventory_return(item, new_transaction): 
             successful_returns += 1
-
+            
     # 5. Return summary response
     total_requested = len(inventory_ids)
     
-    if successful_returns == 0 and total_requested > 0:
-         return Response({"error": "No items were successfully returned. Check if they were already deleted."}, 
-                         status=status.HTTP_400_BAD_REQUEST)
-                         
+    # If nothing was successfully returned, delete the empty transaction record
+    if successful_returns == 0:
+        new_transaction.delete()
+        return Response({"error": "No items were successfully returned. Check if they were already deleted."}, 
+                        status=status.HTTP_400_BAD_REQUEST)
+                      
     return Response({
-        "message": f"Successfully returned {successful_returns} out of {total_requested} items.",
-        "successful_count": successful_returns
+        "message": f"Successfully returned {successful_returns} out of {total_requested} items. Verification required.",
+        "successful_count": successful_returns,
+        "transaction_id": new_transaction.pk # CRITICAL: Return the new ID
     }, status=status.HTTP_200_OK)
+    
+    
+# ----------------------------------------------------------------------
+# 3. NEW ITEM-FETCHING VIEW (GET)
+# ----------------------------------------------------------------------
+@api_view(['GET'])
+def get_returned_transaction_items(request, transaction_id):
+    """
+    Fetches all items archived under a specific ReturnTransaction ID.
+    Used by the Return Verification Tab to display the items the staff needs to photograph.
+    """
+    try:
+        # Fetch the transaction object (to ensure it exists)
+        transaction_obj = ReturnTransaction.objects.get(pk=transaction_id)
+        
+        # Fetch all ReturnedMedicine items linked to this transaction
+        returned_items = ReturnedMedicine.objects.filter(return_transaction=transaction_obj)
+        
+        # Manually serialize data for Flutter
+        data = [{
+            'id': item.pk,
+            'medicine_name': item.medicine.name,
+            'batch_num': item.batch_num,
+            'quantity': item.quantity,
+            'exp_date': item.exp_date.isoformat() if item.exp_date else None,
+        } for item in returned_items]
+        
+        return Response(data, status=status.HTTP_200_OK)
+        
+    except ReturnTransaction.DoesNotExist:
+        return Response({"error": "Return Transaction ID not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+# ----------------------------------------------------------------------
+# 4. IMAGE UPLOAD VIEW (POST)
+# ----------------------------------------------------------------------
+@api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+@transaction.atomic
+def upload_return_verification_images(request):
+    """
+    Handles the upload of multiple verification images linked to a ReturnTransaction.
+    Expects: 'transaction_id' (int) and 'verification_images' (list of files).
+    """
+    
+    # 1. Get Transaction ID and Staff ID from form data
+    transaction_id = request.data.get('transaction_id')
+    
+    if not transaction_id:
+        return Response({"error": "Missing transaction_id."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        transaction_id = int(transaction_id)
+        # Fetch the transaction object
+        transaction_obj = ReturnTransaction.objects.get(pk=transaction_id)
+    except (ValueError, ReturnTransaction.DoesNotExist):
+        return Response({"error": "Invalid or non-existent transaction ID."}, status=status.HTTP_404_NOT_FOUND)
 
+    # 2. Get the uploaded files
+    uploaded_images = request.FILES.getlist('verification_images')
+    if not uploaded_images:
+        return Response({"error": "No images provided for upload."}, status=status.HTTP_400_BAD_REQUEST)
+
+    successful_uploads = 0
+    
+    # 3. Save each image and link it to the transaction
+    for file in uploaded_images:
+        try:
+            ReturnVerificationImage.objects.create(
+                return_transaction=transaction_obj,
+                image=file
+            )
+            successful_uploads += 1
+        except Exception as e:
+            # Log this error if necessary, but continue processing other files
+            print(f"Failed to save image for Txn {transaction_id}: {str(e)}")
+
+
+    # 4. Update the verification status to VERIFIED if uploads were successful
+    if successful_uploads > 0:
+        # Before marking VERIFIED, check if it was REJECTED and add a note
+        if transaction_obj.verification_status == 'REJECTED':
+             transaction_obj.notes = (transaction_obj.notes or '') + "\n[Re-Verification Attempted]"
+             
+        transaction_obj.verification_status = 'VERIFIED'
+        transaction_obj.save()
+    
+    # 5. Final Response
+    if successful_uploads == 0:
+        return Response({"error": "Images failed to upload or save. No changes made."}, 
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                        
+    return Response({
+        "message": f"Successfully uploaded {successful_uploads} image(s). Transaction status set to VERIFIED.",
+        "uploaded_count": successful_uploads,
+        "transaction_id": transaction_obj.pk
+    }, status=status.HTTP_201_CREATED)
+
+# ----------------------------------------------------------------------
+# 5. NEW PENDING TRANSACTION LIST VIEW (GET) - ADD THIS ONE
+# ----------------------------------------------------------------------
+@api_view(['GET'])
+def list_pending_returns(request):
+    """
+    Fetches all ReturnTransaction records with a 'PENDING' verification_status.
+    Returns transaction ID, staff name, and return date for the selection UI.
+    """
+    try:
+        # Query the database for PENDING transactions
+        pending_transactions = ReturnTransaction.objects.filter(
+            verification_status='PENDING'
+        ).select_related('staff') # Optimize query by fetching related staff object
+
+        # Manually serialize the data for the Flutter UI
+        data = [{
+            'id': txn.pk,
+            # Use 'staff.name' for the Staff object's name
+            'staff_name': txn.staff.name if txn.staff else 'System/Unknown Staff',
+            # Format the datetime object for a cleaner display on Flutter
+            'returned_at': txn.returned_at.strftime('%Y-%m-%d %H:%M:%S'),
+        } for txn in pending_transactions]
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {"error": f"An unexpected error occurred while fetching pending returns: {str(e)}"}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 

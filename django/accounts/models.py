@@ -500,19 +500,68 @@ class StaffFCMToken(models.Model):
     def __str__(self):
         return f"{self.staff.name} - {self.token}"
     
-#--------------------09/14/2025--------------------------- fixing return medicine
-# Returned Medicine
+#--------------------10/10/2025--------------------------- fixing return medicine
+class ReturnTransaction(models.Model):
+    class Meta:
+        db_table = 'return_transactions_tbl'
+        ordering = ['-returned_at'] 
+
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending Verification'),
+        ('VERIFIED', 'Verified'),
+        ('REJECTED', 'Verification Rejected'),
+    ]
+
+    staff = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, related_name='return_transactions')
+    returned_at = models.DateTimeField(auto_now_add=True)
+    verification_status = models.CharField(
+        max_length=20, 
+        choices=STATUS_CHOICES,
+        default='PENDING'
+    )
+    notes = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Return Txn {self.pk} by {self.staff.name if self.staff else 'N/A'}"
+
+
 class ReturnedMedicine(models.Model):
     class Meta:
         db_table = 'returned_medicines_tbl'
 
+    return_transaction = models.ForeignKey(
+        ReturnTransaction, 
+        on_delete=models.CASCADE, 
+        related_name='returned_items',
+        null=True,  
+        blank=True  
+    )
+    
     medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE)
     online_order_item = models.ForeignKey('OnlineOrderItem', on_delete=models.SET_NULL, null=True, blank=True)
     batch_num = models.CharField(max_length=100)
     exp_date = models.DateField()
     quantity = models.IntegerField(default=0)
     returned_at = models.DateTimeField(auto_now_add=True)
-    returned_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True)
 
     def __str__(self):
-        return f"Returned: {self.medicine.name} ({self.batch_num})"
+        # We need to handle the case where return_transaction is null for old data
+        tx_pk = self.return_transaction.pk if self.return_transaction else 'N/A'
+        return f"Item: {self.medicine.name} (Txn: {tx_pk})"
+
+
+class ReturnVerificationImage(models.Model):
+    class Meta:
+        db_table = 'return_verification_images_tbl'
+
+    return_transaction = models.ForeignKey(
+        ReturnTransaction, 
+        on_delete=models.CASCADE, 
+        related_name='verification_images'
+    )
+    
+    image = models.ImageField(upload_to='return_verification_photos/%Y/%m/%d/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Image for Txn {self.return_transaction.pk}"
