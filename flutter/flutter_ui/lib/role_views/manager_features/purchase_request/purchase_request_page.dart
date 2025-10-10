@@ -145,12 +145,6 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
                 purchaseRequests: finalPurchaseRequests,
                 lowStockItems: lowStockRequests, // Pass the MAPPED low stock data
             );
-
-            if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('✅ PDF saved successfully to downloads.')),
-                );
-            }
         } catch (e) {
             if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(

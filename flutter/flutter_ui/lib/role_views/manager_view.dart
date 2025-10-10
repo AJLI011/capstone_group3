@@ -1,7 +1,6 @@
 // manager_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_ui/role_views/manager_features/expiration_dashboard/expiry_dashboard_view.dart';
-import 'package:flutter_ui/role_views/manager_features/online_sales_report/online_sales_report_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../login_function/login_customer.dart';
 import 'manager_features/medicines_list/medicines_list_view.dart';
@@ -13,11 +12,11 @@ import 'manager_features/return_medicines/return_page.dart';
 import 'manager_features/promo_medicines/promo_page.dart';
 import 'manager_features/inventory_logs/inventory_logs_page.dart';
 import 'manager_features/online_sales_transaction/online_transaction.dart';
-import 'manager_features/instore_sales_report/in_store_sales_report_page.dart';
 import 'manager_features/order_logs/order_logs.dart';
 import 'manager_features/instore_sales_transaction_m/instore_transaction.dart';
 import 'manager_features/demand_forecasting/demand_forecast.dart';
 import 'manager_features/purchase_request/purchase_request_page.dart';
+import 'manager_features/sales_report/sales_report.dart'; // <--- ADD THIS
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
@@ -26,7 +25,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.0.104:8000/',
+  defaultValue: 'http://10.0.2.2:8000/',
 );
 
 class ManagerView extends StatefulWidget {
@@ -347,10 +346,8 @@ class _ManagerViewState extends State<ManagerView>
                                     () => _open(const ReturnMedicinePage())),
                                 _drawerItem(Icons.local_offer, 'Promo Medicines',
                                     () => _open(const PromoMedicinePage())),
-                                _drawerItem(Icons.point_of_sale, 'In Store Sales Report',
-                                    () => _open(const InStoreSalesReportPage())),
-                                _drawerItem(Icons.trending_up, 'Online Sales Report',
-                                    () => _open(const OnlineSalesReportPage())),
+                                _drawerItem(Icons.analytics, 'Sales Report', // Using a new, general icon
+                                    () => _open(const CombinedSalesReportPage())), 
                                 _drawerItem(Icons.insights, 'Demand Forecast',
                                     () => _open(const DemandForecastScreen())),
                                 _drawerItem(Icons.shopping_cart, 'Purchase Request',

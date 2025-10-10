@@ -166,11 +166,6 @@ class _ReturnMedicinePageState extends State<ReturnMedicinePage> {
 
       await PdfService.savePdfToDownloadsAndAppStorage(pdf, fileName);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ PDF saved successfully.')),
-        );
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
