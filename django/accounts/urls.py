@@ -59,6 +59,7 @@ urlpatterns = [
     path('returns/upload-verification/', views.upload_return_verification_images, name='upload_verification'),
     path('returns/<int:transaction_id>/items/', views.get_returned_transaction_items, name='get_transaction_items'),
     path('returns/pending/', views.list_pending_returns, name='list_pending_returns'), 
+    path('returns/all/', views.list_all_return_transactions, name='list_all_return_transactions'), 
 
     # Promo Medicine
     path('inventory/<int:inventory_id>/set-promo/', views.set_promo, name='set_promo'),

@@ -1210,6 +1210,65 @@ def list_pending_returns(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+# ----------------------------------------------------------------------
+# 6. NEW ADMIN AUDIT VIEW (GET) - Fetch ALL transactions with ALL details
+# ----------------------------------------------------------------------
+@api_view(['GET'])
+def list_all_return_transactions(request):
+    """
+    Fetches ALL ReturnTransaction records (Verified, Pending, Rejected) 
+    with nested ReturnedMedicine items and Verification Images.
+    Used by the Admin Audit View.
+    """
+    try:
+        # Fetch all transactions and optimize with select_related/prefetch_related
+        all_transactions = ReturnTransaction.objects.all().order_by('-returned_at').select_related('staff').prefetch_related('returned_items__medicine', 'verification_images')
+
+        data = []
+        for txn in all_transactions:
+            # 1. Serialize Returned Medicine Items
+            returned_items_data = []
+            for item in txn.returned_items.all():
+                returned_items_data.append({
+                    'id': item.pk,
+                    # Access the nested Medicine object's name
+                    'medicine': {'name': item.medicine.name if item.medicine else 'N/A'}, 
+                    'batch_num': item.batch_num,
+                    'quantity': item.quantity,
+                    'exp_date': item.exp_date.isoformat() if item.exp_date else None,
+                })
+                
+            # 2. Serialize Verification Images
+            verification_images_data = []
+            for image in txn.verification_images.all():
+                # CRITICAL: Use the absolute URI for the image file
+                # You might need to adjust the request.build_absolute_uri part 
+                # based on how your MEDIA_URL is configured, but this is the standard way.
+                image_url = request.build_absolute_uri(image.image.url) 
+                
+                verification_images_data.append({
+                    'id': image.pk,
+                    'image': image_url,
+                })
+                
+            # 3. Serialize the main Transaction
+            data.append({
+                'id': txn.pk,
+                'staff': {'name': txn.staff.name if txn.staff else 'N/A'},
+                'returned_at': txn.returned_at.isoformat(),
+                'verification_status': txn.verification_status,
+                'notes': txn.notes,
+                'returned_items': returned_items_data,
+                'verification_images': verification_images_data,
+            })
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {"error": f"An unexpected error occurred while fetching all returns: {str(e)}"}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 

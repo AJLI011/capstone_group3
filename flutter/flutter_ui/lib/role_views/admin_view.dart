@@ -11,7 +11,8 @@ import 'admin_features/employees/employees_management.dart';
 import 'admin_features/edit_profile/edit_admin_profile.dart';
 import 'admin_features/change_password/change_admin_password.dart';
 import 'admin_features/employee_logs/employee_logs.dart';
-import 'admin_features/daily_reports/daily_reports.dart'; // ADD THIS LINE
+import 'admin_features/daily_reports/daily_reports.dart';
+import 'admin_features/return_view/return_view.dart';
 
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
@@ -68,7 +69,7 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
   // Helper to POST an employee log (login/logout)
   Future<void> _postEmployeeLog(int staffId, String action) async {
     try {
-      final url = Uri.parse('$API_BASE/api/employee-logs/');
+      final url = Uri.parse('${API_BASE}api/employee-logs/');
       final resp = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -105,7 +106,7 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
       await prefs.clear();
 
       if (!mounted) return;
-      // FIX: Navigate to LoginCustomer() instead of the removed ToggleLoginScreen()
+      // Navigate to LoginCustomer()
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const LoginCustomer()),
@@ -116,7 +117,7 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
       if (!mounted) return;
-      // FIX: Also navigate to LoginCustomer() in the catch block
+      // Navigate to LoginCustomer() in the catch block
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const LoginCustomer()),
@@ -277,9 +278,13 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
                                           () => _open(const CustomerManagementScreen())),
                                       _drawerItem(Icons.local_shipping_outlined, 'Suppliers',
                                           () => _open(const SupplierListPage())),
+                                      // 🌟 RETURN MEDICINE AUDIT ITEM 🌟
+                                      _drawerItem(Icons.receipt_long_outlined, 'Return Medicine Audit', 
+                                          () => _open(const ReturnViewPage())),
+                                      // ------------------------------------
                                       _drawerItem(Icons.playlist_add_check, 'Employees Logs',
                                           () => _open(const EmployeeLogsPage())),
-                                      _drawerItem(Icons.bar_chart_outlined, 'Daily Reports', // ADDED NEW ITEM
+                                      _drawerItem(Icons.bar_chart_outlined, 'Daily Reports', 
                                           () => _open(DailyReportsPage())),
                                       _drawerItem(Icons.edit_outlined, 'Edit Profile',
                                           () => _open(EditAdminProfilePage(staffId: widget.staffId))),
