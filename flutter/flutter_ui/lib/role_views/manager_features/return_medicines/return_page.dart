@@ -6,20 +6,64 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_ui/services/pdf_service.dart';
 
+// Import for Timezone initialization
+import 'package:timezone/data/latest.dart' as tzdata; 
+import 'package:timezone/timezone.dart' as tz; 
+
 // Import the verification page
-import 'return_verify.dart';
+import 'return_verify.dart'; // Ensure this file is correct
 
 // NOTE: Please replace with your actual server IP
 const String _baseUrl = 'http://192.168.0.104:8000/api';
 
 // --------------------------------------------------------------------------
-// 1. New Parent Widget to Handle Tabs
+// 1. New Parent Widget to Handle Tabs (NOW STATEFUL FOR TIMEZONE INIT)
 // --------------------------------------------------------------------------
-class ReturnMedicinePage extends StatelessWidget {
+class ReturnMedicinePage extends StatefulWidget {
   const ReturnMedicinePage({super.key});
 
   @override
+  State<ReturnMedicinePage> createState() => _ReturnMedicinePageState();
+}
+
+class _ReturnMedicinePageState extends State<ReturnMedicinePage> {
+  bool _isTimezoneInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeTimezone();
+  }
+
+  // CRITICAL: Initialize Timezone Data Once on App/Widget Start
+  void _initializeTimezone() {
+    try {
+      tzdata.initializeTimeZones();
+      // Optional: Set the local location to Manila if all dates should default there
+      // tz.setLocalLocation(tz.getLocation('Asia/Manila'));
+      setState(() {
+        _isTimezoneInitialized = true;
+      });
+    } catch (e) {
+      // Handle error if initialization fails (e.g., package not installed)
+      debugPrint("Timezone initialization failed: $e");
+      setState(() {
+        _isTimezoneInitialized = true; // Still allow app to run with basic Dart time
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (!_isTimezoneInitialized) {
+      // Show a loading screen until initialization is complete
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
     // Wrap the entire structure in a DefaultTabController
     return DefaultTabController(
       length: 2, // We have two tabs now
@@ -53,7 +97,7 @@ class ReturnMedicinePage extends StatelessWidget {
 }
 
 // --------------------------------------------------------------------------
-// 2. Global PDF Function (Moved out of State to be easily accessible)
+// 2. Global PDF Function (Remains the same)
 // --------------------------------------------------------------------------
 Future<void> generateAndSavePdf(BuildContext context, List<Map<String, dynamic>> medicines) async {
   if (medicines.isEmpty) {
@@ -129,6 +173,7 @@ Future<void> generateAndSavePdf(BuildContext context, List<Map<String, dynamic>>
   );
 
   try {
+    // PDF date generation does not need timezone conversion since it's just the current time
     final now = DateTime.now();
     final formattedDate = DateFormat('yyyyMMdd_HHmmss').format(now);
     final fileName = 'returned_medicines_report_$formattedDate.pdf';
@@ -143,7 +188,7 @@ Future<void> generateAndSavePdf(BuildContext context, List<Map<String, dynamic>>
 }
 
 // --------------------------------------------------------------------------
-// 3. Expired Medicine List Tab (Return Functionality Only)
+// 3. Expired Medicine List Tab (Return Functionality Only) - Remains the same
 // --------------------------------------------------------------------------
 class ExpiredMedicineListTab extends StatefulWidget {
   const ExpiredMedicineListTab({super.key});
@@ -398,8 +443,8 @@ class _ExpiredMedicineListTabState extends State<ExpiredMedicineListTab> {
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
                               color: isSelected
-                                ? const Color.fromARGB(255, 139, 0, 0)
-                                : const Color.fromARGB(255, 236, 155, 155)
+                                  ? const Color.fromARGB(255, 139, 0, 0)
+                                  : const Color.fromARGB(255, 236, 155, 155)
                             ),
                           ),
                           child: Row(

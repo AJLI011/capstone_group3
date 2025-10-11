@@ -4,16 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 // 1. IMPORT THE FILE WITH THE PDF FUNCTION
 import 'return_page.dart';
+
+// --- NEW TIMEZONE IMPORTS ---
+import 'package:timezone/timezone.dart' as tz;
+import 'package:intl/intl.dart';
+// ----------------------------
 
 // NOTE: Please replace with your actual server IP
 const String _baseUrl = 'http://192.168.0.104:8000/api';
 
 // --------------------------------------------------------------------------
 // Data Model for Returned Item (Item in a Transaction)
-// UPDATED: Added fallback logic for medicineName using medicine_name_snapshot
 // --------------------------------------------------------------------------
 class ReturnedItem {
   final int id;
@@ -63,12 +66,12 @@ class ReturnedItem {
 
 // --------------------------------------------------------------------------
 // Data Model for a Pending Transaction (Item in the List)
-// UPDATED: Added fallback logic for staffName using staff_name_snapshot
+// UPDATED: Use DateTime object for returnedAt and explicitly set it to UTC
 // --------------------------------------------------------------------------
 class PendingTransaction {
   final int id;
   final String staffName;
-  final String returnedAt;
+  final DateTime returnedAt; // Changed from String to DateTime
 
   PendingTransaction({
     required this.id,
@@ -81,11 +84,20 @@ class PendingTransaction {
     final String resolvedStaffName = (json['staff_name'] as String?) ??
                                      (json['staff_name_snapshot'] as String?) ??
                                      'Unknown Staff';
+    
+    // CRITICAL CHANGE 3: Convert the returned_at string from the database to a UTC DateTime
+    DateTime parsedReturnedAt;
+    try {
+        parsedReturnedAt = DateTime.parse(json['returned_at']).toUtc();
+    } catch (e) {
+        // Fallback for null or invalid date string
+        parsedReturnedAt = DateTime.now().toUtc(); 
+    }
 
     return PendingTransaction(
       id: json['id'] as int,
       staffName: resolvedStaffName,
-      returnedAt: json['returned_at'] ?? 'N/A',
+      returnedAt: parsedReturnedAt, // Use the new DateTime object
     );
   }
 }
@@ -122,6 +134,21 @@ class _ReturnVerificationPageState extends State<ReturnVerificationPage> {
     _fetchPendingTransactions();
   }
   
+  // -----------------------------------------------------------------------
+  // Timezone Helper Function: Format UTC DateTime to Manila Timezone String
+  // -----------------------------------------------------------------------
+  String _formatManilaTime(DateTime utcTime) {
+    // 1. Get the Asia/Manila location
+    final location = tz.getLocation('Asia/Manila');
+
+    // 2. Convert the UTC DateTime to a TimeZone-aware DateTime in Manila
+    final manilaTime = tz.TZDateTime.from(utcTime, location);
+
+    // 3. Format the Manila time
+    // Example format: Oct 11, 2025 02:07 PM
+    return DateFormat('MMM dd, yyyy hh:mm a').format(manilaTime);
+  }
+
   // -----------------------------------------------------------------------
   // API Call: Fetch List of Pending Transactions
   // -----------------------------------------------------------------------
@@ -354,7 +381,8 @@ class _ReturnVerificationPageState extends State<ReturnVerificationPage> {
                   leading: const Icon(Icons.pending_actions, color: Colors.orange),
                   // txn.staffName now safely contains snapshot data if needed
                   title: Text('Transaction ID: ${txn.id} - ${txn.staffName}'),
-                  subtitle: Text('Returned At: ${txn.returnedAt}'),
+                  // CRITICAL CHANGE: Use the format function here
+                  subtitle: Text('Returned At: ${_formatManilaTime(txn.returnedAt)}'), 
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () => _fetchTransactionItems(txn),
                 );
@@ -398,8 +426,8 @@ class _ReturnVerificationPageState extends State<ReturnVerificationPage> {
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           Text(
-            // _selectedTransaction!.staffName now safely contains snapshot data if needed
-            'Staff: ${_selectedTransaction!.staffName} | Date: ${_selectedTransaction!.returnedAt}',
+            // CRITICAL CHANGE: Use the format function here
+            'Staff: ${_selectedTransaction!.staffName} | Date: ${_formatManilaTime(_selectedTransaction!.returnedAt)}',
             style: const TextStyle(fontSize: 14, color: Colors.grey),
           ),
           const Divider(),

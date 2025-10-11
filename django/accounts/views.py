@@ -1225,9 +1225,10 @@ def list_pending_returns(request):
             
             data.append({
                 'id': txn.pk,
-                'staff_name': staff_name_display, # Use the computed display name
-                # Format the datetime object for a cleaner display on Flutter
-                'returned_at': txn.returned_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'staff_name': staff_name_display,
+                # ✅ FIX: Use isoformat() to include the 'Z' (Zulu/UTC) indicator
+                # or use strftime with the timezone directive ('%z')
+                'returned_at': txn.returned_at.isoformat(), 
             })
 
         return Response(data, status=status.HTTP_200_OK)
@@ -1324,6 +1325,17 @@ def list_all_return_transactions(request):
             {"error": f"An unexpected error occurred while fetching all returns: {str(e)}"}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+
+
+
+
+
+
+
+
+
 
 
 

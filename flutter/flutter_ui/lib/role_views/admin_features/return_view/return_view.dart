@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:timezone/data/latest.dart' as tz; // NEW: Timezone data import
+import 'package:timezone/timezone.dart' as tz; // NEW: Timezone functionality import
 
 // NOTE: Ensure this base URL matches the IP address you used in Postman!
 const String _baseUrl = 'http://192.168.0.104:8000/api'; 
@@ -45,8 +47,8 @@ class ReturnedMedicine {
     
     // CRITICAL CHANGE 1: Use medicine_name_snapshot as fallback
     final String resolvedMedicineName = (medicineData != null ? medicineData['name'] as String? : null) ??
-                                        (json['medicine_name_snapshot'] as String?) ?? // Fallback to snapshot
-                                        'N/A';
+                                       (json['medicine_name_snapshot'] as String?) ?? // Fallback to snapshot
+                                       'N/A';
 
     return ReturnedMedicine(
       id: json['id'] as int,
@@ -93,7 +95,9 @@ class ReturnTransaction {
     return ReturnTransaction(
       id: json['id'] as int,
       staffName: resolvedStaffName,
-      returnedAt: DateTime.parse(json['returned_at']),
+      // IMPORTANT: DateTime.parse() assumes the ISO string is in UTC if it has 'Z' or a specific offset, 
+      // or it treats it as local if it's "naive". toUtc() here ensures we handle it correctly for conversion later.
+      returnedAt: DateTime.parse(json['returned_at']).toUtc(), 
       status: json['verification_status'] ?? 'PENDING',
       notes: json['notes'],
       returnedItems: itemsList.map((i) => ReturnedMedicine.fromJson(i)).toList(),
@@ -120,7 +124,16 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
   @override
   void initState() {
     super.initState();
+    tz.initializeTimeZones(); // NEW: Initialize timezone data
     _fetchTransactions();
+  }
+  
+  // NEW: Helper function to convert DateTime (assumed to be UTC) to Asia/Manila time
+  tz.TZDateTime _convertToManilaTime(DateTime utcTime) {
+    // 1. Get the target timezone location
+    final location = tz.getLocation('Asia/Manila');
+    // 2. Convert the UTC DateTime to the Manila timezone
+    return tz.TZDateTime.from(utcTime, location);
   }
 
   // --------------------------------------------------------------------------
@@ -192,6 +205,13 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
         return Icons.pending_actions;
     }
   }
+  
+  // NEW: Helper function to format the DateTime to Manila time
+  String _formatManilaTime(DateTime utcTime) {
+    final manilaTime = _convertToManilaTime(utcTime);
+    return DateFormat('MMM d, yyyy h:mm a').format(manilaTime);
+  }
+
 
   // --------------------------------------------------------------------------
   // 3. Build Method
@@ -226,16 +246,16 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
                   ),
                 )
               : RefreshIndicator(
-                    onRefresh: _fetchTransactions,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(12.0),
-                      itemCount: _transactions.length,
-                      itemBuilder: (context, index) {
-                        final txn = _transactions[index];
-                        return _buildTransactionCard(txn);
-                      },
+                      onRefresh: _fetchTransactions,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(12.0),
+                        itemCount: _transactions.length,
+                        itemBuilder: (context, index) {
+                          final txn = _transactions[index];
+                          return _buildTransactionCard(txn);
+                        },
+                      ),
                     ),
-                  ),
     );
   }
 
@@ -245,7 +265,9 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
   Widget _buildTransactionCard(ReturnTransaction txn) {
     final statusColor = _getStatusColor(txn.status);
     final statusIcon = _getStatusIcon(txn.status);
-    final formattedDate = DateFormat('MMM d, yyyy h:mm a').format(txn.returnedAt.toLocal()); // Use toLocal() for better time display
+    
+    // MODIFIED: Use the Manila timezone formatter
+    final formattedDate = _formatManilaTime(txn.returnedAt); 
 
     return Card(
       elevation: 4,

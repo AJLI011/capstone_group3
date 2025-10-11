@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'package:timezone/data/latest.dart' as tz; // NEW: Timezone data import
+import 'package:timezone/timezone.dart' as tz; // NEW: Timezone functionality import
 
 // -------------------------------------------------------------------
 // Constants and Model
@@ -35,8 +37,8 @@ class EmployeeLog {
     return EmployeeLog(
       id: json['id'] as int,
       // Mapping the snapshot fields from the API response
-      staffName: json['staff_name'] as String?, 
-      staffRole: json['staff_role'] as String?, 
+      staffName: json['staff_name'] as String?,
+      staffRole: json['staff_role'] as String?,
       action: json['action'] as String,
       timestamp: json['timestamp'] as String,
     );
@@ -69,6 +71,7 @@ class _EmployeeLogsPageState extends State<EmployeeLogsPage> {
   @override
   void initState() {
     super.initState();
+    tz.initializeTimeZones(); // NEW: Initialize timezone data
     _fetchLogs();
     _scrollController.addListener(_scrollListener);
   }
@@ -78,6 +81,16 @@ class _EmployeeLogsPageState extends State<EmployeeLogsPage> {
     _scrollController.removeListener(_scrollListener);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // NEW: Helper function to convert UTC string to Asia/Manila time
+  tz.TZDateTime _convertToManilaTime(String timestamp) {
+    // 1. Parse the string and convert it to UTC (assuming backend timestamps are UTC or naive)
+    final DateTime utcTimestamp = DateTime.parse(timestamp).toUtc();
+    // 2. Get the target timezone location
+    final location = tz.getLocation('Asia/Manila');
+    // 3. Convert the UTC timestamp to the Manila timezone
+    return tz.TZDateTime.from(utcTimestamp, location);
   }
 
   // --- Handlers ---
@@ -141,11 +154,12 @@ class _EmployeeLogsPageState extends State<EmployeeLogsPage> {
     }
   }
 
-  /// Formats the ISO 8601 timestamp string into a readable local date/time.
+  /// Formats the ISO 8601 timestamp string into a readable Asia/Manila date/time.
+  // MODIFIED: Uses the new timezone helper function
   String _formatTimestamp(String isoString) {
     try {
-      final dt = DateTime.parse(isoString).toLocal();
-      return DateFormat('MMM d, yyyy h:mm a').format(dt); // Formal date format
+      final manilaTime = _convertToManilaTime(isoString);
+      return DateFormat('MMM d, yyyy h:mm a').format(manilaTime);
     } catch (e) {
       return 'Invalid Date';
     }
@@ -247,6 +261,7 @@ class _EmployeeLogsPageState extends State<EmployeeLogsPage> {
               child: Text(_prettyAction(log.action), style: actionStyle)),
           Expanded(
               flex: 3,
+              // MODIFIED: Calls the new timezone-aware format function
               child: Text(_formatTimestamp(log.timestamp),
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600))),
         ],
