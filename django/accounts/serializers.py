@@ -697,20 +697,53 @@ class InStoreOrderItemSerializer(serializers.ModelSerializer):
 
 
 
-
 class CashierInStoreOrderSerializer(serializers.ModelSerializer):
-    items = InStoreOrderItemSerializer(many=True, read_only=True)
+    # CRITICAL CHANGE 1: Convert 'items' to SerializerMethodField (already correct)
+    items = serializers.SerializerMethodField() 
+    
     staff_name = serializers.CharField(source='staff.name', read_only=True)
-    # **THIS IS THE NEW FIELD
     cashier_name = serializers.CharField(source='cashier.name', read_only=True)
-    # --9/29/25-- ADDED
     has_prescription_required_item = serializers.BooleanField(read_only=True)
+
+    # CRITICAL CHANGE 2: Override the total fields to read the CALCULATED annotations
+    # Reads the total before discount from the view's 'recalculated_subtotal' annotation
+    total_amount_before_discount = serializers.DecimalField(
+        source='recalculated_subtotal',  
+        max_digits=10, 
+        decimal_places=2,
+        read_only=True
+    )
+    
+    # Reads the final total after discount from the view's 'recalculated_discounted_total' annotation
+    total_amount_after_discount = serializers.DecimalField(
+        source='recalculated_discounted_total', 
+        max_digits=10, 
+        decimal_places=2,
+        read_only=True
+    )
+
 
     class Meta:
         model = InStoreOrder
-        # **ADD 'cashier_name' to the fields list**
-        # --9/29/25 ADDED 'has_prescription_required_item'
+        # The field names remain the same, but the source has changed above
         fields = ['id', 'staff_name', 'cashier_name', 'is_pwd', 'total_amount_before_discount', 'total_amount_after_discount', 'items', 'has_prescription_required_item']
+
+    # CRITICAL CHANGE 3: Implement the method to use the pre-fetched, filtered items (already correct)
+    def get_items(self, obj):
+        """
+        Uses the pre-fetched and pre-filtered list of valid order items 
+        created in the InStoreOrderProcessingView's get method (to_attr='filtered_items').
+        """
+        # Retrieve the list stored by the Prefetch object in the view
+        valid_items = getattr(obj, 'filtered_items', None)
+        
+        # Fallback to the default manager if the prefetch failed, but filter it manually
+        if valid_items is None:
+            valid_items = obj.items.filter(inventory_id__isnull=False)
+
+        # Serialize the filtered list of items
+        # NOTE: Ensure InStoreOrderItemSerializer is correctly imported/defined.
+        return InStoreOrderItemSerializer(valid_items, many=True).data
 
 
 

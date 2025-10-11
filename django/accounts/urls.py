@@ -86,6 +86,7 @@ urlpatterns = [
     #pending order
     path('sales/pending-orders/', views.InStoreOrderProcessingView.as_view(), name='pending-orders'),
     path('sales/pending-orders/<int:order_id>/', views.InStoreOrderProcessingView.as_view(), name='process-pending-order'),
+    path('sales/order-items/<int:item_id>/', views.InStoreOrderItemDeleteView.as_view(), name='delete-order-item'),
     
     # Order Logs
     path('order-logs/', OrderLogsListView.as_view(), name='order-logs'),
