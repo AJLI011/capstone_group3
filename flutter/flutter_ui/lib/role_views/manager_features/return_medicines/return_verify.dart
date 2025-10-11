@@ -13,6 +13,7 @@ const String _baseUrl = 'http://192.168.0.104:8000/api';
 
 // --------------------------------------------------------------------------
 // Data Model for Returned Item (Item in a Transaction)
+// UPDATED: Added fallback logic for medicineName using medicine_name_snapshot
 // --------------------------------------------------------------------------
 class ReturnedItem {
   final int id;
@@ -44,19 +45,25 @@ class ReturnedItem {
   }
 
   factory ReturnedItem.fromJson(Map<String, dynamic> json) {
+    // CRITICAL CHANGE 1: Use medicine_name_snapshot as a fallback for medicineName
+    final String resolvedMedicineName = (json['medicine_name'] as String?) ??
+                                        (json['medicine_name_snapshot'] as String?) ??
+                                        'Unknown Medicine';
+
     return ReturnedItem(
       id: json['id'] as int,
-      medicineName: json['medicine_name'] ?? 'Unknown Medicine',
+      medicineName: resolvedMedicineName,
       batchNum: json['batch_num'] ?? 'N/A',
       quantity: json['quantity'] ?? 0,
       expDate: json['exp_date'] ?? 'N/A', 
-      supplierName: json['supplier_name'] ?? 'N/A',
+      supplierName: json['supplier_name'] ?? 'N/A', // Assuming supplier name is directly available or null/N/A
     );
   }
 }
 
 // --------------------------------------------------------------------------
 // Data Model for a Pending Transaction (Item in the List)
+// UPDATED: Added fallback logic for staffName using staff_name_snapshot
 // --------------------------------------------------------------------------
 class PendingTransaction {
   final int id;
@@ -70,9 +77,14 @@ class PendingTransaction {
   });
 
   factory PendingTransaction.fromJson(Map<String, dynamic> json) {
+    // CRITICAL CHANGE 2: Use staff_name_snapshot as a fallback for staffName
+    final String resolvedStaffName = (json['staff_name'] as String?) ??
+                                     (json['staff_name_snapshot'] as String?) ??
+                                     'Unknown Staff';
+
     return PendingTransaction(
       id: json['id'] as int,
-      staffName: json['staff_name'] ?? 'Unknown Staff',
+      staffName: resolvedStaffName,
       returnedAt: json['returned_at'] ?? 'N/A',
     );
   }
@@ -340,6 +352,7 @@ class _ReturnVerificationPageState extends State<ReturnVerificationPage> {
                 final txn = _pendingTransactions[index];
                 return ListTile(
                   leading: const Icon(Icons.pending_actions, color: Colors.orange),
+                  // txn.staffName now safely contains snapshot data if needed
                   title: Text('Transaction ID: ${txn.id} - ${txn.staffName}'),
                   subtitle: Text('Returned At: ${txn.returnedAt}'),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
@@ -385,6 +398,7 @@ class _ReturnVerificationPageState extends State<ReturnVerificationPage> {
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           Text(
+            // _selectedTransaction!.staffName now safely contains snapshot data if needed
             'Staff: ${_selectedTransaction!.staffName} | Date: ${_selectedTransaction!.returnedAt}',
             style: const TextStyle(fontSize: 14, color: Colors.grey),
           ),
@@ -409,7 +423,8 @@ class _ReturnVerificationPageState extends State<ReturnVerificationPage> {
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
                             leading: Text('${item.quantity}x', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            title: Text(item.medicineName),
+                            // item.medicineName now safely contains snapshot data if needed
+                            title: Text(item.medicineName), 
                             subtitle: Text('Batch: ${item.batchNum} | Exp: ${item.expDate}'),
                           ),
                         );

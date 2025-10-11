@@ -1,7 +1,9 @@
+// staff_view.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_ui/services/responsive_scale.dart'; // <--- 1. IMPORT SCALING UTILITY
 
 import '../login_function/login_customer.dart';
 import 'staff_features/edit_profile/edit_staff_profile.dart';
@@ -28,7 +30,7 @@ class StaffView extends StatefulWidget {
 }
 
 class _StaffViewState extends State<StaffView>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, ResponsiveScale { // <--- 2. MIX IN ResponsiveScale
   late AnimationController _ctrl;
   bool _isMenuOpen = false;
   String? staffName;
@@ -203,6 +205,8 @@ class _StaffViewState extends State<StaffView>
 
   @override
   Widget build(BuildContext context) {
+    // --- 3. GET THE SCALE FACTOR ---
+    final scale = getScaleFactor(context);
     final screenW = MediaQuery.of(context).size.width;
 
     return WillPopScope(
@@ -218,13 +222,14 @@ class _StaffViewState extends State<StaffView>
           children: [
             Scaffold(
               appBar: AppBar(
-                title: const Text('Staff Dashboard'),
+                title: Text('Staff Dashboard',
+                    style: TextStyle(fontSize: 20 * scale)), // SCALED
                 backgroundColor: const Color(0xFF5C7C9A),
                 foregroundColor: Colors.white,
                 automaticallyImplyLeading: false,
                 actions: [
                   IconButton(
-                    icon: const Icon(Icons.menu),
+                    icon: Icon(Icons.menu, size: 24 * scale), // SCALED
                     onPressed: _toggleMenu,
                   ),
                 ],
@@ -232,28 +237,28 @@ class _StaffViewState extends State<StaffView>
               body: isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.all(16 * scale), // SCALED
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Hello, ${staffName ?? 'Staff'}!',
-                            style: const TextStyle(
-                              fontSize: 24,
+                            style: TextStyle(
+                              fontSize: 24 * scale, // SCALED
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF5C7C9A),
+                              color: const Color(0xFF5C7C9A),
                             ),
                           ),
-                          const SizedBox(height: 30),
-                          _buildSummaryCards(),
-                          const SizedBox(height: 30),
-                          _buildSectionTitle('Medicine Status'),
-                          const SizedBox(height: 20),
-                          _buildExpirationIndicators(),
-                          const SizedBox(height: 30),
-                          _buildSectionTitle('Quick Actions'),
-                          const SizedBox(height: 20),
-                          _buildQuickActions(),
+                          SizedBox(height: 30 * scale), // SCALED
+                          _buildSummaryCards(scale), // PASS SCALE
+                          SizedBox(height: 30 * scale), // SCALED
+                          _buildSectionTitle('Medicine Status', scale), // PASS SCALE
+                          SizedBox(height: 20 * scale), // SCALED
+                          _buildExpirationIndicators(scale), // PASS SCALE
+                          SizedBox(height: 30 * scale), // SCALED
+                          _buildSectionTitle('Quick Actions', scale), // PASS SCALE
+                          SizedBox(height: 20 * scale), // SCALED
+                          _buildQuickActions(scale), // PASS SCALE
                         ],
                       ),
                     ),
@@ -264,7 +269,7 @@ class _StaffViewState extends State<StaffView>
                 final dx = (-screenW) + (_ctrl.value * screenW);
                 return Transform.translate(
                   offset: Offset(dx, 0),
-                  child: _buildSideMenu(),
+                  child: _buildSideMenu(scale), // PASS SCALE
                 );
               },
             ),
@@ -274,7 +279,8 @@ class _StaffViewState extends State<StaffView>
     );
   }
 
-  Widget _buildSideMenu() {
+  // --- MODIFIED TO ACCEPT SCALE ---
+  Widget _buildSideMenu(double scale) {
     final screenW = MediaQuery.of(context).size.width;
 
     return SizedBox(
@@ -291,26 +297,27 @@ class _StaffViewState extends State<StaffView>
                   // Profile Section
                   Container(
                     color: const Color(0xFF5C7C9A),
-                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                    padding: EdgeInsets.symmetric(vertical: 40 * scale, horizontal: 20 * scale), // SCALED
                     child: Column(
                       children: [
-                        const CircleAvatar(
-                          radius: 40,
+                        CircleAvatar(
+                          radius: 40 * scale, // SCALED
                           backgroundColor: Colors.white,
-                          child: Icon(Icons.person, size: 50, color: Color(0xFF5C7C9A)),
+                          child: Icon(Icons.person, size: 50 * scale, color: const Color(0xFF5C7C9A)), // SCALED
                         ),
-                        const SizedBox(height: 10),
+                        SizedBox(height: 10 * scale), // SCALED
                         Text(
                           staffName ?? 'Staff Name',
-                          style: const TextStyle(
-                            fontSize: 20,
+                          style: TextStyle(
+                            fontSize: 20 * scale, // SCALED
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
                         Text(
                           staffEmail ?? 'staff@email.com',
-                          style: const TextStyle(
+                          style: TextStyle(
+                            fontSize: 14 * scale, // SCALED
                             color: Colors.white70,
                           ),
                         ),
@@ -322,47 +329,48 @@ class _StaffViewState extends State<StaffView>
                     child: ListView(
                       padding: EdgeInsets.zero,
                       children: [
-                        _drawerItem(Icons.inventory_outlined, 'Inventory',
+                        _drawerItem(Icons.inventory_outlined, 'Inventory', scale, // PASS SCALE
                             () => _open(const InventoryGridScreen())),
                         _drawerItem(
                             Icons.sell,
-                            'Sale',
+                            'Sale', scale, // PASS SCALE
                             () => _open(SalesBarcodeScreen(
                                 staffId: widget.staffId,
                                 cartItems: const []))),
                         _drawerItem(
                             Icons.mobile_friendly,
-                            'Online Orders',
+                            'Online Orders', scale, // PASS SCALE
                             () => _open(const StaffOrdersPage())),
                         _drawerItem(
                             Icons.priority_high,
-                            'Expiry',
+                            'Expiry', scale, // PASS SCALE
                             () => _open(const ExpiryDashboardStaffView())),
                         _drawerItem(
                             Icons.receipt_long,
-                            'Prescriptions',
+                            'Prescriptions', scale, // PASS SCALE
                             () => _open(const PrescriptionsStaff())),
-                        _drawerItem(Icons.person_outline, 'Edit Profile',
+                        _drawerItem(Icons.person_outline, 'Edit Profile', scale, // PASS SCALE
                             () => _open(EditStaffProfilePage(staffId: widget.staffId))),
-                        _drawerItem(Icons.vpn_key, 'Change Password',
+                        _drawerItem(Icons.vpn_key, 'Change Password', scale, // PASS SCALE
                             () => _open(ChangeStaffPasswordPage(staffId: widget.staffId))),
                       ],
                     ),
                   ),
                   // Logout Button
                   Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(16 * scale), // SCALED
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF5C7C9A),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: EdgeInsets.symmetric(vertical: 12 * scale), // SCALED
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(8 * scale), // SCALED
                         ),
                       ),
                       onPressed: _confirmLogout,
-                      child: const Text('Logout'),
+                      child: Text('Logout',
+                          style: TextStyle(fontSize: 16 * scale)), // SCALED
                     ),
                   ),
                 ],
@@ -371,7 +379,8 @@ class _StaffViewState extends State<StaffView>
     );
   }
 
-  Widget _buildSummaryCards() {
+  // --- MODIFIED TO ACCEPT SCALE ---
+  Widget _buildSummaryCards(double scale) {
     return Column(
       children: [
         _buildSummaryCard(
@@ -380,24 +389,28 @@ class _StaffViewState extends State<StaffView>
           icon: Icons.medication_liquid_outlined,
           color: const Color(0xFF5C7C9A),
           textColor: Colors.white,
+          scale: scale, // PASS SCALE
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16 * scale), // SCALED
         _buildSummaryCard(
           title: 'Total Earnings',
           value: '₱${totalEarnings.toStringAsFixed(2)}',
           icon: Icons.attach_money_outlined,
           color: Colors.green.shade700,
           textColor: Colors.white,
+          scale: scale, // PASS SCALE
         ),
       ],
     );
   }
 
+  // --- MODIFIED TO ACCEPT SCALE ---
   Widget _buildSummaryCard({
     required String title,
     required String value,
     required IconData icon,
     required Color color,
+    required double scale, // ADDED SCALE
     Color textColor = Colors.black,
   }) {
     return SizedBox(
@@ -405,9 +418,9 @@ class _StaffViewState extends State<StaffView>
       child: Card(
         color: color,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * scale)), // SCALED
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(16.0 * scale), // SCALED
           child: Row(
             children: [
               Expanded(
@@ -417,16 +430,16 @@ class _StaffViewState extends State<StaffView>
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 14 * scale, // SCALED
                         fontWeight: FontWeight.w600,
                         color: textColor,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4 * scale), // SCALED
                     Text(
                       value,
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 24 * scale, // SCALED
                         fontWeight: FontWeight.bold,
                         color: textColor,
                       ),
@@ -434,7 +447,7 @@ class _StaffViewState extends State<StaffView>
                   ],
                 ),
               ),
-              Icon(icon, size: 50, color: textColor),
+              Icon(icon, size: 50 * scale, color: textColor), // SCALED
             ],
           ),
         ),
@@ -442,46 +455,47 @@ class _StaffViewState extends State<StaffView>
     );
   }
 
-  Widget _buildExpirationIndicators() {
+  // --- MODIFIED TO ACCEPT SCALE ---
+  Widget _buildExpirationIndicators(double scale) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _buildIndicator(
-            Icons.check_circle_outline, 'Good Stock', goodStockCount, Colors.green),
-        _buildIndicator(Icons.warning_amber_outlined, 'Expiring Soon',
-            expiringSoonCount, Colors.orange),
-        _buildIndicator(
-            Icons.error_outline, 'Expired', expiredCount, Colors.red),
+        _buildIndicator(Icons.check_circle_outline, 'Good Stock', goodStockCount, Colors.green, scale), // PASS SCALE
+        SizedBox(width: 8 * scale), // SCALED
+        _buildIndicator(Icons.warning_amber_outlined, 'Expiring Soon', expiringSoonCount, Colors.orange, scale), // PASS SCALE
+        SizedBox(width: 8 * scale), // SCALED
+        _buildIndicator(Icons.error_outline, 'Expired', expiredCount, Colors.red, scale), // PASS SCALE
       ],
     );
   }
 
-  Widget _buildIndicator(IconData icon, String title, int count, Color color) {
+  // --- MODIFIED TO ACCEPT SCALE ---
+  Widget _buildIndicator(IconData icon, String title, int count, Color color, double scale) {
     return Expanded(
       child: Card(
         color: color,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * scale)), // SCALED
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(12.0 * scale), // SCALED
           child: Column(
             children: [
-              Icon(icon, size: 35, color: Colors.white),
-              const SizedBox(height: 4),
+              Icon(icon, size: 35 * scale, color: Colors.white), // SCALED
+              SizedBox(height: 4 * scale), // SCALED
               Text(
                 count.toString(),
-                style: const TextStyle(
-                  fontSize: 22,
+                style: TextStyle(
+                  fontSize: 22 * scale, // SCALED
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4 * scale), // SCALED
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 12,
+                style: TextStyle(
+                  fontSize: 12 * scale, // SCALED
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
@@ -493,23 +507,25 @@ class _StaffViewState extends State<StaffView>
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  // --- MODIFIED TO ACCEPT SCALE ---
+  Widget _buildSectionTitle(String title, double scale) {
     return Text(
       title,
-      style: const TextStyle(
-        fontSize: 18,
+      style: TextStyle(
+        fontSize: 18 * scale, // SCALED
         fontWeight: FontWeight.bold,
-        color: Color(0xFF5C7C9A),
+        color: const Color(0xFF5C7C9A),
       ),
     );
   }
 
-  Widget _buildQuickActions() {
+  // --- MODIFIED TO ACCEPT SCALE ---
+  Widget _buildQuickActions(double scale) {
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 4 * scale, // SCALED
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16 * scale)), // SCALED
       child: Padding(
-        padding: const EdgeInsets.all(20.0), // Increased vertical padding
+        padding: EdgeInsets.all(20.0 * scale), // SCALED
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -518,11 +534,13 @@ class _StaffViewState extends State<StaffView>
               label: 'Sale',
               onTap: () => _open(
                   SalesBarcodeScreen(staffId: widget.staffId, cartItems: const [])),
+              scale: scale, // PASS SCALE
             ),
             _buildActionButton(
               icon: Icons.inventory_outlined,
               label: 'Inventory',
               onTap: () => _open(const InventoryGridScreen()),
+              scale: scale, // PASS SCALE
             ),
           ],
         ),
@@ -530,58 +548,61 @@ class _StaffViewState extends State<StaffView>
     );
   }
 
+  // --- MODIFIED TO ACCEPT SCALE ---
   Widget _buildActionButton({
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    required double scale, // ADDED SCALE
   }) {
     return Column(
       children: [
         InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(12 * scale), // SCALED
           child: Container(
-            padding: const EdgeInsets.all(20), // Increased padding
+            padding: EdgeInsets.all(20 * scale), // SCALED
             decoration: BoxDecoration(
               color: const Color(0xFF1E3A5F),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(12 * scale), // SCALED
               boxShadow: [
                 BoxShadow(
                   color: Colors.grey.withOpacity(0.2),
-                  spreadRadius: 2,
-                  blurRadius: 5,
-                  offset: const Offset(0, 3),
+                  spreadRadius: 2 * scale, // SCALED
+                  blurRadius: 5 * scale, // SCALED
+                  offset: Offset(0, 3 * scale), // SCALED
                 ),
               ],
             ),
-            child: Icon(icon, size: 50, color: Colors.white), // Increased icon size
+            child: Icon(icon, size: 50 * scale, color: Colors.white), // SCALED
           ),
         ),
-        const SizedBox(height: 12), // Increased vertical spacing
+        SizedBox(height: 12 * scale), // SCALED
         Text(
           label,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14 * scale), // SCALED
         ),
       ],
     );
   }
 
-  Widget _drawerItem(IconData icon, String title, VoidCallback onTap) {
+  // --- MODIFIED TO ACCEPT SCALE ---
+  Widget _drawerItem(IconData icon, String title, double scale, VoidCallback onTap) { // ADDED SCALE
     return Column(
       children: [
         ListTile(
-          leading: Icon(icon, color: Colors.blueGrey.shade700),
+          leading: Icon(icon, color: Colors.blueGrey.shade700, size: 24 * scale), // SCALED
           title: Text(
             title,
             style: TextStyle(
               color: Colors.blueGrey.shade700,
-              fontSize: 16,
+              fontSize: 16 * scale, // SCALED
             ),
           ),
           onTap: onTap,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          contentPadding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale), // SCALED
         ),
-        const Divider(height: 1, color: Colors.black12),
+        Divider(height: 1 * scale, color: Colors.black12), // SCALED
       ],
     );
   }
@@ -592,14 +613,23 @@ class PlaceholderPage extends StatelessWidget {
 
   const PlaceholderPage({super.key, required this.title});
 
+  // ADDED getScaleFactor for the PlaceholderPage as it's a StatelessWidget
+  double getScaleFactor(BuildContext context) {
+    const double baseWidth = 411; // Standard phone width (e.g., Pixel 3/4)
+    final double screenWidth = MediaQuery.of(context).size.width;
+    // Calculate the scale factor relative to the base width
+    return screenWidth / baseWidth;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final scale = getScaleFactor(context); // ADDED
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
       ),
       body: Center(
-        child: Text('This is the $title page.'),
+        child: Text('This is the $title page.', style: TextStyle(fontSize: 16 * scale)), // SCALED
       ),
     );
   }

@@ -216,8 +216,8 @@ class InStoreOrder(models.Model):
     )
     staff = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True)
     cashier = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_orders')
-    #date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    date_created = models.DateTimeField()
+    date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    #date_created = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     is_pwd = models.BooleanField(default=False)
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -302,8 +302,8 @@ class OrderLog(models.Model):
     action_type = models.CharField(max_length=20, choices=ACTION_CHOICES)
     description = models.TextField(blank=True, null=True)
     
-    #timestamp = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    timestamp = models.DateTimeField()
+    timestamp = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    #timestamp = models.DateTimeField()
     class Meta:
         db_table = 'order_logs'
         ordering = ['-timestamp']
@@ -328,8 +328,8 @@ class OnlineOrder(models.Model):
         ('cancelled', 'Cancelled'),
     ]
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    #date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    date_created = models.DateTimeField()
+    date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    #date_created = models.DateTimeField()
     status = models.CharField(max_length=20, choices=ORDER_STATUS, default='pending')
     is_pwd = models.BooleanField(default=False)
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -501,6 +501,7 @@ class StaffFCMToken(models.Model):
         return f"{self.staff.name} - {self.token}"
     
 #--------------------10/10/2025--------------------------- fixing return medicine
+# --- ReturnTransaction Model (With Staff Snapshot Logic) ---
 class ReturnTransaction(models.Model):
     class Meta:
         db_table = 'return_transactions_tbl'
@@ -512,7 +513,15 @@ class ReturnTransaction(models.Model):
         ('REJECTED', 'Verification Rejected'),
     ]
 
-    staff = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, related_name='return_transactions')
+    staff = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, related_name='return_transactions')
+    # Snapshot field for the staff's name
+    staff_name_snapshot = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True,
+        # This holds the staff name in case the original staff user is deleted
+    )
+    
     returned_at = models.DateTimeField(auto_now_add=True)
     verification_status = models.CharField(
         max_length=20, 
@@ -521,35 +530,101 @@ class ReturnTransaction(models.Model):
     )
     notes = models.TextField(blank=True, null=True)
 
+    def save(self, *args, **kwargs):
+        """Populate the staff name snapshot before saving."""
+        # Only set the snapshot if the FK is present AND the snapshot hasn't been set yet
+        if self.staff and not self.staff_name_snapshot:
+            # Assuming Staff model has a 'name' attribute
+            self.staff_name_snapshot = self.staff.name 
+            
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"Return Txn {self.pk} by {self.staff.name if self.staff else 'N/A'}"
+        # Use the snapshot if the staff FK is null
+        staff_display = self.staff_name_snapshot 
+        if self.staff:
+            staff_display = self.staff.name # Prioritize the live FK data if available
+        elif not staff_display:
+            staff_display = 'N/A' # Fallback if both are missing
+            
+        return f"Return Txn {self.pk} by {staff_display}"
 
-
+# --- ReturnedMedicine Model (With Medicine Name Retention and Snapshot Logic) ---
 class ReturnedMedicine(models.Model):
     class Meta:
         db_table = 'returned_medicines_tbl'
 
     return_transaction = models.ForeignKey(
-        ReturnTransaction, 
+        'ReturnTransaction', 
         on_delete=models.CASCADE, 
         related_name='returned_items',
         null=True,  
         blank=True  
     )
     
-    medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE)
+    # CRITICAL FIX: Changed on_delete to SET_NULL to retain the historical 
+    # record even if the Medicine object is deleted.
+    medicine = models.ForeignKey(
+        'Medicine', 
+        on_delete=models.SET_NULL, 
+        null=True # Required for SET_NULL
+    )
+    
+    # Snapshot field for the medicine's name
+    medicine_name_snapshot = models.CharField(max_length=255, blank=True, null=True) 
+    
+    # NEW SNAPSHOT FIELDS ADDED:
+    generic_name_snapshot = models.CharField(max_length=255, blank=True, null=True) # Captures Medicine.generic_name
+    supplier_name_snapshot = models.CharField(max_length=255, blank=True, null=True) # Captures Medicine.supplier.name
+    
+    # Existing fields that hold core data
     online_order_item = models.ForeignKey('OnlineOrderItem', on_delete=models.SET_NULL, null=True, blank=True)
     batch_num = models.CharField(max_length=100)
     exp_date = models.DateField()
     quantity = models.IntegerField(default=0)
     returned_at = models.DateTimeField(auto_now_add=True)
 
+    def save(self, *args, **kwargs):
+        """Populate all relevant snapshots before saving."""
+        if self.medicine:
+            
+            # 1. Snapshot the Medicine's own fields
+            if not self.medicine_name_snapshot:
+                self.medicine_name_snapshot = self.medicine.name
+            if not self.generic_name_snapshot:
+                # Assuming Medicine model has a 'generic_name' attribute
+                self.generic_name_snapshot = self.medicine.generic_name
+            
+            # 2. Snapshot the Supplier's name (traversing the FK)
+            if self.medicine.supplier and not self.supplier_name_snapshot:
+                # Assuming Supplier model has a 'name' attribute
+                self.supplier_name_snapshot = self.medicine.supplier.name
+            elif not self.supplier_name_snapshot:
+                 # Fallback if Medicine exists but its Supplier FK is missing/null
+                 self.supplier_name_snapshot = '[Supplier N/A]'
+
+        # Safety: If the medicine FK is somehow missing at save time, set a fallback
+        elif self.medicine_name_snapshot is None:
+             self.medicine_name_snapshot = '[Medicine Deleted]'
+             self.generic_name_snapshot = '[N/A]'
+             self.supplier_name_snapshot = '[N/A]'
+             
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        # We need to handle the case where return_transaction is null for old data
         tx_pk = self.return_transaction.pk if self.return_transaction else 'N/A'
-        return f"Item: {self.medicine.name} (Txn: {tx_pk})"
+        
+        # Prioritize live FK data, otherwise use the snapshot
+        medicine_display = self.medicine_name_snapshot
+        if self.medicine:
+            medicine_display = self.medicine.name 
+        elif not medicine_display:
+            medicine_display = 'N/A' 
+            
+        return f"Item: {medicine_display} (Txn: {tx_pk})"
+    
 
-
+# --- ReturnVerificationImage Model (No changes needed) ---
 class ReturnVerificationImage(models.Model):
     class Meta:
         db_table = 'return_verification_images_tbl'

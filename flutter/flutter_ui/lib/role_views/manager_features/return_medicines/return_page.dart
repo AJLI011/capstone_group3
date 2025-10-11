@@ -258,7 +258,7 @@ class _ExpiredMedicineListTabState extends State<ExpiredMedicineListTab> {
         // --- Single Delete Logic ---
         final singleId = inventoryIds.first;
         final String singleDeleteUrl =
-          '$_baseUrl/medicines/delete/$singleId/?staff_id=$staffId';
+            '$_baseUrl/medicines/delete/$singleId/?staff_id=$staffId';
 
         final response = await http.delete(Uri.parse(singleDeleteUrl));
 
@@ -274,7 +274,7 @@ class _ExpiredMedicineListTabState extends State<ExpiredMedicineListTab> {
       } else {
         // --- Batch Delete Logic ---
         const String batchDeleteUrl =
-          '$_baseUrl/medicines/batch_delete/';
+            '$_baseUrl/medicines/batch_delete/';
 
         final response = await http.delete(
           Uri.parse('$batchDeleteUrl?staff_id=$staffId'),
@@ -303,12 +303,14 @@ class _ExpiredMedicineListTabState extends State<ExpiredMedicineListTab> {
         });
 
         // 2. Show Success Message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Return successful! Transaction ID: $newTransactionId. Please proceed to verification.'),
-            duration: const Duration(seconds: 4),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Return successful! Transaction ID: $newTransactionId. Please proceed to verification.'),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
 
         // 3. Switch to the Verification Tab (Index 1)
         final tabController = DefaultTabController.of(context);
@@ -352,12 +354,12 @@ class _ExpiredMedicineListTabState extends State<ExpiredMedicineListTab> {
                   IconButton(
                     onPressed: _isLoading ? null : markSelectedAsReturned,
                     icon: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                        )
-                      : const Icon(Icons.delete_sweep_rounded),
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : const Icon(Icons.delete_sweep_rounded),
                     tooltip: 'Return Selected Items',
                   ),
                 ],
@@ -391,8 +393,8 @@ class _ExpiredMedicineListTabState extends State<ExpiredMedicineListTab> {
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: isSelected
-                              ? const Color.fromARGB(255, 255, 175, 175)
-                              : const Color.fromARGB(255, 255, 219, 219),
+                                ? const Color.fromARGB(255, 255, 175, 175)
+                                : const Color.fromARGB(255, 255, 219, 219),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
                               color: isSelected
@@ -457,7 +459,7 @@ class _ExpiredMedicineListTabState extends State<ExpiredMedicineListTab> {
                       );
                     },
                   ),
-              ),
+                ),
       // FloatingActionButton removed as planned.
     );
   }

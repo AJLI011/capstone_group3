@@ -923,7 +923,7 @@ class ExpiredView(generics.ListAPIView):
 
 
 
-#--------------------10/10/2025--------------------------- 
+#--------------------10/11/2025--------------------------- 
 def process_single_inventory_return(inventory_item, return_transaction):
     """
     Handles the logging, archiving (ReturnedMedicine), and deletion for a single
@@ -1081,7 +1081,7 @@ def delete_expired_medicines_batch(request):
     
     
 # ----------------------------------------------------------------------
-# 3. NEW ITEM-FETCHING VIEW (GET)
+# 3. NEW ITEM-FETCHING VIEW (GET) - UPDATED
 # ----------------------------------------------------------------------
 @api_view(['GET'])
 def get_returned_transaction_items(request, transaction_id):
@@ -1097,21 +1097,40 @@ def get_returned_transaction_items(request, transaction_id):
         returned_items = ReturnedMedicine.objects.filter(return_transaction=transaction_obj)
         
         # Manually serialize data for Flutter
-        data = [{
-            'id': item.pk,
-            'medicine_name': item.medicine.name,
-            'batch_num': item.batch_num,
-            'quantity': item.quantity,
-            'exp_date': item.exp_date.isoformat() if item.exp_date else None,
-        } for item in returned_items]
-        
+        data = []
+        for item in returned_items:
+            
+            # --- Medicine Name Fallback Logic ---
+            medicine_name_display = 'N/A'
+            generic_name_display = item.generic_name_snapshot or 'N/A' # Start with snapshot
+            supplier_name_display = item.supplier_name_snapshot or 'N/A' # Start with snapshot
+            
+            if item.medicine:
+                # 1. Prefer live FK data if available
+                medicine_name_display = item.medicine.name 
+                generic_name_display = item.medicine.generic_name
+                supplier_name_display = item.medicine.supplier.name if item.medicine.supplier else 'N/A'
+            elif item.medicine_name_snapshot:
+                # 2. Fallback to the primary name snapshot if the FK is gone
+                medicine_name_display = item.medicine_name_snapshot
+
+            data.append({
+                'id': item.pk,
+                'medicine_name': medicine_name_display, # Use the computed display name
+                'generic_name': generic_name_display,   # NEW FIELD
+                'supplier_name': supplier_name_display, # NEW FIELD
+                'batch_num': item.batch_num,
+                'quantity': item.quantity,
+                'exp_date': item.exp_date.isoformat() if item.exp_date else None,
+            })
+            
         return Response(data, status=status.HTTP_200_OK)
         
     except ReturnTransaction.DoesNotExist:
         return Response({"error": "Return Transaction ID not found."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+    
 
 # ----------------------------------------------------------------------
 # 4. IMAGE UPLOAD VIEW (POST)
@@ -1194,13 +1213,22 @@ def list_pending_returns(request):
         ).select_related('staff') # Optimize query by fetching related staff object
 
         # Manually serialize the data for the Flutter UI
-        data = [{
-            'id': txn.pk,
-            # Use 'staff.name' for the Staff object's name
-            'staff_name': txn.staff.name if txn.staff else 'System/Unknown Staff',
-            # Format the datetime object for a cleaner display on Flutter
-            'returned_at': txn.returned_at.strftime('%Y-%m-%d %H:%M:%S'),
-        } for txn in pending_transactions]
+        data = []
+        for txn in pending_transactions:
+            # === START CHANGE HERE: Staff Name Fallback ===
+            staff_name_display = 'N/A'
+            if txn.staff:
+                staff_name_display = txn.staff.name # 1. Prefer live FK
+            elif txn.staff_name_snapshot:
+                staff_name_display = txn.staff_name_snapshot # 2. Fallback to snapshot
+            # === END CHANGE HERE ===
+            
+            data.append({
+                'id': txn.pk,
+                'staff_name': staff_name_display, # Use the computed display name
+                # Format the datetime object for a cleaner display on Flutter
+                'returned_at': txn.returned_at.strftime('%Y-%m-%d %H:%M:%S'),
+            })
 
         return Response(data, status=status.HTTP_200_OK)
 
@@ -1211,7 +1239,7 @@ def list_pending_returns(request):
         )
 
 # ----------------------------------------------------------------------
-# 6. NEW ADMIN AUDIT VIEW (GET) - Fetch ALL transactions with ALL details
+# 6. NEW ADMIN AUDIT VIEW (GET) - Fetch ALL transactions with ALL details - UPDATED
 # ----------------------------------------------------------------------
 @api_view(['GET'])
 def list_all_return_transactions(request):
@@ -1222,28 +1250,54 @@ def list_all_return_transactions(request):
     """
     try:
         # Fetch all transactions and optimize with select_related/prefetch_related
-        all_transactions = ReturnTransaction.objects.all().order_by('-returned_at').select_related('staff').prefetch_related('returned_items__medicine', 'verification_images')
+        all_transactions = ReturnTransaction.objects.all().order_by('-returned_at').select_related('staff').prefetch_related('returned_items', 'verification_images')
 
         data = []
         for txn in all_transactions:
+            
+            # --- Staff Name Fallback ---
+            staff_name_display = 'N/A'
+            if txn.staff:
+                staff_name_display = txn.staff.name # 1. Prefer live FK
+            elif txn.staff_name:
+                staff_name_display = txn.staff_name # 2. Fallback to snapshot
+                
             # 1. Serialize Returned Medicine Items
             returned_items_data = []
             for item in txn.returned_items.all():
+                
+                # --- Medicine Details Fallback Logic ---
+                medicine_name_display = 'N/A'
+                generic_name_display = item.generic_name_snapshot or 'N/A' # Start with snapshot
+                supplier_name_display = item.supplier_name_snapshot or 'N/A' # Start with snapshot
+                
+                if item.medicine:
+                    # Prefer live FK data if available
+                    medicine_name_display = item.medicine.name 
+                    generic_name_display = item.medicine.generic_name
+                    supplier_name_display = item.medicine.supplier.name if item.medicine.supplier else 'N/A'
+                elif item.medicine_name_snapshot:
+                    # Fallback to the primary name snapshot
+                    medicine_name_display = item.medicine_name_snapshot
+                # ---------------------------------------
+                
                 returned_items_data.append({
                     'id': item.pk,
-                    # Access the nested Medicine object's name
-                    'medicine': {'name': item.medicine.name if item.medicine else 'N/A'}, 
+                    # Nesting is good for structured JSON output:
+                    'medicine': {
+                        'name': medicine_name_display, 
+                        'generic_name': generic_name_display,  # NEW FIELD
+                        'supplier_name': supplier_name_display, # NEW FIELD
+                    }, 
                     'batch_num': item.batch_num,
                     'quantity': item.quantity,
                     'exp_date': item.exp_date.isoformat() if item.exp_date else None,
                 })
                 
-            # 2. Serialize Verification Images
+            # 2. Serialize Verification Images (No changes here)
             verification_images_data = []
             for image in txn.verification_images.all():
-                # CRITICAL: Use the absolute URI for the image file
-                # You might need to adjust the request.build_absolute_uri part 
-                # based on how your MEDIA_URL is configured, but this is the standard way.
+                # NOTE: Ensure 'request' is available to build the absolute URI if needed
                 image_url = request.build_absolute_uri(image.image.url) 
                 
                 verification_images_data.append({
@@ -1254,7 +1308,8 @@ def list_all_return_transactions(request):
             # 3. Serialize the main Transaction
             data.append({
                 'id': txn.pk,
-                'staff': {'name': txn.staff.name if txn.staff else 'N/A'},
+                # Use the computed display name
+                'staff': {'name': staff_name_display},
                 'returned_at': txn.returned_at.isoformat(),
                 'verification_status': txn.verification_status,
                 'notes': txn.notes,
@@ -1269,7 +1324,6 @@ def list_all_return_transactions(request):
             {"error": f"An unexpected error occurred while fetching all returns: {str(e)}"}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
 
 
 

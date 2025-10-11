@@ -22,11 +22,14 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_ui/services/responsive_scale.dart'; 
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
   defaultValue: 'http://192.168.0.104:8000/',
 );
+
+
 
 class ManagerView extends StatefulWidget {
   final int staffId;
@@ -38,7 +41,7 @@ class ManagerView extends StatefulWidget {
 }
 
 class _ManagerViewState extends State<ManagerView>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, ResponsiveScale {
   late AnimationController _ctrl;
   bool _isMenuOpen = false;
   String? staffName;
@@ -193,13 +196,14 @@ class _ManagerViewState extends State<ManagerView>
     }
   }
 
-  Future<void> _confirmLogout() async {
+Future<void> _confirmLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (_) => AlertDialog( // Removed const to allow for scale if needed, but keeping it simple
         title: const Text('Confirm Logout'),
         content: const Text('Are you sure you want to logout?'),
         actions: [
+          // Use a function for TextButton - RESTORED
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
@@ -215,7 +219,7 @@ class _ManagerViewState extends State<ManagerView>
       _logout();
     }
   }
-
+  
   void _open(Widget page) async {
     _toggleMenu();
     await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
@@ -224,6 +228,8 @@ class _ManagerViewState extends State<ManagerView>
 
   @override
   Widget build(BuildContext context) {
+    // --- 1. GET THE SCALE FACTOR ---
+    final scale = getScaleFactor(context);
     final screenW = MediaQuery.of(context).size.width;
 
     return WillPopScope(
@@ -239,13 +245,14 @@ class _ManagerViewState extends State<ManagerView>
           children: [
             Scaffold(
               appBar: AppBar(
-                title: const Text('Manager Dashboard'),
+                title: Text('Manager Dashboard',
+                    style: TextStyle(fontSize: 20 * scale)), // SCALED
                 backgroundColor: const Color(0xFF5C7C9A),
                 foregroundColor: Colors.white,
                 automaticallyImplyLeading: false,
                 actions: [
                   IconButton(
-                    icon: const Icon(Icons.menu),
+                    icon: Icon(Icons.menu, size: 24 * scale), // SCALED
                     onPressed: _toggleMenu,
                   ),
                 ],
@@ -253,32 +260,33 @@ class _ManagerViewState extends State<ManagerView>
               body: isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.all(16 * scale), // SCALED
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Hello, ${staffName ?? 'Manager'}!',
-                            style: const TextStyle(
-                              fontSize: 24,
+                            style: TextStyle( // Removed const
+                              fontSize: 24 * scale, // SCALED
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF5C7C9A),
+                              color: const Color(0xFF5C7C9A),
                             ),
                           ),
-                          const SizedBox(height: 20),
-                          _buildSummaryCards(),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle('Medicine Status'),
-                          const SizedBox(height: 10),
-                          _buildExpirationIndicators(),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle('Low Stock Alert'),
-                          const SizedBox(height: 10),
-                          _buildLowStockList(),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle('Inventory Logs'),
-                          const SizedBox(height: 10),
-                          _buildInventoryLogsList(),
+                          SizedBox(height: 20 * scale), // SCALED
+                          // --- Pass scale to helper methods ---
+                          _buildSummaryCards(scale), 
+                          SizedBox(height: 20 * scale), // SCALED
+                          _buildSectionTitle('Medicine Status', scale), 
+                          SizedBox(height: 10 * scale), // SCALED
+                          _buildExpirationIndicators(scale),
+                          SizedBox(height: 20 * scale), // SCALED
+                          _buildSectionTitle('Low Stock Alert', scale),
+                          SizedBox(height: 10 * scale), // SCALED
+                          _buildLowStockList(scale),
+                          SizedBox(height: 20 * scale), // SCALED
+                          _buildSectionTitle('Inventory Logs', scale),
+                          SizedBox(height: 10 * scale), // SCALED
+                          _buildInventoryLogsList(scale),
                         ],
                       ),
                     ),
@@ -301,26 +309,27 @@ class _ManagerViewState extends State<ManagerView>
                           // Profile Section
                           Container(
                             color: const Color(0xFF5C7C9A),
-                            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                            padding: EdgeInsets.symmetric(vertical: 40 * scale, horizontal: 20 * scale), // SCALED
                             child: Column(
                               children: [
-                                const CircleAvatar(
-                                  radius: 40,
+                                CircleAvatar(
+                                  radius: 40 * scale, // SCALED
                                   backgroundColor: Colors.white,
-                                  child: Icon(Icons.person, size: 50, color: Color(0xFF5C7C9A)),
+                                  child: Icon(Icons.person, size: 50 * scale, color: const Color(0xFF5C7C9A)), // SCALED
                                 ),
-                                const SizedBox(height: 10),
+                                SizedBox(height: 10 * scale), // SCALED
                                 Text(
                                   staffName ?? 'Manager Name',
-                                  style: const TextStyle(
-                                    fontSize: 20,
+                                  style: TextStyle( // Removed const
+                                    fontSize: 20 * scale, // SCALED
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                   ),
                                 ),
                                 Text(
                                   staffEmail ?? 'manager.email@example.com',
-                                  style: const TextStyle(
+                                  style: TextStyle( // Removed const
+                                    fontSize: 14 * scale, // SCALED
                                     color: Colors.white70,
                                   ),
                                 ),
@@ -332,53 +341,55 @@ class _ManagerViewState extends State<ManagerView>
                             child: ListView(
                               padding: EdgeInsets.zero,
                               children: [
-                                _drawerItem(Icons.inventory_outlined, 'Inventory',
+                                // SCALED _drawerItem
+                                _drawerItem(Icons.inventory_outlined, 'Inventory', scale,
                                     () => _open(const InventoryGridScreen())),
-                                _drawerItem(Icons.shelves, 'Restock',
+                                _drawerItem(Icons.shelves, 'Restock', scale,
                                     () => _open(const RestockBarcodeScreen())),
-                                _drawerItem(Icons.store, 'In Store Sales Transaction',
+                                _drawerItem(Icons.store, 'In Store Sales Transaction', scale,
                                     () => _open(const InStoreTransactionPage())),
-                                _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction',
+                                _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction', scale,
                                     () => _open(const OnlineOrdersReportPage())),
-                                _drawerItem(Icons.priority_high, 'Expiry',
+                                _drawerItem(Icons.priority_high, 'Expiry', scale,
                                     () => _open(const ExpiryDashboardView())),
-                                _drawerItem(Icons.assignment_return, 'Return Medicines',
+                                _drawerItem(Icons.assignment_return, 'Return Medicines', scale,
                                     () => _open(const ReturnMedicinePage())),
-                                _drawerItem(Icons.local_offer, 'Promo Medicines',
+                                _drawerItem(Icons.local_offer, 'Promo Medicines', scale,
                                     () => _open(const PromoMedicinePage())),
-                                _drawerItem(Icons.analytics, 'Sales Report', // Using a new, general icon
+                                _drawerItem(Icons.analytics, 'Sales Report', scale, // Using a new, general icon
                                     () => _open(const CombinedSalesReportPage())), 
-                                _drawerItem(Icons.insights, 'Demand Forecast',
+                                _drawerItem(Icons.insights, 'Demand Forecast', scale,
                                     () => _open(const DemandForecastScreen())),
-                                _drawerItem(Icons.shopping_cart, 'Purchase Request',
+                                _drawerItem(Icons.shopping_cart, 'Purchase Request', scale,
                                     () => _open(const PurchaseRequestPage())),
-                                _drawerItem(Icons.list_alt, 'Medicine List',
+                                _drawerItem(Icons.list_alt, 'Medicine List', scale,
                                     () => _open(const MedicineListView())),
-                                _drawerItem(Icons.history, 'Inventory Logs',
+                                _drawerItem(Icons.history, 'Inventory Logs', scale,
                                     () => _open(const InventoryLogsPage())),
-                                _drawerItem(Icons.receipt_long, 'Order Logs',
+                                _drawerItem(Icons.receipt_long, 'Order Logs', scale,
                                     () => _open(const OrderLogsScreen())),
-                                _drawerItem(Icons.person_outline, 'Edit Profile',
+                                _drawerItem(Icons.person_outline, 'Edit Profile', scale,
                                     () => _open(EditManagerProfilePage(staffId: widget.staffId))),
-                                _drawerItem(Icons.vpn_key, 'Change Password',
+                                _drawerItem(Icons.vpn_key, 'Change Password', scale,
                                     () => _open(ChangeManagerPasswordPage(staffId: widget.staffId))),
                               ],
                             ),
                           ),
                           // Logout Button
                           Padding(
-                            padding: const EdgeInsets.all(16),
+                            padding: EdgeInsets.all(16 * scale), // SCALED
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF5C7C9A),
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding: EdgeInsets.symmetric(vertical: 12 * scale), // SCALED
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(8 * scale), // SCALED
                                 ),
                               ),
                               onPressed: _confirmLogout,
-                              child: const Text('Logout'),
+                              child: Text('Logout',
+                                  style: TextStyle(fontSize: 16 * scale)), // SCALED
                             ),
                           ),
                         ],
@@ -394,7 +405,8 @@ class _ManagerViewState extends State<ManagerView>
     );
   }
 
-  Widget _buildSummaryCards() {
+  // --- MODIFIED TO ACCEPT SCALE ---
+  Widget _buildSummaryCards(double scale) {
     return Column(
       children: [
         _buildSummaryCard(
@@ -403,24 +415,28 @@ class _ManagerViewState extends State<ManagerView>
           icon: Icons.medication_liquid_outlined,
           color: const Color(0xFF5C7C9A),
           textColor: Colors.white,
+          scale: scale, // PASS SCALE
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16 * scale), // SCALED
         _buildSummaryCard(
           title: 'Total Earnings',
           value: '₱${totalEarned.toStringAsFixed(2)}',
           icon: Icons.attach_money_outlined,
           color: Colors.green.shade700,
           textColor: Colors.white,
+          scale: scale, // PASS SCALE
         ),
       ],
     );
   }
 
+  // --- MODIFIED TO ACCEPT SCALE ---
   Widget _buildSummaryCard({
     required String title,
     required String value,
     required IconData icon,
     required Color color,
+    required double scale, // ADDED SCALE
     Color textColor = Colors.black,
   }) {
     return SizedBox(
@@ -428,9 +444,9 @@ class _ManagerViewState extends State<ManagerView>
       child: Card(
         color: color,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * scale)), // SCALED
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(16.0 * scale), // SCALED
           child: Row(
             children: [
               Expanded(
@@ -440,16 +456,16 @@ class _ManagerViewState extends State<ManagerView>
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 14 * scale, // SCALED
                         fontWeight: FontWeight.w600,
                         color: textColor,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4 * scale), // SCALED
                     Text(
                       value,
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 24 * scale, // SCALED
                         fontWeight: FontWeight.bold,
                         color: textColor,
                       ),
@@ -457,7 +473,7 @@ class _ManagerViewState extends State<ManagerView>
                   ],
                 ),
               ),
-              Icon(icon, size: 50, color: textColor),
+              Icon(icon, size: 50 * scale, color: textColor), // SCALED
             ],
           ),
         ),
@@ -465,43 +481,47 @@ class _ManagerViewState extends State<ManagerView>
     );
   }
 
-  Widget _buildExpirationIndicators() {
+  // --- MODIFIED TO ACCEPT SCALE ---
+  Widget _buildExpirationIndicators(double scale) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _buildIndicator(Icons.check_circle_outline, 'Good Stock', goodStockCount, Colors.green),
-        _buildIndicator(Icons.warning_amber_outlined, 'Expiring Soon', expiringSoonCount, Colors.orange),
-        _buildIndicator(Icons.error_outline, 'Expired', expiredCount, Colors.red),
+        _buildIndicator(Icons.check_circle_outline, 'Good Stock', goodStockCount, Colors.green, scale), // PASS SCALE
+        SizedBox(width: 8 * scale), // Added spacing and SCALED
+        _buildIndicator(Icons.warning_amber_outlined, 'Expiring Soon', expiringSoonCount, Colors.orange, scale), // PASS SCALE
+        SizedBox(width: 8 * scale), // Added spacing and SCALED
+        _buildIndicator(Icons.error_outline, 'Expired', expiredCount, Colors.red, scale), // PASS SCALE
       ],
     );
   }
 
-  Widget _buildIndicator(IconData icon, String title, int count, Color color) {
+  // --- MODIFIED TO ACCEPT SCALE ---
+  Widget _buildIndicator(IconData icon, String title, int count, Color color, double scale) {
     return Expanded(
       child: Card(
         color: color,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * scale)), // SCALED
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(12.0 * scale), // SCALED (reduced for smaller space)
           child: Column(
             children: [
-              Icon(icon, size: 35, color: Colors.white),
-              const SizedBox(height: 4),
+              Icon(icon, size: 35 * scale, color: Colors.white), // SCALED
+              SizedBox(height: 4 * scale), // SCALED
               Text(
                 count.toString(),
-                style: const TextStyle(
-                  fontSize: 22,
+                style: TextStyle( // Removed const
+                  fontSize: 22 * scale, // SCALED
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4 * scale), // SCALED
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 12,
+                style: TextStyle( // Removed const
+                  fontSize: 12 * scale, // SCALED
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
@@ -513,50 +533,54 @@ class _ManagerViewState extends State<ManagerView>
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  // --- MODIFIED TO ACCEPT SCALE ---
+  Widget _buildSectionTitle(String title, double scale) {
     return Text(
       title,
-      style: const TextStyle(
-        fontSize: 18,
+      style: TextStyle( // Removed const
+        fontSize: 18 * scale, // SCALED
         fontWeight: FontWeight.bold,
       ),
     );
   }
 
-  Widget _buildLowStockList() {
+  // --- MODIFIED TO ACCEPT SCALE ---
+  Widget _buildLowStockList(double scale) {
     if (lowStockItems.isEmpty) {
-      return const Text(
+      return Text(
         'No low stock items found.',
-        style: TextStyle(color: Colors.grey),
+        style: TextStyle(color: Colors.grey, fontSize: 14 * scale), // SCALED
       );
     }
     return SizedBox(
-      height: 200,
+      height: 200 * scale, // SCALED
       child: Container(
         decoration: BoxDecoration(
           color: Colors.red.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.red.shade400, width: 1.5),
+          borderRadius: BorderRadius.circular(12 * scale), // SCALED
+          border: Border.all(color: Colors.red.shade400, width: 1.5 * scale), // SCALED
         ),
-        padding: const EdgeInsets.all(8.0),
+        padding: EdgeInsets.all(8.0 * scale), // SCALED
         child: ListView.builder(
           itemCount: lowStockItems.length,
           itemBuilder: (context, index) {
             final item = lowStockItems[index];
             return Card(
-              elevation: 2,
-              margin: const EdgeInsets.only(bottom: 8),
+              elevation: 2 * scale, // SCALED
+              margin: EdgeInsets.only(bottom: 8 * scale), // SCALED
               child: ListTile(
-                leading: const Icon(Icons.warning_amber, color: Colors.orange),
-                title: Text(item['name']),
-                subtitle: Text('Generic: ${item['generic_name'] ?? 'N/A'}'),
+                leading: Icon(Icons.warning_amber, color: Colors.orange, size: 24 * scale), // SCALED
+                title: Text(item['name'], style: TextStyle(fontSize: 14 * scale)), // SCALED
+                subtitle: Text('Generic: ${item['generic_name'] ?? 'N/A'}', style: TextStyle(fontSize: 12 * scale)), // SCALED
                 trailing: Text(
                   'Qty: ${item['total_quantity']}',
-                  style: const TextStyle(
+                  style: TextStyle( // Removed const
                     fontWeight: FontWeight.bold,
                     color: Colors.red,
+                    fontSize: 14 * scale, // SCALED
                   ),
                 ),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 4 * scale), // SCALED
               ),
             );
           },
@@ -565,21 +589,22 @@ class _ManagerViewState extends State<ManagerView>
     );
   }
 
-  Widget _buildInventoryLogsList() {
+  // --- MODIFIED TO ACCEPT SCALE ---
+  Widget _buildInventoryLogsList(double scale) {
     if (inventoryLogs.isEmpty) {
-      return const Text('No recent logs.', style: TextStyle(color: Colors.grey));
+      return Text('No recent logs.', style: TextStyle(color: Colors.grey, fontSize: 14 * scale)); // SCALED
     }
 
     final latestLogs = inventoryLogs.length > 3 ? inventoryLogs.sublist(0, 3) : inventoryLogs;
 
     return SizedBox(
-      height: 200,
+      height: 200 * scale, // SCALED
       child: Container(
         decoration: BoxDecoration(
           color: const Color(0xFF5C7C9A),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(12 * scale), // SCALED
         ),
-        padding: const EdgeInsets.all(8.0),
+        padding: EdgeInsets.all(8.0 * scale), // SCALED
         child: SingleChildScrollView(
           child: Column(
             children: latestLogs.map((log) {
@@ -588,13 +613,14 @@ class _ManagerViewState extends State<ManagerView>
               final tz.TZDateTime manilaTimestamp = tz.TZDateTime.from(utcTimestamp, location);
 
               return Card(
-                elevation: 2,
-                margin: const EdgeInsets.only(bottom: 8),
+                elevation: 2 * scale, // SCALED
+                margin: EdgeInsets.only(bottom: 8 * scale), // SCALED
                 child: ListTile(
-                  leading: const Icon(Icons.history_outlined),
-                  title: Text('${log['action_type']} by ${log['user_name']}'),
-                  subtitle: Text(log['description']),
-                  trailing: Text(DateFormat('hh:mm a').format(manilaTimestamp)),
+                  leading: Icon(Icons.history_outlined, size: 24 * scale), // SCALED
+                  title: Text('${log['action_type']} by ${log['user_name']}', style: TextStyle(fontSize: 14 * scale)), // SCALED
+                  subtitle: Text(log['description'], style: TextStyle(fontSize: 12 * scale)), // SCALED
+                  trailing: Text(DateFormat('hh:mm a').format(manilaTimestamp), style: TextStyle(fontSize: 12 * scale)), // SCALED
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 4 * scale), // SCALED
                 ),
               );
             }).toList(),
@@ -604,22 +630,23 @@ class _ManagerViewState extends State<ManagerView>
     );
   }
 
-  Widget _drawerItem(IconData icon, String title, VoidCallback onTap) {
+  // --- MODIFIED TO ACCEPT SCALE ---
+  Widget _drawerItem(IconData icon, String title, double scale, VoidCallback onTap) {
     return Column(
       children: [
         ListTile(
-          leading: Icon(icon, color: Colors.blueGrey.shade700),
+          leading: Icon(icon, color: Colors.blueGrey.shade700, size: 24 * scale), // SCALED
           title: Text(
             title,
             style: TextStyle(
               color: Colors.blueGrey.shade700,
-              fontSize: 16,
+              fontSize: 16 * scale, // SCALED
             ),
           ),
           onTap: onTap,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          contentPadding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale), // SCALED
         ),
-        const Divider(height: 1, color: Colors.black12),
+        Divider(height: 1 * scale, color: Colors.black12), // SCALED
       ],
     );
   }

@@ -42,10 +42,15 @@ class ReturnedMedicine {
   factory ReturnedMedicine.fromJson(Map<String, dynamic> json) {
     // Access nested medicine name: "medicine": { "name": "..." }
     final medicineData = json['medicine'] as Map<String, dynamic>?; 
+    
+    // CRITICAL CHANGE 1: Use medicine_name_snapshot as fallback
+    final String resolvedMedicineName = (medicineData != null ? medicineData['name'] as String? : null) ??
+                                        (json['medicine_name_snapshot'] as String?) ?? // Fallback to snapshot
+                                        'N/A';
 
     return ReturnedMedicine(
       id: json['id'] as int,
-      medicineName: medicineData != null ? medicineData['name'] as String : 'N/A',
+      medicineName: resolvedMedicineName,
       batchNum: json['batch_num'] ?? 'N/A',
       expDate: json['exp_date'] ?? 'N/A',
       quantity: json['quantity'] ?? 0,
@@ -76,13 +81,18 @@ class ReturnTransaction {
     // Access nested staff name: "staff": { "name": "..." }
     final staffData = json['staff'] as Map<String, dynamic>?;
     
+    // CRITICAL CHANGE 2: Use staff_name_snapshot as fallback
+    final String resolvedStaffName = (staffData != null ? staffData['name'] as String? : null) ??
+                                     (json['staff_name_snapshot'] as String?) ?? // Fallback to snapshot
+                                     'N/A';
+    
     // Parse nested lists
     final itemsList = json['returned_items'] as List<dynamic>? ?? [];
     final imagesList = json['verification_images'] as List<dynamic>? ?? [];
 
     return ReturnTransaction(
       id: json['id'] as int,
-      staffName: staffData != null ? staffData['name'] as String : 'N/A',
+      staffName: resolvedStaffName,
       returnedAt: DateTime.parse(json['returned_at']),
       status: json['verification_status'] ?? 'PENDING',
       notes: json['notes'],
@@ -216,16 +226,16 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
                   ),
                 )
               : RefreshIndicator(
-                  onRefresh: _fetchTransactions,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(12.0),
-                    itemCount: _transactions.length,
-                    itemBuilder: (context, index) {
-                      final txn = _transactions[index];
-                      return _buildTransactionCard(txn);
-                    },
+                    onRefresh: _fetchTransactions,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(12.0),
+                      itemCount: _transactions.length,
+                      itemBuilder: (context, index) {
+                        final txn = _transactions[index];
+                        return _buildTransactionCard(txn);
+                      },
+                    ),
                   ),
-                ),
     );
   }
 
@@ -246,6 +256,7 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
         collapsedBackgroundColor: Colors.grey.shade50,
         backgroundColor: Colors.white,
         leading: Icon(statusIcon, color: statusColor, size: 30),
+        // txn.staffName now safely uses snapshot data if original staff is deleted
         title: Text(
           'Txn ID: ${txn.id} - ${txn.staffName}',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -334,6 +345,7 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // item.medicineName now safely uses snapshot data if original medicine is deleted
                       Text(item.medicineName, style: const TextStyle(fontWeight: FontWeight.w600)),
                       Text('Batch: ${item.batchNum} | Exp: ${item.expDate}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                     ],
