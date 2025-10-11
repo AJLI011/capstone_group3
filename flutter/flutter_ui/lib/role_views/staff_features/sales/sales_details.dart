@@ -4,13 +4,15 @@ import 'order_summary.dart';
 
 class SalesDetailsPage extends StatefulWidget {
   final List<dynamic> barcodeData;
-  final List<Map<String, dynamic>> cartItems;
+  // --- MODIFIED: Use the correct parameter name from BatchSelectionPage ---
+  final List<Map<String, dynamic>> existingCartItems; 
   final int? staffId;
 
   const SalesDetailsPage({
     super.key,
     required this.barcodeData,
-    this.cartItems = const [],
+    // --- MODIFIED: Use the correct parameter name ---
+    this.existingCartItems = const [], 
     this.staffId,
   });
 
@@ -28,12 +30,17 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
   void initState() {
     super.initState();
     if (widget.barcodeData.isNotEmpty) {
-      inventory = widget.barcodeData.first;
+      // NOTE: Using a simple .first here is safe because BatchSelectionPage 
+      // passed a List containing only the single selected batch.
+      inventory = widget.barcodeData.first; 
       final dynamic promoFlag = inventory['is_promo'];
       isPromo = promoFlag != null &&
           (promoFlag == true ||
               promoFlag.toString().toLowerCase() == 'true' ||
               promoFlag.toString() == '1');
+    } else {
+      // Initialize to an empty map if no data to prevent late error
+      inventory = {};
     }
   }
 
@@ -64,6 +71,7 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
     if (inventory.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No inventory data to process.')),
+        
       );
       return;
     }
@@ -95,24 +103,29 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
       return;
     }
 
-    // Now correctly read medicine_id directly from the API response
+    // Now correctly read medicine_id and inventory_id
     final int? medicineId = inventory['medicine_id'] as int?;
+    final int? inventoryId = inventory['id'] as int?; // Assuming 'id' is the inventory ID
 
-    if (medicineId == null) {
+    if (medicineId == null || inventoryId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: Medicine ID not found in API response.')),
+        const SnackBar(content: Text('Error: Medicine ID or Inventory ID not found in API response.')),
       );
       return;
     }
 
-    final updatedCart = List<Map<String, dynamic>>.from(widget.cartItems);
+    // 1. Create a mutable copy of the existing cart
+    final updatedCart = List<Map<String, dynamic>>.from(widget.existingCartItems);
 
+    // 2. Check if this specific batch/inventory item already exists in the cart
+    // It is safer to use inventory_id here because batches for the same medicine 
+    // might have different prices or promo flags.
     int existingItemIndex = updatedCart.indexWhere(
-      (item) => item['medicine_id'] == medicineId,
+      (item) => item['inventory_id'] == inventoryId,
     );
     
     final Map<String, dynamic> cartItemPayload = {
-      'inventory_id': inventory['id'],
+      'inventory_id': inventoryId,
       'medicine_id': medicineId,
       'name': inventory['name'],
       'quantity_sold': _quantitySold,
@@ -122,24 +135,31 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
     };
     
     if (existingItemIndex != -1) {
+      // If the exact batch/inventory is already in the cart, update quantities
       final existingItem = updatedCart[existingItemIndex];
       existingItem['quantity_sold'] = (existingItem['quantity_sold'] ?? 0) + _quantitySold;
       existingItem['free_quantity_given'] = (existingItem['free_quantity_given'] ?? 0) + _freeQuantity;
     } else {
+      // Add the new item to the cart
       updatedCart.add(cartItemPayload);
     }
 
-    Navigator.of(context).pushReplacement(
+    // --- CRITICAL FIX: Use push instead of pushReplacement ---
+    // This pushes the OrderSummaryPage onto the stack and allows the calling 
+    // page (OrderSummaryPage's 'Add' button) to receive the result.
+    Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => OrderSummaryPage(
-          cartItems: updatedCart,
+          cartItems: updatedCart, // Pass the complete, updated list
           staffId: widget.staffId,
         ),
       ),
     );
   }
 
+  // --- Widget helper methods (_readonlyField, _buildQuantityControl) remain unchanged ---
   Widget _readonlyField(String label, String value) {
+    // ... (unchanged)
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -156,6 +176,7 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
 
   Widget _buildQuantityControl(String label, int value, ValueChanged<int> onChanged,
       {bool enabled = true, required int limit}) {
+    // ... (unchanged)
     final Color buttonColor = enabled ? Colors.blue : Colors.grey.shade400;
     final Color textColor = enabled ? Colors.black87 : Colors.grey.shade600;
 
@@ -218,6 +239,7 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
         }
         final bool shouldPop = await _onWillPop();
         if (shouldPop) {
+          // If the user confirms 'Discard', pop this page and return nothing
           Navigator.of(context).pop();
         }
       },

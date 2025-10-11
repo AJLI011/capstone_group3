@@ -22,6 +22,7 @@ class OrderSummaryPage extends StatefulWidget {
 }
 
 class _OrderSummaryPageState extends State<OrderSummaryPage> {
+  // We use the local 'items' list to manage changes (add/remove)
   List<Map<String, dynamic>> items = [];
   String customerType = 'Regular';
   int? staffId;
@@ -29,7 +30,8 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
   @override
   void initState() {
     super.initState();
-    items = List.from(widget.cartItems);
+    // Initialize local list with items passed from the constructor
+    items = List.from(widget.cartItems); 
     _loadStaffId();
   }
 
@@ -64,7 +66,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     return getSubtotal() - getDiscount();
   }
 
-  // New method for item removal confirmation
   Future<void> _showRemoveConfirmationDialog(int index) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -124,7 +125,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
 
           return {
             'inventory_id': item['inventory_id'],
-            'medicine_id': item['medicine_id'], // This line was added
+            'medicine_id': item['medicine_id'], 
             'quantity_sold': item['quantity_sold'],
             'free_quantity_given': isPromo ? (item['free_quantity_given'] ?? 0) : 0,
           };
@@ -223,23 +224,35 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Order Summary'),
-          backgroundColor: const Color(0xFF5C7C9A), // Updated color
-          foregroundColor: Colors.white, // Updated color for font and icon
+          backgroundColor: const Color(0xFF5C7C9A), 
+          foregroundColor: Colors.white, 
         
           leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: _showBackConfirmationDialog),
           actions: [
             IconButton(
               icon: const Icon(Icons.add_shopping_cart_outlined),
-              onPressed: () {
-                Navigator.pushReplacement(
+              onPressed: () async {
+                // Use a single variable name (e.g., `updatedCart`) for the result.
+                final updatedCart = await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => SalesBarcodeScreen(
                       staffId: staffId,
-                      cartItems: items,
+                      // Pass the current list of items
+                      cartItems: items, 
                     ),
                   ),
                 );
+                
+                // Update the local state with the returned list if it's valid.
+                // This assumes your entire scanning flow (SalesBarcode -> BatchSelection -> SalesDetails)
+                // is refactored to use `Navigator.pop(context, updatedList)` to return the new list 
+                // all the way back to this screen.
+                if (updatedCart != null && updatedCart is List<Map<String, dynamic>>) {
+                  setState(() {
+                    items = updatedCart;
+                  });
+                }
               },
             ),
           ],

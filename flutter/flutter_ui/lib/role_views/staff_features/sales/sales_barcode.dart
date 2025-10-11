@@ -1,11 +1,16 @@
+// sales_barcode.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
+// NOTE: Make sure your pubspec.yaml version of mobile_scanner supports this API.
+// The MobileScanner.overlay property was removed in later versions.
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:http/http.dart' as http;
-// Assuming this is still used for context, but not directly in the navigation logic here
-import 'batch_selection.dart'; // Import the new BatchSelectionPage
+
+// Import the next screen in the flow
+import 'batch_selection.dart'; 
 
 class SalesBarcodeScreen extends StatefulWidget {
+  // Existing cart items are passed here
   final List<Map<String, dynamic>> cartItems;
   final int? staffId;
 
@@ -24,7 +29,7 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
   final MobileScannerController cameraController = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
     torchEnabled: false,
-    autoStart: true, // Default, but good to be explicit
+    autoStart: true,
   );
   
   bool _isTorchOn = false;
@@ -46,7 +51,6 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
     _isScanning = true;
 
     // Stop the camera feed immediately upon detection 
-    // to prevent continuous scanning during API call/navigation
     cameraController.stop(); 
 
     try {
@@ -63,11 +67,13 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
               builder: (_) => BatchSelectionPage(
                 batches: itemData,
                 staffId: widget.staffId,
+                // --- CRITICAL LINE FOR MULTI-ORDER SUPPORT ---
+                // Pass the current cart items to the next step
+                existingCartItems: widget.cartItems, 
               ),
             ),
-          ).then((_) {
-            // FIX: This .then() block runs when the user navigates back (pops) 
-            // from the BatchSelectionPage.
+          ).then((result) {
+            // This runs when BatchSelectionPage (or a subsequent page) is popped.
             if (mounted) {
               // Explicitly restart the camera
               cameraController.start(); 
@@ -78,24 +84,26 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
         } else {
           // No item found, inform user and restart scanner
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No item found for this barcode')),
+            const SnackBar(content: Text('No inventory/batches found for this barcode')),
           );
         }
       } else {
         // API call failed, inform user and restart scanner
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No item found for this barcode')),
+          SnackBar(content: Text('Failed to fetch item data: ${response.statusCode}')),
         );
       }
     } catch (e) {
       // General error (e.g., network issue), inform user and restart scanner
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Network Error: $e')));
     } 
     
     // If we reach this point, it means no navigation occurred (API fail, no data)
     // so we restart the camera and reset the scanning flag to allow a new scan attempt.
-    cameraController.start();
-    _isScanning = false;
+    if (mounted) {
+      cameraController.start();
+      _isScanning = false;
+    }
   }
 
   // 4. Build the UI
@@ -113,8 +121,11 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
               color: _isTorchOn ? Colors.yellow : Colors.grey,
             ),
             onPressed: () async {
-              await cameraController.toggleTorch();
-              setState(() => _isTorchOn = cameraController.torchEnabled);
+              // Ensure the controller is active before toggling torch
+              if (cameraController.value.isInitialized) {
+                await cameraController.toggleTorch();
+                setState(() => _isTorchOn = cameraController.torchEnabled);
+              }
             },
           ),
           IconButton(
@@ -124,23 +135,50 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
                   : Icons.camera_rear,
             ),
             onPressed: () async {
-              await cameraController.switchCamera();
-              setState(() {
-                _currentCameraFacing = cameraController.facing;
-              });
+              // Ensure the controller is active before switching camera
+              if (cameraController.value.isInitialized) {
+                await cameraController.switchCamera();
+                setState(() {
+                  _currentCameraFacing = cameraController.facing;
+                });
+              }
             },
           ),
         ],
       ),
-      body: MobileScanner(
-        controller: cameraController,
-        onDetect: (capture) {
-          final List<Barcode> barcodes = capture.barcodes;
-          if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
-            final String code = barcodes.first.rawValue!;
-            _onBarcodeDetected(code);
-          }
-        },
+      // --- FIX: Replace MobileScanner with overlay property with Stack ---
+      body: Stack(
+        children: [
+          MobileScanner(
+            controller: cameraController,
+            onDetect: (capture) {
+              final List<Barcode> barcodes = capture.barcodes;
+              if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
+                final String code = barcodes.first.rawValue!;
+                _onBarcodeDetected(code);
+              }
+            },
+          ),
+          // --- Custom Overlay Layer (Same visual effect as original overlay) ---
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: const EdgeInsets.all(48),
+          ),
+          // --- Text instruction overlay (Optional but helpful) ---
+          const Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: 50.0),
+              child: Text(
+                'Point the camera at the barcode',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

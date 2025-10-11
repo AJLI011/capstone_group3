@@ -1,26 +1,36 @@
+// batch_selection.dart
 import 'package:flutter/material.dart';
 import 'sales_details.dart'; // Make sure this path is correct
 
 class BatchSelectionPage extends StatelessWidget {
   final List<dynamic> batches;
   final int? staffId;
+  
+  // --- START OF REQUIRED ADDITIONS ---
+  final List<Map<String, dynamic>> existingCartItems; 
 
   const BatchSelectionPage({
     super.key,
     required this.batches,
     this.staffId,
+    // Add the new required parameter to the constructor
+    required this.existingCartItems, 
   });
+  // --- END OF REQUIRED ADDITIONS ---
 
   @override
   Widget build(BuildContext context) {
+    // Casting the List<dynamic> from the API response to List<Map<String, dynamic>> for safer access
+    final List<Map<String, dynamic>> castedBatches = batches.cast<Map<String, dynamic>>();
+
     // Find the FEFO batch (first in the list, assuming backend sorts by expiry)
-    final Map<String, dynamic>? fefoBatch = batches.cast<Map<String, dynamic>?>().firstWhere(
+    final Map<String, dynamic>? fefoBatch = castedBatches.cast<Map<String, dynamic>?>().firstWhere(
       (batch) => batch != null && (batch['is_promo'] == false || batch['is_promo'] == 0),
       orElse: () => null,
     );
     
     // Find a promo batch
-    final Map<String, dynamic>? promoBatch = batches.cast<Map<String, dynamic>?>().firstWhere(
+    final Map<String, dynamic>? promoBatch = castedBatches.cast<Map<String, dynamic>?>().firstWhere(
       (batch) => batch != null && (batch['is_promo'] == true || batch['is_promo'] == 1),
       orElse: () => null,
     );
@@ -89,6 +99,9 @@ class BatchSelectionPage extends StatelessWidget {
               builder: (context) => SalesDetailsPage(
                 barcodeData: [batch], // Pass the single, selected batch
                 staffId: staffId,
+                // --- CRITICAL ADDITION HERE ---
+                // Pass the existing cart items to SalesDetailsPage
+                existingCartItems: existingCartItems,
               ),
             ),
           );
