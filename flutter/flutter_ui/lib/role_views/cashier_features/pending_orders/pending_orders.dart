@@ -46,43 +46,6 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
       throw Exception('Failed to load pending orders');
     }
   }
-  
-  // =========================================================================
-  // NEW: ITEM DELETION LOGIC
-  // =========================================================================
-  Future<void> _deleteOrderItem(int itemId, int orderId) async {
-    _showProcessingDialog(message: "Removing item...");
-
-    final response = await http.delete(
-      Uri.parse('$_baseUrl/api/sales/order-items/$itemId/'),
-    );
-
-    if (!mounted) return;
-    Navigator.of(context).pop(); // Close processing dialog
-
-    if (response.statusCode == 204) {
-      // 204 No Content is the standard successful DELETE response
-      // We also need to close the order details dialog if it's open
-      Navigator.of(context).pop(); 
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Item removed from Order #$orderId. Order recalculated.'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      // Refresh the entire order list to get the recalculated totals
-      _refreshOrders();
-    } else {
-      // Error: Something went wrong with the request.
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to delete item $itemId: ${response.body}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
 
   // =========================================================================
   // ORDER PROCESSING LOGIC (Approve/Reject)
@@ -93,7 +56,7 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
       _showConfirmationDialog(orderId, status);
       return;
     }
-    
+
     // For 'approved', make the initial non-forced API call to trigger 202 check
     _showProcessingDialog(message: "Checking prescription...");
 
@@ -124,7 +87,7 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
       // Backend warning: A prescription is required.
       final Map<String, dynamic> body = json.decode(response.body);
       final bool hasImage = body['has_image'] ?? false;
-      
+
       if (hasImage) {
         const dialogTitle = 'Verify Prescription';
         const dialogContent = 'A prescription has been uploaded. Please verify the image before finalizing this order.';
@@ -181,7 +144,7 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
       );
     }
   }
-  
+
   // =========================================================================
   // DIALOGS
   // =========================================================================
@@ -222,7 +185,7 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
               onPressed: () {
                 Navigator.of(context).pop();
                 // Show final confirmation after the warning
-                _showConfirmationDialog(orderId, status, isForceApproval: true); 
+                _showConfirmationDialog(orderId, status, isForceApproval: true);
               },
             ),
           ],
@@ -258,7 +221,7 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
               onPressed: () {
                 Navigator.of(context).pop();
                 // Show final confirmation after image review
-                _showConfirmationDialog(orderId, status, isForceApproval: true); 
+                _showConfirmationDialog(orderId, status, isForceApproval: true);
               },
             ),
           ],
@@ -273,12 +236,12 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
       builder: (BuildContext context) {
         // Correct title and content based on status
         final dialogTitle = status == 'approved' ? 'Final Approve Order' : 'Reject Order';
-        final dialogContent = isForceApproval 
+        final dialogContent = isForceApproval
             ? 'WARNING: You are about to force-approve order #$orderId, overriding the prescription requirement. Confirm this action?'
             : 'Are you sure you want to ${status == 'approved' ? 'approve' : 'reject'} order #$orderId?';
-            
+
         final confirmText = status == 'approved' ? 'Confirm Approve' : 'Confirm Reject';
-            
+
         return AlertDialog(
           title: Text(dialogTitle),
           content: Text(dialogContent),
@@ -303,7 +266,7 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
   }
 
   // =========================================================================
-  // ORDER DETAILS DIALOG (Item-level actions, including delete)
+  // ORDER DETAILS DIALOG (Item-level display, no actions)
   // =========================================================================
   void _showOrderDetailsDialog(InStoreOrder order) {
     showDialog(
@@ -320,12 +283,11 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
                 if (order.isPwd) const Text('PWD Discount Applied', style: TextStyle(color: Colors.blue)),
                 const Divider(),
                 const Text('Items (Valid for fulfillment):', style: TextStyle(fontWeight: FontWeight.bold)),
-                // Show list of items with delete button
-                ...order.items.map((item) => _buildItemDetailRow(item, order)),
+                // Show list of items (NO DELETE BUTTON)
+                ...order.items.map((item) => _buildItemDetailRow(item)),
                 const Divider(),
                 _buildTotalsSection(order),
                 const SizedBox(height: 16),
-                const Text('Note: Invalid items are filtered out by the system.', style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12)),
               ],
             ),
           ),
@@ -342,8 +304,8 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
     );
   }
 
-  // Helper for the detail dialog to show individual item info with a delete button
-  Widget _buildItemDetailRow(InStoreOrderItem item, InStoreOrder order) {
+  // Helper for the detail dialog to show individual item info (Delete button REMOVED)
+  Widget _buildItemDetailRow(InStoreOrderItem item) {
     double itemSubtotal = item.quantitySold * item.priceAtSale;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -360,16 +322,12 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
             ),
           ),
           Text('₱${itemSubtotal.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-          // ADDED: DELETE BUTTON FOR THE ITEM
-          IconButton(
-            icon: const Icon(Icons.delete_forever, color: Colors.red),
-            onPressed: () => _deleteOrderItem(item.id, order.id), 
-          )
+          // DELETE BUTTON WAS REMOVED HERE
         ],
       ),
     );
   }
-  
+
   // =========================================================================
   // MAIN BUILD & CARD WIDGETS
   // =========================================================================
@@ -468,10 +426,10 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
                 ),
               const Divider(height: 1, thickness: 1),
               const SizedBox(height: 8),
-              
+
               if (order.items.isNotEmpty)
                 _buildOrderItemSummary(order.items.first, order.items.length),
-                
+
               const SizedBox(height: 16),
               _buildTotalsSection(order),
               const SizedBox(height: 16),
@@ -552,7 +510,7 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
         Expanded(
           child: ElevatedButton(
             // Initial call handles the 202 check or proceeds to confirmation
-            onPressed: () => _processOrder(order.id, 'approved'), 
+            onPressed: () => _processOrder(order.id, 'approved'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
               foregroundColor: Colors.white,
@@ -622,15 +580,14 @@ class InStoreOrder {
 }
 
 class InStoreOrderItem {
-  // ADDED: ID is required for the DELETE request to the backend
-  final int id; 
+  final int id;
   final String medicineName;
   final int quantitySold;
   final int freeQuantityGiven;
   final double priceAtSale;
 
   InStoreOrderItem({
-    required this.id, // ADDED
+    required this.id,
     required this.medicineName,
     required this.quantitySold,
     required this.freeQuantityGiven,
@@ -639,10 +596,10 @@ class InStoreOrderItem {
 
   factory InStoreOrderItem.fromJson(Map<String, dynamic> json) {
     return InStoreOrderItem(
-      id: json['id'], // Mapped from the serializer
+      id: json['id'],
       medicineName: json['medicine_name'] ?? 'N/A',
-      quantitySold: json['quantity_sold'] ?? 0, 
-      freeQuantityGiven: json['free_quantity_given'] ?? 0, 
+      quantitySold: json['quantity_sold'] ?? 0,
+      freeQuantityGiven: json['free_quantity_given'] ?? 0,
       priceAtSale:
           double.tryParse(json['price_at_sale']?.toString() ?? '0.0') ?? 0.0,
     );
