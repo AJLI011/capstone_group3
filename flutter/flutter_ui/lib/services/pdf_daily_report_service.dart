@@ -3,31 +3,29 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_ui/services/pdf_service.dart';
+// Ensure this path is correct and contains the models (DailyReport, InStoreTransaction, etc.)
 import 'package:flutter_ui/role_views/admin_features/daily_reports/daily_reports.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:timezone/data/latest.dart' as tz; // NEW: Timezone data import
-import 'package:timezone/timezone.dart' as tz; // NEW: Timezone functionality import
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 class PdfDailyReportService {
-    
-    // NEW: Initialize timezones and create conversion helper
+
     static final tz.Location _manila = tz.getLocation('Asia/Manila');
-    
+
     static tz.TZDateTime _convertToManilaTime(String timestamp) {
         // Assume the backend provides UTC or an unzoned time string
         final DateTime utcTimestamp = DateTime.parse(timestamp).toUtc();
         return tz.TZDateTime.from(utcTimestamp, _manila);
     }
-    // END NEW HELPER
 
     /// Generates a PDF for a daily report and saves it.
     static Future<void> generateAndSavePdf({
         required DailyReport dailyReport,
         required DateTime selectedDate,
     }) async {
-        // NEW: Initialize timezone data once before conversion
         tz.initializeTimeZones();
-        
+
         final pdf = pw.Document();
 
         // Fetch the manager's name from shared preferences
@@ -99,12 +97,195 @@ class PdfDailyReportService {
                         _buildInventoryLogsTable(dailyReport.inventoryLogs),
                         pw.SizedBox(height: 20),
                     ],
+
+                    // ⬇️ 🆕 ==================== IN-STORE TRANSACTIONS TABLE ====================
+                    if (dailyReport.inStoreTransactions.isNotEmpty) ...[
+                        pw.Divider(),
+                        pw.SizedBox(height: 15),
+                        pw.Text(
+                            'In-Store Sales Transactions',
+                            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+                        ),
+                        pw.SizedBox(height: 10),
+                        _buildInStoreTransactionTable(dailyReport.inStoreTransactions),
+                        pw.SizedBox(height: 20),
+                    ],
+
+                    // ⬇️ 🆕 ==================== ONLINE TRANSACTIONS TABLE ====================
+                    if (dailyReport.onlineTransactions.isNotEmpty) ...[
+                        pw.Divider(),
+                        pw.SizedBox(height: 15),
+                        pw.Text(
+                            'Online Sales Transactions',
+                            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+                        ),
+                        pw.SizedBox(height: 10),
+                        _buildOnlineTransactionTable(dailyReport.onlineTransactions),
+                        pw.SizedBox(height: 20),
+                    ],
                 ],
             ),
         );
 
         await PdfService.savePdfToDownloadsAndAppStorage(pdf, fileName);
     }
+
+    // ----------------------------------------------------------------------
+    // ⬇️ NEW HELPER FUNCTIONS FOR TRANSACTION TABLES
+    // ----------------------------------------------------------------------
+
+    static pw.Widget _buildInStoreTransactionTable(List<InStoreTransaction> transactions) {
+        final headers = [
+            'No.',
+            'Order No.',
+            'Initiated by',
+            'Approved by',
+            'Medicine',
+            'Quantity',
+            'Total Amount',
+            // 🟢 ADDED: Timestamp
+            'Timestamp'
+        ];
+
+        final List<List<String>> data = [];
+        int globalRowIndex = 1;
+
+        // 🟢 MODIFICATION: Reverse the list to display latest transactions first
+        final reversedTransactions = transactions.reversed.toList();
+
+        for (var tx in reversedTransactions) {
+            // 🟢 ADDED: Format the timestamp for the transaction once
+            final manilaTimestamp = _convertToManilaTime(tx.dateCreatedTimestamp);
+            final formattedTimestamp = DateFormat('MMM d, yyyy h:mm a').format(manilaTimestamp);
+
+            // Loop through each item in the transaction
+            for (int i = 0; i < tx.items.length; i++) {
+                final item = tx.items[i];
+                final isFirstItem = i == 0;
+
+                // Quantity includes sold and free given
+                final qtySold = item.quantitySold + item.freeQuantityGiven;
+
+                data.add([
+                    globalRowIndex.toString(),
+                    // Show Order No., Initiated by, Approved by, and Total Amount only on the first item line (i==0)
+                    isFirstItem ? '${tx.id}' : '', // Added 'IN-' prefix
+                    isFirstItem ? tx.staffName : '',
+                    isFirstItem ? (tx.cashierName ?? 'N/A') : '',
+                    '${item.medicineName} ${item.isPromo ? '(Promo)' : ''}',
+                    '$qtySold',
+                    isFirstItem ? tx.totalAmount.toStringAsFixed(2) : '',
+                    // 🟢 ADDED: Timestamp (only on first row)
+                    isFirstItem ? formattedTimestamp : '',
+                ]);
+                globalRowIndex++;
+            }
+        }
+
+        return pw.Table.fromTextArray(
+            headers: headers,
+            data: data,
+            border: pw.TableBorder.all(width: 1, color: PdfColors.black),
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10, color: PdfColors.black),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.white),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            columnWidths: const {
+                0: pw.FixedColumnWidth(25), // No.
+                1: pw.FixedColumnWidth(50), // Order No.
+                2: pw.FlexColumnWidth(1.0), // Initiated by
+                3: pw.FlexColumnWidth(1.0), // Approved by
+                4: pw.FlexColumnWidth(1.5), // Medicine
+                5: pw.FixedColumnWidth(40), // Quantity
+                6: pw.FixedColumnWidth(65), // Total Amount
+                // 🟢 ADDED: Timestamp Column Width
+                7: pw.FixedColumnWidth(80), // Timestamp
+            },
+        );
+    }
+
+    static pw.Widget _buildOnlineTransactionTable(List<OnlineTransaction> transactions) {
+        final headers = [
+            'No.',
+            'Order No.',
+            'Initiated by',
+            'Approved by',
+            'Medicine',
+            'Quantity',
+            'Total Amount',
+            // 🟢 ADDED: Timestamp
+            'Timestamp'
+        ];
+
+        final List<List<String>> data = [];
+        int globalRowIndex = 1;
+
+        // 🟢 MODIFICATION: Reverse the list to display latest transactions first
+        final reversedTransactions = transactions.reversed.toList();
+
+        for (var tx in reversedTransactions) {
+            // 🟢 ADDED: Format the timestamp for the transaction once
+            String formattedTimestamp = '';
+            if (tx.fulfilledTimestamp != 'N/A') {
+                try {
+                    final manilaTimestamp = _convertToManilaTime(tx.fulfilledTimestamp);
+                    formattedTimestamp = DateFormat('MMM d, yyyy h:mm a').format(manilaTimestamp);
+                } catch (_) { /* Do nothing if parsing fails */ }
+            }
+
+            // Loop through each item in the transaction (items list)
+            for (int i = 0; i < tx.items.length; i++) {
+                final item = tx.items[i] as Map<String, dynamic>; // Cast to Map
+                final isFirstItem = i == 0;
+
+                // 🟢 FIX 1: Extract nested medicine name (as per API structure)
+                final Map<String, dynamic>? medicineDetails = item['medicine'] as Map<String, dynamic>?;
+                final String medicineName = medicineDetails?['name'] ?? 'N/A';
+
+                // 🟢 FIX 2: Use the correct quantity key ('quantity_sold')
+                final String quantitySold = item['quantity_sold']?.toString() ?? 'N/A';
+
+                data.add([
+                    globalRowIndex.toString(),
+                    // 🟢 FIX 3: Add 'ON-' prefix to Order ID
+                    isFirstItem ? '${tx.orderId}' : '', // Added 'ON-' prefix
+                    isFirstItem ? '${tx.initiatedByName}' : '',
+                    isFirstItem ? '${tx.approvedByName}' : '',
+
+                    medicineName, // Uses fixed variable
+                    quantitySold, // Uses fixed variable
+
+                    isFirstItem ? tx.totalAmount.toStringAsFixed(2) : '',
+                    // 🟢 ADDED: Timestamp (only on first row)
+                    isFirstItem ? formattedTimestamp : '',
+                ]);
+                globalRowIndex++;
+            }
+        }
+
+        return pw.Table.fromTextArray(
+            headers: headers,
+            data: data,
+            border: pw.TableBorder.all(width: 1, color: PdfColors.black),
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10, color: PdfColors.black),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.white),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            columnWidths: const {
+                0: pw.FixedColumnWidth(25), // No.
+                1: pw.FixedColumnWidth(50), // Order No.
+                2: pw.FlexColumnWidth(1.0), // Initiated by
+                3: pw.FlexColumnWidth(1.0), // Approved by
+                4: pw.FlexColumnWidth(1.5), // Medicine
+                5: pw.FixedColumnWidth(40), // Quantity
+                6: pw.FixedColumnWidth(65), // Total Amount
+                // 🟢 ADDED: Timestamp Column Width
+                7: pw.FixedColumnWidth(80), // Timestamp
+            },
+        );
+    }
+
+    // ----------------------------------------------------------------------
+    // ⬇️ EXISTING HELPER FUNCTIONS (Included for completeness)
+    // ----------------------------------------------------------------------
 
     static pw.Widget _buildEmployeeLogsTable(List<EmployeeLog> logs) {
         return pw.Table.fromTextArray(
@@ -122,15 +303,14 @@ class PdfDailyReportService {
             data: logs.asMap().entries.map((entry) {
                 int index = entry.key + 1;
                 EmployeeLog log = entry.value;
-                
-                // MODIFIED: Apply timezone conversion
+
                 final manilaTimestamp = _convertToManilaTime(log.timestamp);
 
                 return [
                     index.toString(),
                     log.staffName,
                     log.action,
-                    DateFormat('MMM d, yyyy h:mm a').format(manilaTimestamp), // MODIFIED: Use converted time
+                    DateFormat('MMM d, yyyy h:mm a').format(manilaTimestamp),
                 ];
             }).toList(),
         );
@@ -152,8 +332,7 @@ class PdfDailyReportService {
             data: logs.asMap().entries.map((entry) {
                 int index = entry.key + 1;
                 OrderLog log = entry.value;
-                
-                // MODIFIED: Apply timezone conversion
+
                 final manilaTimestamp = _convertToManilaTime(log.timestamp);
 
                 String description = log.description ?? 'N/A';
@@ -167,7 +346,7 @@ class PdfDailyReportService {
                     index.toString(),
                     log.actionType,
                     description,
-                    DateFormat('MMM d, yyyy h:mm a').format(manilaTimestamp), // MODIFIED: Use converted time
+                    DateFormat('MMM d, yyyy h:mm a').format(manilaTimestamp),
                 ];
             }).toList(),
         );
@@ -187,27 +366,24 @@ class PdfDailyReportService {
                 3: const pw.FlexColumnWidth(2.5), // Description
                 4: const pw.FlexColumnWidth(1.5), // Timestamp
             },
-            // CRITICAL CHANGE 1: Update the headers to replace 'Medicine Name'
-            headers: ['No.', 'Action Type', 'Staff', 'Description', 'Timestamp'], 
+            headers: ['No.', 'Action Type', 'Staff', 'Description', 'Timestamp'],
             data: logs.asMap().entries.map((entry) {
                 int index = entry.key + 1;
                 InventoryLog log = entry.value;
-                
-                // MODIFIED: Apply timezone conversion
+
                 final manilaTimestamp = _convertToManilaTime(log.timestamp);
 
                 // Combine staff name and role
                 final String staffInfo = log.staffName != null && log.staffRole != null
-                            ? '${log.staffName} (${log.staffRole})'
-                            : log.staffName ?? 'N/A Staff';
+                                ? '${log.staffName} (${log.staffRole})'
+                                : log.staffName ?? 'N/A Staff';
 
                 return [
                     index.toString(),
                     log.actionType,
-                    // CRITICAL CHANGE 2: Output the staffInfo here, replacing log.medicineName
-                    staffInfo, 
+                    staffInfo,
                     log.description ?? 'N/A',
-                    DateFormat('MMM d, yyyy h:mm a').format(manilaTimestamp), // MODIFIED: Use converted time
+                    DateFormat('MMM d, yyyy h:mm a').format(manilaTimestamp),
                 ];
             }).toList(),
         );

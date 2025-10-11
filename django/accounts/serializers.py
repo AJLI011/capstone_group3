@@ -1684,3 +1684,6 @@ class DailyReportSerializer(serializers.Serializer):
     employee_logs = EmployeeLogSerializer(many=True, read_only=True)
     order_logs = OrderLogSerializer(many=True, read_only=True)
     inventory_logs = InventoryLogSerializer(many=True, read_only=True)
+    in_store_transactions = InStoreSalesTransactionSerializer(many=True, read_only=True)
+    online_transactions = OnlineOrderListSerializer(many=True, read_only=True)
+

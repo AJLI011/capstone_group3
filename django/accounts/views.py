@@ -3721,9 +3721,12 @@ def check_barcode_existence(request, barcode):
 
 
 
-#----------9/23/25
+#----------10/11/25
 #-----------
 class DailyReportsView(APIView):
+    # If you were using IsAuthenticated, make sure to include it:
+    # permission_classes = [IsAuthenticated] 
+
     def get(self, request, *args, **kwargs):
         date_str = request.query_params.get('date')
         
@@ -3735,23 +3738,45 @@ class DailyReportsView(APIView):
         except ValueError:
             return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # ⚡️ THE FIX: Explicitly set the timezone to 'Asia/Manila'
+        # ⚡️ TIMEZONE HANDLING: Localize the start and end of the day in Manila
         manila_tz = pytz.timezone('Asia/Manila')
         start_of_day = manila_tz.localize(datetime.combine(selected_date, time.min))
         end_of_day = manila_tz.localize(datetime.combine(selected_date, time.max))
 
-        # Fetch logs within the localized time range
+        # 1. Fetch Logs (Using the localized time range)
         employee_logs_queryset = EmployeeLog.objects.filter(timestamp__range=(start_of_day, end_of_day)).order_by('-timestamp')
         order_logs_queryset = OrderLog.objects.filter(timestamp__range=(start_of_day, end_of_day)).order_by('-timestamp')
         inventory_logs_queryset = InventoryLog.objects.filter(timestamp__range=(start_of_day, end_of_day)).order_by('-timestamp')
+
+        # 2. 🚨 CRITICAL ADDITION: Fetch In-Store Sales Transactions
+        in_store_transactions_queryset = InStoreOrder.objects.filter(
+            # Filter by date_created within the selected day
+            date_created__range=(start_of_day, end_of_day),
+            # Only fetch orders that are APPROVED (i.e., completed sales)
+            status='approved' 
+        ).prefetch_related('items') # Prefetch items for efficient serialization
+
+        # 3. 🚨 CRITICAL ADDITION: Fetch Online Sales Transactions
+        online_transactions_queryset = OnlineOrder.objects.filter(
+            # Filter by date_fulfilled within the selected day (the sale completion date)
+            # This is key, as we only report sales upon fulfillment/completion.
+            # 🟢 FIX: Change 'date_fulfilled' to 'fulfilled_timestamp' 
+            date_fulfilled__range=(start_of_day, end_of_day),
+            # Only fetch orders that are COMPLETED
+            status='completed'
+        ).prefetch_related('items')
 
         daily_report_data = {
             'employee_logs': employee_logs_queryset,
             'order_logs': order_logs_queryset,
             'inventory_logs': inventory_logs_queryset,
+            # 🚨 NEW: Add transaction querysets to the final data dictionary
+            'in_store_transactions': in_store_transactions_queryset,
+            'online_transactions': online_transactions_queryset,
         }
 
         serializer = DailyReportSerializer(daily_report_data)
         
         return Response(serializer.data, status=status.HTTP_200_OK)
-#----------9/23/25
+
+#----------10/11/25
