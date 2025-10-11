@@ -312,11 +312,39 @@ class TotalQuantitySerializer(serializers.ModelSerializer):
         fields = ['medicine', 'medicine_name', 'generic_name', 'category', 'image', 'total_quantity']
 
 
-# Serializer for Promo
+
+
+
+# 1. Simple Inventory Serializer (The Safe Version)
+class SimpleInventorySerializer(serializers.ModelSerializer):
+    # 💡 Use SerializerMethodField for safe lookup
+    medicine_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Inventory
+        fields = ['id', 'batch_num', 'medicine_name'] 
+    
+    # 💡 Custom method to handle potential missing medicine link
+    def get_medicine_name(self, obj):
+        # Check if the ForeignKey to Medicine is NOT null/missing
+        if obj.medicine:
+            return obj.medicine.name
+        # Return a safe string if the link is broken
+        return "Medicine Deleted/Missing" 
+
+
+# 2. Promo Serializer (Use the Safe Nested Serializer)
 class PromoSerializer(serializers.ModelSerializer):
+    # Use the safe nested serializer here
+    inventory_id = SimpleInventorySerializer(read_only=True)
+
     class Meta:
         model = Promo
-        fields = '__all__'
+        # Use your full list of fields
+        fields = ['id', 'start_date', 'end_date', 'inventory_id', 
+                  # ... include any other Promo fields ...
+                 ]
+       
 
 
 

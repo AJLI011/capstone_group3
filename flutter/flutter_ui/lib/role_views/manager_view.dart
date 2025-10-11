@@ -1,5 +1,5 @@
-// manager_view.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_ui/role_views/manager_features/expiration_dashboard/expired_stock_page.dart';
 import 'package:flutter_ui/role_views/manager_features/expiration_dashboard/expiry_dashboard_view.dart';
 import 'package:flutter_ui/role_views/manager_features/online_sales_report/online_sales_report_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,7 +10,7 @@ import 'manager_features/change_password/change_manager_password.dart';
 import 'manager_features/edit_profile/edit_manager_profile.dart';
 import 'manager_features/inventory/inventory_grid_screen.dart';
 import 'manager_features/return_medicines/return_page.dart';
-import 'manager_features/promo_medicines/promo_page.dart';
+import 'manager_features/promo_medicines/promo_page.dart'; 
 import 'manager_features/inventory_logs/inventory_logs_page.dart';
 import 'manager_features/online_sales_transaction/online_transaction.dart';
 import 'manager_features/instore_sales_report/in_store_sales_report_page.dart';
@@ -26,7 +26,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://10.0.2.2:8000/',
+  defaultValue: 'http://10.0.2.2:8000',
 );
 
 class ManagerView extends StatefulWidget {
@@ -49,10 +49,19 @@ class _ManagerViewState extends State<ManagerView>
   int totalMedicineCount = 0;
   double totalEarned = 0.0;
   int goodStockCount = 0;
-  int expiringSoonCount = 0;
+  // Holds the total count for the dashboard card
+  int totalExpiringSoonCount = 0; 
+  // Holds the filtered count for the orange notification badge (expiring AND not promo)
+  int unaddressedExpiringCount = 0; 
   int expiredCount = 0;
   List<dynamic> inventoryLogs = [];
   List<dynamic> lowStockItems = [];
+  
+  // =================================
+  // 💡 NEW PROMO EXPIRY STATE VARIABLES
+  // =================================
+  int expiringPromoCount = 0; // Count of promos ending soon (1 day warning)
+  List<dynamic> expiringPromos = []; // List of promos ending soon
 
   @override
   void initState() {
@@ -77,13 +86,18 @@ class _ManagerViewState extends State<ManagerView>
 
     try {
       final responses = await Future.wait([
-        http.get(Uri.parse('$API_BASE/api/medicines/total/')),
-        http.get(Uri.parse('$API_BASE/api/sales/total-earnings/')),
-        http.get(Uri.parse('$API_BASE/api/medicines/good-stock/')),
-        http.get(Uri.parse('$API_BASE/api/medicines/expiring-soon/')),
-        http.get(Uri.parse('$API_BASE/api/medicines/expired/')),
-        http.get(Uri.parse('$API_BASE/api/medicines/low-stock/')),
-        http.get(Uri.parse('$API_BASE/api/inventory-logs/?limit=3&ordering=-timestamp')),
+        http.get(Uri.parse('$API_BASE/api/medicines/total/')), // 0
+        http.get(Uri.parse('$API_BASE/api/sales/total-earnings/')), // 1
+        http.get(Uri.parse('$API_BASE/api/medicines/good-stock/')), // 2
+        // The ORIGINAL call for ALL expiring stock (for dashboard card)
+        http.get(Uri.parse('$API_BASE/api/medicines/expiring-soon/')), // 3
+        // Only expiring stock that is NOT on promo (for alert badge)
+        http.get(Uri.parse('$API_BASE/api/medicines/expiring-soon/unaddressed/')), // 4
+        http.get(Uri.parse('$API_BASE/api/medicines/expired/')), // 5
+        http.get(Uri.parse('$API_BASE/api/medicines/low-stock/')), // 6
+        http.get(Uri.parse('$API_BASE/api/inventory-logs/?limit=3&ordering=-timestamp')), // 7
+        // 💡 NEW CALL: Promos ending soon (within 1 day)
+        http.get(Uri.parse('$API_BASE/api/promos/ending-soon/')), // 8
       ]);
 
       setState(() {
@@ -98,17 +112,25 @@ class _ManagerViewState extends State<ManagerView>
         if (responses[2].statusCode == 200) {
           goodStockCount = json.decode(responses[2].body).length;
         }
+        
+        // Response 3: Unfiltered list -> Used for totalExpiringSoonCount
         if (responses[3].statusCode == 200) {
-          expiringSoonCount = json.decode(responses[3].body).length;
+          totalExpiringSoonCount = json.decode(responses[3].body).length;
         }
+        
+        // Response 4: Filtered list -> Used for orange notification badge
         if (responses[4].statusCode == 200) {
-          expiredCount = json.decode(responses[4].body).length;
+          unaddressedExpiringCount = json.decode(responses[4].body).length;
         }
-        if (responses[5].statusCode == 200) {
-          lowStockItems = json.decode(responses[5].body);
+
+        if (responses[5].statusCode == 200) { 
+          expiredCount = json.decode(responses[5].body).length;
         }
-        if (responses[6].statusCode == 200) {
-          final responseData = json.decode(responses[6].body);
+        if (responses[6].statusCode == 200) { 
+          lowStockItems = json.decode(responses[6].body);
+        }
+        if (responses[7].statusCode == 200) {
+          final responseData = json.decode(responses[7].body);
           if (responseData is Map<String, dynamic> && responseData.containsKey('results')) {
             inventoryLogs = responseData['results'] as List<dynamic>;
           } else if (responseData is List<dynamic>) {
@@ -116,6 +138,15 @@ class _ManagerViewState extends State<ManagerView>
             inventoryLogs = responseData;
           }
         }
+        
+        // ==================================================
+        // 💡 NEW: Handle Response 8 for Promos Ending Soon
+        // ==================================================
+        if (responses[8].statusCode == 200) {
+            expiringPromos = json.decode(responses[8].body);
+            expiringPromoCount = expiringPromos.length;
+        }
+
         isLoading = false;
       });
     } catch (e) {
@@ -217,10 +248,117 @@ class _ManagerViewState extends State<ManagerView>
     }
   }
 
+  // EXISTING: Dialog for Expiring stock NOT on promo
+  Future<void> _showWarningDialog() async {
+    // Only show the dialog if there's unaddressed stock
+    if (unaddressedExpiringCount == 0) return; 
+
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_outlined, color: Colors.orange), 
+              SizedBox(width: 9),
+              Expanded( 
+                child: Text(
+                  'Action: Set Promo',
+                  softWrap: true,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            // Use the unaddressed count here
+            'You have $unaddressedExpiringCount medicine batches expiring soon that have not yet been assigned a promo. This stock is eligible for promo pricing.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              // THIS REDIRECTS TO PromoMedicinePage
+              child: const Text('View & Set Promo'),
+              onPressed: () {
+                Navigator.pop(context); // Close the dialog
+                _open(const PromoMedicinePage()); 
+              },
+            ),
+            TextButton(
+              child: const Text('Close'),
+              onPressed: () {
+                Navigator.pop(context); // Close the dialog
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ==================================================
+  // 💡 NEW: Dialog for Promos that are about to END
+  // ==================================================
+  Future<void> _showExpiringPromoDialog() async {
+    if (expiringPromoCount == 0) return; 
+
+    await showDialog<void>(
+        context: context,
+        builder: (BuildContext context) {
+            return AlertDialog(
+                title: Row(
+                    children: [
+                        const Icon(Icons.access_time_filled, color: Colors.blueAccent),
+                        const SizedBox(width: 8),
+                        Expanded( 
+                            child: Text(
+                                'Promo(s) Ending Soon ($expiringPromoCount)', 
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                softWrap: true,
+                            ),
+                        ),
+                    ],
+                ),
+                content: SingleChildScrollView(
+                    child: ListBody(
+                        children: expiringPromos.map((promo) {
+                            // Extract relevant data, assuming promo object includes inventory/medicine details
+                            final medicineName = promo['inventory_id']?['medicine_name'] ?? 'N/A';
+                            // Format the date to be more readable
+                            final endDateStr = promo['end_date'];
+                            String formattedDate = 'N/A';
+                            if (endDateStr != null) {
+                                try {
+                                    // Parse only the date part
+                                    final endDate = DateTime.parse(endDateStr.split('T')[0]); 
+                                    formattedDate = DateFormat('MMM d, yyyy').format(endDate);
+                                } catch (e) {
+                                    formattedDate = endDateStr; // Fallback to raw string
+                                }
+                            }
+                            
+                            return ListTile(
+                                leading: const Icon(Icons.label_off, color: Colors.deepPurple),
+                                title: Text(medicineName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                subtitle: Text('Ends: $formattedDate', style: const TextStyle(color: Colors.red)),
+                            );
+                        }).toList(),
+                    ),
+                ),
+                actions: <Widget>[
+                    TextButton(
+                        child: const Text('Close'),
+                        onPressed: () => Navigator.pop(context),
+                    ),
+                ],
+            );
+        },
+    );
+  }
+
   void _open(Widget page) async {
     _toggleMenu();
     await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-    _fetchDashboardData();
+    // Refresh data when returning to dashboard
+    _fetchDashboardData(); 
   }
 
   @override
@@ -244,7 +382,69 @@ class _ManagerViewState extends State<ManagerView>
                 backgroundColor: const Color(0xFF5C7C9A),
                 foregroundColor: Colors.white,
                 automaticallyImplyLeading: false,
+                // 💡 UPDATED ACTIONS LIST TO INCLUDE BOTH WARNINGS
                 actions: [
+                  // 1. Promo Expiry Alert (Blue/Purple Badge)
+                  if (expiringPromoCount > 0)
+                    IconButton(
+                      onPressed: _showExpiringPromoDialog,
+                      icon: Stack(
+                        children: [
+                          // Icon for Promos/Sales
+                          const Icon(Icons.access_time_filled, color: Colors.lightBlueAccent), 
+                          // Notification badge
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Colors.deepPurple, // Different color for distinction
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 12,
+                                minHeight: 12,
+                              ),
+                              child: Text(
+                                '$expiringPromoCount',
+                                style: const TextStyle(color: Colors.white, fontSize: 8),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+
+                  // 2. Unaddressed Expiring Stock Alert (Orange/Red Badge)
+                  if (unaddressedExpiringCount > 0)
+                    IconButton(
+                      onPressed: _showWarningDialog, 
+                      icon: Stack(
+                        children: [
+                          // The primary warning icon
+                          const Icon(Icons.warning_amber_outlined, color: Colors.yellow),
+                          // The small red notification badge
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 12,
+                                minHeight: 12,
+                              ),
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                  // Existing Menu Button
                   IconButton(
                     icon: const Icon(Icons.menu),
                     onPressed: _toggleMenu,
@@ -468,12 +668,13 @@ class _ManagerViewState extends State<ManagerView>
     );
   }
 
+  // Uses totalExpiringSoonCount for the dashboard card
   Widget _buildExpirationIndicators() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
         _buildIndicator(Icons.check_circle_outline, 'Good Stock', goodStockCount, Colors.green),
-        _buildIndicator(Icons.warning_amber_outlined, 'Expiring Soon', expiringSoonCount, Colors.orange),
+        _buildIndicator(Icons.warning_amber_outlined, 'Expiring Soon', totalExpiringSoonCount, Colors.orange),
         _buildIndicator(Icons.error_outline, 'Expired', expiredCount, Colors.red),
       ],
     );
@@ -551,7 +752,7 @@ class _ManagerViewState extends State<ManagerView>
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
                 leading: const Icon(Icons.warning_amber, color: Colors.orange),
-                title: Text(item['name']),
+                title: Text(item['medicine_name']),
                 subtitle: Text('Generic: ${item['generic_name'] ?? 'N/A'}'),
                 trailing: Text(
                   'Qty: ${item['total_quantity']}',

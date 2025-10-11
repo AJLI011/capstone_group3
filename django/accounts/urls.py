@@ -6,7 +6,7 @@ from .views import (
     medicine_list, medicine_detail,InventoryCreateView,get_inventory_list,GoodStockView, ExpiringSoonView, ExpiredView,
     delete_expired_batch, remove_promo, get_customer_medicines,inventory_logs, PromoMedicineView, PromoMedicineDetailView, 
     get_customer_medicine_detail,InStoreSalesReportView,OnlineSalesReportView, LatestForecastReportView, MedicineSalesHistoryView, 
-    PurchaseRequestListView,OrderLogsListView, # Now only imported once
+    PurchaseRequestListView,OrderLogsListView, UnaddressedExpiringStockView, # Now only imported once
     
 )
 from .views import get_comprehensive_transaction_report
@@ -51,6 +51,7 @@ urlpatterns = [
     # Expiration tracking
     path('medicines/good-stock/', GoodStockView.as_view(), name='good-stock'),
     path('medicines/expiring-soon/', ExpiringSoonView.as_view(), name='expiring-soon'),
+    path('medicines/expiring-soon/unaddressed/', UnaddressedExpiringStockView.as_view(), name='unaddressed-expiring-soon'),
     path('medicines/expired/', ExpiredView.as_view(), name='expired-medicines'),
 
     # Return Medicine
@@ -59,6 +60,7 @@ urlpatterns = [
     # Promo Medicine
     path('inventory/<int:inventory_id>/set-promo/', views.set_promo, name='set_promo'),
     path('inventory/remove-promo/', views.remove_promo, name='remove_promo'),
+    path('promos/ending-soon/', views.promos_ending_soon, name='promos-ending-soon'),
 
     #Inventory Logs
     path('inventory-logs/', inventory_logs, name='inventory_logs'),
