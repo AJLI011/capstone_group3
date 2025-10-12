@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.0.104:8000/',
+  defaultValue: 'http://192.168.1.6:8000/',
 );
 
 // NEW: Define a class to hold the paginated data response from the backend

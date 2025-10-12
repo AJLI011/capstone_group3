@@ -16,7 +16,7 @@ class StaffOrdersPage extends StatefulWidget {
 class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProviderStateMixin {
   late Future<List<dynamic>> _ordersFuture;
   late TabController _tabController;
-  final String _baseUrl = 'http://192.168.0.104:8000';
+  final String _baseUrl = 'http://192.168.1.6:8000';
   DateTime? _selectedDate;
 
   @override

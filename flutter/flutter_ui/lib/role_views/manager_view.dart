@@ -27,7 +27,7 @@ import 'manager_features/sales_report/sales_report.dart'; // <--- ADD THIS
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.0.104:8000/',
+  defaultValue: 'http://192.168.1.6:8000/',
 );
 
 class ManagerView extends StatefulWidget {

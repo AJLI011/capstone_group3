@@ -102,7 +102,7 @@ class _ExpiringSoonPageState extends State<ExpiringSoonPage> {
       _isLoading = true;
     });
 
-    final String url = 'http://192.168.0.104:8000/api/medicines/expiring-soon/';
+    final String url = 'http://192.168.1.6:8000/api/medicines/expiring-soon/';
 
     try {
       final response = await http.get(Uri.parse(url));

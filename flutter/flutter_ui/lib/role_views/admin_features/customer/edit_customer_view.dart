@@ -31,7 +31,7 @@ class _EditCustomerViewState extends State<EditCustomerView> {
   // --- State & Controllers ---
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   static const Color _primaryColor = Color(0xFF5C7C9A);
-  static const String _apiUrl = 'http://192.168.0.104:8000/api/customers/';
+  static const String _apiUrl = 'http://192.168.1.6:8000/api/customers/';
 
   late TextEditingController _nameController;
   late TextEditingController _emailController;

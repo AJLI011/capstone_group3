@@ -100,7 +100,7 @@ class _GoodStockPageState extends State<GoodStockPage> {
     });
 
     // Note: The URL no longer has pagination parameters
-    final String url = 'http://192.168.0.104:8000/api/medicines/good-stock/';
+    final String url = 'http://192.168.1.6:8000/api/medicines/good-stock/';
 
     try {
       final response = await http.get(Uri.parse(url));
