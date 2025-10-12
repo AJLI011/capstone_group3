@@ -868,6 +868,9 @@ def total_quantities(request):
 
     return JsonResponse(list(inventory_totals), safe=False)
 
+
+
+#-----------------------10/12/2025-----------elton
 # =================== Expiration Dashboard -------------------- =================09/05/2025===================
 # ✅ Good Stocks:
 # Medicines that either:
@@ -896,6 +899,21 @@ class ExpiringSoonView(generics.ListAPIView):
             exp_date__lte=today + timedelta(days=15),
             quantity__gt=0 # ✅ NEW: Exclude batches with 0 quantity
         )
+        
+# 🔔 Unaddressed Expiring Stock:
+# Medicines that will expire within the next 15 days, but DO NOT have an active promo.
+class UnaddressedExpiringStockView(generics.ListAPIView):
+    serializer_class = InventoryDashboardSerializer
+
+    def get_queryset(self):
+        today = date.today()
+        return Inventory.objects.filter(
+            exp_date__gt=today,
+            exp_date__lte=today + timedelta(days=15),
+            quantity__gt=0,
+            # CRITICAL FILTER: Only show items that are NOT on promo
+            is_promo=False 
+        )
 
 # ❌ Expired:
 # Medicines that are already expired (today or earlier)
@@ -908,6 +926,7 @@ class ExpiredView(generics.ListAPIView):
             exp_date__lte=today,
             quantity__gt=0 # ✅ NEW: Exclude batches with 0 quantity
         )
+
 
 
 
@@ -1391,7 +1410,33 @@ def set_promo(request, inventory_id):
 
     return Response({'message': 'Promo set successfully'}, status=status.HTTP_200_OK)
 
+@api_view(['GET'])
+def promos_ending_soon(request):
+    try:
+        today = date.today()
+        day_after_tomorrow = today + timedelta(days=2) 
+        
+        promos = Promo.objects.filter(
+            end_date__gte=today,      
+            end_date__lt=day_after_tomorrow  
+        ).select_related('inventory_id', 'inventory_id__medicine') # Correct FK path
+        
+        data = PromoSerializer(promos, many=True).data 
+        
+        return Response(data, status=status.HTTP_200_OK)
+    
+    except Exception as e:
+        # 💡 IMPORTANT: Print the error to the console!
+        print("-" * 50)
+        print("!!! SERIALIZATION ERROR TRACE !!!")
+        import traceback
+        traceback.print_exc() 
+        print("-" * 50)
+        
+        # Return a 500 status, which is the correct technical response for a server error
+        return Response({"detail": "Error fetching data."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+#-------------------------10/12/2025-------------------------elton
 #--------------------09/30/2025--------------------------- 
 @api_view(['POST'])
 def remove_promo(request):
@@ -1447,6 +1492,34 @@ def clean_expired_promos():
         inventory_item.is_promo = False
         inventory_item.save()
         promo.delete()
+
+#---------------10/12/2025--------elton
+@api_view(['GET'])
+def promos_ending_soon(request):
+    try:
+        today = date.today()
+        day_after_tomorrow = today + timedelta(days=2) 
+        
+        promos = Promo.objects.filter(
+            end_date__gte=today,      
+            end_date__lt=day_after_tomorrow  
+        ).select_related('inventory_id', 'inventory_id__medicine') # Correct FK path
+        
+        data = PromoSerializer(promos, many=True).data 
+        
+        return Response(data, status=status.HTTP_200_OK)
+    
+    except Exception as e:
+        # 💡 IMPORTANT: Print the error to the console!
+        print("-" * 50)
+        print("!!! SERIALIZATION ERROR TRACE !!!")
+        import traceback
+        traceback.print_exc() 
+        print("-" * 50)
+        
+        # Return a 500 status, which is the correct technical response for a server error
+        return Response({"detail": "Error fetching data."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 
