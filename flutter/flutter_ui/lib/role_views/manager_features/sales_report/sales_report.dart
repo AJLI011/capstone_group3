@@ -595,10 +595,9 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage>
       ),
       // --- Floating Action Button (Scaled) ---
       floatingActionButton: hasReport
-          ? FloatingActionButton.extended(
+          ? FloatingActionButton( // CHANGED
               onPressed: _generateAndSavePdf,
-              label: Text('Generate PDF', style: TextStyle(fontSize: 16 * scale)), // Scaled
-              icon: Icon(Icons.picture_as_pdf, size: 24 * scale), // Scaled
+              child: Icon(Icons.picture_as_pdf, size: 24 * scale), // CHANGED
               backgroundColor: _primaryColor,
               foregroundColor: Colors.white,
             )
