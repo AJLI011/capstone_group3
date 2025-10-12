@@ -1,15 +1,17 @@
+// return_view_tab.dart
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:timezone/data/latest.dart' as tz; // NEW: Timezone data import
-import 'package:timezone/timezone.dart' as tz; // NEW: Timezone functionality import
+import 'package:timezone/data/latest.dart' as tz; // Timezone data import
+import 'package:timezone/timezone.dart' as tz; // Timezone functionality import
 
-// NOTE: Ensure this base URL matches the IP address you used in Postman!
+// NOTE: Ensure this base URL matches the IP address you used!
 const String _baseUrl = 'http://192.168.0.104:8000/api'; 
 
 // --------------------------------------------------------------------------
-// 1. Data Models (Mirroring the JSON structure you confirmed)
+// 1. Data Models (Copied from original return_view.dart)
 // --------------------------------------------------------------------------
 
 class ReturnVerificationImage {
@@ -42,12 +44,10 @@ class ReturnedMedicine {
   });
 
   factory ReturnedMedicine.fromJson(Map<String, dynamic> json) {
-    // Access nested medicine name: "medicine": { "name": "..." }
     final medicineData = json['medicine'] as Map<String, dynamic>?; 
     
-    // CRITICAL CHANGE 1: Use medicine_name_snapshot as fallback
     final String resolvedMedicineName = (medicineData != null ? medicineData['name'] as String? : null) ??
-                                       (json['medicine_name_snapshot'] as String?) ?? // Fallback to snapshot
+                                       (json['medicine_name_snapshot'] as String?) ??
                                        'N/A';
 
     return ReturnedMedicine(
@@ -80,23 +80,18 @@ class ReturnTransaction {
   });
 
   factory ReturnTransaction.fromJson(Map<String, dynamic> json) {
-    // Access nested staff name: "staff": { "name": "..." }
     final staffData = json['staff'] as Map<String, dynamic>?;
     
-    // CRITICAL CHANGE 2: Use staff_name_snapshot as fallback
     final String resolvedStaffName = (staffData != null ? staffData['name'] as String? : null) ??
-                                     (json['staff_name_snapshot'] as String?) ?? // Fallback to snapshot
+                                     (json['staff_name_snapshot'] as String?) ??
                                      'N/A';
     
-    // Parse nested lists
     final itemsList = json['returned_items'] as List<dynamic>? ?? [];
     final imagesList = json['verification_images'] as List<dynamic>? ?? [];
 
     return ReturnTransaction(
       id: json['id'] as int,
       staffName: resolvedStaffName,
-      // IMPORTANT: DateTime.parse() assumes the ISO string is in UTC if it has 'Z' or a specific offset, 
-      // or it treats it as local if it's "naive". toUtc() here ensures we handle it correctly for conversion later.
       returnedAt: DateTime.parse(json['returned_at']).toUtc(), 
       status: json['verification_status'] ?? 'PENDING',
       notes: json['notes'],
@@ -107,38 +102,36 @@ class ReturnTransaction {
 }
 
 // --------------------------------------------------------------------------
-// 2. Main View Widget
+// 2. Main Tab Widget (Renamed from ReturnViewPage to ReturnViewTab)
 // --------------------------------------------------------------------------
 
-class ReturnViewPage extends StatefulWidget {
-  const ReturnViewPage({super.key});
+class ReturnViewTab extends StatefulWidget {
+  const ReturnViewTab({super.key});
 
   @override
-  State<ReturnViewPage> createState() => _ReturnViewPageState();
+  State<ReturnViewTab> createState() => _ReturnViewTabState();
 }
 
-class _ReturnViewPageState extends State<ReturnViewPage> {
+class _ReturnViewTabState extends State<ReturnViewTab> {
   List<ReturnTransaction> _transactions = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    tz.initializeTimeZones(); // NEW: Initialize timezone data
+    // Timezone initialization should ideally happen once in the parent widget
+    // but initializing here as a backup for this specific tab.
+    tz.initializeTimeZones(); 
     _fetchTransactions();
   }
   
-  // NEW: Helper function to convert DateTime (assumed to be UTC) to Asia/Manila time
+  // Helper function to convert DateTime (assumed to be UTC) to Asia/Manila time
   tz.TZDateTime _convertToManilaTime(DateTime utcTime) {
-    // 1. Get the target timezone location
     final location = tz.getLocation('Asia/Manila');
-    // 2. Convert the UTC DateTime to the Manila timezone
     return tz.TZDateTime.from(utcTime, location);
   }
 
-  // --------------------------------------------------------------------------
-  // API Call: Fetch All Return Transactions (using /returns/all/ endpoint)
-  // --------------------------------------------------------------------------
+  // API Call: Fetch All Return Transactions
   Future<void> _fetchTransactions() async {
     if (!mounted) return;
     setState(() {
@@ -179,9 +172,7 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
     );
   }
 
-  // --------------------------------------------------------------------------
   // Helper: Status Display
-  // --------------------------------------------------------------------------
   Color _getStatusColor(String status) {
     switch (status) {
       case 'VERIFIED':
@@ -206,7 +197,7 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
     }
   }
   
-  // NEW: Helper function to format the DateTime to Manila time
+  // Helper function to format the DateTime to Manila time
   String _formatManilaTime(DateTime utcTime) {
     final manilaTime = _convertToManilaTime(utcTime);
     return DateFormat('MMM d, yyyy h:mm a').format(manilaTime);
@@ -218,20 +209,8 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
   // --------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Return Medicines'),
-        backgroundColor: const Color(0xFF5C7C9A),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _isLoading ? null : _fetchTransactions,
-            tooltip: 'Refresh List',
-          ),
-        ],
-      ),
-      body: _isLoading
+    // The AppBar is removed here as the main ReturnMedicinePage now handles it
+    return _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _transactions.isEmpty
               ? Center(
@@ -255,8 +234,7 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
                           return _buildTransactionCard(txn);
                         },
                       ),
-                    ),
-    );
+                    );
   }
 
   // --------------------------------------------------------------------------
@@ -265,8 +243,6 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
   Widget _buildTransactionCard(ReturnTransaction txn) {
     final statusColor = _getStatusColor(txn.status);
     final statusIcon = _getStatusIcon(txn.status);
-    
-    // MODIFIED: Use the Manila timezone formatter
     final formattedDate = _formatManilaTime(txn.returnedAt); 
 
     return Card(
@@ -278,9 +254,8 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
         collapsedBackgroundColor: Colors.grey.shade50,
         backgroundColor: Colors.white,
         leading: Icon(statusIcon, color: statusColor, size: 30),
-        // txn.staffName now safely uses snapshot data if original staff is deleted
         title: Text(
-          'Txn ID: ${txn.id} - ${txn.staffName}',
+          'Verification ID: ${txn.id} - ${txn.staffName}',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         subtitle: Column(
@@ -367,7 +342,6 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // item.medicineName now safely uses snapshot data if original medicine is deleted
                       Text(item.medicineName, style: const TextStyle(fontWeight: FontWeight.w600)),
                       Text('Batch: ${item.batchNum} | Exp: ${item.expDate}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                     ],
@@ -411,7 +385,6 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
                       width: 120,
                       height: 120,
                       fit: BoxFit.cover,
-                      // Error and Loading builders are essential for network images
                       loadingBuilder: (context, child, loadingProgress) {
                         if (loadingProgress == null) return child;
                         return Container(
@@ -447,7 +420,6 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
   // 7. Utility: Image Viewer Dialog (MODIFIED for full-screen viewing)
   // --------------------------------------------------------------------------
     void _showImageDialog(BuildContext context, String imageUrl) {
-      // Instead of showDialog, navigate to a new screen for full-screen view
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -455,10 +427,10 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
         ),
       );
     }
-  } // End of _ReturnViewPageState
+  } // End of _ReturnViewTabState
 
   // --------------------------------------------------------------------------
-  // NEW: Full-Screen Image Viewer Widget
+  // Full-Screen Image Viewer Widget
   // --------------------------------------------------------------------------
 
   class FullImageScreen extends StatelessWidget {
@@ -470,16 +442,14 @@ class _ReturnViewPageState extends State<ReturnViewPage> {
     Widget build(BuildContext context) {
       return Scaffold(
         backgroundColor: Colors.black, // Dark background for better image focus
-        // --- REMOVED: AppBar(title: const Text('Verification Image'), ...) ---
         body: Center(
-          // InteractiveViewer allows the user to pinch-to-zoom and pan the image
           child: InteractiveViewer(
-            panEnabled: true, // Allows dragging the image
+            panEnabled: true, 
             minScale: 0.1,
             maxScale: 4.0,
             child: Image.network(
               imageUrl,
-              fit: BoxFit.contain, // Fits the image within the screen without cropping
+              fit: BoxFit.contain, 
               loadingBuilder: (context, child, loadingProgress) {
                 if (loadingProgress == null) return child;
                 return const Center(
