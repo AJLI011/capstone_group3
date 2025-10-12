@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const String _apiUrlBase = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.0.104:8000',
+  defaultValue: 'http://192.168.1.11:8000',
 );
 const Color _primaryColor = Color.fromARGB(255, 10, 84, 182);
 

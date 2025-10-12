@@ -89,7 +89,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
   // New function to check for barcode existence
   Future<bool> _checkBarcodeExistence(String barcode) async {
     // IMPORTANT: Replace with your computer's actual local IP address!
-    final url = Uri.parse('http://192.168.0.104:8000/api/medicines/check_barcode/$barcode/');
+    final url = Uri.parse('http://192.168.1.11:8000/api/medicines/check_barcode/$barcode/');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -108,7 +108,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
   // Fetches suppliers from your Django API
   Future<void> _fetchSuppliers() async {
     // IMPORTANT: Replace with your computer's actual local IP address!
-    final url = Uri.parse('http://192.168.0.104:8000/api/suppliers/');
+    final url = Uri.parse('http://192.168.1.11:8000/api/suppliers/');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -193,7 +193,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
     }
 
     // IMPORTANT: Replace with your computer's actual local IP address!
-    final url = Uri.parse('http://192.168.0.104:8000/api/medicines/');
+    final url = Uri.parse('http://192.168.1.11:8000/api/medicines/');
     final request = http.MultipartRequest('POST', url);
 
     // Add text fields

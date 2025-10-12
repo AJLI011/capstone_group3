@@ -6,7 +6,7 @@ import 'package:timezone/data/latest.dart' as tz; // NEW: Timezone data import
 import 'package:timezone/timezone.dart' as tz; // NEW: Timezone functionality import
 
 // NOTE: Ensure this base URL matches the IP address you used in Postman!
-const String _baseUrl = 'http://192.168.0.104:8000/api'; 
+const String _baseUrl = 'http://192.168.1.11:8000/api'; 
 
 // --------------------------------------------------------------------------
 // 1. Data Models (Mirroring the JSON structure you confirmed)
