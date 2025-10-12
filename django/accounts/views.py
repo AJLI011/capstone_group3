@@ -923,7 +923,8 @@ class ExpiredView(generics.ListAPIView):
 
 
 
-#--------------------10/11/2025--------------------------- 
+#--------------------10/11/2025---------------------------aaron
+#--------------------10/10/2025--------------------------- 
 def process_single_inventory_return(inventory_item, return_transaction):
     """
     Handles the logging, archiving (ReturnedMedicine), and deletion for a single
@@ -1080,7 +1081,7 @@ def delete_expired_medicines_batch(request):
     }, status=status.HTTP_200_OK)
     
     
-# ----------------------------------------------------------------------
+# ------------------10/11/2025-----aaron-------------------------
 # 3. NEW ITEM-FETCHING VIEW (GET) - UPDATED
 # ----------------------------------------------------------------------
 @api_view(['GET'])
@@ -1197,9 +1198,11 @@ def upload_return_verification_images(request):
         "transaction_id": transaction_obj.pk
     }, status=status.HTTP_201_CREATED)
 
-# ----------------------------------------------------------------------
+# -------------10/11/2025----------aaron-----------------------------------------------
 # 5. NEW PENDING TRANSACTION LIST VIEW (GET) - ADD THIS ONE
 # ----------------------------------------------------------------------
+
+#----------------10/11/2025---------aaron
 @api_view(['GET'])
 def list_pending_returns(request):
     """
@@ -1239,7 +1242,7 @@ def list_pending_returns(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-# ----------------------------------------------------------------------
+# ------------------10/11/2025------------aaron----------------------------------------
 # 6. NEW ADMIN AUDIT VIEW (GET) - Fetch ALL transactions with ALL details - UPDATED
 # ----------------------------------------------------------------------
 @api_view(['GET'])
@@ -1678,7 +1681,7 @@ def employee_logs_view(request):
 
 
 
-#--------------------------10-5-25----------------------------------------
+#--------------------------10-12-25----------------------------------------aaorn
 #------------ PENDING ORDER----------
 #----------ORDER LOGS PT 1 - FOR CASHER (INSTORE)---------
 #modified some parts of the pending order view for the order logs
@@ -1883,7 +1886,7 @@ class InStoreOrderProcessingView(APIView):
 # --------------------------------------------------------------------------------------------------
 # NEW VIEW: InStoreOrderItemDeleteView
 # --------------------------------------------------------------------------------------------------
-
+#----------------10/12/2025-------------------aaron
 class InStoreOrderItemDeleteView(APIView):
     """
     API endpoint for cashiers to remove an unfulfillable item from a pending order,
@@ -2247,7 +2250,7 @@ def cancel_online_order(request, order_id):
 
 
 
-
+#-------------------------10/12/25---aaron
 # ---------------9/26/25
 # Cashier and Staff Confirm Online Order
 # -------------------------------
@@ -2452,7 +2455,7 @@ def confirm_online_order(request, orderId):
 
 
 
-   
+#------------10/12/2025----aaron   
 # Cashier Apply Discount
 logger = logging.getLogger(__name__)
 
@@ -2656,7 +2659,7 @@ def cancel_online_order_cashier(request, orderId):
 
 
 
-# ---------------10/5/25
+# ---------------10/12/25---------------aaron
 #=====================9/1/25===================    ===================== 9/4/25 (online orders added in inventory logs)===================
 #--9/29/25-- MODIFIED FOR DIALOGUE BOX
 @api_view(['PUT'])
@@ -3378,7 +3381,7 @@ def list_pending_prescription_orders(request):
 
 
 
-#------------10/4/25--------------------------------------
+#------------10/12/25--------------------------------------aaron
 @api_view(['GET'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -3930,7 +3933,7 @@ def check_barcode_existence(request, barcode):
 
 
 
-#----------10/11/25
+#----------10/11/25----------------------jermagne
 #-----------
 class DailyReportsView(APIView):
     # If you were using IsAuthenticated, make sure to include it:

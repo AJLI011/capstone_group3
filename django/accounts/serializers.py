@@ -696,7 +696,7 @@ class InStoreOrderItemSerializer(serializers.ModelSerializer):
 
 
 
-
+#---------10/12/2025-------aaron
 class CashierInStoreOrderSerializer(serializers.ModelSerializer):
     # CRITICAL CHANGE 1: Convert 'items' to SerializerMethodField (already correct)
     items = serializers.SerializerMethodField() 
@@ -1089,7 +1089,7 @@ class OnlineOrderLogDetailsSerializer(serializers.ModelSerializer):
         
         
 
-# ---------------10/5/25 
+# ---------------10/12/25- aaron
 class OnlineOrderListSerializer(serializers.ModelSerializer):
     # === CRITICAL FIX: Change to SerializerMethodField ===
     # This field will now call the get_items method below.
@@ -1499,6 +1499,9 @@ class PrescriptionOrderSerializer(serializers.ModelSerializer):
         
         return representation
 
+
+
+#---------10/12-2025---------------------------------------------aaron
 class CombinedPrescriptionSerializer(serializers.ModelSerializer):
     order_id = serializers.SerializerMethodField()
     order_type = serializers.SerializerMethodField()
@@ -1730,6 +1733,7 @@ class StaffFCMTokenSerializer(serializers.ModelSerializer):
         
 
 #-----------------
+#---------------10/11/2025----------jermagne
 class DailyReportSerializer(serializers.Serializer):
     employee_logs = EmployeeLogSerializer(many=True, read_only=True)
     order_logs = OrderLogSerializer(many=True, read_only=True)
