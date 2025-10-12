@@ -1091,7 +1091,11 @@ class OnlineOrderLogDetailsSerializer(serializers.ModelSerializer):
 
 # ---------------10/5/25 
 class OnlineOrderListSerializer(serializers.ModelSerializer):
-    items = OnlineOrderItemReadSerializer(many=True, read_only=True)
+    # === CRITICAL FIX: Change to SerializerMethodField ===
+    # This field will now call the get_items method below.
+    items = serializers.SerializerMethodField()
+    
+    # === Keep other fields as they are ===
     customer_name = serializers.CharField(source='customer.name', read_only=True)
     customer_email = serializers.CharField(source='customer.email', read_only=True)
     pickup_schedule = serializers.DateTimeField(read_only=True)
@@ -1100,51 +1104,51 @@ class OnlineOrderListSerializer(serializers.ModelSerializer):
     initiated_by_name = serializers.CharField(read_only=True)
     approved_by_name = serializers.CharField(read_only=True)
     
-    # This field is now redundant. The Flutter side should handle displaying all
-    # items from the 'items' list and marking the deleted ones.
-    # deleted_item_name = serializers.SerializerMethodField()
-    
     class Meta:
         model = OnlineOrder
         fields = [
             'id', 'customer_name', 'customer_email', 'date_created',
             'status', 'total_amount_before_discount', 'total_amount_after_discount',
             'is_pwd', 'items', 'pickup_schedule', 'fulfilled_timestamp',
-            'initiated_by_name', 'approved_by_name', # 10-04-25 added these two fields
-            # 'deleted_item_name', # Remove this line
+            'initiated_by_name', 'approved_by_name',
         ]
 
-    # You can remove this entire method since the front-end will no longer use it.
-    # def get_deleted_item_name(self, obj):
-    #     if obj.status == 'cancelled' and obj.total_amount_after_discount == 0:
-    #         first_item = obj.items.first()
-    #         if first_item:
-    #             return first_item.medicine_name
-    #     return None
+    # === NEW METHOD: Used by 'items = serializers.SerializerMethodField()' ===
+    def get_items(self, obj):
+        """
+        Looks for the 'filtered_items' attribute (set by Prefetch in the view) 
+        and uses it for serialization. Falls back to the default items if not present.
+        """
+        # 1. Check if the Prefetch loaded the filtered list (from the update_order_discount view)
+        if hasattr(obj, 'filtered_items'):
+            items_to_serialize = obj.filtered_items
+        # 2. Fallback to the default manager if Prefetch wasn't used in this context
+        else:
+            # Note: This fallback will be used by other views (GET lists, etc.) 
+            # and may include unfiltered items unless those views also use a Prefetch.
+            # However, for the update-discount endpoint, 'filtered_items' will be used.
+            items_to_serialize = obj.items.all() 
+
+        # 3. Serialize the list we retrieved using your existing item serializer
+        return OnlineOrderItemReadSerializer(
+            items_to_serialize, 
+            many=True, 
+            read_only=True
+        ).data
+
+    # You can remove the unused get_deleted_item_name method block if desired.
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         
         # Check if the order is cancelled.
         if representation['status'] == 'cancelled':
-            # For cancelled orders, we want to show all original items,
-            # including those that are now marked as deleted.
+            # For cancelled orders, we want to show all original items.
             return representation
 
-        # For all other statuses, filter out deleted items.
-        #serialized_items = representation['items']
-        #available_items = [
-            #item for item in serialized_items
-            #if not item.get('medicine', {}).get('is_deleted', False)
-        #]
-        #representation['items'] = available_items
-        
-        # This logic is now handled in the view, so this part is redundant,
-        # but leaving it here doesn't hurt.
-        #if representation['status'] in ['pending', 'ready for pickup'] and not available_items:
-            #instance.status = 'cancelled'
-            #instance.save(update_fields=['status'])
-            #representation['status'] = 'cancelled'
+        # The other commented-out logic is not necessary anymore, as the filtering 
+        # is handled upstream in get_items, and the auto-cancellation logic
+        # is likely elsewhere.
         
         return representation
     

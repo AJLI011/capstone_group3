@@ -105,12 +105,26 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
 
   // A helper function to build the list of items inside the order card
   List<Widget> _buildOrderItems(List<dynamic> items) {
+    // === UPDATED LOGIC: TRUSTING THE BACKEND FILTER ===
+    // The backend now filters out the "ghost" items (inventory_id__isnull=False).
+    // We can use the list directly, relying on the backend contract.
+    final itemsToDisplay = items;
+    // =================================================
+
     // Safely get the order ID, using tryParse for robustness
     final orderId = int.tryParse(widget.order['id'].toString());
 
-    return items.map((item) {
+    return itemsToDisplay.map((item) { // Use itemsToDisplay here
       // Safely get the item ID
       final itemId = int.tryParse(item['id'].toString());
+      
+      // We still need this check to prevent crashes if the 'medicine' object is null,
+      // even though the backend should now guarantee non-null data for valid items.
+      final medicine = item['medicine'] as Map<String, dynamic>?; 
+      if (medicine == null) {
+        // Fallback for safety, though should not be hit with the backend fix
+        return const SizedBox.shrink(); 
+      }
 
       // Safely parse the quantity and price, defaulting to 0 if null or invalid
       final quantitySold = int.tryParse(item['quantity_sold'].toString()) ?? 0;
@@ -118,7 +132,6 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
       final price = double.tryParse(item['price_at_sale'].toString()) ?? 0.0;
       final itemTotal = price * quantitySold;
       
-      final medicine = item['medicine'] as Map<String, dynamic>;
       final medicineName = medicine['name'] ?? 'N/A';
       final genericName = medicine['generic_name'] ?? 'N/A';
       final imageUrl = medicine['image'] ?? '';
@@ -328,6 +341,9 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         setState(() {
+          // Note: This filters the full list to show only 'ready for pickup' orders.
+          // If you need a separate 'pending' view, remove this filter and handle
+          // 'pending' orders in a separate tab/list.
           _allOrders = jsonDecode(response.body)
               .where((order) => order['status'] == 'ready for pickup')
               .toList();
@@ -353,7 +369,11 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
         if (updatedOrder['status'] == 'cancelled') {
           _allOrders.removeAt(orderIndex);
         } else {
-          _allOrders[orderIndex] = updatedOrder;
+          // Update the order in the list, ensuring it maintains the 'ready for pickup' filter
+          // (i.e., we don't accidentally add a 'pending' order if the filter logic was changed)
+          if (updatedOrder['status'] == 'ready for pickup') {
+            _allOrders[orderIndex] = updatedOrder;
+          }
         }
       }
     });
@@ -518,7 +538,7 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to connect to the server: $e')),
+      SnackBar(content: Text('Failed to connect to the server: $e')),
       );
     }
   }
@@ -531,9 +551,11 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
       final responseData = jsonDecode(response.body);
 
       if (responseData['detail'] != null && responseData['detail'].contains('cancelled')) {
+        // Order was auto-cancelled because all items were removed
         _allOrders.removeWhere((order) => order['id'] == orderId);
         setState(() {});
       } else {
+        // Order was updated, and we get the new order object back
         _updateOrderInList(responseData['order']);
       }
       ScaffoldMessenger.of(context).showSnackBar(
@@ -559,9 +581,6 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
     if (response.statusCode == 200) {
       final responseData = jsonDecode(response.body);
       _updateOrderInList(responseData['order']);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PWD discount updated successfully.')),
-      );
     } else {
       final errorBody = jsonDecode(response.body);
       final errorMessage = errorBody['detail'] ?? 'Failed to update discount.';
@@ -590,6 +609,9 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
     List<dynamic> readyForPickupOrders = _allOrders.where((order) => order['status'] == 'ready for pickup').toList();
     if (_selectedDate != null) {
       readyForPickupOrders = readyForPickupOrders.where((order) {
+        // Safely check for pickup_schedule before parsing
+        if (order['pickup_schedule'] == null) return false; 
+        
         final pickupDate = DateTime.parse(order['pickup_schedule']).toLocal();
         return pickupDate.year == _selectedDate!.year &&
                 pickupDate.month == _selectedDate!.month &&

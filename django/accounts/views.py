@@ -2256,23 +2256,34 @@ def cancel_online_order(request, order_id):
 @api_view(['GET'])
 def get_pending_online_orders(request):
     """
-    API view for staff to get a list of all online orders with a 'pending' status.
+    API view for staff to get a list of all online orders with a 'pending' or 'ready for pickup' status.
+    This view now uses a Prefetch filter to exclude 'ghost' items (those with inventory_id=NULL)
+    and ensures the serialized data is clean.
     """
     try:
-        # Fetch only orders that are in a 'pending' or 'ready for pickup' status
+        # === Define the Prefetch object with filtering and to_attr for the serializer ===
+        item_prefetch = Prefetch(
+            'items',
+            queryset=OnlineOrderItem.objects.select_related('inventory_id__medicine').filter(
+                # CRITICAL FIX: Filter out deleted/unlinked items
+                inventory_id__isnull=False 
+            ),
+            # CRITICAL FIX: Use to_attr to hook into the serializer's get_items method
+            to_attr='filtered_items'
+        )
+
+        # 1. Fetch orders with the filtered items for recalculation/looping
+        # Note: When iterating over 'orders', accessing order.items will still give the unfiltered list.
+        # We must manually filter inside the loop's aggregate.
         orders = OnlineOrder.objects.filter(
             status__in=['pending', 'ready for pickup']
         ).prefetch_related(
-            Prefetch(
-                'items',
-                queryset=OnlineOrderItem.objects.select_related('inventory_id__medicine')
-            )
+            item_prefetch # Using the defined Prefetch
         ).order_by('-date_created')
-
 
         # 💡 NEW/MODIFIED LOGIC: Loop through orders to recalculate and save totals 💡
         for order in orders:
-            # Only need to check the items for active status since it's already pending/ready
+            # The logic here is already correct and uses the filter directly on the default manager:
             new_total_before = order.items.filter(
                 inventory_id__isnull=False
             ).aggregate(
@@ -2288,35 +2299,42 @@ def get_pending_online_orders(request):
                 new_total_after = new_total_before - (new_total_before * Decimal('0.20'))
 
             # Check if all items in the order were deleted, and auto-cancel if so
-            if new_total_before == 0 and order.items.count() > 0:
+            # Note: We check against the filtered total, but must check the unfiltered items count for true cancellation
+            if new_total_before == 0 and order.items.filter(inventory_id__isnull=False).count() == 0:
                 order.status = 'cancelled'
                 order.total_amount_before_discount = new_total_before
                 order.total_amount_after_discount = new_total_before
                 order.save(update_fields=['status', 'total_amount_before_discount', 'total_amount_after_discount'])
             
             # Update the order in the database only if the total has changed
-            # This is crucial for subsequent staff actions (confirm/finalize)
             elif order.total_amount_after_discount != new_total_after:
                 order.total_amount_before_discount = new_total_before
                 order.total_amount_after_discount = new_total_after
                 order.save(update_fields=['total_amount_before_discount', 'total_amount_after_discount'])
 
+        
+        # 2. Re-fetch the queryset to get the updated values from the database 
+        # (Needed to reflect the status='cancelled' changes made in the loop)
+        # We must re-add the Prefetch to ensure the data is clean before serialization.
 
-        # Re-fetch the queryset to get the updated values from the database
-        orders = OnlineOrder.objects.filter(
+        orders_for_serialization = OnlineOrder.objects.filter(
             status__in=['pending', 'ready for pickup']
+        ).prefetch_related(
+            item_prefetch # Using the defined Prefetch with to_attr='filtered_items'
         ).order_by('-date_created')
 
-        serializer = OnlineOrderListSerializer(orders, many=True)
+        # The OnlineOrderListSerializer will now use 'filtered_items' because of the 'to_attr'
+        serializer = OnlineOrderListSerializer(orders_for_serialization, many=True)
         return Response(serializer.data)
         
     except Exception as e:
+        # Assuming logger is imported/available, otherwise use print
+        # logger.error(f"[GET PENDING ONLINE ORDERS ERROR] {e}") 
         print(f"[GET PENDING ONLINE ORDERS ERROR] {e}")
         return Response(
             {"detail": f"An unexpected error occurred: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
 
 
 
@@ -2441,18 +2459,19 @@ logger = logging.getLogger(__name__)
 @api_view(['PUT'])
 def update_order_discount(request, orderId):
     """
-    Updates the discount for an online order.
+    Updates the discount for an online order and returns the filtered order data.
     """
     try:
-        # Fetch the order by its ID
+        # Step 1: Fetch the order initially to perform the update
+        # We fetch the order here without Prefetch just to get the instance
         order = OnlineOrder.objects.get(id=orderId)
         
         # Check if the order status is 'pending' or 'ready for pickup'.
-        # This prevents changes to already completed or cancelled orders.
         if order.status in ['pending', 'ready for pickup']:
             # Get the is_pwd value from the request body. Default to False if not provided.
             is_pwd_discount = request.data.get('is_pwd', False)
             
+            # ... (Existing discount calculation logic) ...
             if is_pwd_discount:
                 # Apply a 20% discount (0.80) to the total amount before discount
                 order.total_amount_after_discount = order.total_amount_before_discount * Decimal('0.80')
@@ -2464,8 +2483,25 @@ def update_order_discount(request, orderId):
 
             order.save()
             
-            # Return the updated order data so the frontend can refresh the UI
-            serializer = OnlineOrderListSerializer(order)
+            # =================================================================
+            # === CRITICAL FIX: Re-fetch and filter the items for response. ===
+            # =================================================================
+            # NOTE: Removed the problematic assignment line.
+            # We use Prefetch to ensure the 'items' field only contains valid items
+            # and attach them to a custom attribute 'filtered_items'.
+            order_for_serialization = OnlineOrder.objects.filter(id=orderId).prefetch_related(
+                Prefetch(
+                    'items', 
+                    queryset=OnlineOrderItem.objects.filter(inventory_id__isnull=False),
+                    to_attr='filtered_items' # Renamed to the final agreed attribute name
+                )
+            ).first()
+            
+            # The serializer will now read from 'filtered_items' in the get_items method.
+            # =================================================================
+
+            # Pass the Prefetched object to the serializer
+            serializer = OnlineOrderListSerializer(order_for_serialization)
             return Response(
                 {"message": "Discount updated successfully.", "order": serializer.data},
                 status=status.HTTP_200_OK
@@ -2484,6 +2520,9 @@ def update_order_discount(request, orderId):
         # Log and return a generic server error for any other exceptions
         logger.error(f"[UPDATE DISCOUNT ERROR] {e}")
         return Response({"error": "An unexpected error occurred."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    
+    
 
 # Cashier Remove Item
 @api_view(['DELETE'])
@@ -2640,13 +2679,17 @@ def finalize_online_order(request, orderId):
         with transaction.atomic():
             order = OnlineOrder.objects.get(id=orderId, status='ready for pickup')
 
-            # ======== NEW PRESCRIPTION LOGIC FOR DIALOGUE BOX ========
+            # ======== NEW PRESCRIPTION LOGIC FOR DIALOGUE BOX (FIXED) ========
             force_approve = request.data.get('force_approve', False)
             
-            # Determine if any item in the order requires a prescription
+            # === FIX 1: Safely determine if any item requires a prescription ===
+            # We filter out items where the link is broken (item.inventory_id or .medicine is None)
             order_requires_prescription = any(
-                item.inventory_id.medicine.requires_prescription for item in order.items.all()
+                item.inventory_id.medicine.requires_prescription 
+                for item in order.items.all()
+                if item.inventory_id and item.inventory_id.medicine
             )
+            # =================================================================
 
             # Check for a prescription image if required and force_approve is not set
             if order_requires_prescription and not force_approve:
@@ -2786,7 +2829,7 @@ def finalize_online_order(request, orderId):
             # This is the correct order of operations.
             from .serializers import OnlineOrderListSerializer
 
-            # 10-04-25  NEW LOGIC: CAPTURE APPROVING CASHIER FK AND NAME SNAPSHOT
+            # 10-04-25  NEW LOGIC: CAPTURE APPROVING CASHIER FK AND NAME SNAPSHOT
             order.approved_by = staff_user
             order.approved_by_name = staff_user.name
             order.approved_by_role_snapshot = staff_user.role
@@ -2806,9 +2849,21 @@ def finalize_online_order(request, orderId):
             )
             #---- end of new lines-----
 
+            # === FIX 2: Re-fetch and filter the items for response. ===
+            # The serializer needs the item list to be filtered before response.
+            order_for_serialization = OnlineOrder.objects.filter(id=orderId).prefetch_related(
+                Prefetch(
+                    'items', 
+                    queryset=OnlineOrderItem.objects.filter(inventory_id__isnull=False),
+                    to_attr='filtered_items'
+                )
+            ).first()
+
             # The serializer automatically handles the date formatting correctly
-            serializer = OnlineOrderListSerializer(order)
+            # It will use the get_items method to read from 'filtered_items'
+            serializer = OnlineOrderListSerializer(order_for_serialization)
             return Response(serializer.data, status=status.HTTP_200_OK)
+            # ==========================================================
 
     except Staff.DoesNotExist:
         return Response({'error': 'Staff member not found'}, status=status.HTTP_404_NOT_FOUND)
