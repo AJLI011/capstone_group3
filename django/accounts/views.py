@@ -3859,6 +3859,75 @@ class MedicineSalesHistoryView(APIView):
         return Response(historical_data, status=status.HTTP_200_OK)
     
 
+#10/12/25
+# NEW VIEW: To handle search by medicine name
+class MedicineForecastByNameView(APIView):
+    """
+    API endpoint to retrieve a single ForecastItem using the medicine's name 
+    from the LATEST report.
+    Accepts GET request with query parameter: ?name=<medicine_name>
+    """
+    def get(self, request, *args, **kwargs):
+        # 1. Get the 'name' query parameter and clean it up
+        medicine_name = request.query_params.get('name', '').strip()
+
+        if not medicine_name:
+            return Response(
+                {"detail": "Query parameter 'name' is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 2. Find the latest generated report to search within
+        try:
+            latest_report = ForecastReport.objects.latest('week_start_date')
+        except ForecastReport.DoesNotExist:
+            return Response(
+                {"detail": "No forecast reports have been generated yet."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # 3. Search for the specific ForecastItem in the latest report
+        try:
+            # CORRECT SYNTAX: Positional arguments (Q objects) MUST come before 
+            # the keyword argument (forecast_report=latest_report).
+            forecast_item = ForecastItem.objects.filter(
+                # Positional Arguments (Q objects)
+                Q(medicine_name__icontains=medicine_name) | 
+                Q(generic_name__icontains=medicine_name),
+                
+                # Keyword Argument
+                forecast_report=latest_report 
+            ).get() # Enforce single result
+            
+            # 4. Serialize and return the single item
+            serializer = ForecastItemSerializer(forecast_item)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except ForecastItem.DoesNotExist:
+            # Expected 404 response when the item isn't found
+            return Response(
+                {"detail": f"Forecast for medicine '{medicine_name}' not found in the latest report."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except ForecastItem.MultipleObjectsReturned:
+            # Fallback for partial name matches that return duplicates
+            # Filter again and grab the first result instead of raising an error
+            forecast_item = ForecastItem.objects.filter(
+                Q(medicine_name__icontains=medicine_name) | Q(generic_name__icontains=medicine_name),
+                forecast_report=latest_report 
+            ).first()
+            
+            serializer = ForecastItemSerializer(forecast_item)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            # Catch other unexpected errors
+            return Response(
+                {"detail": f"An unexpected error occurred: {e}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+
 
 
 

@@ -6,7 +6,7 @@ from .views import (
     medicine_list, medicine_detail,InventoryCreateView,get_inventory_list,GoodStockView, ExpiringSoonView, ExpiredView,
     remove_promo, get_customer_medicines,inventory_logs, PromoMedicineView, PromoMedicineDetailView, 
     get_customer_medicine_detail,InStoreSalesReportView,OnlineSalesReportView, LatestForecastReportView, MedicineSalesHistoryView, 
-    PurchaseRequestListView,OrderLogsListView, UnaddressedExpiringStockView, # Now only imported once
+    PurchaseRequestListView,OrderLogsListView, UnaddressedExpiringStockView, MedicineForecastByNameView, # Now only imported once
     
 )
 from .views import get_comprehensive_transaction_report
@@ -151,6 +151,9 @@ urlpatterns = [
     path('forecast/latest/', LatestForecastReportView.as_view(), name='latest-forecast'),
     path('forecast/history/<int:medicine_id>/', MedicineSalesHistoryView.as_view(), name='medicine-sales-history'),
     path('forecast/generate/', views.generate_forecast_report, name='generate_forecast'), 
+    path('forecast/medicine/', MedicineForecastByNameView.as_view(), name='search_medicine_forecast'),
+
+
 
     # New URL for Purchase Request
     path('purchase-request/', PurchaseRequestListView.as_view(), name='purchase-request-list'),

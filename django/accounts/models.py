@@ -481,11 +481,15 @@ class ForecastItem(models.Model):
     restock_amount = models.IntegerField(default=0)
     rank = models.PositiveIntegerField()
 
+    # NEW FIELD ADDED FOR OVERSTOCKING PREVENTION
+    reorder_level = models.PositiveIntegerField(default=0)
+
     def __str__(self):
         # Use the snapshot name if the medicine link is null
         if self.medicine_name:
             return f"Rank {self.rank}: {self.medicine_name} - {self.forecasted_quantity} units"
         return f"Rank {self.rank}: [Medicine Deleted] - {self.forecasted_quantity} units"
+
 #----------9/23/25
 
 

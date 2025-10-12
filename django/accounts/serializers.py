@@ -1702,7 +1702,7 @@ class MedicineForecastSerializer(serializers.ModelSerializer):
 
 
 
-#----------9/23/25-------------------------------------------------------------------------------------
+#---------10/12/25---------------------------juliana----------------------------------------------------------
 # NEW: Serializer for the forecast items.
 class ForecastItemSerializer(serializers.ModelSerializer):
     # Use the simplified MedicineForecastSerializer to represent the medicine object.
@@ -1718,7 +1718,8 @@ class ForecastItemSerializer(serializers.ModelSerializer):
             'restock_amount',
             'medicine',
             'medicine_name', # <--- ADD THIS FIELD
-            'generic_name' # <--- ADD THIS FIELD
+            'generic_name', # <--- ADD THIS FIELD
+            'reorder_level' # <--- ADD THIS NEW FIELD
         ]
 #----------9/23/25-------------------------------------------------------------------------------------
 
