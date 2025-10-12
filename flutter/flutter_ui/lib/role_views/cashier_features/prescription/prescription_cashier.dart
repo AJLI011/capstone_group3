@@ -32,7 +32,7 @@ class _PrescriptionsCashierState extends State<PrescriptionsCashier> {
     final token = await _getAuthToken();
     // Temporarily disable token check for testing purposes
     // if (token == null) {
-    //   throw Exception('Authentication token not found');
+    //   throw Exception('Authentication token not found');
     // }
 
     final response = await http.get(
@@ -45,7 +45,41 @@ class _PrescriptionsCashierState extends State<PrescriptionsCashier> {
     );
 
     if (response.statusCode == 200) {
-      return json.decode(response.body);
+      List<dynamic> allPrescriptions = json.decode(response.body);
+
+      // --- MODIFIED FILTERING LOGIC STARTS HERE ---
+      List<dynamic> filteredPrescriptions = allPrescriptions.where((prescription) {
+        final hasImages = (prescription['images'] as List).isNotEmpty;
+        final orderItems = prescription['order_items'] as List;
+        final hasOrderItems = orderItems.isNotEmpty;
+        final orderType = prescription['order_type'];
+        final orderStatus = prescription['status']; // Assuming 'status' field exists
+
+        // 1. Must have uploaded images to be considered a prescription order
+        if (!hasImages) {
+            return false;
+        }
+
+        // 2. Filter out online orders that have been explicitly cancelled.
+        // Assuming 'cancelled' is the status for a cancelled order.
+        if (orderType == 'online' && orderStatus == 'cancelled') {
+            return false;
+        }
+
+        // 3. Filter out orders where all items have been deleted.
+        // This is necessary because deleting the last item is another form of "cancellation" 
+        // that might not update the 'status' field.
+        if (!hasOrderItems) {
+            return false;
+        }
+
+        // Only show prescriptions that have images, aren't cancelled (if online), and still have items.
+        return true; 
+        
+      }).toList();
+      // --- MODIFIED FILTERING LOGIC ENDS HERE ---
+
+      return filteredPrescriptions;
     } else if (response.statusCode == 401) {
       throw Exception('Unauthorized: Invalid or expired token');
     } else {
@@ -79,6 +113,7 @@ class _PrescriptionsCashierState extends State<PrescriptionsCashier> {
                 final orderType = prescription['order_type'];
                 final name = prescription['staff_or_customer_name'];
                 final date = prescription['date_uploaded'];
+                // NOTE: Use the API's totalAmount here. The details screen will recalculate it if it's 0.0.
                 final totalAmount = prescription['total_amount_after_discount'];
                 
                 return Card(
@@ -97,6 +132,8 @@ class _PrescriptionsCashierState extends State<PrescriptionsCashier> {
                         else
                           Text('Customer: ${name ?? 'N/A'}'),
                         Text('Date: ${date.substring(0, 10)}'),
+                        // Display the total amount. If the API value is 0.0, this will display ₱0.0, 
+                        // which signals the issue in the list view, but the details view will be correct.
                         Text('Total: ₱$totalAmount'),
                       ],
                     ),

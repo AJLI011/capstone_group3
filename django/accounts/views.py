@@ -3329,26 +3329,38 @@ def list_pending_prescription_orders(request):
 @permission_classes([AllowAny])
 def list_all_pending_prescriptions(request):
     """
-    API endpoint to retrieve all pending in-store prescriptions and 
-    'ready for pickup' online prescriptions for staff.
-    This version only shows prescriptions that do not have images yet AND
-    the associated order is NOT CANCELLED.
+    Final robust version: Ensures the prescription is pending AND its linked order 
+    (either in-store OR online) is in the required status.
     """
     
-    # 1. Define the base filters for the Prescription status and image presence
+    # 1. Base Filters on the Prescription model itself
+    # Adjusted to be permissive, assuming 'ready for pickup' is a state that still needs image action.
     base_prescription_filters = (
-        Q(status__in=['pending', 'ready for pickup']) & Q(images__isnull=True)
+        Q(images__isnull=True) & 
+        Q(status__in=['pending', 'ready for pickup']) 
     )
 
-    # 2. Define the filters to EXCLUDE cancelled orders
-    # We use ~Q (NOT Q) to exclude cancelled orders in BOTH relationships
-    cancelled_order_filters = (
-        Q(in_store_order__status='cancelled') | Q(online_order__status='cancelled')
+    # 2. Define the ALLOWED/PENDING Order Statuses (The action stage)
+    # We explicitly check for the status AND the existence of the order link (via __isnull=False)
+    
+    # Condition A: InStore Order is linked AND status is 'pending'
+    in_store_condition = (
+        Q(in_store_order__isnull=False) & 
+        Q(in_store_order__status='pending')
     )
 
-    # 3. Combine the filters: Base filters AND NOT Cancelled filters
-    pending_prescriptions = Prescription.objects.filter(base_prescription_filters).exclude(
-        cancelled_order_filters
+    # Condition B: Online Order is linked AND status is 'ready for pickup'
+    online_condition = (
+        Q(online_order__isnull=False) & 
+        Q(online_order__status='ready for pickup')
+    )
+    
+    # The prescription must meet either condition A OR condition B
+    allowed_order_statuses = (in_store_condition | online_condition)
+
+    # 3. Combine ALL filters (Base Filters AND Order Statuses)
+    pending_prescriptions = Prescription.objects.filter(
+        base_prescription_filters & allowed_order_statuses
     ).select_related(
         'in_store_order__staff', 
         'online_order__customer'
@@ -3393,11 +3405,26 @@ def upload_prescription_images(request, pk):
 def list_cashier_prescriptions(request):
     """
     API endpoint for cashiers to view prescription orders that already have images.
+    
+    MODIFICATION: Exclude prescriptions linked to cancelled Online Orders 
+    and rejected In-Store Orders.
     """
-    # Filter for prescriptions that have at least one associated image.
     cashier_prescriptions = Prescription.objects.filter(
         images__isnull=False
-    ).select_related(
+    )
+
+    # 1. Exclude prescriptions linked to cancelled Online Orders
+    cashier_prescriptions = cashier_prescriptions.exclude(
+        online_order__status='cancelled'
+    )
+
+    # 2. Exclude prescriptions linked to rejected In-Store Orders
+    # Use the status 'rejected' from the InStoreOrder model
+    cashier_prescriptions = cashier_prescriptions.exclude(
+        in_store_order__status='rejected'
+    )
+
+    cashier_prescriptions = cashier_prescriptions.select_related(
         'in_store_order__staff', 
         'online_order__customer'
     ).prefetch_related(
@@ -3408,7 +3435,6 @@ def list_cashier_prescriptions(request):
     serializer = CombinedPrescriptionSerializer(cashier_prescriptions, many=True)
     
     return Response(serializer.data, status=status.HTTP_200_OK)
-
 
 
 

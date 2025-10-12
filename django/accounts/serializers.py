@@ -1506,12 +1506,14 @@ class CombinedPrescriptionSerializer(serializers.ModelSerializer):
     is_pwd = serializers.SerializerMethodField()
     order_items = serializers.SerializerMethodField()
     
+    order_status = serializers.SerializerMethodField()
+    
     class Meta:
         model = Prescription
         fields = [
             'id', 'order_id', 'images', 'status', 'date_uploaded',
             'order_type', 'staff_or_customer_name', 'total_amount_after_discount',
-            'discount_amount', 'total_amount_before_discount', 'is_pwd', 'order_items'
+            'discount_amount', 'total_amount_before_discount', 'is_pwd', 'order_items', 'order_status'
         ]
 
     def get_order_id(self, obj):
@@ -1570,6 +1572,17 @@ class CombinedPrescriptionSerializer(serializers.ModelSerializer):
             items = OnlineOrderItem.objects.filter(order=obj.online_order)
             return OnlineOrderItemReadSerializer(items, many=True, context=self.context).data
         return []
+    
+    def get_order_status(self, obj):
+        """
+        Retrieves the main status from the associated InStoreOrder or OnlineOrder.
+        """
+        if obj.in_store_order:
+            return obj.in_store_order.status
+        elif obj.online_order:
+            return obj.online_order.status
+        # If the order is somehow deleted (null FK), fall back to the Prescription's status
+        return obj.status
     
 #-----PUSH NOTIF
 
