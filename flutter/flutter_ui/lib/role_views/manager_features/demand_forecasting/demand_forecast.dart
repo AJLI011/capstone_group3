@@ -6,6 +6,9 @@ import 'package:http/http.dart' as http;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
+// 🎯 YOUR SPECIFIC IMPORT PATH MUST MATCH THE FILE LOCATION
+import 'package:flutter_ui/services/responsive_scale2.dart'; 
+
 // ====================================================================
 // Step 1: DATA MODELS
 // ====================================================================
@@ -57,10 +60,10 @@ class ForecastItem {
       medicine: json['medicine'] != null
           ? MedicineForecast.fromJson(json['medicine'])
           : MedicineForecast(
-              id: 0,
-              name: json['medicine_name'] ?? 'Medicine Deleted',
-              genericName: json['generic_name'] ?? 'N/A'
-            ),
+                id: 0,
+                name: json['medicine_name'] ?? 'Medicine Deleted',
+                genericName: json['generic_name'] ?? 'N/A'
+              ),
     );
   }
 }
@@ -106,7 +109,7 @@ class HistoricalSalesData {
 }
 
 // ====================================================================
-// Step 2: API SERVICE (UPDATED with Search)
+// Step 2: API SERVICE
 // ====================================================================
 
 class ApiService {
@@ -162,7 +165,7 @@ class ApiService {
 }
 
 // ====================================================================
-// Step 3: UI VIEW (Screen) (Updated to Limit to Top 10)
+// Step 3: UI VIEW (Screen) (Updated with Responsive Scaling)
 // ====================================================================
 
 class DemandForecastScreen extends StatefulWidget {
@@ -172,7 +175,8 @@ class DemandForecastScreen extends StatefulWidget {
   State<DemandForecastScreen> createState() => _DemandForecastScreenState();
 }
 
-class _DemandForecastScreenState extends State<DemandForecastScreen> {
+// 1. MIX IN THE RESPONSIVE SCALE UTILITY
+class _DemandForecastScreenState extends State<DemandForecastScreen> with ResponsiveScale {
   Future<ForecastReport?>? futureForecast;
   bool isGenerating = false;
 
@@ -202,25 +206,24 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
     });
   }
 
-  // Helper method to show the plotting modal, now using the PlottingWidget
   void _showForecastPlot(ForecastItem item) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (context) {
-        return PlottingWidget(item: item); 
+        // Pass the item and the responsive scale mixin instance
+        return PlottingWidget(item: item, responsiveScale: this); 
       },
     );
   }
 
-  // Method to show the search modal
   void _showSearchModal() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (context) {
-        // Pass the plotting function to the search modal
-        return SingleMedicineSearch(onShowPlot: _showForecastPlot); 
+        // Pass the plotting function and the responsive scale mixin instance
+        return SingleMedicineSearch(onShowPlot: _showForecastPlot, responsiveScale: this); 
       },
     );
   }
@@ -241,7 +244,8 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        // Use scaleValue for padding
+        padding: EdgeInsets.all(scaleValue(context, 16.0)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -250,26 +254,31 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: const Color(0xFF5C7C9A),
                   fontWeight: FontWeight.bold,
+                  // Use scaleFontSize for text
+                  fontSize: scaleFontSize(context, Theme.of(context).textTheme.titleLarge!.fontSize!),
                 ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: scaleValue(context, 16)),
             Center(
               child: ElevatedButton.icon(
                 onPressed: isGenerating ? null : _fetchData,
                 icon: isGenerating
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
+                    ? SizedBox(
+                        width: scaleValue(context, 20),
+                        height: scaleValue(context, 20),
+                        child: const CircularProgressIndicator(
                           color: Colors.white,
                           strokeWidth: 2,
                         ),
                       )
-                    : const Icon(Icons.show_chart),
-                label: Text(isGenerating ? 'Generating...' : 'Generate Forecast'),
+                    : Icon(Icons.show_chart, size: scaleValue(context, 24)),
+                label: Text(
+                  isGenerating ? 'Generating...' : 'Generate Forecast',
+                  style: TextStyle(fontSize: scaleFontSize(context, 14)),
+                ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: scaleValue(context, 16)),
             Expanded(
               child: FutureBuilder<ForecastReport?>(
                 future: futureForecast,
@@ -291,7 +300,7 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
                     final DateTime weekStartDateTime = DateTime.parse(forecastReport.weekStartDate);
                     final String formattedWeekStart = DateFormat('MMM d, y').format(weekStartDateTime);
                     
-                    // --- FIX: LIMIT ITEMS TO TOP 10 ---
+                    // --- LIMIT ITEMS TO TOP 10 ---
                     final List<ForecastItem> top10Items = forecastReport.items.take(10).toList();
 
 
@@ -300,13 +309,13 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
                       children: [
                         Text(
                           'Generated: $formattedTime',
-                          style: Theme.of(context).textTheme.bodyLarge,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: scaleFontSize(context, 14)),
                         ),
                         Text(
                           'For the week of: $formattedWeekStart',
-                          style: Theme.of(context).textTheme.bodyLarge,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: scaleFontSize(context, 14)),
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: scaleValue(context, 16)),
                         Expanded(
                           child: ListView(
                             children: [
@@ -315,6 +324,7 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
                                 return InkWell(
                                   onTap: () => _showForecastPlot(item),
                                   child: _buildTableRow(
+                                    context: context,
                                     rank: item.rank,
                                     medicineName: item.medicine.name,
                                     forecastedQuantity: item.forecastedQuantity,
@@ -341,27 +351,40 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
     );
   }
 
+  // REVISED HEADER WIDGET
   Widget _buildTableHeader(BuildContext context) {
+    const double baseFontSize = 10.5; 
+    const double baseVerticalPadding = 8.0;
+    const double baseHorizontalPadding = 8.0;
+
+    TextStyle headerStyle = TextStyle(fontWeight: FontWeight.bold, fontSize: scaleFontSize(context, baseFontSize));
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+      padding: EdgeInsets.symmetric(
+        vertical: scaleValue(context, baseVerticalPadding), 
+        horizontal: scaleValue(context, baseHorizontalPadding)
+      ),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(8.0),
+        borderRadius: BorderRadius.circular(scaleValue(context, 8.0)),
       ),
       child: Row(
-        children: const [
-          Expanded(flex: 1, child: Text('No.', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-          Expanded(flex: 3, child: Text('Medicine', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-          Expanded(flex: 2, child: Text('Forecast', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-          Expanded(flex: 2, child: Text('Current Stock', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-          Expanded(flex: 2, child: Text('ROL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))), 
-          Expanded(flex: 2, child: Text('Restock', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+        children: [
+          Expanded(flex: 1, child: Center(child: Text('No.', style: headerStyle))),
+          // CHANGE 1: Remove Center around Medicine header. The header text is still center-aligned via the headerStyle's TextAlign.
+          Expanded(flex: 3, child: Center(child: Text('Medicine', style: headerStyle))),
+          Expanded(flex: 3, child: Center(child: Text('Forecast', style: headerStyle))),
+          Expanded(flex: 3, child: Center(child: Text('Current Stock', style: headerStyle))),
+          Expanded(flex: 2, child: Center(child: Text('ROL', style: headerStyle))), 
+          Expanded(flex: 2, child: Center(child: Text('Restock', style: headerStyle))),
         ],
       ),
     );
   }
 
+  // REVISED TABLE ROW WIDGET
   Widget _buildTableRow({
+    required BuildContext context, 
     required int rank,
     required String medicineName,
     required int forecastedQuantity,
@@ -369,40 +392,68 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
     required int restockAmount,
     required int reorderLevel, 
   }) {
+    const double baseRowFontSize = 10.0; 
+
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4.0),
+      // Scale the vertical margin
+      margin: EdgeInsets.symmetric(vertical: scaleValue(context, 4.0)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 11.0, horizontal: 7.0),
+        // Scale the padding
+        padding: EdgeInsets.symmetric(vertical: scaleValue(context, 11.0), horizontal: scaleValue(context, 7.0)),
         child: Row(
           children: [
-            Expanded(flex: 1, child: Text('$rank', style: const TextStyle(fontSize: 11))),
+            Expanded(
+              flex: 1, 
+              child: Text('$rank', 
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: scaleFontSize(context, baseRowFontSize))
+              )
+            ),
             Expanded(
               flex: 3,
               child: Text(
                 medicineName,
-                style: medicineName == 'Medicine Deleted' ? const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey, fontSize: 12) : const TextStyle(fontSize: 12),
+                // CHANGE 2: Set text alignment to center to align the medicine name under the header.
+                textAlign: TextAlign.center,
+                style: medicineName == 'Medicine Deleted' 
+                  ? TextStyle(fontStyle: FontStyle.italic, color: Colors.grey, fontSize: scaleFontSize(context, baseRowFontSize + 1)) 
+                  : TextStyle(fontSize: scaleFontSize(context, baseRowFontSize + 1)),
               )
             ),
-            Expanded(flex: 2, child: Text('$forecastedQuantity', style: const TextStyle(fontSize: 11))),
             Expanded(
-              flex: 2, 
+              flex: 3, 
+              child: Text('$forecastedQuantity', 
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: scaleFontSize(context, baseRowFontSize))
+              )
+            ),
+            Expanded(
+              flex: 3, 
               child: Text(
                 '$currentStock', 
+                // CHANGE 3: Set text alignment to center to match the header.
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 11,
-                  // Color cue for low stock (below ROL)
+                  fontSize: scaleFontSize(context, baseRowFontSize),
                   color: currentStock < reorderLevel ? Colors.orange[700] : Colors.green[700],
                   fontWeight: currentStock < reorderLevel ? FontWeight.bold : FontWeight.normal,
                 )
               )
             ),
-            Expanded(flex: 2, child: Text('$reorderLevel', style: const TextStyle(fontSize: 11, color: Color(0xFF5C7C9A), fontWeight: FontWeight.bold))), 
+            Expanded(
+              flex: 2, 
+              child: Text('$reorderLevel', 
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: scaleFontSize(context, baseRowFontSize), color: const Color(0xFF5C7C9A), fontWeight: FontWeight.bold)
+              )
+            ), 
             Expanded(
               flex: 2,
               child: Text(
                 restockAmount > 0 ? '$restockAmount' : 'Sufficient',
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: scaleFontSize(context, baseRowFontSize), 
                   color: restockAmount > 0 ? Colors.red : Colors.green,
                   fontWeight: FontWeight.bold,
                 ),
@@ -416,13 +467,15 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> {
 }
 
 // ====================================================================
-// Step 4: NEW WIDGET FOR SINGLE MEDICINE SEARCH
+// Step 4: NEW WIDGET FOR SINGLE MEDICINE SEARCH (Scaled)
 // ====================================================================
 
 class SingleMedicineSearch extends StatefulWidget {
   final Function(ForecastItem item) onShowPlot;
+  // Propagate the scale mixin for nested widgets
+  final ResponsiveScale responsiveScale;
   
-  const SingleMedicineSearch({super.key, required this.onShowPlot});
+  const SingleMedicineSearch({super.key, required this.onShowPlot, required this.responsiveScale});
 
   @override
   State<SingleMedicineSearch> createState() => _SingleMedicineSearchState();
@@ -471,14 +524,15 @@ class _SingleMedicineSearchState extends State<SingleMedicineSearch> {
 
   @override
   Widget build(BuildContext context) {
+    final ResponsiveScale rs = widget.responsiveScale;
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
     
     return Padding(
       padding: EdgeInsets.only(
-        top: 20.0,
-        left: 20.0,
-        right: 20.0,
-        bottom: bottomPadding > 0 ? bottomPadding : 20.0, 
+        top: rs.scaleValue(context, 20.0),
+        left: rs.scaleValue(context, 20.0),
+        right: rs.scaleValue(context, 20.0),
+        bottom: bottomPadding > 0 ? bottomPadding : rs.scaleValue(context, 20.0), 
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -486,19 +540,22 @@ class _SingleMedicineSearchState extends State<SingleMedicineSearch> {
         children: [
           Text(
             'Search Medicine Forecast',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              fontSize: rs.scaleFontSize(context, Theme.of(context).textTheme.titleLarge!.fontSize!),
+            ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: rs.scaleValue(context, 20)),
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
               labelText: 'Medicine Name',
               border: const OutlineInputBorder(),
               suffixIcon: _isLoading
-                  ? const Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                  ? Padding(
+                      padding: EdgeInsets.all(rs.scaleValue(context, 8.0)),
+                      child: SizedBox(width: rs.scaleValue(context, 20), height: rs.scaleValue(context, 20), child: const CircularProgressIndicator(strokeWidth: 2)),
                     )
                   : IconButton(
                       icon: const Icon(Icons.search),
@@ -507,7 +564,7 @@ class _SingleMedicineSearchState extends State<SingleMedicineSearch> {
             ),
             onSubmitted: (_) => _searchMedicine(),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: rs.scaleValue(context, 20)),
           
           // --- Display Area ---
           if (_isLoading)
@@ -515,46 +572,46 @@ class _SingleMedicineSearchState extends State<SingleMedicineSearch> {
           else if (_errorMessage != null)
             Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
           else if (_searchResult != null)
-            _buildResultCard(_searchResult!)
+            _buildResultCard(_searchResult!, rs)
           else
             const Center(child: Text('Enter a medicine name to see its forecast.')),
           
-          const SizedBox(height: 10),
+          SizedBox(height: rs.scaleValue(context, 10)),
         ],
       ),
     );
   }
 
-  Widget _buildResultCard(ForecastItem item) {
+  Widget _buildResultCard(ForecastItem item, ResponsiveScale rs) {
     return Card(
       elevation: 4,
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(rs.scaleValue(context, 16.0)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               item.medicine.name,
-              style: Theme.of(context).textTheme.headlineSmall,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: rs.scaleFontSize(context, 24)),
             ),
             Text(
               item.medicine.genericName,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic, color: Colors.grey[700]),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic, color: Colors.grey[700], fontSize: rs.scaleFontSize(context, 14)),
             ),
-            const Divider(height: 20),
-            _buildInfoRow('Forecasted Demand:', item.forecastedQuantity.toString(), Colors.blue),
-            _buildInfoRow('Reorder Level (ROL):', item.reorderLevel.toString(), const Color(0xFF5C7C9A)),
-            _buildInfoRow('Current Stock:', item.currentStock.toString(), item.currentStock < item.reorderLevel ? Colors.orange[700]! : Colors.green[700]!),
-            _buildInfoRow('Restock Recommendation:', item.restockAmount > 0 ? item.restockAmount.toString() : 'Sufficient', item.restockAmount > 0 ? Colors.red : Colors.green),
-            const SizedBox(height: 10),
+            Divider(height: rs.scaleValue(context, 20)),
+            _buildInfoRow('Forecasted Demand:', item.forecastedQuantity.toString(), Colors.blue, rs),
+            _buildInfoRow('Reorder Level (ROL):', item.reorderLevel.toString(), const Color(0xFF5C7C9A), rs),
+            _buildInfoRow('Current Stock:', item.currentStock.toString(), item.currentStock < item.reorderLevel ? Colors.orange[700]! : Colors.green[700]!, rs),
+            _buildInfoRow('Restock Recommendation:', item.restockAmount > 0 ? item.restockAmount.toString() : 'Sufficient', item.restockAmount > 0 ? Colors.red : Colors.green, rs),
+            SizedBox(height: rs.scaleValue(context, 10)),
             Center(
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // Call the plot function passed from the parent screen
+                  // Pass the scaled item to the plot function
                   widget.onShowPlot(item); 
                 },
-                icon: const Icon(Icons.bar_chart),
-                label: const Text('View Historical Chart'),
+                icon: Icon(Icons.bar_chart, size: rs.scaleValue(context, 20)),
+                label: Text('View Historical Chart', style: TextStyle(fontSize: rs.scaleFontSize(context, 14))),
               ),
             ),
           ],
@@ -563,19 +620,19 @@ class _SingleMedicineSearchState extends State<SingleMedicineSearch> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value, Color valueColor) {
+  Widget _buildInfoRow(String label, String value, Color valueColor, ResponsiveScale rs) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: EdgeInsets.symmetric(vertical: rs.scaleValue(context, 4.0)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text(label, style: TextStyle(fontWeight: FontWeight.w600, fontSize: rs.scaleFontSize(context, 14))),
           Text(
             value,
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: valueColor,
-              fontSize: 16,
+              fontSize: rs.scaleFontSize(context, 16),
             ),
           ),
         ],
@@ -585,30 +642,34 @@ class _SingleMedicineSearchState extends State<SingleMedicineSearch> {
 }
 
 // ====================================================================
-// Step 5: DEDICATED PLOTTING WIDGET
+// Step 5: DEDICATED PLOTTING WIDGET (Scaled and 'Forecast' label removed)
 // ====================================================================
 
 class PlottingWidget extends StatelessWidget {
   final ForecastItem item;
+  // Propagate the scale mixin for nested widgets
+  final ResponsiveScale responsiveScale;
   
-  const PlottingWidget({super.key, required this.item});
+  const PlottingWidget({super.key, required this.item, required this.responsiveScale});
 
   @override
   Widget build(BuildContext context) {
+    final ResponsiveScale rs = responsiveScale;
+
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: EdgeInsets.all(rs.scaleValue(context, 16.0)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             'Historical Sales & Forecast for\n${item.medicine.name}',
-            style: Theme.of(context).textTheme.headlineSmall,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: rs.scaleFontSize(context, 20)),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: rs.scaleValue(context, 20)),
           SizedBox(
-            height: 300,
+            height: rs.scaleValue(context, 300),
             child: FutureBuilder<List<HistoricalSalesData>>(
               future: ApiService().fetchMedicineHistory(item.medicine.id),
               builder: (context, snapshot) {
@@ -627,7 +688,7 @@ class PlottingWidget extends StatelessWidget {
                       ? 'Historical data is not available as the medicine has been deleted.'
                       : 'No historical data available. Error: ${snapshot.error}',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+                      style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey, fontSize: rs.scaleFontSize(context, 14)),
                     )
                   );
                 }
@@ -649,17 +710,19 @@ class PlottingWidget extends StatelessWidget {
                       bottomTitles: AxisTitles(
                         sideTitles: SideTitles(
                           showTitles: true,
-                          reservedSize: 30,
+                          reservedSize: rs.scaleValue(context, 30),
                           getTitlesWidget: (value, meta) {
                             final index = value.toInt();
+                            // Only show historical dates and skip the final 'Forecast' point
                             if (index < historicalData.length && index % 4 == 0) {
                               return SideTitleWidget(
                                 axisSide: meta.axisSide,
-                                space: 8.0,
+                                space: rs.scaleValue(context, 8.0),
                                 child: Text(DateFormat.yM().format(historicalData[index].weekStartDate),
-                                    style: const TextStyle(fontSize: 10)),
+                                    style: TextStyle(fontSize: rs.scaleFontSize(context, 10))),
                               );
                             }
+                            // Removed the specific logic for the 'Forecast' label here
                             return const SizedBox.shrink();
                           },
                         ),
@@ -667,9 +730,9 @@ class PlottingWidget extends StatelessWidget {
                       leftTitles: AxisTitles(
                         sideTitles: SideTitles(
                           showTitles: true,
-                          reservedSize: 40,
+                          reservedSize: rs.scaleValue(context, 40),
                           getTitlesWidget: (value, meta) {
-                            return Text(value.toInt().toString(), style: const TextStyle(fontSize: 10));
+                            return Text(value.toInt().toString(), style: TextStyle(fontSize: rs.scaleFontSize(context, 10)));
                           },
                         ),
                       ),
@@ -678,7 +741,7 @@ class PlottingWidget extends StatelessWidget {
                     ),
                     borderData: FlBorderData(
                       show: true,
-                      border: Border.all(color: const Color(0xff37434d), width: 1),
+                      border: Border.all(color: const Color(0xff37434d), width: rs.scaleValue(context, 1)),
                     ),
                     minX: 0,
                     maxX: spots.length.toDouble() - 1,
@@ -689,15 +752,15 @@ class PlottingWidget extends StatelessWidget {
                         spots: spots,
                         isCurved: true,
                         color: Colors.blue,
-                        barWidth: 3,
+                        barWidth: rs.scaleValue(context, 3),
                         dotData: FlDotData(
                           show: true,
                           getDotPainter: (spot, percent, barData, index) {
                             // Highlight the final point (the forecast) in red
                             if (index == spots.length - 1) {
-                              return FlDotCirclePainter(color: Colors.red, radius: 4);
+                              return FlDotCirclePainter(color: Colors.red, radius: rs.scaleValue(context, 4), strokeColor: Colors.transparent,);
                             }
-                            return FlDotCirclePainter(color: Colors.blue, radius: 2);
+                            return FlDotCirclePainter(color: Colors.blue, radius: rs.scaleValue(context, 2));
                           },
                         ),
                         belowBarData: BarAreaData(show: true, color: Colors.blue.withOpacity(0.3)),
@@ -708,17 +771,17 @@ class PlottingWidget extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: rs.scaleValue(context, 20)),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(width: 12, height: 12, color: Colors.blue),
-              const SizedBox(width: 8),
-              const Text('Historical Sales'),
-              const SizedBox(width: 20),
-              Container(width: 12, height: 12, color: Colors.red),
-              const SizedBox(width: 8),
-              const Text('Forecasted'),
+              Container(width: rs.scaleValue(context, 12), height: rs.scaleValue(context, 12), color: Colors.blue),
+              SizedBox(width: rs.scaleValue(context, 8)),
+              Text('Historical Sales', style: TextStyle(fontSize: rs.scaleFontSize(context, 12))),
+              SizedBox(width: rs.scaleValue(context, 20)),
+              Container(width: rs.scaleValue(context, 12), height: rs.scaleValue(context, 12), color: Colors.red),
+              SizedBox(width: rs.scaleValue(context, 8)),
+              Text('Forecasted', style: TextStyle(fontSize: rs.scaleFontSize(context, 12))),
             ],
           ),
         ],
