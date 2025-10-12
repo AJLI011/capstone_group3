@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_ui/services/sales_report_service.dart'; // Assumes you have SalesReport and its dependencies here
-import 'package:flutter_ui/services/pdf_instore_service.dart'; // Updated PdfService for saving functionality
+import 'package:flutter_ui/services/sales_report_service.dart';
+import 'package:flutter_ui/services/pdf_instore_service.dart'; // Assuming this exists for saving
+import 'package:flutter_ui/services/responsive_scale.dart'; 
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// 1. ADD SingleTickerProviderStateMixin for TabController
 class CombinedSalesReportPage extends StatefulWidget {
   const CombinedSalesReportPage({super.key});
 
@@ -14,7 +14,8 @@ class CombinedSalesReportPage extends StatefulWidget {
   _CombinedSalesReportPageState createState() => _CombinedSalesReportPageState();
 }
 
-class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with SingleTickerProviderStateMixin {
+class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> 
+  with SingleTickerProviderStateMixin, ResponsiveScale { // <-- ResponsiveScale MIXIN
   DateTime? _startDate;
   DateTime? _endDate;
   SalesReport? _inStoreSalesReport;
@@ -22,14 +23,12 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
   bool _isLoading = false;
   String? _errorMessage;
 
-  // 2. Add TabController
   late TabController _tabController;
   final Color _primaryColor = const Color(0xFF5C7C9A);
 
   @override
   void initState() {
     super.initState();
-    // Initialize TabController with 2 tabs
     _tabController = TabController(length: 2, vsync: this);
   }
 
@@ -40,7 +39,6 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
   }
 
   // --- Date Picker Logic (Unchanged) ---
-
   Future<void> _selectStartDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -56,6 +54,7 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
   }
 
   Future<void> _selectEndDate(BuildContext context) async {
+    final scale = getScaleFactor(context);
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _endDate ?? _startDate ?? DateTime.now(),
@@ -65,8 +64,9 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
     if (picked != null) {
       if (_startDate != null && picked.isBefore(_startDate!)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('End date cannot be before the start date.'),
+          SnackBar(
+            content: Text('End date cannot be before the start date.', 
+              style: TextStyle(fontSize: 14 * scale)),
           ),
         );
       } else {
@@ -78,12 +78,14 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
   }
 
   // --- Report Fetching Logic (Unchanged) ---
-
   Future<void> _fetchReports() async {
+    final scale = getScaleFactor(context);
+
     if (_startDate == null || _endDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select both a start and end date.'),
+        SnackBar(
+          content: Text('Please select both a start and end date.', 
+            style: TextStyle(fontSize: 14 * scale)),
         ),
       );
       return;
@@ -131,19 +133,22 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
       _isLoading = false;
     });
     
-    // Reset to the first tab after fetching
     if (_tabController.index != 0) {
       _tabController.animateTo(0);
     }
   }
 
-  // --- PDF Generation Logic (Unchanged) ---
-
+  // --- PDF Generation Logic (Unchanged in logic, only SnackBar text is scaled) ---
   Future<void> _generateAndSavePdf() async {
+    final scale = getScaleFactor(context);
+
     if ((_inStoreSalesReport == null || _inStoreSalesReport!.salesReport.isEmpty) && 
         (_onlineSalesReport == null || _onlineSalesReport!.salesReport.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot generate PDF: No sales data was found for this period.')),
+        SnackBar(
+          content: Text('Cannot generate PDF: No sales data was found for this period.',
+            style: TextStyle(fontSize: 14 * scale)),
+        ),
       );
       return;
     }
@@ -165,6 +170,7 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
         pageFormat: PdfPageFormat.a4,
         build: (context) {
           final List<pw.Widget> widgets = [
+            // PDF widgets kept unscaled (pdf package dimensions)
             pw.Center(
               child: pw.Text(
                 'SALES REPORT SUMMARY',
@@ -197,7 +203,6 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
           ];
 
           // In-Store Section
-          // *PDF FIX: Check if the report or its salesReport list is null/empty*
           if (_inStoreSalesReport != null && _inStoreSalesReport!.salesReport.isNotEmpty) {
             widgets.addAll([
               pw.Text(
@@ -223,7 +228,6 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
           }
 
           // Online Section
-          // *PDF FIX: Check if the report or its salesReport list is null/empty*
           if (_onlineSalesReport != null && _onlineSalesReport!.salesReport.isNotEmpty) {
             widgets.addAll([
               pw.Text(
@@ -261,13 +265,19 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ PDF saved successfully at: $savedPath')),
+          SnackBar(
+            content: Text('✅ PDF saved successfully at: $savedPath',
+              style: TextStyle(fontSize: 14 * scale)),
+          ),
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('❌ Failed to save PDF.')),
+          SnackBar(
+            content: Text('❌ Failed to save PDF.',
+              style: TextStyle(fontSize: 14 * scale)),
+          ),
         );
       }
     }
@@ -290,8 +300,9 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
   }
 
   // Helper to build the content for each TabBarView
-  // MODIFIED: Added 'isLoading' parameter
+  // Applied scale to all relevant sizes/fonts
   Widget _buildReportView(SalesReport? report, String title, bool isLoading) {
+    final scale = getScaleFactor(context);
     
     // NEW LOGIC: If loading, show the spinner.
     if (isLoading) {
@@ -300,8 +311,8 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(color: _primaryColor),
-            const SizedBox(height: 10),
-            const Text('Fetching data...', style: TextStyle(fontSize: 16, color: Colors.grey)),
+            SizedBox(height: 10 * scale),
+            Text('Fetching data...', style: TextStyle(fontSize: 16 * scale, color: Colors.grey)),
           ],
         ),
       );
@@ -313,34 +324,41 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.info_outline, size: 40, color: Colors.grey),
-            const SizedBox(height: 10),
-            // The requested display message
-            Text('No Data Available for this period.', style: const TextStyle(fontSize: 16, color: Colors.grey)),
+            Icon(Icons.info_outline, size: 40 * scale, color: Colors.grey),
+            SizedBox(height: 10 * scale),
+            Text('No Data Available for this period.', style: TextStyle(fontSize: 16 * scale, color: Colors.grey)),
           ],
         ),
       );
     }
 
-    // ... rest of the widget unchanged (shows data table) ...
     return SingleChildScrollView(
-      // Add padding to ensure FAB doesn't cover content
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0), 
+      // Padding scaled
+      padding: EdgeInsets.symmetric(horizontal: 16.0 * scale, vertical: 16.0 * scale),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Simplified summary card for the current tab
           Card(
-            elevation: 2,
+            elevation: 2 * scale, // Scaled
             child: Padding(
-              padding: const EdgeInsets.all(12.0),
+              padding: EdgeInsets.all(12.0 * scale), // Scaled
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _primaryColor)),
+                  Text(title, 
+                    style: TextStyle(
+                      fontSize: 16 * scale, // Scaled
+                      fontWeight: FontWeight.bold, 
+                      color: _primaryColor,
+                    )),
                   Text(
                     'P${report.totalRevenue.toStringAsFixed(2)}',
-                    style: TextStyle(fontSize: 18, color: _primaryColor, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 18 * scale, // Scaled
+                      color: _primaryColor, 
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -349,18 +367,22 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
-              columns: const <DataColumn>[
-                DataColumn(label: Text('Medicine')),
-                DataColumn(label: Text('Quantity Sold'), numeric: true),
-                DataColumn(label: Text('Total Sale'), numeric: true),
+              // Data table elements scaled
+              columnSpacing: 40 * scale,
+              dataRowMinHeight: 40 * scale,
+              dataRowMaxHeight: 60 * scale,
+              columns: <DataColumn>[
+                DataColumn(label: Text('Medicine', style: TextStyle(fontSize: 14 * scale))),
+                DataColumn(label: Text('Quantity Sold', style: TextStyle(fontSize: 14 * scale)), numeric: true),
+                DataColumn(label: Text('Total Sale', style: TextStyle(fontSize: 14 * scale)), numeric: true),
               ],
               rows: report.salesReport
                   .map(
                     (item) => DataRow(
                       cells: <DataCell>[
-                        DataCell(Text(item.medicine)),
-                        DataCell(Text(item.quantitySold.toString())),
-                        DataCell(Text('P${item.totalSale.toStringAsFixed(2)}')),
+                        DataCell(Text(item.medicine, style: TextStyle(fontSize: 14 * scale))),
+                        DataCell(Text(item.quantitySold.toString(), style: TextStyle(fontSize: 14 * scale))),
+                        DataCell(Text('P${item.totalSale.toStringAsFixed(2)}', style: TextStyle(fontSize: 14 * scale))),
                       ],
                     ),
                   )
@@ -375,13 +397,15 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
 
   @override
   Widget build(BuildContext context) {
+    final scale = getScaleFactor(context); // Get scale
+    
     bool hasReport = (_inStoreSalesReport != null && _inStoreSalesReport!.salesReport.isNotEmpty) || 
                      (_onlineSalesReport != null && _onlineSalesReport!.salesReport.isNotEmpty);
     final double totalRevenue = (_inStoreSalesReport?.totalRevenue ?? 0.0) + (_onlineSalesReport?.totalRevenue ?? 0.0);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sales Report'),
+        title: Text('Sales Report', style: TextStyle(fontSize: 20 * scale)), // Scaled
         backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
       ),
@@ -389,7 +413,7 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
         children: [
           // --- Date Pickers and Generate Button (Static Header) ---
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: EdgeInsets.all(16.0 * scale), // Scaled
             child: Column(
               children: [
                 // Date Pickers
@@ -399,40 +423,44 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
                       child: InkWell(
                         onTap: () => _selectStartDate(context),
                         child: InputDecorator(
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Start Date',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.calendar_today, size: 20),
+                            border: const OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.calendar_today, size: 20 * scale), // Scaled
+                            labelStyle: TextStyle(fontSize: 14 * scale), // Scaled
                           ),
                           child: Text(
                             _startDate == null
                                 ? 'Select Date'
                                 : DateFormat('yyyy-MM-dd').format(_startDate!),
+                                style: TextStyle(fontSize: 16 * scale), // Scaled
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    SizedBox(width: 16 * scale), // Scaled
                     Expanded(
                       child: InkWell(
                         onTap: () => _selectEndDate(context),
                         child: InputDecorator(
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'End Date',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.calendar_today, size: 20),
+                            border: const OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.calendar_today, size: 20 * scale), // Scaled
+                            labelStyle: TextStyle(fontSize: 14 * scale), // Scaled
                           ),
                           child: Text(
                             _endDate == null
                                 ? 'Select Date'
                                 : DateFormat('yyyy-MM-dd').format(_endDate!),
+                                style: TextStyle(fontSize: 16 * scale), // Scaled
                           ),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16 * scale), // Scaled
                 // Generate Button
                 SizedBox(
                   width: double.infinity,
@@ -441,55 +469,61 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _primaryColor,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: EdgeInsets.symmetric(vertical: 12 * scale), // Scaled
                     ),
                     icon: _isLoading ? 
-                        const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
-                        : const Icon(Icons.search),
-                    label: Text(_isLoading ? 'Loading...' : 'Generate Report'),
+                        SizedBox(width: 16 * scale, height: 16 * scale, child: CircularProgressIndicator(strokeWidth: 2 * scale, valueColor: const AlwaysStoppedAnimation<Color>(Colors.white))) // Scaled
+                        : Icon(Icons.search, size: 20 * scale), // Scaled
+                    label: Text(_isLoading ? 'Loading...' : 'Generate Report',
+                        style: TextStyle(fontSize: 16 * scale)), // Scaled
                   ),
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: 10 * scale), // Scaled
                 // Error Message
                 if (_errorMessage != null)
-                  Text(_errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 12))
+                  Text(_errorMessage!, style: TextStyle(color: Colors.red, fontSize: 12 * scale)) // Scaled
               ],
             ),
           ),
           
           // --- Report Display Area (Conditional) ---
-          if (hasReport || _isLoading) // Show summary/tabs while loading
+          if (hasReport || _isLoading)
             // Overall Summary Card (Static, always visible when data exists)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              padding: EdgeInsets.symmetric(horizontal: 16.0 * scale), // Scaled
               child: Card(
-                elevation: 4,
+                elevation: 4 * scale, // Scaled
                 color: const Color(0xFFE0F7FA), // Light blue background for emphasis
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: EdgeInsets.all(16.0 * scale), // Scaled
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Sales Report Summary',
+                      Text('Sales Report Summary',
                           style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF00796B))), // Dark teal
-                      const SizedBox(height: 8),
+                              fontSize: 18 * scale, // Scaled
+                              fontWeight: FontWeight.bold, color: const Color(0xFF00796B))), // Dark teal
+                      SizedBox(height: 8 * scale), // Scaled
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('TOTAL REVENUE:', style: TextStyle(fontSize: 20, color: Colors.black)),
+                          Text('TOTAL REVENUE:', style: TextStyle(fontSize: 20 * scale, color: Colors.black)), // Scaled
                           Text(
                             'P${totalRevenue.toStringAsFixed(2)}',
-                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blue),
+                            style: TextStyle(
+                              fontSize: 22 * scale, // Scaled
+                              fontWeight: FontWeight.bold, color: Colors.blue),
                           ),
                         ],
                       ),
-                      const Divider(),
+                      Divider(height: 16 * scale), // Scaled
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('In-Store: P${(_inStoreSalesReport?.totalRevenue ?? 0.0).toStringAsFixed(2)}'),
-                          Text('Online: P${(_onlineSalesReport?.totalRevenue ?? 0.0).toStringAsFixed(2)}'),
+                          Text('In-Store: P${(_inStoreSalesReport?.totalRevenue ?? 0.0).toStringAsFixed(2)}', 
+                            style: TextStyle(fontSize: 14 * scale)), // Scaled
+                          Text('Online: P${(_onlineSalesReport?.totalRevenue ?? 0.0).toStringAsFixed(2)}', 
+                            style: TextStyle(fontSize: 14 * scale)), // Scaled
                         ],
                       ),
                     ],
@@ -499,28 +533,28 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
             ),
           
           // --- Sliding Sections (TabBar and TabBarView) ---
-          if (hasReport || _isLoading) // Show tabs while loading
+          if (hasReport || _isLoading)
             Expanded(
               child: Column(
                 children: [
                   // TabBar
                   Padding(
-                    padding: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0),
+                    padding: EdgeInsets.only(top: 16.0 * scale, left: 16.0 * scale, right: 16.0 * scale), // Scaled
                     child: TabBar(
                       controller: _tabController,
                       labelColor: _primaryColor,
                       unselectedLabelColor: Colors.grey[600],
                       indicatorColor: _primaryColor,
                       indicatorSize: TabBarIndicatorSize.tab,
-                      tabs: const [
+                      tabs: [
                         // Tab labels with real-time summary data
                         Tab(
-                          icon: Icon(Icons.store, size: 20),
-                          text: 'In-Store',
+                          icon: Icon(Icons.store, size: 20 * scale), // Scaled
+                          child: Text('In-Store', style: TextStyle(fontSize: 14 * scale)), // Scaled
                         ),
                         Tab(
-                          icon: Icon(Icons.trending_up, size: 20),
-                          text: 'Online',
+                          icon: Icon(Icons.trending_up, size: 20 * scale), // Scaled
+                          child: Text('Online', style: TextStyle(fontSize: 14 * scale)), // Scaled
                         ),
                       ],
                     ),
@@ -531,10 +565,7 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
                     child: TabBarView(
                       controller: _tabController,
                       children: [
-                        // MODIFIED: Pass _isLoading to _buildReportView
                         _buildReportView(_inStoreSalesReport, 'In-Store Sales Breakdown', _isLoading),
-                        
-                        // MODIFIED: Pass _isLoading to _buildReportView
                         _buildReportView(_onlineSalesReport, 'Online Sales Breakdown', _isLoading),
                       ],
                     ),
@@ -550,10 +581,10 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const SizedBox(height: 10),
+                      SizedBox(height: 10 * scale), // Scaled
                       Text(
                         'No sales reports were found for the selected period.', 
-                        style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                        style: TextStyle(fontSize: 16 * scale, color: Colors.grey[700]), // Scaled
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -562,12 +593,12 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
               ),
         ],
       ),
-      // --- Floating Action Button (Unchanged) ---
+      // --- Floating Action Button (Scaled) ---
       floatingActionButton: hasReport
           ? FloatingActionButton.extended(
               onPressed: _generateAndSavePdf,
-              label: const Text('Generate PDF'),
-              icon: const Icon(Icons.picture_as_pdf),
+              label: Text('Generate PDF', style: TextStyle(fontSize: 16 * scale)), // Scaled
+              icon: Icon(Icons.picture_as_pdf, size: 24 * scale), // Scaled
               backgroundColor: _primaryColor,
               foregroundColor: Colors.white,
             )

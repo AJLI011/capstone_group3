@@ -244,13 +244,18 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
                 controller: _barcodeController,
                 decoration: const InputDecoration(labelText: 'Barcode'),
               ),
+              // --- Category Dropdown FIX ---
               DropdownButtonFormField<String>(
+                isExpanded: true, // ⭐ FIX: Prevents overflow for long items
                 value: _categoryController.text.isNotEmpty
                     ? _categoryController.text
                     : null,
                 decoration: const InputDecoration(labelText: 'Category'),
                 items: _categories.map((item) {
-                  return DropdownMenuItem(value: item, child: Text(item));
+                  return DropdownMenuItem(
+                    value: item, 
+                    child: Text(item, overflow: TextOverflow.ellipsis), // Added overflow ellipsis
+                  );
                 }).toList(),
                 onChanged: (value) {
                   setState(() {
@@ -258,13 +263,18 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
                   });
                 },
               ),
+              // --- Dosage Form Dropdown FIX ---
               DropdownButtonFormField<String>(
+                isExpanded: true, // ⭐ FIX: Prevents overflow
                 value: _dosageFormController.text.isNotEmpty
                     ? _dosageFormController.text
                     : null,
                 decoration: const InputDecoration(labelText: 'Dosage Form'),
                 items: _dosageForms.map((item) {
-                  return DropdownMenuItem(value: item, child: Text(item));
+                  return DropdownMenuItem(
+                    value: item, 
+                    child: Text(item, overflow: TextOverflow.ellipsis), // Added overflow ellipsis
+                  );
                 }).toList(),
                 onChanged: (value) {
                   setState(() {
@@ -272,8 +282,9 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
                   });
                 },
               ),
-              // ⭐ Supplier Dropdown FIX applied here
+              // --- Supplier Dropdown FIX ---
               DropdownButtonFormField<String>(
+                isExpanded: true, // ⭐ FIX: Prevents overflow
                 // Use _selectedSupplier, which is correctly initialized to null 
                 // if the supplier is deleted.
                 value: _selectedSupplier, 
@@ -281,7 +292,8 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
                 items: _supplierList.map<DropdownMenuItem<String>>((supplier) {
                   return DropdownMenuItem(
                     value: supplier['name'],
-                    child: Text(supplier['name']),
+                    // Use Text with overflow: TextOverflow.ellipsis
+                    child: Text(supplier['name'], overflow: TextOverflow.ellipsis), 
                   );
                 }).toList(),
                 onChanged: (value) {
