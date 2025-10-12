@@ -1410,33 +1410,7 @@ def set_promo(request, inventory_id):
 
     return Response({'message': 'Promo set successfully'}, status=status.HTTP_200_OK)
 
-@api_view(['GET'])
-def promos_ending_soon(request):
-    try:
-        today = date.today()
-        day_after_tomorrow = today + timedelta(days=2) 
-        
-        promos = Promo.objects.filter(
-            end_date__gte=today,      
-            end_date__lt=day_after_tomorrow  
-        ).select_related('inventory_id', 'inventory_id__medicine') # Correct FK path
-        
-        data = PromoSerializer(promos, many=True).data 
-        
-        return Response(data, status=status.HTTP_200_OK)
-    
-    except Exception as e:
-        # 💡 IMPORTANT: Print the error to the console!
-        print("-" * 50)
-        print("!!! SERIALIZATION ERROR TRACE !!!")
-        import traceback
-        traceback.print_exc() 
-        print("-" * 50)
-        
-        # Return a 500 status, which is the correct technical response for a server error
-        return Response({"detail": "Error fetching data."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-#-------------------------10/12/2025-------------------------elton
 #--------------------09/30/2025--------------------------- 
 @api_view(['POST'])
 def remove_promo(request):
