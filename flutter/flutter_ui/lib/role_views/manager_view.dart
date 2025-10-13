@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-//import 'package:flutter_ui/role_views/manager_features/expiration_dashboard/expired_stock_page.dart';
 import 'package:flutter_ui/role_views/manager_features/expiration_dashboard/expiry_dashboard_view.dart';
-
 import 'package:shared_preferences/shared_preferences.dart';
 import '../login_function/login_customer.dart';
 import 'manager_features/medicines_list/medicines_list_view.dart';
@@ -10,20 +8,20 @@ import 'manager_features/change_password/change_manager_password.dart';
 import 'manager_features/edit_profile/edit_manager_profile.dart';
 import 'manager_features/inventory/inventory_grid_screen.dart';
 import 'manager_features/return_medicines/return_page.dart';
-import 'manager_features/promo_medicines/promo_page.dart'; 
-import 'manager_features/inventory_logs/inventory_logs_page.dart';
+import 'manager_features/promo_medicines/promo_page.dart';
 import 'manager_features/online_sales_transaction/online_transaction.dart';
-
-import 'manager_features/order_logs/order_logs.dart';
 import 'manager_features/instore_sales_transaction_m/instore_transaction.dart';
 import 'manager_features/demand_forecasting/demand_forecast.dart';
 import 'manager_features/purchase_request/purchase_request_page.dart';
+import 'manager_features/sales_report/sales_report.dart'; 
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'manager_features/sales_report/sales_report.dart'; // <--- ADD THIS
+import 'package:flutter_ui/services/responsive_scale.dart'; 
+import 'manager_features/daily_reports/daily_reports.dart';
+import 'manager_features/return_medicines/return_view.dart';
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
@@ -226,20 +224,20 @@ class _ManagerViewState extends State<ManagerView>
     }
   }
 
-  Future<void> _confirmLogout(double scale) async {
+  Future<void> _confirmLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Confirm Logout', style: TextStyle(fontSize: 20 * scale)),
-        content: Text('Are you sure you want to logout?', style: TextStyle(fontSize: 14 * scale)),
+        title: const Text('Confirm Logout'),
+        content: const Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: TextStyle(fontSize: 14 * scale)),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Logout', style: TextStyle(fontSize: 14 * scale)),
+            child: const Text('Logout'),
           ),
         ],
       ),
@@ -250,7 +248,7 @@ class _ManagerViewState extends State<ManagerView>
   }
 
   // EXISTING: Dialog for Expiring stock NOT on promo
-  Future<void> _showWarningDialog(double scale) async {
+  Future<void> _showWarningDialog() async {
     // Only show the dialog if there's unaddressed stock
     if (unaddressedExpiringCount == 0) return; 
 
@@ -258,14 +256,13 @@ class _ManagerViewState extends State<ManagerView>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Row(
+          title: const Row(
             children: [
-              Icon(Icons.warning_amber_outlined, color: Colors.orange, size: 24 * scale), 
-              SizedBox(width: 9 * scale),
+              Icon(Icons.warning_amber_outlined, color: Colors.orange), 
+              SizedBox(width: 9),
               Expanded( 
                 child: Text(
                   'Action: Set Promo',
-                  style: TextStyle(fontSize: 20 * scale),
                   softWrap: true,
                 ),
               ),
@@ -274,22 +271,21 @@ class _ManagerViewState extends State<ManagerView>
           content: Text(
             // Use the unaddressed count here
             'You have $unaddressedExpiringCount medicine batches expiring soon that have not yet been assigned a promo. This stock is eligible for promo pricing.',
-            style: TextStyle(fontSize: 14 * scale)
           ),
           actions: <Widget>[
             TextButton(
               // THIS REDIRECTS TO PromoMedicinePage
-              child: Text('View & Set Promo', style: TextStyle(fontSize: 14 * scale)),
+              child: const Text('View & Set Promo'),
               onPressed: () {
                 Navigator.pop(context); // Close the dialog
                 _open(const PromoMedicinePage()); 
               },
             ),
             TextButton(
-              child: Text('Close', style: TextStyle(fontSize: 14 * scale)),
+              child: const Text('Close'),
               onPressed: () {
                 Navigator.pop(context); // Close the dialog
-              },
+                },
             ),
           ],
         );
@@ -300,7 +296,7 @@ class _ManagerViewState extends State<ManagerView>
   // ==================================================
   // 💡 NEW: Dialog for Promos that are about to END
   // ==================================================
-  Future<void> _showExpiringPromoDialog(double scale) async {
+  Future<void> _showExpiringPromoDialog() async {
     if (expiringPromoCount == 0) return; 
 
     await showDialog<void>(
@@ -309,12 +305,12 @@ class _ManagerViewState extends State<ManagerView>
             return AlertDialog(
                 title: Row(
                     children: [
-                        Icon(Icons.access_time_filled, color: Colors.blueAccent, size: 24 * scale),
-                        SizedBox(width: 8 * scale),
+                        const Icon(Icons.access_time_filled, color: Colors.blueAccent),
+                        const SizedBox(width: 8),
                         Expanded( 
                             child: Text(
                                 'Promo(s) Ending Soon ($expiringPromoCount)', 
-                                style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold),
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                                 softWrap: true,
                             ),
                         ),
@@ -339,16 +335,16 @@ class _ManagerViewState extends State<ManagerView>
                             }
                             
                             return ListTile(
-                                leading: Icon(Icons.label_off, color: Colors.deepPurple, size: 24 * scale),
-                                title: Text(medicineName, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16 * scale)),
-                                subtitle: Text('Ends: $formattedDate', style: TextStyle(color: Colors.red, fontSize: 14 * scale)),
+                                leading: const Icon(Icons.label_off, color: Colors.deepPurple),
+                                title: Text(medicineName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                subtitle: Text('Ends: $formattedDate', style: const TextStyle(color: Colors.red)),
                             );
                         }).toList(),
                     ),
                 ),
                 actions: <Widget>[
                     TextButton(
-                        child: Text('Close', style: TextStyle(fontSize: 14 * scale)),
+                        child: const Text('Close'),
                         onPressed: () => Navigator.pop(context),
                     ),
                 ],
@@ -367,9 +363,6 @@ class _ManagerViewState extends State<ManagerView>
   @override
   Widget build(BuildContext context) {
     final screenW = MediaQuery.of(context).size.width;
-    // Base width for scaling (e.g., a standard phone width like Nexus 5X)
-    const double baseScreenWidth = 411.4; 
-    final double scale = screenW / baseScreenWidth;
 
     return WillPopScope(
       onWillPop: () async {
@@ -384,7 +377,7 @@ class _ManagerViewState extends State<ManagerView>
           children: [
             Scaffold(
               appBar: AppBar(
-                title: Text('Manager Dashboard', style: TextStyle(fontSize: 20 * scale)),
+                title: const Text('Manager Dashboard'),
                 backgroundColor: const Color(0xFF5C7C9A),
                 foregroundColor: Colors.white,
                 automaticallyImplyLeading: false,
@@ -393,28 +386,28 @@ class _ManagerViewState extends State<ManagerView>
                   // 1. Promo Expiry Alert (Blue/Purple Badge)
                   if (expiringPromoCount > 0)
                     IconButton(
-                      onPressed: () => _showExpiringPromoDialog(scale),
+                      onPressed: _showExpiringPromoDialog,
                       icon: Stack(
                         children: [
                           // Icon for Promos/Sales
-                          Icon(Icons.access_time_filled, color: Colors.lightBlueAccent, size: 24 * scale), 
+                          const Icon(Icons.access_time_filled, color: Colors.lightBlueAccent), 
                           // Notification badge
                           Positioned(
                             right: 0,
                             top: 0,
                             child: Container(
-                              padding: EdgeInsets.all(2 * scale),
+                              padding: const EdgeInsets.all(2),
                               decoration: BoxDecoration(
                                 color: Colors.deepPurple, // Different color for distinction
-                                borderRadius: BorderRadius.circular(6 * scale),
+                                borderRadius: BorderRadius.circular(6),
                               ),
-                              constraints: BoxConstraints(
-                                minWidth: 12 * scale,
-                                minHeight: 12 * scale,
+                              constraints: const BoxConstraints(
+                                minWidth: 12,
+                                minHeight: 12,
                               ),
                               child: Text(
                                 '$expiringPromoCount',
-                                style: TextStyle(color: Colors.white, fontSize: 8 * scale),
+                                style: const TextStyle(color: Colors.white, fontSize: 8),
                                 textAlign: TextAlign.center,
                               ),
                             ),
@@ -426,24 +419,24 @@ class _ManagerViewState extends State<ManagerView>
                   // 2. Unaddressed Expiring Stock Alert (Orange/Red Badge)
                   if (unaddressedExpiringCount > 0)
                     IconButton(
-                      onPressed: () => _showWarningDialog(scale), 
+                      onPressed: _showWarningDialog, 
                       icon: Stack(
                         children: [
                           // The primary warning icon
-                          Icon(Icons.warning_amber_outlined, color: Colors.yellow, size: 24 * scale),
+                          const Icon(Icons.warning_amber_outlined, color: Colors.yellow),
                           // The small red notification badge
                           Positioned(
                             right: 0,
                             top: 0,
                             child: Container(
-                              padding: EdgeInsets.all(2 * scale),
+                              padding: const EdgeInsets.all(2),
                               decoration: BoxDecoration(
                                 color: Colors.red,
-                                borderRadius: BorderRadius.circular(6 * scale),
+                                borderRadius: BorderRadius.circular(6),
                               ),
-                              constraints: BoxConstraints(
-                                minWidth: 12 * scale,
-                                minHeight: 12 * scale,
+                              constraints: const BoxConstraints(
+                                minWidth: 12,
+                                minHeight: 12,
                               ),
                             ),
                           )
@@ -452,7 +445,7 @@ class _ManagerViewState extends State<ManagerView>
                     ),
                   // Existing Menu Button
                   IconButton(
-                    icon: Icon(Icons.menu, size: 24 * scale),
+                    icon: const Icon(Icons.menu),
                     onPressed: _toggleMenu,
                   ),
                 ],
@@ -460,32 +453,32 @@ class _ManagerViewState extends State<ManagerView>
               body: isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : SingleChildScrollView(
-                      padding: EdgeInsets.all(16 * scale),
+                      padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Hello, ${staffName ?? 'Manager'}!',
-                            style: TextStyle(
-                              fontSize: 24 * scale,
+                            style: const TextStyle(
+                              fontSize: 24,
                               fontWeight: FontWeight.bold,
-                              color: const Color(0xFF5C7C9A),
+                              color: Color(0xFF5C7C9A),
                             ),
                           ),
-                          SizedBox(height: 20 * scale),
-                          _buildSummaryCards(scale),
-                          SizedBox(height: 20 * scale),
-                          _buildSectionTitle('Medicine Status', scale),
-                          SizedBox(height: 10 * scale),
-                          _buildExpirationIndicators(scale),
-                          SizedBox(height: 20 * scale),
-                          _buildSectionTitle('Low Stock Alert', scale),
-                          SizedBox(height: 10 * scale),
-                          _buildLowStockList(scale),
-                          SizedBox(height: 20 * scale),
-                          _buildSectionTitle('Inventory Logs', scale),
-                          SizedBox(height: 10 * scale),
-                          _buildInventoryLogsList(scale),
+                          const SizedBox(height: 20),
+                          _buildSummaryCards(),
+                          const SizedBox(height: 20),
+                          _buildSectionTitle('Medicine Status'),
+                          const SizedBox(height: 10),
+                          _buildExpirationIndicators(),
+                          const SizedBox(height: 20),
+                          _buildSectionTitle('Low Stock Alert'),
+                          const SizedBox(height: 10),
+                          _buildLowStockList(),
+                          const SizedBox(height: 20),
+                          _buildSectionTitle('Inventory Logs'),
+                          const SizedBox(height: 10),
+                          _buildInventoryLogsList(),
                         ],
                       ),
                     ),
@@ -508,28 +501,27 @@ class _ManagerViewState extends State<ManagerView>
                           // Profile Section
                           Container(
                             color: const Color(0xFF5C7C9A),
-                            padding: EdgeInsets.symmetric(vertical: 40 * scale, horizontal: 20 * scale),
+                            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
                             child: Column(
                               children: [
-                                CircleAvatar(
-                                  radius: 40 * scale,
+                                const CircleAvatar(
+                                  radius: 40,
                                   backgroundColor: Colors.white,
-                                  child: Icon(Icons.person, size: 50 * scale, color: const Color(0xFF5C7C9A)),
+                                  child: Icon(Icons.person, size: 50, color: Color(0xFF5C7C9A)),
                                 ),
-                                SizedBox(height: 10 * scale),
+                                const SizedBox(height: 10),
                                 Text(
                                   staffName ?? 'Manager Name',
-                                  style: TextStyle(
-                                    fontSize: 20 * scale,
+                                  style: const TextStyle(
+                                    fontSize: 20,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                   ),
                                 ),
                                 Text(
                                   staffEmail ?? 'manager.email@example.com',
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: Colors.white70,
-                                    fontSize: 14 * scale,
                                   ),
                                 ),
                               ],
@@ -540,53 +532,52 @@ class _ManagerViewState extends State<ManagerView>
                             child: ListView(
                               padding: EdgeInsets.zero,
                               children: [
-                                _drawerItem(Icons.inventory_outlined, 'Inventory',
-                                    () => _open(const InventoryGridScreen()), scale),
-                                _drawerItem(Icons.shelves, 'Restock',
-                                    () => _open(const RestockBarcodeScreen()), scale),
-                                _drawerItem(Icons.store, 'In Store Sales Transaction',
-                                    () => _open(const InStoreTransactionPage()), scale),
-                                _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction',
-                                    () => _open(const OnlineOrdersReportPage()), scale),
-                                _drawerItem(Icons.priority_high, 'Expiry',
-                                    () => _open(const ExpiryDashboardView()), scale),
+                                // SCALED _drawerItem
+                                _drawerItem(Icons.inventory_outlined, 'Inventory', 
+                                    () => _open(const InventoryGridScreen())),
+                                _drawerItem(Icons.shelves, 'Restock', 
+                                    () => _open(const RestockBarcodeScreen())),
+                                _drawerItem(Icons.store, 'In Store Sales Transaction', 
+                                    () => _open(const InStoreTransactionPage())),
+                                _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction', 
+                                    () => _open(const OnlineOrdersReportPage())),
+                                _drawerItem(Icons.priority_high, 'Expiry', 
+                                    () => _open(const ExpiryDashboardView())),
                                 _drawerItem(Icons.assignment_return, 'Return Medicines',
-                                    () => _open(const ReturnMedicinePage()), scale),
-                                _drawerItem(Icons.local_offer, 'Promo Medicines',
-                                    () => _open(const PromoMedicinePage()), scale),
+                                    () => _open(const ReturnMedicinePage())),
+                                _drawerItem(Icons.local_offer, 'Promo Medicines', 
+                                    () => _open(const PromoMedicinePage())),
                                 _drawerItem(Icons.analytics, 'Sales Report', // Using a new, general icon
-                                    () => _open(const CombinedSalesReportPage()), scale), 
-                                _drawerItem(Icons.insights, 'Demand Forecast',
-                                    () => _open(const DemandForecastScreen()), scale),
-                                _drawerItem(Icons.shopping_cart, 'Purchase Request',
-                                    () => _open(const PurchaseRequestPage()), scale),
-                                _drawerItem(Icons.list_alt, 'Medicine List',
-                                    () => _open(const MedicineListView()), scale),
-                                _drawerItem(Icons.history, 'Inventory Logs',
-                                    () => _open(const InventoryLogsPage()), scale),
-                                _drawerItem(Icons.receipt_long, 'Order Logs',
-                                    () => _open(const OrderLogsScreen()), scale),
-                                _drawerItem(Icons.person_outline, 'Edit Profile',
-                                    () => _open(EditManagerProfilePage(staffId: widget.staffId)), scale),
+                                    () => _open(const CombinedSalesReportPage())), 
+                                _drawerItem(Icons.insights, 'Demand Forecast', 
+                                    () => _open(const DemandForecastScreen())),
+                                _drawerItem(Icons.shopping_cart, 'Purchase Request', 
+                                    () => _open(const PurchaseRequestPage())),
+                                _drawerItem(Icons.list_alt, 'Medicine List', 
+                                    () => _open(const MedicineListView())),
+                                _drawerItem(Icons.receipt_long, 'Daily Reports', 
+                                    () => _open(DailyReportsPage())),
+                                _drawerItem(Icons.person_outline, 'Edit Profile', 
+                                    () => _open(EditManagerProfilePage(staffId: widget.staffId))),
                                 _drawerItem(Icons.vpn_key, 'Change Password',
-                                    () => _open(ChangeManagerPasswordPage(staffId: widget.staffId)), scale),
+                                    () => _open(ChangeManagerPasswordPage(staffId: widget.staffId))),
                               ],
                             ),
                           ),
                           // Logout Button
                           Padding(
-                            padding: EdgeInsets.all(16 * scale),
+                            padding: const EdgeInsets.all(16),
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF5C7C9A),
                                 foregroundColor: Colors.white,
-                                padding: EdgeInsets.symmetric(vertical: 12 * scale),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8 * scale),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
-                              onPressed: () => _confirmLogout(scale),
-                              child: Text('Logout', style: TextStyle(fontSize: 16 * scale)),
+                              onPressed: _confirmLogout,
+                              child: const Text('Logout'),
                             ),
                           ),
                         ],
@@ -602,20 +593,18 @@ class _ManagerViewState extends State<ManagerView>
     );
   }
 
-  Widget _buildSummaryCards(double scale) {
+  Widget _buildSummaryCards() {
     return Column(
       children: [
         _buildSummaryCard(
-          scale: scale,
           title: 'Total Medicines',
           value: totalMedicineCount.toString(),
           icon: Icons.medication_liquid_outlined,
           color: const Color(0xFF5C7C9A),
           textColor: Colors.white,
         ),
-        SizedBox(height: 16 * scale),
+        const SizedBox(height: 16),
         _buildSummaryCard(
-          scale: scale,
           title: 'Total Earnings',
           value: '₱${totalEarned.toStringAsFixed(2)}',
           icon: Icons.attach_money_outlined,
@@ -627,7 +616,6 @@ class _ManagerViewState extends State<ManagerView>
   }
 
   Widget _buildSummaryCard({
-    required double scale,
     required String title,
     required String value,
     required IconData icon,
@@ -639,9 +627,9 @@ class _ManagerViewState extends State<ManagerView>
       child: Card(
         color: color,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * scale)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
-          padding: EdgeInsets.all(16.0 * scale),
+          padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
               Expanded(
@@ -651,16 +639,16 @@ class _ManagerViewState extends State<ManagerView>
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: 14 * scale,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: textColor,
                       ),
                     ),
-                    SizedBox(height: 4 * scale),
+                    const SizedBox(height: 4),
                     Text(
                       value,
                       style: TextStyle(
-                        fontSize: 24 * scale,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: textColor,
                       ),
@@ -668,7 +656,7 @@ class _ManagerViewState extends State<ManagerView>
                   ],
                 ),
               ),
-              Icon(icon, size: 50 * scale, color: textColor),
+              Icon(icon, size: 50, color: textColor),
             ],
           ),
         ),
@@ -677,43 +665,54 @@ class _ManagerViewState extends State<ManagerView>
   }
 
   // Uses totalExpiringSoonCount for the dashboard card
-  Widget _buildExpirationIndicators(double scale) {
+  Widget _buildExpirationIndicators() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _buildIndicator(Icons.check_circle_outline, 'Good Stock', goodStockCount, Colors.green, scale),
-        _buildIndicator(Icons.warning_amber_outlined, 'Expiring Soon', totalExpiringSoonCount, Colors.orange, scale),
-        _buildIndicator(Icons.error_outline, 'Expired', expiredCount, Colors.red, scale),
+        _buildIndicator(Icons.check_circle_outline, 'Good Stock', goodStockCount, Colors.green),
+        _buildIndicator(Icons.warning_amber_outlined, 'Expiring Soon', totalExpiringSoonCount, Colors.orange),
+        _buildIndicator(Icons.error_outline, 'Expired', expiredCount, Colors.red),
       ],
     );
   }
 
-  Widget _buildIndicator(IconData icon, String title, int count, Color color, double scale) {
+  // MODIFIED TO USE SMALLER SIZES
+  Widget _buildIndicator(IconData icon, String title, int count, Color color) {
+    // Sizes optimized for smaller screens
+    const double countFontSize = 20; 
+    const double iconSize = 30; 
+    const double cardPadding = 10.0; 
+    // REDUCED TITLE FONT SIZE to help longer titles fit on one line
+    const double titleFontSize = 10; 
+
     return Expanded(
       child: Card(
         color: color,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * scale)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
-          padding: EdgeInsets.all(16.0 * scale),
+          padding: const EdgeInsets.all(cardPadding),
           child: Column(
+            // Ensure content is packed tightly to save vertical space
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min, 
             children: [
-              Icon(icon, size: 35 * scale, color: Colors.white),
-              SizedBox(height: 4 * scale),
+              Icon(icon, size: iconSize, color: Colors.white),
+              const SizedBox(height: 4),
               Text(
                 count.toString(),
-                style: TextStyle(
-                  fontSize: 22 * scale,
+                style: const TextStyle(
+                  fontSize: countFontSize,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
               ),
-              SizedBox(height: 4 * scale),
+              const SizedBox(height: 4),
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12 * scale,
+                style: const TextStyle(
+                  fontSize: titleFontSize, // <--- THE CHANGE IS HERE
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
@@ -725,49 +724,48 @@ class _ManagerViewState extends State<ManagerView>
     );
   }
 
-  Widget _buildSectionTitle(String title, double scale) {
+  Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: TextStyle(
-        fontSize: 18 * scale,
+      style: const TextStyle(
+        fontSize: 18,
         fontWeight: FontWeight.bold,
       ),
     );
   }
 
-  Widget _buildLowStockList(double scale) {
+  Widget _buildLowStockList() {
     if (lowStockItems.isEmpty) {
-      return Text(
+      return const Text(
         'No low stock items found.',
-        style: TextStyle(color: Colors.grey, fontSize: 14 * scale),
+        style: TextStyle(color: Colors.grey),
       );
     }
     return SizedBox(
-      height: 200 * scale,
+      height: 200,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.red.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12 * scale),
-          border: Border.all(color: Colors.red.shade400, width: 1.5 * scale),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.shade400, width: 1.5),
         ),
-        padding: EdgeInsets.all(8.0 * scale),
+        padding: const EdgeInsets.all(8.0),
         child: ListView.builder(
           itemCount: lowStockItems.length,
           itemBuilder: (context, index) {
             final item = lowStockItems[index];
             return Card(
               elevation: 2,
-              margin: EdgeInsets.only(bottom: 8 * scale),
+              margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
-                leading: Icon(Icons.warning_amber, color: Colors.orange, size: 24 * scale),
-                title: Text(item['medicine_name'], style: TextStyle(fontSize: 16 * scale)),
-                subtitle: Text('Generic: ${item['generic_name'] ?? 'N/A'}', style: TextStyle(fontSize: 14 * scale)),
+                leading: const Icon(Icons.warning_amber, color: Colors.orange),
+                title: Text(item['medicine_name']),
+                subtitle: Text('Generic: ${item['generic_name'] ?? 'N/A'}'),
                 trailing: Text(
                   'Qty: ${item['total_quantity']}',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.red,
-                    fontSize: 16 * scale,
                   ),
                 ),
               ),
@@ -778,21 +776,21 @@ class _ManagerViewState extends State<ManagerView>
     );
   }
 
-  Widget _buildInventoryLogsList(double scale) {
+  Widget _buildInventoryLogsList() {
     if (inventoryLogs.isEmpty) {
-      return Text('No recent logs.', style: TextStyle(color: Colors.grey, fontSize: 14 * scale));
+      return const Text('No recent logs.', style: TextStyle(color: Colors.grey));
     }
 
     final latestLogs = inventoryLogs.length > 3 ? inventoryLogs.sublist(0, 3) : inventoryLogs;
 
     return SizedBox(
-      height: 200 * scale,
+      height: 200,
       child: Container(
         decoration: BoxDecoration(
           color: const Color(0xFF5C7C9A),
-          borderRadius: BorderRadius.circular(12 * scale),
+          borderRadius: BorderRadius.circular(12),
         ),
-        padding: EdgeInsets.all(8.0 * scale),
+        padding: const EdgeInsets.all(8.0),
         child: SingleChildScrollView(
           child: Column(
             children: latestLogs.map((log) {
@@ -802,12 +800,12 @@ class _ManagerViewState extends State<ManagerView>
 
               return Card(
                 elevation: 2,
-                margin: EdgeInsets.only(bottom: 8 * scale),
+                margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
-                  leading: Icon(Icons.history_outlined, size: 24 * scale),
-                  title: Text('${log['action_type']} by ${log['user_name']}', style: TextStyle(fontSize: 16 * scale)),
-                  subtitle: Text(log['description'], style: TextStyle(fontSize: 14 * scale)),
-                  trailing: Text(DateFormat('hh:mm a').format(manilaTimestamp), style: TextStyle(fontSize: 14 * scale)),
+                  leading: const Icon(Icons.history_outlined),
+                  title: Text('${log['action_type']} by ${log['user_name']}'),
+                  subtitle: Text(log['description']),
+                  trailing: Text(DateFormat('hh:mm a').format(manilaTimestamp)),
                 ),
               );
             }).toList(),
@@ -817,20 +815,20 @@ class _ManagerViewState extends State<ManagerView>
     );
   }
 
-  Widget _drawerItem(IconData icon, String title, VoidCallback onTap, double scale) {
+  Widget _drawerItem(IconData icon, String title, VoidCallback onTap) {
     return Column(
       children: [
         ListTile(
-          leading: Icon(icon, color: Colors.blueGrey.shade700, size: 24 * scale),
+          leading: Icon(icon, color: Colors.blueGrey.shade700),
           title: Text(
             title,
             style: TextStyle(
               color: Colors.blueGrey.shade700,
-              fontSize: 16 * scale,
+              fontSize: 16,
             ),
           ),
           onTap: onTap,
-          contentPadding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
         ),
         const Divider(height: 1, color: Colors.black12),
       ],

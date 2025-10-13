@@ -11,8 +11,6 @@ import 'admin_features/employees/employees_management.dart';
 import 'admin_features/edit_profile/edit_admin_profile.dart';
 import 'admin_features/change_password/change_admin_password.dart';
 import 'admin_features/employee_logs/employee_logs.dart';
-import 'admin_features/daily_reports/daily_reports.dart';
-import 'admin_features/return_view/return_view.dart';
 
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
@@ -278,14 +276,8 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
                                           () => _open(const CustomerManagementScreen())),
                                       _drawerItem(Icons.local_shipping_outlined, 'Suppliers',
                                           () => _open(const SupplierListPage())),
-                                      // 🌟 RETURN MEDICINE AUDIT ITEM 🌟
-                                      _drawerItem(Icons.receipt_long_outlined, 'Returned Medicines', 
-                                          () => _open(const ReturnViewPage())),
-                                      // ------------------------------------
                                       _drawerItem(Icons.playlist_add_check, 'Employees Logs',
                                           () => _open(const EmployeeLogsPage())),
-                                      _drawerItem(Icons.bar_chart_outlined, 'Daily Reports', 
-                                          () => _open(DailyReportsPage())),
                                       _drawerItem(Icons.edit_outlined, 'Edit Profile',
                                           () => _open(EditAdminProfilePage(staffId: widget.staffId))),
                                       _drawerItem(Icons.lock_outline, 'Change Password',

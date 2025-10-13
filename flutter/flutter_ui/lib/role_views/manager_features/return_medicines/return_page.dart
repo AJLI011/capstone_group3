@@ -1,3 +1,5 @@
+// return_page.dart (UPDATED)
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -12,6 +14,9 @@ import 'package:timezone/timezone.dart' as tz;
 
 // Import the verification page
 import 'return_verify.dart'; // Ensure this file is correct
+
+// NEW: Import the Return View Tab
+import 'return_view.dart'; // Ensure this new file is correct
 
 // NOTE: Please replace with your actual server IP
 const String _baseUrl = 'http://192.168.1.11:8000/api';
@@ -66,7 +71,7 @@ class _ReturnMedicinePageState extends State<ReturnMedicinePage> {
     
     // Wrap the entire structure in a DefaultTabController
     return DefaultTabController(
-      length: 2, // We have two tabs now
+      length: 3, // MODIFIED: Changed from 2 to 3 tabs
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Return Process'), // General title for the section
@@ -77,18 +82,21 @@ class _ReturnMedicinePageState extends State<ReturnMedicinePage> {
             labelColor: Colors.white,
             unselectedLabelColor: Color.fromARGB(150, 255, 255, 255),
             tabs: [
-              // Tab 1: Your original page, renamed for clarity
+              // Tab 1: Your original page
               Tab(text: 'Return Medicines', icon: Icon(Icons.medication_liquid)),
-              // Tab 2: The new verification page
+              // Tab 2: The verification page
               Tab(text: 'Return Verification', icon: Icon(Icons.verified_user)),
+              // NEW Tab 3: The transactions view page
+              Tab(text: 'View Transactions', icon: Icon(Icons.list_alt)),
             ],
           ),
         ),
         // Use TabBarView to show the content for each tab
         body: const TabBarView(
           children: [
-            ExpiredMedicineListTab(), // Your original content
-            ReturnVerificationPage(), // The new verification content
+            ExpiredMedicineListTab(), // Tab 1 content
+            ReturnVerificationPage(), // Tab 2 content
+            ReturnViewTab(), // NEW Tab 3 content from return_view_tab.dart
           ],
         ),
       ),
@@ -505,7 +513,6 @@ class _ExpiredMedicineListTabState extends State<ExpiredMedicineListTab> {
                     },
                   ),
                 ),
-      // FloatingActionButton removed as planned.
     );
   }
 }
