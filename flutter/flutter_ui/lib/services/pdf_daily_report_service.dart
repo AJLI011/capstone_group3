@@ -4,7 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_ui/services/pdf_service.dart';
 // Ensure this path is correct and contains the models (DailyReport, InStoreTransaction, etc.)
-import 'package:flutter_ui/role_views/admin_features/daily_reports/daily_reports.dart';
+import 'package:flutter_ui/role_views/manager_features/daily_reports/daily_reports.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
