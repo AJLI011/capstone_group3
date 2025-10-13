@@ -74,6 +74,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // FIX 1: Remove the automatic back button
+        automaticallyImplyLeading: false, 
+        // FIX 2: Set the text color to white using foregroundColor
+        foregroundColor: Colors.white, 
         title: const Text("Check Out"),
         backgroundColor: Colors.blue,
       ),
@@ -316,8 +320,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                   );
                                 }
                               },
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade400),
-                              child: const Text("Place Order Request", style: TextStyle(color: Colors.white)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white, // White background
+                                foregroundColor: Colors.blue.shade900, // Blue text
+                                padding: const EdgeInsets.symmetric(vertical: 12), // Added padding for a larger button
+                              ),
+                              child: const Text("Place Order Request", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                             ),
                           ),
                         ],

@@ -30,7 +30,7 @@ class CashierView extends StatefulWidget {
 }
 
 class _CashierViewState extends State<CashierView>
-    with SingleTickerProviderStateMixin, ResponsiveScale { // <--- 2. MIX IN ResponsiveScale
+    with SingleTickerProviderStateMixin, ResponsiveScale {
   late AnimationController _ctrl;
   bool _isMenuOpen = false;
   String? staffName;
@@ -457,7 +457,8 @@ class _CashierViewState extends State<CashierView>
     );
   }
 
-  // --- MODIFIED TO ACCEPT SCALE ---
+  /// **MODIFIED**: Reduced the title font size to prevent "Expiring Soon" from wrapping,
+  /// ensuring all indicator cards have the same height.
   Widget _buildIndicator(IconData icon, String title, int count, Color color, double scale) {
     return Expanded(
       child: Card(
@@ -467,6 +468,10 @@ class _CashierViewState extends State<CashierView>
         child: Padding(
           padding: EdgeInsets.all(16.0 * scale), // SCALED
           child: Column(
+            // Use mainAxisSize.min to let the Column shrink to fit its contents
+            // and mainAxisAlignment.center for vertical alignment.
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min, 
             children: [
               Icon(icon, size: 35 * scale, color: Colors.white), // SCALED
               SizedBox(height: 4 * scale), // SCALED
@@ -483,7 +488,7 @@ class _CashierViewState extends State<CashierView>
                 title,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 12 * scale, // SCALED
+                  fontSize: 10 * scale, // <--- **THE KEY CHANGE: Reduced from 12 to 10**
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),

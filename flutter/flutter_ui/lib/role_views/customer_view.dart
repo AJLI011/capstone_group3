@@ -1,12 +1,13 @@
+// customer_view.dart (Full Updated Code)
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../login_function/login_customer.dart';
-import 'customer_features/promo_grid_view.dart';
+import 'customer_features/promo_grid_view.dart'; // ASSUMED to be the updated file
 import 'customer_features/medicine_view.dart';
 import 'customer_features/edit_profile/edit_customer_profile.dart';
 import 'customer_features/change_password/change_customer_password.dart';
-import 'customer_features/checkout_page.dart';
+import 'customer_features/checkout_page.dart'; // ASSUMED to be the updated file
 import 'customer_features/medicine_order_agreement_form/medicine_order_agreement_page.dart';
 import 'customer_features/my_orders_page.dart';
 
@@ -259,6 +260,8 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     final screenW = MediaQuery.of(context).size.width;
 
+    // IMPORTANT: MedicineView doesn't need its own AppBar because you are using _buildHeader()
+    // PromoView and CheckoutPage MUST have their own AppBars with automaticallyImplyLeading: false
     final List<Widget> views = [
       MedicineView(
         customerId: _customerId,
@@ -275,7 +278,8 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
           _toggleMenu();
           return false;
         }
-        return false;
+        // This prevents the user from accidentally navigating back to the login screen
+        return false; 
       },
       child: Scaffold(
         backgroundColor: Colors.white,
@@ -301,6 +305,7 @@ class _CustomerViewState extends State<CustomerView> with SingleTickerProviderSt
                 Expanded(child: views[_currentIndex]),
               ],
             ),
+            // The Sliding Drawer/Menu
             AnimatedBuilder(
               animation: _ctrl,
               builder: (_, __) {
