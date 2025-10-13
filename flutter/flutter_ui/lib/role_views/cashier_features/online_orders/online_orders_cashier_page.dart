@@ -241,15 +241,19 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                 const SizedBox(height: 8),
                 ..._buildOrderItems(_currentOrder['items']),
                 const SizedBox(height: 16),
+                // === MODIFICATION APPLIED HERE ===
                 Row(
                   children: [
                     Checkbox(
                       value: _currentOrder['is_pwd'] ?? false,
                       onChanged: _onPwdCheckboxChanged,
                     ),
-                    const Text('Apply PWD/Senior Citizen Discount'),
+                    const Expanded( // Use Expanded to constrain the text width
+                      child: Text('Apply PWD/Senior Citizen Discount'),
+                    ),
                   ],
                 ),
+                // ================================
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -272,20 +276,20 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () async {
-                              final bool? confirm = await showConfirmationDialog(
-                                context: context,
-                                title: 'Cancel Order?',
-                                content: 'Are you sure you want to cancel this entire order? This cannot be undone.'
-                              );
-                              if (confirm == true) {
-                                widget.onCancel(_currentOrder['id'] as int);
-                              }
-                            },
+                            final bool? confirm = await showConfirmationDialog(
+                              context: context,
+                              title: 'Cancel Order?',
+                              content: 'Are you sure you want to cancel this entire order? This cannot be undone.'
+                            );
+                            if (confirm == true) {
+                              widget.onCancel(_currentOrder['id'] as int);
+                            }
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
                             foregroundColor: Colors.white,
                           ),
-                          child: const Text('Cancel Order'),
+                          child: const Text('Cancel'),
                         ),
                       ),
                       const SizedBox(width: 16),

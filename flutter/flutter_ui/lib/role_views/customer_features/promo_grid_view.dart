@@ -1,4 +1,3 @@
-// promo_grid_view.dart
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -128,12 +127,11 @@ class _PromoViewState extends State<PromoView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // FIX: This is the crucial line to prevent the back button from appearing on a root tab screen
+        automaticallyImplyLeading: false,
         title: const Text("Promos", style: TextStyle(color: Colors.white)),
-        // CHANGED: The `backgroundColor` property is removed.
-        // This is because the flexibleSpace will provide the background.
-        elevation: 0, // OPTIONAL: Removes the shadow under the app bar for a cleaner look.
+        elevation: 0,
         flexibleSpace: Container(
-          // NEW: This container holds the gradient that will fill the app bar's background.
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [Color(0xFF003B8D), Color(0xFF0050C8)],
@@ -199,10 +197,10 @@ class _PromoViewState extends State<PromoView> {
                                   borderRadius: BorderRadius.circular(12),
                                   child: promo.image.isNotEmpty
                                       ? Image.network(
-                                          promo.image,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) =>
-                                              const Icon(Icons.medication, size: 60, color: Colors.grey),
+                                            promo.image,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) =>
+                                                const Icon(Icons.medication, size: 60, color: Colors.grey),
                                         )
                                       : const Icon(Icons.medication, size: 60, color: Colors.grey),
                                 ),

@@ -80,7 +80,7 @@ from rest_framework import generics, pagination
 #=============================
 
 from backend.firebase import send_fcm_notification
-from django.utils.timezone import now
+from django.utils.timezone import now, localdate, get_current_timezone
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
@@ -1476,7 +1476,7 @@ def remove_promo(request):
 
 
 def clean_expired_promos():
-    today = date.today()
+    today = localdate()
     
     # Get expired promos (based on end date)
     expired_promos = Promo.objects.filter(end_date__lt=today)
@@ -1497,7 +1497,7 @@ def clean_expired_promos():
 @api_view(['GET'])
 def promos_ending_soon(request):
     try:
-        today = date.today()
+        today = localdate()
         day_after_tomorrow = today + timedelta(days=2) 
         
         promos = Promo.objects.filter(
@@ -1600,7 +1600,7 @@ class PromoMedicineView(ListAPIView):
     pagination_class = PromoMedicinePagination # Use the new pagination class
 
     def get_queryset(self):
-        today = now().date()
+        today = localdate()
         
         # This is the correct way to get unique medicines for MySQL
         # 1. Get the list of unique medicine IDs
@@ -2967,16 +2967,21 @@ def finalize_online_order(request, orderId):
 
 
   
-#--------------------------10-2-25----------------------------------------      
+#--------------------------10-13-25----------------------------------------      
 #------instore sales transaction views----------------
 class InStoreSalesTransactionView(generics.ListAPIView):
     serializer_class = InStoreSalesTransactionSerializer
 
     def get_queryset(self):
-        # --- RECOMMENDED OPTIMIZATION ---
         # Fetch related staff and cashier objects in a single query
+        # This part remains the same (good practice!)
         queryset = InStoreOrder.objects.all().select_related('staff', 'cashier').order_by('-date_created')
-        # --- END OPTIMIZATION ---
+
+        # --- NEW MODIFICATION: Exclude 'pending' transactions ---
+        # The 'status' field is a CharField, so we filter directly.
+        queryset = queryset.exclude(status='pending')
+        queryset = queryset.exclude(status='rejected')
+        # --------------------------------------------------------
 
         filter_date_str = self.request.query_params.get('date', None)
 
@@ -2985,10 +2990,12 @@ class InStoreSalesTransactionView(generics.ListAPIView):
                 filter_date = date.fromisoformat(filter_date_str)
                 # Filter for records from the start of the day to the end of the day
                 start_of_day = filter_date
+                # Note: Assuming you need 'timedelta' here. Make sure it's imported.
                 end_of_day = filter_date + timedelta(days=1)
                 
                 queryset = queryset.filter(date_created__gte=start_of_day, date_created__lt=end_of_day)
             except ValueError:
+                # Handle invalid date format gracefully
                 pass
 
         return queryset

@@ -45,6 +45,7 @@ class InStoreTransaction {
   final double totalAmount;
   final List<TransactionItem> items;
   final double discountAmount;
+  final bool isPwd; // <--- ADD THIS FIELD
 
   InStoreTransaction({
     required this.id,
@@ -56,6 +57,7 @@ class InStoreTransaction {
     required this.totalAmount,
     required this.items,
     required this.discountAmount,
+    required this.isPwd, // <--- ADD TO CONSTRUCTOR
   });
 
   factory InStoreTransaction.fromJson(Map<String, dynamic> json) {
@@ -78,6 +80,7 @@ class InStoreTransaction {
     
     // Safely parse the 'id' as an integer
     final int id = int.tryParse(json['id'].toString()) ?? 0;
+    final bool isPwd = json['is_pwd'] ?? false; // <--- ADD THIS PARSING
 
     return InStoreTransaction(
       id: id,
@@ -89,6 +92,7 @@ class InStoreTransaction {
       totalAmount: totalAmount,
       items: parsedItems,
       discountAmount: discountAmount,
+      isPwd: isPwd, // <--- ADD TO RETURN
     );
   }
 }
@@ -274,6 +278,8 @@ class InStoreTransactionCard extends StatelessWidget {
       decimalDigits: 2,
     ).format(transaction.discountAmount);
 
+    final customerType = transaction.isPwd ? 'Discounted' : 'Regular'; // <--- NEW
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 4,
@@ -307,8 +313,9 @@ class InStoreTransactionCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text('Staff: ${transaction.staffName}'),
-            Text('Cashier: ${transaction.cashierName ?? 'N/A'}'),
+            Text('Customer Type: $customerType'),
+            Text('Initiated by: ${transaction.staffName}'),
+            Text('Approved by: ${transaction.cashierName ?? 'N/A'}'),
             const Divider(height: 20),
             ...transaction.items.map((item) {
               return Padding(
@@ -374,7 +381,6 @@ class InStoreTransactionCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            if (transaction.discountAmount > 0)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [

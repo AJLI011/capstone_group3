@@ -137,13 +137,16 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Price, Promo and In Stock
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      
+                      // START OF FIX: This structure prevents the overflow
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          // Price and Stock Status in one Row (to be aligned to the right)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
+                              // Price (Left side)
                               Text(
                                 priceString,
                                 style: const TextStyle(
@@ -152,38 +155,7 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                                   color: Color(0xFF003B63),
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              // Promo description
-                              if (promoDescription != null)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.orange.shade100,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    promoDescription,
-                                    style: const TextStyle(
-                                      color: Colors.orange,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              // Promo start and end dates
-                              if (startDate != null && endDate != null)
-                                Text(
-                                  "Promo valid from $startDate to $endDate",
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                            ],
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
+                              // Stock Status (Right side)
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
@@ -195,15 +167,41 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                                   style: const TextStyle(color: Colors.white, fontSize: 12),
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                "Quantity: $availableQuantity",
-                                style: const TextStyle(fontSize: 12, color: Colors.grey),
-                              ),
                             ],
                           ),
+                          const SizedBox(height: 4),
+                          
+                          // Promo description (Below Price/Stock)
+                          if (promoDescription != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade100,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                promoDescription,
+                                style: const TextStyle(
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          
+                          // Promo start and end dates (Below Price/Stock)
+                          if (startDate != null && endDate != null)
+                            Text(
+                              "Promo valid from $startDate to $endDate",
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
                         ],
                       ),
+                      // END OF FIX
+                      
                       const SizedBox(height: 16),
                       // Prescription Required
                       if (prescriptionRequired)
@@ -285,16 +283,16 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                             // You may want to add a final check here just in case, but the button should already be disabled.
                             CartService().addToCart(
                                 CartItem(
-                                    id: medicineData!['id'],
-                                    name: medicineData!['name'],
-                                    genericName: medicineData!['generic_name'],
-                                    dosageForm: medicineData!['dosage_form'] ?? "Unknown",
-                                    image: medicineData!['image'],
-                                    price: double.parse(medicineData!['price'].toString()),
-                                    quantity: selectedQuantity,
-                                    isPromo: true,
-                                    promoQuantity: selectedQuantity,
-                                    availableStock: availableQuantity, // ADDED: Pass the availableQuantity
+                                  id: medicineData!['id'],
+                                  name: medicineData!['name'],
+                                  genericName: medicineData!['generic_name'],
+                                  dosageForm: medicineData!['dosage_form'] ?? "Unknown",
+                                  image: medicineData!['image'],
+                                  price: double.parse(medicineData!['price'].toString()),
+                                  quantity: selectedQuantity,
+                                  isPromo: true,
+                                  promoQuantity: selectedQuantity,
+                                  availableStock: availableQuantity, // ADDED: Pass the availableQuantity
                                 ),
                             );
                             ScaffoldMessenger.of(context).showSnackBar(
