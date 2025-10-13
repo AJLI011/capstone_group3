@@ -66,10 +66,8 @@ class InStoreTransaction {
 
     // The backend now sends staff and cashier names as direct strings (or null/empty)
     final staffName = json['staff'] as String? ?? 'N/A';
-    // --- START CLEANUP CHANGE ---
     // Use String? cast to correctly handle null from the backend
     final cashierName = json['cashier'] as String?;
-    // --- END CLEANUP CHANGE ---
 
     // Parse the new fields from the backend
     double subtotal = double.tryParse(json['subtotal'].toString()) ?? 0.0;
@@ -122,6 +120,7 @@ class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
     String fullUrl = '$_baseUrl/api/in-store-transactions/';
     if (date != null) {
       String formattedDate = DateFormat('yyyy-MM-dd').format(date);
+      // NOTE: Backend handles the status filtering, so we only pass the date parameter.
       fullUrl += '?date=$formattedDate';
     }
 
@@ -194,7 +193,7 @@ class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
             padding: const EdgeInsets.all(8.0),
             child: _selectedDate != null
             ? Text(
-                'Transactions on: ${DateFormat('MMMM d, y').format(_selectedDate!)}',
+                'Completed Transactions on: ${DateFormat('MMMM d, y').format(_selectedDate!)}',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               )
             : const Text(
@@ -221,12 +220,17 @@ class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
                     return const Center(child: CircularProgressIndicator());
                   } else if (snapshot.hasError) {
                     return Center(child: Text('Error: ${snapshot.error}'));
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  } 
+                  
+                  // --- MODIFICATION: Updated Logic to rely on Backend Filtering ---
+                  // No need for client-side filtering anymore.
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return const Center(
-                        child: Text('No transactions found for this date.'));
+                        child: Text('No completed transactions found for this date.'));
                   }
 
-                  final transactions = snapshot.data!;
+                  final transactions = snapshot.data!; // The list is already filtered by the backend!
+                  // --- END MODIFICATION ---
 
                   return ListView.separated(
                     itemCount: transactions.length,
@@ -307,6 +311,12 @@ class InStoreTransactionCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
+            Text('Status: ${transaction.status.toUpperCase()}', 
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: transaction.status.toLowerCase() == 'approved' ? Colors.green : Colors.red,
+                )
+            ), // Added status for visibility
             Text('Staff: ${transaction.staffName}'),
             Text('Cashier: ${transaction.cashierName ?? 'N/A'}'),
             const Divider(height: 20),
