@@ -102,7 +102,7 @@ class _ExpiredStockPageState extends State<ExpiredStockPage> {
       _isLoading = true;
     });
 
-    final String url = 'http://192.168.0.104:8000/api/medicines/expired/';
+    final String url = 'http://192.168.0.100:8000/api/medicines/expired/';
 
     try {
       final response = await http.get(Uri.parse(url));

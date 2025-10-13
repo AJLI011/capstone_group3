@@ -44,7 +44,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
             _editablePurchaseRequests = [];
         });
         
-        const String apiUrl = 'http://192.168.0.104:8000/api/purchase-request/';
+        const String apiUrl = 'http://192.168.0.100:8000/api/purchase-request/';
         try {
             final response = await http.get(Uri.parse(apiUrl));
 
@@ -100,7 +100,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
 
         try {
             // Step 1: Fetch the raw low stock data
-            final lowStockResponse = await http.get(Uri.parse('http://192.168.0.104:8000/api/medicines/low-stock/'));
+            final lowStockResponse = await http.get(Uri.parse('http://192.168.0.100:8000/api/medicines/low-stock/'));
             
             // Initialize the list that holds the PROCESSED low stock requests
             List<Map<String, dynamic>> lowStockRequests = [];

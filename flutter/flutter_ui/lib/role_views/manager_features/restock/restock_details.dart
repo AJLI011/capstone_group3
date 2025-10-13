@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.0.104:8000/',
+  defaultValue: 'http://192.168.0.100:8000/',
 );
 
 class RestockDetailsPage extends StatefulWidget {

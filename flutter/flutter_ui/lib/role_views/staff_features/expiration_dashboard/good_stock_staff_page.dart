@@ -102,7 +102,7 @@ class _GoodStockStaffPageState extends State<GoodStockStaffPage> {
       _isLoading = true;
     });
 
-    final String url = 'http://192.168.0.104:8000/api/medicines/good-stock/';
+    final String url = 'http://192.168.0.100:8000/api/medicines/good-stock/';
 
     try {
       final response = await http.get(Uri.parse(url));

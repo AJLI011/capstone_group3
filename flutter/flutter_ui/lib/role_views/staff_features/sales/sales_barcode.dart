@@ -54,7 +54,7 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
     cameraController.stop(); 
 
     try {
-      final response = await http.get(Uri.parse('http://192.168.0.104:8000/api/sales/barcode/$barcode/'));
+      final response = await http.get(Uri.parse('http://192.168.0.100:8000/api/sales/barcode/$barcode/'));
 
       if (response.statusCode == 200) {
         final List<dynamic> itemData = json.decode(response.body);
@@ -159,25 +159,8 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
               }
             },
           ),
-          // --- Custom Overlay Layer (Same visual effect as original overlay) ---
-          Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            margin: const EdgeInsets.all(48),
-          ),
-          // --- Text instruction overlay (Optional but helpful) ---
-          const Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: EdgeInsets.only(bottom: 50.0),
-              child: Text(
-                'Point the camera at the barcode',
-                style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
-            ),
-          ),
+          // --- Custom Overlay Layer (White outline/box) REMOVED ---
+          // --- Text instruction overlay (Point the camera at the barcode) REMOVED ---
         ],
       ),
     );

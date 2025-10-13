@@ -18,7 +18,7 @@ class _ExpiryDashboardViewState extends State<ExpiryDashboardView> {
   int expiringSoonCount = 0;
   int expiredCount = 0;
 
-  final String baseUrl = 'http://192.168.0.104:8000/api/medicines';
+  final String baseUrl = 'http://192.168.0.100:8000/api/medicines';
 
   @override
   void initState() {
