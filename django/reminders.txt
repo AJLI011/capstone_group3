@@ -21,14 +21,14 @@ INSTORE AND ONLINE ORDERS TABLE
 ORDERLOGS
 
 ------
-TO DELETE DATA FROM DB (FOR DUMMYDATA):
+TO DELETE DATA FROM DB (FOR DUMMYDATA):=
 python manage.pt shell
 
 from accounts.models import (
     InStoreOrder, InStoreOrderItem, OnlineOrder, OnlineOrderItem, 
     Supplier, Medicine, Inventory, Customer, Staff,OrderLog,EmployeeLog,
     InventoryLog,ForecastReport, TotalQuantity,Promo,InventoryLog,Prescription,
-    PrescriptionImage,CustomerFCMToken,ForecastItem,StaffFCMToken,ReturnedMedicine
+    PrescriptionImage,CustomerFCMToken,ForecastItem,StaffFCMToken,ReturnedMedicine, ReturnVerificationImage, ReturnTransaction
 
 )
 
@@ -52,6 +52,9 @@ CustomerFCMToken.objects.all().delete()
 ForecastItem.objects.all().delete()
 StaffFCMToken.objects.all().delete()
 ReturnedMedicine.objects.all().delete()
+ReturnVerificationImage.objects.all().delete()
+ReturnTransaction.objects.all().delete()
+
 
 
 
