@@ -97,7 +97,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
         });
 
         try {
-            final lowStockResponse = await http.get(Uri.parse('http://192.168.1.6:8000/api/medicines/low-stock/'));
+            final lowStockResponse = await http.get(Uri.parse('http://192.168.0.100:8000/api/medicines/low-stock/'));
             
             List<Map<String, dynamic>> lowStockRequests = [];
             
