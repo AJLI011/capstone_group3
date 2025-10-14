@@ -734,6 +734,7 @@ class _ManagerViewState extends State<ManagerView>
     );
   }
 
+  // FIX APPLIED HERE
   Widget _buildLowStockList() {
     if (lowStockItems.isEmpty) {
       return const Text(
@@ -754,15 +755,24 @@ class _ManagerViewState extends State<ManagerView>
           itemCount: lowStockItems.length,
           itemBuilder: (context, index) {
             final item = lowStockItems[index];
+
+            // 1. ***THE FIX IS HERE: Use 'name' instead of 'medicine_name'***
+            final medicineName = item['name']?.toString() ?? 'N/A'; 
+            
+            // 2. Ensuring null-safety for the other fields (good practice)
+            final genericName = item['generic_name']?.toString() ?? 'N/A';
+            final totalQuantity = item['total_quantity']?.toString() ?? '0';
+
             return Card(
               elevation: 2,
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
                 leading: const Icon(Icons.warning_amber, color: Colors.orange),
-                title: Text(item['medicine_name']),
-                subtitle: Text('Generic: ${item['generic_name'] ?? 'N/A'}'),
+                // Use the corrected variable
+                title: Text(medicineName), 
+                subtitle: Text('Generic: $genericName'),
                 trailing: Text(
-                  'Qty: ${item['total_quantity']}',
+                  'Qty: $totalQuantity',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.red,
