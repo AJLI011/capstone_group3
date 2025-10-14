@@ -3713,7 +3713,7 @@ def total_combined_earnings(request):
 
 
 
-
+#--------------------------10/14/25----------
 #------9/20/25 changes
 # for low stocks:
 @api_view(['GET'])
@@ -3724,8 +3724,7 @@ def low_stock_list(request):
     """
     # Define the dynamic thresholds based on dosage form
     low_stock_threshold = Case(
-        When(medicine__dosage_form__in=['tablet', 'capsule'], then=20),
-        When(medicine__dosage_form='syrup', then=10),
+        When(medicine__dosage_form__in=['tablet', 'capsule','syrup'], then=20),
         default=F('medicine__restock_quantity'), # Fallback to restock_quantity if needed
         output_field=IntegerField(),
     )

@@ -756,11 +756,13 @@ class _ManagerViewState extends State<ManagerView>
           itemBuilder: (context, index) {
             final item = lowStockItems[index];
 
-            // 1. ***THE FIX IS HERE: Use 'name' instead of 'medicine_name'***
+            // ⭐ THE CONFIRMED FIX: Use 'name' key from the LowStockSerializer output.
             final medicineName = item['name']?.toString() ?? 'N/A'; 
             
-            // 2. Ensuring null-safety for the other fields (good practice)
+            // CONFIRMED KEY: 'generic_name'
             final genericName = item['generic_name']?.toString() ?? 'N/A';
+              
+            // CONFIRMED KEY: 'total_quantity'
             final totalQuantity = item['total_quantity']?.toString() ?? '0';
 
             return Card(
@@ -768,7 +770,6 @@ class _ManagerViewState extends State<ManagerView>
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
                 leading: const Icon(Icons.warning_amber, color: Colors.orange),
-                // Use the corrected variable
                 title: Text(medicineName), 
                 subtitle: Text('Generic: $genericName'),
                 trailing: Text(
