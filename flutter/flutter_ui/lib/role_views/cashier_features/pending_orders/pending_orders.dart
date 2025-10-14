@@ -93,11 +93,13 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
 
       if (hasImage) {
         const dialogTitle = 'Verify Prescription';
-        const dialogContent = 'A prescription has been uploaded. Please verify the image before finalizing this order.';
+        const dialogContent =
+            'A prescription has been uploaded. Please verify the image before finalizing this order.';
         _showImageDialog(orderId, status, dialogTitle, dialogContent);
       } else {
         const dialogTitle = 'Prescription Required';
-        const dialogContent = 'No prescription image has been uploaded. Do you want to proceed anyway?';
+        const dialogContent =
+            'No prescription image has been uploaded. Do you want to proceed anyway?';
         _showWarningDialog(orderId, status, dialogTitle, dialogContent);
       }
     } else {
@@ -123,7 +125,8 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
       body: jsonEncode(<String, dynamic>{
         'status': status,
         'cashier_id': widget.cashierId,
-        'force_approve': status == 'approved' ? true : false, // Only set true for approval
+        'force_approve':
+            status == 'approved' ? true : false, // Only set true for approval
       }),
     );
 
@@ -169,7 +172,8 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
     );
   }
 
-  void _showWarningDialog(int orderId, String status, String title, String content) {
+  void _showWarningDialog(
+      int orderId, String status, String title, String content) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -184,7 +188,8 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
               },
             ),
             TextButton(
-              child: const Text('Approve Anyway', style: TextStyle(color: Colors.red)),
+              child:
+                  const Text('Approve Anyway', style: TextStyle(color: Colors.red)),
               onPressed: () {
                 Navigator.of(context).pop();
                 // Show final confirmation after the warning
@@ -197,7 +202,8 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
     );
   }
 
-  void _showImageDialog(int orderId, String status, String title, String content) {
+  void _showImageDialog(
+      int orderId, String status, String title, String content) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -220,7 +226,8 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
               },
             ),
             TextButton(
-              child: const Text('Approve Anyway', style: TextStyle(color: Colors.red)),
+              child:
+                  const Text('Approve Anyway', style: TextStyle(color: Colors.red)),
               onPressed: () {
                 Navigator.of(context).pop();
                 // Show final confirmation after image review
@@ -233,17 +240,20 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
     );
   }
 
-  void _showConfirmationDialog(int orderId, String status, {bool isForceApproval = false}) {
+  void _showConfirmationDialog(int orderId, String status,
+      {bool isForceApproval = false}) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         // Correct title and content based on status
-        final dialogTitle = status == 'approved' ? 'Final Approve Order' : 'Reject Order';
+        final dialogTitle =
+            status == 'approved' ? 'Final Approve Order' : 'Reject Order';
         final dialogContent = isForceApproval
             ? 'WARNING: You are about to force-approve order #$orderId, overriding the prescription requirement. Confirm this action?'
             : 'Are you sure you want to ${status == 'approved' ? 'approve' : 'reject'} order #$orderId?';
 
-        final confirmText = status == 'approved' ? 'Confirm Approve' : 'Confirm Reject';
+        final confirmText =
+            status == 'approved' ? 'Confirm Approve' : 'Confirm Reject';
         final confirmColor = status == 'approved' ? Colors.green : Colors.red;
 
         return AlertDialog(
@@ -257,10 +267,13 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
               },
             ),
             TextButton(
-              child: Text(confirmText, style: TextStyle(color: confirmColor, fontWeight: FontWeight.bold)),
+              child: Text(confirmText,
+                  style:
+                      TextStyle(color: confirmColor, fontWeight: FontWeight.bold)),
               onPressed: () {
                 Navigator.of(context).pop();
-                _forceProcessOrder(orderId, status); // Call the final processing function.
+                _forceProcessOrder(
+                    orderId, status); // Call the final processing function.
               },
             ),
           ],
@@ -277,16 +290,21 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Order #${order.id} Details', style: const TextStyle(color: _primaryColor)),
+          title: Text('Order #${order.id} Details',
+              style: const TextStyle(color: _primaryColor)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Staff: ${order.staffName}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                if (order.isPwd) const Text('PWD Discount Applied', style: TextStyle(color: Colors.blue)),
+                Text('Staff: ${order.staffName}',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                if (order.isPwd)
+                  const Text('PWD Discount Applied',
+                      style: TextStyle(color: Colors.blue)),
                 const Divider(),
-                const Text('Items (Valid for fulfillment):', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Items (Valid for fulfillment):',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 // Show list of items (NO DELETE BUTTON)
                 ...order.items.map((item) => _buildItemDetailRow(item)),
                 const Divider(),
@@ -320,12 +338,15 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.medicineName, style: const TextStyle(fontWeight: FontWeight.w500)),
-                Text('Qty: ${item.quantitySold} (+${item.freeQuantityGiven} free)', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                Text(item.medicineName,
+                    style: const TextStyle(fontWeight: FontWeight.w500)),
+                Text('Qty: ${item.quantitySold} (+${item.freeQuantityGiven} free)',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12)),
               ],
             ),
           ),
-          Text('₱${itemSubtotal.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text('₱${itemSubtotal.toStringAsFixed(2)}',
+              style: const TextStyle(fontWeight: FontWeight.bold)),
           // DELETE BUTTON WAS REMOVED HERE
         ],
       ),
@@ -360,13 +381,17 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
         future: _pendingOrders,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: _primaryColor));
+            return const Center(
+                child: CircularProgressIndicator(color: _primaryColor));
           } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+            return Center(
+                child: Text('Error: ${snapshot.error}',
+                    style: const TextStyle(color: Colors.red)));
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(child: Text('No pending orders found.'));
           } else {
-            return RefreshIndicator( // Added RefreshIndicator
+            return RefreshIndicator(
+              // Added RefreshIndicator
               onRefresh: _refreshOrders,
               color: _primaryColor,
               child: ListView.builder(
@@ -384,11 +409,30 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
   }
 
   Widget _buildOrderCard(InStoreOrder order) {
+    // Extracted the label widget for re-use and clarity
+    final saleLabel = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: order.isPwd ? _secondaryColor : Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Text(
+        order.isPwd ? 'DISCOUNTED SALE' : 'REGULAR SALE',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+          color: order.isPwd ? _primaryColor : Colors.black87,
+        ),
+      ),
+    );
+
     return Card(
       elevation: 4, // Added elevation for a modern look
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)), // Rounded corners
-      child: InkWell( // Use InkWell to allow tapping the card for details
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10.0)), // Rounded corners
+      child: InkWell(
+        // Use InkWell to allow tapping the card for details
         onTap: () => _showOrderDetailsDialog(order),
         borderRadius: BorderRadius.circular(10.0),
         child: Padding(
@@ -396,41 +440,29 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'ORDER # ${order.id}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900, // Thicker font
-                      fontSize: 18,
-                      color: _primaryColor, // Use primary color for main ID
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: order.isPwd ? _secondaryColor : Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: Text(
-                      order.isPwd ? 'DISCOUNTED SALE' : 'REGULAR SALE',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: order.isPwd ? _primaryColor : Colors.black87,
-                      ),
-                    ),
-                  ),
-                ],
+              // 1. Order ID Header
+              Text(
+                'ORDER # ${order.id}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900, // Thicker font
+                  fontSize: 18,
+                  color: _primaryColor, // Use primary color for main ID
+                ),
               ),
               const SizedBox(height: 4),
+
+              // 2. DISCOUNT/REGULAR SALE Label (Moved here)
+              saleLabel,
+              const SizedBox(height: 8),
+
+              // 3. Initiated by Staff
               Text(
                 'Initiated by: ${order.staffName}',
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
               ),
               const SizedBox(height: 12),
 
+              // 4. Prescription Warning
               if (order.hasPrescriptionRequiredItem)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8.0),
@@ -451,12 +483,15 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
               const Divider(height: 1, thickness: 1),
               const SizedBox(height: 8),
 
+              // 5. Item Summary
               if (order.items.isNotEmpty)
                 _buildOrderItemSummary(order.items.first, order.items.length),
 
               const SizedBox(height: 16),
+              // 6. Totals Section
               _buildTotalsSection(order),
               const SizedBox(height: 16),
+              // 7. Action Buttons
               _buildActionButtons(order),
             ],
           ),
@@ -476,7 +511,8 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
         if (itemCount > 1)
           Text(
             'and ${itemCount - 1} other item${itemCount > 2 ? 's' : ''}. Tap for details.',
-            style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic, fontSize: 13),
+            style: TextStyle(
+                color: Colors.grey[600], fontStyle: FontStyle.italic, fontSize: 13),
           ),
       ],
     );
@@ -494,7 +530,8 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
               const SizedBox(width: 8),
               Text(
                 '₱${order.totalAmountBeforeDiscount.toStringAsFixed(2)}',
-                style: const TextStyle(color: Colors.grey, decoration: TextDecoration.lineThrough),
+                style: const TextStyle(
+                    color: Colors.grey, decoration: TextDecoration.lineThrough),
               ),
             ],
           ),
@@ -502,12 +539,12 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              const Text('Discount (20%):',
-                  style: TextStyle(color: Colors.red)),
+              const Text('Discount (20%):', style: TextStyle(color: Colors.red)),
               const SizedBox(width: 8),
               Text(
                 '-₱${(order.totalAmountBeforeDiscount - order.totalAmountAfterDiscount).toStringAsFixed(2)}',
-                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+                style:
+                    const TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -519,7 +556,8 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
             const SizedBox(width: 8),
             Text(
               '₱${order.totalAmountAfterDiscount.toStringAsFixed(2)}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green),
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green),
             ),
           ],
         ),
@@ -542,7 +580,8 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               elevation: 2,
             ),
-            child: const Text('Approve', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            child: const Text('Approve',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
         ),
         const SizedBox(width: 16),
@@ -557,7 +596,8 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               elevation: 2,
             ),
-            child: const Text('Reject', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            child: const Text('Reject',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
         ),
       ],

@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // **UI CONSTANTS**
 const Color _primaryColor = Color(0xFF5C7C9A); // Corporate Blue
 const Color _secondaryColor = Color(0xFFC4D5E0); // Light Blue/Grey
+const Color _successColor = Color(0xFF4CAF50); // Added for clarity
 
 // The updated confirmation dialog function to allow for custom button text.
 Future<bool?> showConfirmationDialog({
@@ -216,6 +217,25 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
     }).toList();
   }
 
+  // Helper Widget for the Sale Badge - Extracted for cleaner build method
+  Widget _buildSaleBadge(bool isPwd) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isPwd ? _secondaryColor : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(5),
+        ),
+        child: Text(
+          isPwd ? 'DISCOUNTED SALE' : 'REGULAR SALE',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+            color: isPwd ? _primaryColor : Colors.black87,
+          ),
+        ),
+      );
+    }
+
   @override
   Widget build(BuildContext context) {
     final totalAmount = double.tryParse(_currentOrder['total_amount_after_discount'].toString()) ?? 0.0;
@@ -227,42 +247,28 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)), // Rounded corners
       child: ExpansionTile(
         tilePadding: const EdgeInsets.all(10.0),
-        // === MODIFICATION 1: REMOVE ARROW ICON ===
         trailing: const SizedBox.shrink(),
-        // =======================================
-        title: Row(
-          // mainAxisAlignment: MainAxisAlignment.spaceBetween, // Removed to allow for spacing
-          children: [
-            Text(
-              'ORDER # ${_currentOrder['id']}',
-              style: const TextStyle(
-                fontWeight: FontWeight.w900, // Thicker font
-                fontSize: 18,
-                color: _primaryColor, // Use primary color for main ID
-              ),
-            ),
-            const Spacer(), // Pushes the next item(s) to the right
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: isPwd ? _secondaryColor : Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(5),
-              ),
-              child: Text(
-                isPwd ? 'DISCOUNTED SALE' : 'REGULAR SALE',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  color: isPwd ? _primaryColor : Colors.black87,
-                ),
-              ),
-            ),
-          ],
+        
+        // --- MODIFICATION: TITLE ONLY CONTAINS ORDER ID ---
+        title: Text(
+          'ORDER # ${_currentOrder['id']}',
+          style: const TextStyle(
+            fontWeight: FontWeight.w900, // Thicker font
+            fontSize: 18,
+            color: _primaryColor, // Use primary color for main ID
+          ),
         ),
+        
+        // --- MODIFICATION: SUBTITLE NOW STARTS WITH THE SALE BADGE ---
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
+            // NEW: Place the sale badge here, right below the title (Order ID)
+            _buildSaleBadge(isPwd),
+            
+            const SizedBox(height: 8), // Add space before the next info rows
+            
             Text('Customer: ${_currentOrder['customer_name'] ?? 'N/A'}', style: TextStyle(color: Colors.grey[700])),
             Text('Status: ${_currentOrder['status'].toString().toUpperCase()}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
             if (_currentOrder.containsKey('pickup_schedule') && _currentOrder['pickup_schedule'] != null)
@@ -272,6 +278,8 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
               ),
           ],
         ),
+        // ---------------------------------------------------------------
+        
         children: [
           const Divider(height: 1, thickness: 1),
           Padding(
@@ -307,7 +315,7 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                     ),
                     Text(
                       '₱${totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _successColor),
                     ),
                   ],
                 ),
@@ -316,7 +324,7 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      // === MODIFICATION 2: PICKED UP (FINALIZE) BUTTON MOVED TO LEFT ===
+                      // === PICKED UP (FINALIZE) BUTTON ===
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () {
@@ -333,7 +341,7 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                         ),
                       ),
                       const SizedBox(width: 16),
-                      // === MODIFICATION 2: CANCEL BUTTON MOVED TO RIGHT ===
+                      // === CANCEL BUTTON ===
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () async {

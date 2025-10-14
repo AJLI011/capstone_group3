@@ -221,30 +221,28 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // FIX: Wrapped the Row in Expanded to prevent overflow
           Row(
             children: [
               Icon(icon, color: buttonColor, size: 20),
               const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                  fontSize: 16,
+              // Use Expanded for the text block to prevent overflow
+              Expanded( 
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                        // CHANGE: Reduced font size for the label
+                        fontSize: 14, 
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              if (!enabled)
-                Padding(
-                  padding: const EdgeInsets.only(left: 8.0),
-                  child: Text(
-                    '(Promo Disabled)',
-                    style: TextStyle(
-                      fontStyle: FontStyle.italic,
-                      color: Colors.red.shade400,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
             ],
           ),
           const SizedBox(height: 10),
@@ -278,7 +276,8 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Text(
                     value.toString(),
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor),
+                    // CHANGE: Reduced font size for the quantity value
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor), 
                   ),
                 ),
                 // Increment Button

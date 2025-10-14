@@ -296,133 +296,134 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
   }
 
 // --- UI ENHANCEMENT: Enhanced Order Card Design (Title, Subtitle, Card Styling) ---
-  Widget _buildOrderCard(Map<String, dynamic> order, {required bool isPending}) {
-    final totalAmount = double.tryParse(order['total_amount_after_discount'].toString()) ?? 0.0;
-    final isPwd = order['is_pwd'] ?? false;
-    
-    // Status/Discount specific colors (assuming _primaryColor, _textColor, etc., are defined)
-    final primaryCardColor = isPwd ? _primaryColor : _textColor; 
-    final secondaryCardColor = isPwd ? const Color(0xFFD9E3EF) : Colors.grey.shade200;
+ Widget _buildOrderCard(Map<String, dynamic> order, {required bool isPending}) {
+   final totalAmount = double.tryParse(order['total_amount_after_discount'].toString()) ?? 0.0;
+   final isPwd = order['is_pwd'] ?? false;
+   
+   // Status/Discount specific colors (assuming _primaryColor, _textColor, etc., are defined)
+   final primaryCardColor = isPwd ? _primaryColor : _textColor; 
+   final secondaryCardColor = isPwd ? const Color(0xFFD9E3EF) : Colors.grey.shade200;
 
-    return Card(
-      elevation: 4, // Added elevation for depth
-      margin: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10.0),
-        // Add a subtle border based on status
-        side: BorderSide(
-          color: isPending ? _warningColor.withOpacity(0.5) : _successColor.withOpacity(0.5),
-          width: 2,
-        ),
-      ),
-      child: ExpansionTile(
-        // Arrow REMOVED by setting trailing to a zero-size box
-        trailing: const SizedBox.shrink(), 
-        tilePadding: const EdgeInsets.all(16.0),
-        // Custom Title Row with Spacer and Shifted Badge
-        title: Row(
-          children: [
-            Text(
-              'ORDER #${order['id']}',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 18,
-                color: primaryCardColor,
-              ),
-            ),
-            const Spacer(),
-            // Badge Container with Transform.translate for shifting right
-            Transform.translate(
-              offset: const Offset(8.0, 0), 
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: secondaryCardColor,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  isPwd ? 'DISCOUNTED SALE' : 'REGULAR SALE',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                    color: primaryCardColor,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        // Enhanced Subtitle Layout (ICONS REMOVED)
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8), 
-            _buildInfoRow( // Icon parameter removed
-              label: 'Customer',
-              value: order['customer_name'] ?? 'N/A',
-              color: _textColor,
-            ),
-            _buildInfoRow( // Icon parameter removed
-              label: 'Status',
-              value: order['status'].toString().toUpperCase(),
-              color: isPending ? _warningColor : _successColor,
-            ),
-            if (order.containsKey('pickup_schedule') && order['pickup_schedule'] != null)
-              _buildInfoRow( // Icon parameter removed
-                label: 'Pickup',
-                value: DateFormat('MMMM d, yyyy - h:mm a').format(DateTime.parse(order['pickup_schedule']).toLocal()),
-                color: Colors.blueGrey.shade700,
-              ),
-          ],
-        ),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Items in Order:', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: _textColor)),
-                const Divider(height: 16, thickness: 1), // Divider for separation
-                // Assuming _buildOrderItems is defined elsewhere
-                ..._buildOrderItems(order['items']), 
-                const SizedBox(height: 16),
-                const Divider(height: 16, thickness: 1),
-                // Total Amount Row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'TOTAL AMOUNT:',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _primaryColor),
-                    ),
-                    Text(
-                      '₱${totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _primaryColor),
-                    ),
-                  ],
-                ),
-                if (isPending)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16.0),
-                    child: ElevatedButton(
-                      onPressed: () => _confirmOrder(order['id']), // Assuming _confirmOrder is defined elsewhere
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _successColor, // Use defined success color
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        minimumSize: const Size(double.infinity, 50),
-                        elevation: 5,
-                      ),
-                      child: const Text('CONFIRM ORDER & PREPARE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+   // Helper function for the Sale Badge (moved outside the main build method for cleanliness)
+   Widget _buildSaleBadge() {
+     return Container(
+       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+       decoration: BoxDecoration(
+         color: secondaryCardColor,
+         borderRadius: BorderRadius.circular(6),
+       ),
+       child: Text(
+         isPwd ? 'DISCOUNTED SALE' : 'REGULAR SALE',
+         style: TextStyle(
+           fontWeight: FontWeight.bold,
+           fontSize: 11,
+           color: primaryCardColor,
+         ),
+       ),
+     );
+   }
+
+   return Card(
+     elevation: 4, // Added elevation for depth
+     margin: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
+     shape: RoundedRectangleBorder(
+       borderRadius: BorderRadius.circular(10.0),
+       // Add a subtle border based on status
+       side: BorderSide(
+         color: isPending ? _warningColor.withOpacity(0.5) : _successColor.withOpacity(0.5),
+         width: 2,
+       ),
+     ),
+     child: ExpansionTile(
+       // Arrow REMOVED by setting trailing to a zero-size box
+       trailing: const SizedBox.shrink(), 
+       tilePadding: const EdgeInsets.all(16.0),
+       
+       // MODIFICATION: Title is now just the Order Number
+       title: Text(
+         'ORDER #${order['id']}',
+         style: TextStyle(
+           fontWeight: FontWeight.w800,
+           fontSize: 18,
+           color: primaryCardColor,
+         ),
+       ),
+       
+       // MODIFICATION: Subtitle now contains the Sale Badge above other information
+       subtitle: Column(
+         crossAxisAlignment: CrossAxisAlignment.start,
+         children: [
+           const SizedBox(height: 4), 
+           // NEW: The Sale Badge is placed here, right below the title
+           _buildSaleBadge(),
+
+           const SizedBox(height: 8), 
+           _buildInfoRow( // Icon parameter removed
+             label: 'Customer',
+             value: order['customer_name'] ?? 'N/A',
+             color: _textColor,
+           ),
+           _buildInfoRow( // Icon parameter removed
+             label: 'Status',
+             value: order['status'].toString().toUpperCase(),
+             color: isPending ? _warningColor : _successColor,
+           ),
+           if (order.containsKey('pickup_schedule') && order['pickup_schedule'] != null)
+             _buildInfoRow( // Icon parameter removed
+               label: 'Pickup',
+               value: DateFormat('MMMM d, yyyy - h:mm a').format(DateTime.parse(order['pickup_schedule']).toLocal()),
+               color: Colors.blueGrey.shade700,
+             ),
+         ],
+       ),
+       children: [
+         Padding(
+           padding: const EdgeInsets.all(16.0),
+           child: Column(
+             crossAxisAlignment: CrossAxisAlignment.start,
+             children: [
+               const Text('Items in Order:', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: _textColor)),
+               const Divider(height: 16, thickness: 1), // Divider for separation
+               // Assuming _buildOrderItems is defined elsewhere
+               ..._buildOrderItems(order['items']), 
+               const SizedBox(height: 16),
+               const Divider(height: 16, thickness: 1),
+               // Total Amount Row
+               Row(
+                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                 children: [
+                   const Text(
+                     'TOTAL AMOUNT:',
+                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _primaryColor),
+                   ),
+                   Text(
+                     '₱${totalAmount.toStringAsFixed(2)}',
+                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _primaryColor),
+                   ),
+                 ],
+               ),
+               if (isPending)
+                 Padding(
+                   padding: const EdgeInsets.only(top: 16.0),
+                   child: ElevatedButton(
+                     onPressed: () => _confirmOrder(order['id']), // Assuming _confirmOrder is defined elsewhere
+                     style: ElevatedButton.styleFrom(
+                       backgroundColor: _successColor, // Use defined success color
+                       foregroundColor: Colors.white,
+                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                       minimumSize: const Size(double.infinity, 50),
+                       elevation: 5,
+                     ),
+                     child: const Text('CONFIRM ORDER', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                   ),
+                 ),
+             ],
+           ),
+         ),
+       ],
+     ),
+   );
+ }
 
   // Helper for status/promo chips
   Widget _buildChip({required String text, required Color color, required IconData icon}) {
@@ -440,7 +441,7 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
           const SizedBox(width: 4),
           Text(
             text,
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+            style: TextStyle(fontSize: 9, color: color),
           ),
         ],
       ),
