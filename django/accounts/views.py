@@ -80,7 +80,7 @@ from rest_framework import generics, pagination
 #=============================
 
 from backend.firebase import send_fcm_notification
-from django.utils.timezone import now
+from django.utils.timezone import now, localdate, get_current_timezone
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
@@ -1075,7 +1075,7 @@ def remove_promo(request):
 
 
 def clean_expired_promos():
-    today = date.today()
+    today = localdate()
     
     # Get expired promos (based on end date)
     expired_promos = Promo.objects.filter(end_date__lt=today)
@@ -1096,7 +1096,7 @@ def clean_expired_promos():
 @api_view(['GET'])
 def promos_ending_soon(request):
     try:
-        today = date.today()
+        today = localdate()
         day_after_tomorrow = today + timedelta(days=2) 
         
         promos = Promo.objects.filter(
@@ -1200,7 +1200,7 @@ class PromoMedicineView(ListAPIView):
     pagination_class = PromoMedicinePagination # Use the new pagination class
 
     def get_queryset(self):
-        today = now().date()
+        today = localdate()
         
         # This is the correct way to get unique medicines for MySQL
         # 1. Get the list of unique medicine IDs
