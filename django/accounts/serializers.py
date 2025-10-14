@@ -1032,20 +1032,33 @@ class OnlineOrderItemReadSerializer(serializers.ModelSerializer):
         ]
 
     def get_medicine(self, obj):
-        # Check if the inventory link and the related medicine still exist
+        request = self.context.get('request') # <-- CRITICAL: Get the request object
+
         if obj.inventory_id and obj.inventory_id.medicine:
-            # If they exist, return the medicine's data.
+            medicine = obj.inventory_id.medicine
+            
+            # --- START OF BACKEND FIX FOR ABSOLUTE URL ---
+            image_url = None
+            if medicine.image:
+                # Use the image.url (which is relative) and build the absolute URL 
+                # using the request object we got from the view context.
+                if request:
+                    image_url = request.build_absolute_uri(medicine.image.url)
+                else:
+                    # Fallback: if somehow no request context, just send the relative path 
+                    # (which still requires the Flutter fix to work correctly).
+                    image_url = medicine.image.url
+            # --- END OF BACKEND FIX ---
+
             return {
-                'name': obj.inventory_id.medicine.name,
-                'generic_name': obj.inventory_id.medicine.generic_name,
-                'requires_prescription': obj.inventory_id.medicine.requires_prescription,
-                'image': obj.inventory_id.medicine.image.url if obj.inventory_id.medicine.image else None,
+                'name': medicine.name,
+                'generic_name': medicine.generic_name,
+                'requires_prescription': medicine.requires_prescription,
+                'image': image_url, # <-- NOW THIS IS AN ABSOLUTE URL
                 'is_deleted': False
             }
         else:
-            # If the medicine is deleted or the link is broken,
-            # return a placeholder object with an 'is_deleted' flag,
-            # but use the snapshot fields for the name.
+            # Logic for deleted items (no change needed here)
             return {
                 'name': obj.medicine_name,
                 'generic_name': obj.generic_name,
@@ -1146,21 +1159,19 @@ class OnlineOrderListSerializer(serializers.ModelSerializer):
         Looks for the 'filtered_items' attribute (set by Prefetch in the view) 
         and uses it for serialization. Falls back to the default items if not present.
         """
-        # 1. Check if the Prefetch loaded the filtered list (from the update_order_discount view)
+        # 1. Get the items list
         if hasattr(obj, 'filtered_items'):
             items_to_serialize = obj.filtered_items
-        # 2. Fallback to the default manager if Prefetch wasn't used in this context
+        # 2. Fallback to the default manager
         else:
-            # Note: This fallback will be used by other views (GET lists, etc.) 
-            # and may include unfiltered items unless those views also use a Prefetch.
-            # However, for the update-discount endpoint, 'filtered_items' will be used.
             items_to_serialize = obj.items.all() 
-
-        # 3. Serialize the list we retrieved using your existing item serializer
+            
+        # 3. Serialize the list, passing the context down to the item serializer
         return OnlineOrderItemReadSerializer(
             items_to_serialize, 
             many=True, 
-            read_only=True
+            read_only=True,
+            context=self.context # <-- THE CRITICAL ADDITION!
         ).data
 
     # You can remove the unused get_deleted_item_name method block if desired.
