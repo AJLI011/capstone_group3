@@ -1013,7 +1013,7 @@ class OrderLogSerializer(serializers.ModelSerializer):
 
 
 
-# ---------------9/26/25
+# ---------------10/14/25----as of 9:33am
 #----------9/23/25-----------------------------------------------------------------------------------[as of 4:30 pm aaron]
 #=================================9/1/25===============================
     
@@ -1128,7 +1128,7 @@ class OnlineOrderLogDetailsSerializer(serializers.ModelSerializer):
         
         
         
-
+#-----------------------------------10/14/25----------as of 9:33am
 # ---------------10/12/25- aaron
 class OnlineOrderListSerializer(serializers.ModelSerializer):
     # === CRITICAL FIX: Change to SerializerMethodField ===
