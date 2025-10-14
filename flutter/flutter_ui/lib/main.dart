@@ -152,11 +152,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Capstone App',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: startScreen,
+    // ⬇️ START OF THE FIX ⬇️
+    return MediaQuery(
+      // 1. Get the current system's media settings
+      data: MediaQuery.of(context).copyWith(
+        // 2. Set textScaleFactor to 1.0 to disable system font scaling
+        textScaleFactor: 1.0,
+      ),
+      // 3. Apply the modified settings to the MaterialApp and the whole app
+      child: MaterialApp(
+        title: 'Capstone App',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(primarySwatch: Colors.blue),
+        home: startScreen,
+      ),
     );
+    // ⬆️ END OF THE FIX ⬆️
   }
 }

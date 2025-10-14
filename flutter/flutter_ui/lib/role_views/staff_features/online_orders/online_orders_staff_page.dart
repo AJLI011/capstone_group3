@@ -1,5 +1,3 @@
-// staff_orders.dart
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -14,6 +12,14 @@ class StaffOrdersPage extends StatefulWidget {
 }
 
 class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProviderStateMixin {
+  // --- UI ENHANCEMENT: Defined Color Palette ---
+  static const Color _primaryColor = Color(0xFF5C7C9A);
+  static const Color _accentColor = Color(0xFFB5D33D);
+  static const Color _successColor = Color(0xFF4CAF50);
+  static const Color _warningColor = Color(0xFFFF9800);
+  static const Color _errorColor = Color(0xFFF44336);
+  static const Color _textColor = Color(0xFF333333);
+
   late Future<List<dynamic>> _ordersFuture;
   late TabController _tabController;
   final String _baseUrl = 'http://192.168.0.100:8000';
@@ -121,7 +127,7 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
     return Scaffold(
       appBar: AppBar(
         title: const Text('Online Orders'),
-        backgroundColor: const Color(0xFF5C7C9A),
+        backgroundColor: _primaryColor, // UI ENHANCEMENT: Use defined primary color
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -131,9 +137,9 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.black,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: Colors.blue,
+          labelColor: Colors.white, // UI ENHANCEMENT: White label for better contrast
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: _accentColor, // UI ENHANCEMENT: Use accent color for indicator
           indicatorWeight: 4.0,
           tabs: const [
             Tab(text: 'Pending Orders'),
@@ -177,11 +183,12 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
     );
   }
 
+  // --- UI ENHANCEMENT: Enhanced Date Picker Design ---
   Widget _buildReadyForPickupTab(List<dynamic> orders) {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -191,17 +198,42 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade700,
-                      borderRadius: BorderRadius.circular(8.0),
+                      color: _primaryColor,
+                      borderRadius: BorderRadius.circular(10.0),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.3),
+                          spreadRadius: 1,
+                          blurRadius: 3,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          _selectedDate == null ? 'Select Pickup Date' : DateFormat('MMMM d, yyyy').format(_selectedDate!),
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        const Icon(Icons.date_range, color: Colors.white, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _selectedDate == null 
+                              ? 'Select Pickup Date' 
+                              : DateFormat('MMMM d, yyyy').format(_selectedDate!),
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
                         ),
-                        const Icon(Icons.arrow_drop_down, color: Colors.white),
+                        // Clear Date Button
+                        if (_selectedDate != null)
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedDate = null;
+                              });
+                            },
+                            child: const Icon(Icons.close, color: Colors.white, size: 20),
+                          )
+                        else
+                          const Icon(Icons.arrow_drop_down, color: Colors.white),
                       ],
                     ),
                   ),
@@ -237,22 +269,109 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
     );
   }
 
+// Helper widget for clean subtitle rows (Icons and Spaces Removed)
+  Widget _buildInfoRow({required String label, required String value, required Color color}) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 2.0, bottom: 2.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start, // Align text at the start if it wraps
+        children: [
+          Text(
+            '$label: ',
+            style: const TextStyle(
+              fontSize: 13, 
+              color: Colors.grey,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Flexible(
+            child: Text(
+              value,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// --- UI ENHANCEMENT: Enhanced Order Card Design (Title, Subtitle, Card Styling) ---
   Widget _buildOrderCard(Map<String, dynamic> order, {required bool isPending}) {
     final totalAmount = double.tryParse(order['total_amount_after_discount'].toString()) ?? 0.0;
+    final isPwd = order['is_pwd'] ?? false;
+    
+    // Status/Discount specific colors (assuming _primaryColor, _textColor, etc., are defined)
+    final primaryCardColor = isPwd ? _primaryColor : _textColor; 
+    final secondaryCardColor = isPwd ? const Color(0xFFD9E3EF) : Colors.grey.shade200;
 
     return Card(
-      margin: const EdgeInsets.all(8.0),
+      elevation: 4, // Added elevation for depth
+      margin: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10.0),
+        // Add a subtle border based on status
+        side: BorderSide(
+          color: isPending ? _warningColor.withOpacity(0.5) : _successColor.withOpacity(0.5),
+          width: 2,
+        ),
+      ),
       child: ExpansionTile(
-        title: Text('Order #${order['id']}'),
+        // Arrow REMOVED by setting trailing to a zero-size box
+        trailing: const SizedBox.shrink(), 
+        tilePadding: const EdgeInsets.all(16.0),
+        // Custom Title Row with Spacer and Shifted Badge
+        title: Row(
+          children: [
+            Text(
+              'ORDER #${order['id']}',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+                color: primaryCardColor,
+              ),
+            ),
+            const Spacer(),
+            // Badge Container with Transform.translate for shifting right
+            Transform.translate(
+              offset: const Offset(8.0, 0), 
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: secondaryCardColor,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  isPwd ? 'DISCOUNTED SALE' : 'REGULAR SALE',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                    color: primaryCardColor,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        // Enhanced Subtitle Layout (ICONS REMOVED)
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Customer: ${order['customer_name'] ?? 'N/A'}'),
-            Text('Status: ${order['status'].toString().toUpperCase()}'),
+            const SizedBox(height: 8), 
+            _buildInfoRow( // Icon parameter removed
+              label: 'Customer',
+              value: order['customer_name'] ?? 'N/A',
+              color: _textColor,
+            ),
+            _buildInfoRow( // Icon parameter removed
+              label: 'Status',
+              value: order['status'].toString().toUpperCase(),
+              color: isPending ? _warningColor : _successColor,
+            ),
             if (order.containsKey('pickup_schedule') && order['pickup_schedule'] != null)
-              Text(
-                'Pickup: ${DateFormat('MMMM d, yyyy - h:mm a').format(DateTime.parse(order['pickup_schedule']).toLocal())}',
-                style: const TextStyle(fontSize: 14),
+              _buildInfoRow( // Icon parameter removed
+                label: 'Pickup',
+                value: DateFormat('MMMM d, yyyy - h:mm a').format(DateTime.parse(order['pickup_schedule']).toLocal()),
+                color: Colors.blueGrey.shade700,
               ),
           ],
         ),
@@ -262,20 +381,23 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Items:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 8),
-                ..._buildOrderItems(order['items']),
+                const Text('Items in Order:', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: _textColor)),
+                const Divider(height: 16, thickness: 1), // Divider for separation
+                // Assuming _buildOrderItems is defined elsewhere
+                ..._buildOrderItems(order['items']), 
                 const SizedBox(height: 16),
+                const Divider(height: 16, thickness: 1),
+                // Total Amount Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'Total Amount:',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      'TOTAL AMOUNT:',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _primaryColor),
                     ),
                     Text(
                       '₱${totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _primaryColor),
                     ),
                   ],
                 ),
@@ -283,13 +405,15 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
                   Padding(
                     padding: const EdgeInsets.only(top: 16.0),
                     child: ElevatedButton(
-                      onPressed: () => _confirmOrder(order['id']),
+                      onPressed: () => _confirmOrder(order['id']), // Assuming _confirmOrder is defined elsewhere
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
+                        backgroundColor: _successColor, // Use defined success color
                         foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         minimumSize: const Size(double.infinity, 50),
+                        elevation: 5,
                       ),
-                      child: const Text('Confirm Order'),
+                      child: const Text('CONFIRM ORDER & PREPARE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     ),
                   ),
               ],
@@ -300,6 +424,30 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
     );
   }
 
+  // Helper for status/promo chips
+  Widget _buildChip({required String text, required Color color, required IconData icon}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: color, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- UI ENHANCEMENT: Enhanced Item Display with Chips and Statuses ---
   List<Widget> _buildOrderItems(List<dynamic> items) {
     return items.map((item) {
       final quantitySold = int.tryParse(item['quantity_sold'].toString()) ?? 0;
@@ -319,115 +467,123 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
           ? '$_baseUrl$imageUrl'
           : imageUrl;
 
-      // ---------------------------------------------
-      // UPDATED LOGIC: Display deleted message if necessary
-      // REMOVED ICON AND STRIKETHROUGH
-      // ---------------------------------------------
-      if (isDeleted) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Use the placeholder icon
-              const Icon(Icons.medication, color: Colors.grey, size: 40), 
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      // Keep the original item name without strikethrough
-                      medicineName, 
-                      style: const TextStyle(
-                        fontSize: 16, 
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    // Display the unavailability message
-                    const Text(
-                      'This item is no longer available.',
-                      style: TextStyle(
-                        fontSize: 14, 
-                        color: Colors.red, 
-                        fontStyle: FontStyle.italic
-                      ),
-                    ),
-                    // Display quantity below the message
-                    Text(
-                      'Quantity: $quantitySold',
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  ],
-                ),
-              ),
-              // Display '---' instead of the price
-              const Text('---', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), 
-            ],
+      // Card/Container for each item for better separation
+      return Container(
+        margin: const EdgeInsets.only(bottom: 10.0),
+        padding: const EdgeInsets.all(12.0),
+        decoration: BoxDecoration(
+          color: isDeleted ? _errorColor.withOpacity(0.1) : Colors.grey.shade50, // Light red background for deleted items
+          borderRadius: BorderRadius.circular(8.0),
+          border: Border.all(
+            color: isDeleted ? _errorColor : Colors.grey.shade200,
+            width: 1,
           ),
-        );
-      }
-      // ---------------------------------------------
-
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (fullImageUrl.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.network(
-                  fullImageUrl,
-                  width: 60,
-                  height: 60,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 60),
-                ),
-              )
-            else
-              // Placeholder for non-deleted, non-image item
-              const Icon(Icons.medication, color: Colors.grey, size: 40), 
-              
-            const SizedBox(width: 16),
+            // Image/Placeholder
+            SizedBox(
+              width: 50,
+              height: 50,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6.0),
+                child: fullImageUrl.isNotEmpty && !isDeleted 
+                    ? Image.network(
+                        fullImageUrl,
+                        width: 50,
+                        height: 50,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => 
+                            const Icon(Icons.medication, color: Colors.grey, size: 40),
+                      )
+                    : Icon(
+                        isDeleted ? Icons.delete_forever : Icons.medication, 
+                        color: isDeleted ? _errorColor : Colors.grey.shade600, 
+                        size: 40
+                      ),
+              ),
+            ),
+            
+            const SizedBox(width: 12),
+            
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Item Name
                   Text(
                     medicineName,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: isDeleted ? _errorColor : _textColor,
+                      decoration: isDeleted ? TextDecoration.lineThrough : null, // Strikethrough for deleted name
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                  
+                  // Generic Name
                   Text(
                     genericName,
-                    style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.grey),
+                    style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: isDeleted ? _errorColor.withOpacity(0.7) : Colors.grey),
                   ),
-                  if (requiresPrescription)
-                    const Text(
-                      'Prescription Required',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.red,
-                        fontStyle: FontStyle.italic,
-                      ),
+                  
+                  const SizedBox(height: 6),
+                  
+                  // Status/Badges Row (Prescription & Promo)
+                  Wrap(
+                    spacing: 8.0,
+                    runSpacing: 4.0,
+                    children: [
+                      // Prescription Badge
+                      if (requiresPrescription)
+                        _buildChip(
+                          text: 'Prescription Required',
+                          color: _errorColor,
+                          icon: Icons.warning_amber_rounded,
+                        ),
+                      // Promo/Free Quantity Badge
+                      if (freeQuantity > 0)
+                        _buildChip(
+                          text: 'PROMO: +$freeQuantity Free',
+                          color: _accentColor,
+                          icon: Icons.star,
+                        ),
+                      // Deleted Item Message (if deleted)
+                      if (isDeleted)
+                        _buildChip(
+                          text: 'ITEM NO LONGER AVAILABLE',
+                          color: _errorColor,
+                          icon: Icons.cancel,
+                        ),
+                    ],
+                  ),
+
+                  // Quantity Display
+                  const SizedBox(height: 6),
+                  Text(
+                    'Quantity: $quantitySold',
+                    style: const TextStyle(
+                      fontSize: 14, 
+                      fontWeight: FontWeight.w500,
+                      color: _textColor,
                     ),
-                  const SizedBox(height: 4),
-                  if (freeQuantity > 0)
-                    Text(
-                      'Quantity: $quantitySold, Promo: $freeQuantity',
-                      style: const TextStyle(fontSize: 14),
-                    )
-                  else
-                    Text(
-                      'Quantity: $quantitySold',
-                      style: const TextStyle(fontSize: 14),
-                    ),
+                  ),
                 ],
               ),
             ),
-            Text(
-              '₱${itemTotal.toStringAsFixed(2)}',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+
+            // Price/Item Total
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  isDeleted ? '---' : '₱${itemTotal.toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _primaryColor),
+                ),
+              ],
             ),
           ],
         ),
