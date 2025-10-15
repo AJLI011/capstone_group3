@@ -194,7 +194,7 @@ def forgot_password(request):
     token = str(uuid.uuid4())
     reset_tokens[token] = {'email': email, 'user_type': user_type}
 
-    reset_link = f'http://10.49.14.226:8000/reset-password/{token}/'
+    reset_link = f'http://192.168.1.6:8000/reset-password/{token}/'
 
     subject = 'Reset your password'
     message = f'Click the link below to reset your password:\n\n{reset_link}'
@@ -2984,8 +2984,6 @@ def finalize_online_order(request, orderId):
             {"detail": f"An unexpected error occurred: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        
-#==================================================================================================
 
 
 
@@ -3089,7 +3087,7 @@ def completed_online_orders_report(request):
             # Get the customer type based on the 'is_pwd' field
             customer_type = 'Discounted' if order.is_pwd else 'Regular'
             
-            ## Get the timestamp from the 'date_created' field and format it
+            # Get the timestamp from the 'date_created' field and format it
             fulfilled_timestamp = order.date_fulfilled.isoformat() if order.date_fulfilled else 'N/A'
             
             # Calculate subtotal and discount
