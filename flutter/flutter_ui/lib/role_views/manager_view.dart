@@ -25,7 +25,7 @@ import 'manager_features/return_medicines/return_view.dart';
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://10.0.0.2.2:8000/',
+  defaultValue: 'http://bluewhiteph.pythonanywhere.com/',
 );
 
 class ManagerView extends StatefulWidget {

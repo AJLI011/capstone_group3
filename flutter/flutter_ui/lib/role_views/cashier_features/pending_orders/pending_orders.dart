@@ -14,7 +14,7 @@ class PendingOrdersScreen extends StatefulWidget {
 
 // This is the state class that manages the logic and UI for the PendingOrdersScreen.
 class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
-  static const String _baseUrl = "http://10.0.0.2.2:8000";
+  static const String _baseUrl = "http://bluewhiteph.pythonanywhere.com";
   // **UI CONSTANTS**
   static const Color _primaryColor = Color(0xFF5C7C9A); // Corporate Blue
   static const Color _secondaryColor = Color(0xFFC4D5E0); // Light Blue/Grey

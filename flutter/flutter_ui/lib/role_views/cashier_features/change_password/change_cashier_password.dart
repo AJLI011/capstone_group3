@@ -8,7 +8,7 @@ import 'dart:convert';
 
 const String _apiUrlBase = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://10.0.0.2.2:8000',
+  defaultValue: 'http://bluewhiteph.pythonanywhere.com',
 );
 const Color _primaryColor = Color(0xFF5C7C9A);
 

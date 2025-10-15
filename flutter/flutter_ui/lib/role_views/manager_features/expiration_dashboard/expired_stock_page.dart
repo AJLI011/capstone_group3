@@ -102,7 +102,7 @@ class _ExpiredStockPageState extends State<ExpiredStockPage> {
       _isLoading = true;
     });
 
-    final String url = 'http://10.0.0.2.2:8000/api/medicines/expired/';
+    final String url = 'http://bluewhiteph.pythonanywhere.com/api/medicines/expired/';
 
     try {
       final response = await http.get(Uri.parse(url));

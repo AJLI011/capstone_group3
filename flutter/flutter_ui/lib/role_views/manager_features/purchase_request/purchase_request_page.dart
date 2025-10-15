@@ -46,7 +46,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
             _editablePurchaseRequests = [];
         });
         
-        const String apiUrl = 'http://10.0.0.2.2:8000/api/purchase-request/';
+        const String apiUrl = 'http://bluewhiteph.pythonanywhere.com/api/purchase-request/';
         try {
             final response = await http.get(Uri.parse(apiUrl));
 
@@ -97,7 +97,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
         });
 
         try {
-            final lowStockResponse = await http.get(Uri.parse('http://10.0.0.2.2:8000/api/medicines/low-stock/'));
+            final lowStockResponse = await http.get(Uri.parse('http://bluewhiteph.pythonanywhere.com/api/medicines/low-stock/'));
             
             List<Map<String, dynamic>> lowStockRequests = [];
             

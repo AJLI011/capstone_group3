@@ -17,7 +17,7 @@ class SupplierListPage extends StatefulWidget {
 class _SupplierListPageState extends State<SupplierListPage> {
   // --- Data & API Endpoints ---
   List<dynamic> suppliers = [];
-  final String _apiUrl = 'http://10.0.0.2.2:8000/api/suppliers/';
+  final String _apiUrl = 'http://bluewhiteph.pythonanywhere.com/api/suppliers/';
   // NOTE: In a production app, the token should be secured, not hardcoded.
   final String _token = 'YOUR_ADMIN_TOKEN_HERE'; 
 

@@ -102,7 +102,7 @@ class _ExpiringSoonPageState extends State<ExpiringSoonPage> {
       _isLoading = true;
     });
 
-    final String url = 'http://10.0.0.2.2:8000/api/medicines/expiring-soon/';
+    final String url = 'http://bluewhiteph.pythonanywhere.com/api/medicines/expiring-soon/';
 
     try {
       final response = await http.get(Uri.parse(url));
