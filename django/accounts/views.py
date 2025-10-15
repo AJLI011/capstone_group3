@@ -194,7 +194,7 @@ def forgot_password(request):
     token = str(uuid.uuid4())
     reset_tokens[token] = {'email': email, 'user_type': user_type}
 
-    reset_link = f'http://192.168.0.100:8000/reset-password/{token}/'
+    reset_link = f'http://192.168.1.6:8000/reset-password/{token}/'
 
     subject = 'Reset your password'
     message = f'Click the link below to reset your password:\n\n{reset_link}'
@@ -3057,7 +3057,7 @@ def completed_online_orders_report(request):
 
                 # Filter for orders created within this precise date range
                 completed_orders = completed_orders.filter(
-                    date_created__range=(start_of_day, end_of_day)
+                    date_fulfilled__range=(start_of_day, end_of_day)
                 )
             
             except ValueError:
@@ -3067,7 +3067,7 @@ def completed_online_orders_report(request):
                 )
         
         # Order the results by creation date
-        completed_orders = completed_orders.order_by('-date_created')
+        completed_orders = completed_orders.order_by('-date_fulfilled')
 
         orders_data = []
         for order in completed_orders:
@@ -3079,7 +3079,7 @@ def completed_online_orders_report(request):
             customer_type = 'Discounted' if order.is_pwd else 'Regular'
             
             # Get the timestamp from the 'date_created' field and format it
-            fulfilled_timestamp = order.date_created.isoformat() if order.date_created else 'N/A'
+            fulfilled_timestamp = order.date_fulfilled.isoformat() if order.date_fulfilled else 'N/A'
             
             # Calculate subtotal and discount
             subtotal_amount = order.total_amount_before_discount
@@ -3749,7 +3749,6 @@ def low_stock_list(request):
 
     serializer = LowStockSerializer(low_stock_medicines, many=True)
     return Response(serializer.data)
-#------9/20/25 changes
 
 
 
