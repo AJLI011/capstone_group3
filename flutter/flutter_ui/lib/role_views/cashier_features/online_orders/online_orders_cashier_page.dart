@@ -4,6 +4,10 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// **UI CONSTANTS**
+const Color _primaryColor = Color(0xFF5C7C9A); // Corporate Blue
+const Color _secondaryColor = Color(0xFFC4D5E0); // Light Blue/Grey
+
 // The updated confirmation dialog function to allow for custom button text.
 Future<bool?> showConfirmationDialog({
   required BuildContext context,
@@ -17,17 +21,17 @@ Future<bool?> showConfirmationDialog({
     barrierDismissible: false, // User must tap a button to dismiss
     builder: (BuildContext context) {
       return AlertDialog(
-        title: Text(title),
+        title: Text(title, style: const TextStyle(color: _primaryColor)),
         content: Text(content),
         actions: <Widget>[
           TextButton(
-            child: Text(cancelText),
+            child: Text(cancelText, style: const TextStyle(color: Colors.grey)),
             onPressed: () {
               Navigator.of(context).pop(false); // Dismiss dialog, return false
             },
           ),
           TextButton(
-            child: Text(confirmText),
+            child: Text(confirmText, style: const TextStyle(color: _primaryColor, fontWeight: FontWeight.bold)),
             onPressed: () {
               Navigator.of(context).pop(true); // Dismiss dialog, return true
             },
@@ -154,11 +158,11 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                   width: 60,
                   height: 60,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.medication, size: 60),
+                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.medication, size: 60, color: _primaryColor),
                 ),
               )
             else
-              const Icon(Icons.medication, size: 60),
+              const Icon(Icons.medication, size: 60, color: _primaryColor),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -179,6 +183,7 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                         fontSize: 14,
                         color: Colors.red,
                         fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   const SizedBox(height: 4),
@@ -214,24 +219,61 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
   @override
   Widget build(BuildContext context) {
     final totalAmount = double.tryParse(_currentOrder['total_amount_after_discount'].toString()) ?? 0.0;
+    final isPwd = _currentOrder['is_pwd'] ?? false;
     
     return Card(
-      margin: const EdgeInsets.all(8.0),
+      elevation: 4, // Added elevation
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)), // Rounded corners
       child: ExpansionTile(
-        title: Text('Order #${_currentOrder['id']}'),
+        tilePadding: const EdgeInsets.all(10.0),
+        // === MODIFICATION 1: REMOVE ARROW ICON ===
+        trailing: const SizedBox.shrink(),
+        // =======================================
+        title: Row(
+          // mainAxisAlignment: MainAxisAlignment.spaceBetween, // Removed to allow for spacing
+          children: [
+            Text(
+              'ORDER # ${_currentOrder['id']}',
+              style: const TextStyle(
+                fontWeight: FontWeight.w900, // Thicker font
+                fontSize: 18,
+                color: _primaryColor, // Use primary color for main ID
+              ),
+            ),
+            const Spacer(), // Pushes the next item(s) to the right
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isPwd ? _secondaryColor : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: Text(
+                isPwd ? 'DISCOUNTED SALE' : 'REGULAR SALE',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: isPwd ? _primaryColor : Colors.black87,
+                ),
+              ),
+            ),
+          ],
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Customer: ${_currentOrder['customer_name'] ?? 'N/A'}'),
-            Text('Status: ${_currentOrder['status'].toString().toUpperCase()}'),
+            const SizedBox(height: 4),
+            Text('Customer: ${_currentOrder['customer_name'] ?? 'N/A'}', style: TextStyle(color: Colors.grey[700])),
+            Text('Status: ${_currentOrder['status'].toString().toUpperCase()}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
             if (_currentOrder.containsKey('pickup_schedule') && _currentOrder['pickup_schedule'] != null)
               Text(
                 'Pickup: ${DateFormat('MMMM d, yyyy - h:mm a').format(DateTime.parse(_currentOrder['pickup_schedule']).toLocal())}',
-                style: const TextStyle(fontSize: 14),
+                style: const TextStyle(fontSize: 14, color: _primaryColor, fontWeight: FontWeight.w600),
               ),
           ],
         ),
         children: [
+          const Divider(height: 1, thickness: 1),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -241,15 +283,16 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                 const SizedBox(height: 8),
                 ..._buildOrderItems(_currentOrder['items']),
                 const SizedBox(height: 16),
-                // === MODIFICATION APPLIED HERE ===
+                // === PWD Checkbox Section ===
                 Row(
                   children: [
                     Checkbox(
                       value: _currentOrder['is_pwd'] ?? false,
                       onChanged: _onPwdCheckboxChanged,
+                      activeColor: _primaryColor,
                     ),
                     const Expanded( // Use Expanded to constrain the text width
-                      child: Text('Apply PWD/Senior Citizen Discount'),
+                      child: Text('Apply PWD/Senior Citizen Discount', style: TextStyle(fontWeight: FontWeight.w500)),
                     ),
                   ],
                 ),
@@ -260,11 +303,11 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                   children: [
                     const Text(
                       'Total Amount:',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     Text(
                       '₱${totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
                     ),
                   ],
                 ),
@@ -273,36 +316,45 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            final bool? confirm = await showConfirmationDialog(
-                              context: context,
-                              title: 'Cancel Order?',
-                              content: 'Are you sure you want to cancel this entire order? This cannot be undone.'
-                            );
-                            if (confirm == true) {
-                              widget.onCancel(_currentOrder['id'] as int);
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                          ),
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
+                      // === MODIFICATION 2: PICKED UP (FINALIZE) BUTTON MOVED TO LEFT ===
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () {
                             widget.onFinalize(_currentOrder['id'] as int);
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
+                            backgroundColor: Colors.green.shade600, // Darker green
                             foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            elevation: 2,
                           ),
-                          child: const Text('Picked Up'),
+                          child: const Text('Picked Up', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // === MODIFICATION 2: CANCEL BUTTON MOVED TO RIGHT ===
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            final bool? confirm = await showConfirmationDialog(
+                              context: context,
+                              title: 'Cancel Order?',
+                              content: 'Are you sure you want to cancel this entire order? This cannot be undone.',
+                              confirmText: 'Confirm Cancel',
+                            );
+                            if (confirm == true) {
+                              widget.onCancel(_currentOrder['id'] as int);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red.shade600, // Darker red
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            elevation: 2,
+                          ),
+                          child: const Text('Cancel', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ],
@@ -325,7 +377,7 @@ class CashierOnlineOrdersPage extends StatefulWidget {
 }
 
 class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
-  final String _baseUrl = 'http://192.168.1.11:8000';
+  final String _baseUrl = 'http://192.168.1.6:8000';
   DateTime? _selectedDate;
   List<dynamic> _allOrders = [];
   bool _isLoading = true;
@@ -370,7 +422,7 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
     setState(() {
       final orderIndex = _allOrders.indexWhere((order) => order['id'] == updatedOrder['id']);
       if (orderIndex != -1) {
-        if (updatedOrder['status'] == 'cancelled') {
+        if (updatedOrder['status'] == 'cancelled' || updatedOrder['status'] == 'finalized') {
           _allOrders.removeAt(orderIndex);
         } else {
           // Update the order in the list, ensuring it maintains the 'ready for pickup' filter
@@ -520,13 +572,28 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
           context: context,
           title: 'Finalize Order?',
           content: 'Are you sure the customer has picked up this order? This will deduct from the inventory.',
+          confirmText: 'Confirm Picked Up',
         );
 
         if (confirm == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Order finalized successfully.')),
+          final response = await http.put(
+            Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'staff_id': staffId}),
           );
-          _fetchCashierOrders();
+          
+          if (response.statusCode == 200) {
+              ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Order finalized successfully.')),
+            );
+            _fetchCashierOrders();
+          } else {
+              final errorBody = jsonDecode(response.body);
+              final errorMessage = errorBody['detail'] ?? errorBody['error'] ?? 'Failed to finalize order.';
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(errorMessage)),
+              );
+          }
         }
         return; // Exit the function.
       } 
@@ -600,6 +667,16 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
       initialDate: _selectedDate ?? DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
+      builder: (context, child) { // Customizing the date picker theme
+        return Theme(
+          data: ThemeData.light().copyWith(
+            primaryColor: _primaryColor,
+            colorScheme: const ColorScheme.light(primary: _primaryColor),
+            buttonTheme: const ButtonThemeData(textTheme: ButtonTextTheme.primary),
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null && picked != _selectedDate) {
       setState(() {
@@ -618,15 +695,15 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
         
         final pickupDate = DateTime.parse(order['pickup_schedule']).toLocal();
         return pickupDate.year == _selectedDate!.year &&
-                pickupDate.month == _selectedDate!.month &&
-                pickupDate.day == _selectedDate!.day;
+               pickupDate.month == _selectedDate!.month &&
+               pickupDate.day == _selectedDate!.day;
       }).toList();
     }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Online Orders'),
-        backgroundColor: const Color(0xFF5C7C9A),
+        backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -636,7 +713,7 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: _primaryColor))
           : _buildReadyForPickupTab(readyForPickupOrders),
     );
   }
@@ -655,8 +732,15 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade700,
+                      color: _primaryColor,
                       borderRadius: BorderRadius.circular(8.0),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -665,7 +749,7 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
                           _selectedDate == null ? 'Select Pickup Date' : DateFormat('MMMM d, yyyy').format(_selectedDate!),
                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                         ),
-                        const Icon(Icons.arrow_drop_down, color: Colors.white),
+                        const Icon(Icons.calendar_month, color: Colors.white),
                       ],
                     ),
                   ),
@@ -692,6 +776,7 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
 
     return RefreshIndicator(
       onRefresh: _fetchCashierOrders,
+      color: _primaryColor,
       child: ListView.builder(
         itemCount: orders.length,
         itemBuilder: (context, index) {

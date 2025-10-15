@@ -54,7 +54,7 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
     cameraController.stop(); 
 
     try {
-      final response = await http.get(Uri.parse('http://192.168.1.11:8000/api/sales/barcode/$barcode/'));
+      final response = await http.get(Uri.parse('http://192.168.1.6:8000/api/sales/barcode/$barcode/'));
 
       if (response.statusCode == 200) {
         final List<dynamic> itemData = json.decode(response.body);

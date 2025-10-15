@@ -14,7 +14,10 @@ class PendingOrdersScreen extends StatefulWidget {
 
 // This is the state class that manages the logic and UI for the PendingOrdersScreen.
 class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
-  static const String _baseUrl = "http://192.168.1.11:8000";
+  static const String _baseUrl = "http://192.168.1.6:8000";
+  // **UI CONSTANTS**
+  static const Color _primaryColor = Color(0xFF5C7C9A); // Corporate Blue
+  static const Color _secondaryColor = Color(0xFFC4D5E0); // Light Blue/Grey
 
   // Future to hold the list of pending orders fetched from the API.
   late Future<List<InStoreOrder>> _pendingOrders;
@@ -156,7 +159,7 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
         return AlertDialog(
           content: Row(
             children: [
-              const CircularProgressIndicator(),
+              const CircularProgressIndicator(color: _primaryColor),
               const SizedBox(width: 20),
               Text(message),
             ],
@@ -171,17 +174,17 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text(title),
+          title: Text(title, style: const TextStyle(color: _primaryColor)),
           content: Text(content),
           actions: <Widget>[
             TextButton(
-              child: const Text('Cancel'),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             TextButton(
-              child: const Text('Approve Anyway'),
+              child: const Text('Approve Anyway', style: TextStyle(color: Colors.red)),
               onPressed: () {
                 Navigator.of(context).pop();
                 // Show final confirmation after the warning
@@ -199,7 +202,7 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text(title),
+          title: Text(title, style: const TextStyle(color: _primaryColor)),
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
@@ -211,13 +214,13 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
           ),
           actions: <Widget>[
             TextButton(
-              child: const Text('Cancel'),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             TextButton(
-              child: const Text('Approve Anyway'),
+              child: const Text('Approve Anyway', style: TextStyle(color: Colors.red)),
               onPressed: () {
                 Navigator.of(context).pop();
                 // Show final confirmation after image review
@@ -241,19 +244,20 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
             : 'Are you sure you want to ${status == 'approved' ? 'approve' : 'reject'} order #$orderId?';
 
         final confirmText = status == 'approved' ? 'Confirm Approve' : 'Confirm Reject';
+        final confirmColor = status == 'approved' ? Colors.green : Colors.red;
 
         return AlertDialog(
-          title: Text(dialogTitle),
+          title: Text(dialogTitle, style: const TextStyle(color: _primaryColor)),
           content: Text(dialogContent),
           actions: <Widget>[
             TextButton(
-              child: const Text('Cancel'),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             TextButton(
-              child: Text(confirmText),
+              child: Text(confirmText, style: TextStyle(color: confirmColor, fontWeight: FontWeight.bold)),
               onPressed: () {
                 Navigator.of(context).pop();
                 _forceProcessOrder(orderId, status); // Call the final processing function.
@@ -273,7 +277,7 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Order #${order.id} Details'),
+          title: Text('Order #${order.id} Details', style: const TextStyle(color: _primaryColor)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -293,7 +297,7 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
           ),
           actions: [
             TextButton(
-              child: const Text('Close'),
+              child: const Text('Close', style: TextStyle(color: _primaryColor)),
               onPressed: () {
                 Navigator.of(context).pop();
               },
@@ -316,7 +320,7 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.medicineName),
+                Text(item.medicineName, style: const TextStyle(fontWeight: FontWeight.w500)),
                 Text('Qty: ${item.quantitySold} (+${item.freeQuantityGiven} free)', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
               ],
             ),
@@ -341,7 +345,7 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: const Color(0xFF5C7C9A),
+        backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
@@ -356,18 +360,22 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
         future: _pendingOrders,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator(color: _primaryColor));
           } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(child: Text('No pending orders found.'));
           } else {
-            return ListView.builder(
-              itemCount: snapshot.data!.length,
-              itemBuilder: (context, index) {
-                final order = snapshot.data![index];
-                return _buildOrderCard(order);
-              },
+            return RefreshIndicator( // Added RefreshIndicator
+              onRefresh: _refreshOrders,
+              color: _primaryColor,
+              child: ListView.builder(
+                itemCount: snapshot.data!.length,
+                itemBuilder: (context, index) {
+                  final order = snapshot.data![index];
+                  return _buildOrderCard(order);
+                },
+              ),
             );
           }
         },
@@ -377,9 +385,12 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
 
   Widget _buildOrderCard(InStoreOrder order) {
     return Card(
+      elevation: 4, // Added elevation for a modern look
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)), // Rounded corners
       child: InkWell( // Use InkWell to allow tapping the card for details
         onTap: () => _showOrderDetailsDialog(order),
+        borderRadius: BorderRadius.circular(10.0),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -390,35 +401,48 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
                 children: [
                   Text(
                     'ORDER # ${order.id}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900, // Thicker font
+                      fontSize: 18,
+                      color: _primaryColor, // Use primary color for main ID
+                    ),
                   ),
-                  Text(
-                    order.isPwd ? 'PWD Sale' : 'Regular Sale',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: order.isPwd ? Colors.blue : Colors.black87,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: order.isPwd ? _secondaryColor : Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      order.isPwd ? 'DISCOUNTED SALE' : 'REGULAR SALE',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: order.isPwd ? _primaryColor : Colors.black87,
+                      ),
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 4),
               Text(
                 'Initiated by: ${order.staffName}',
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
 
               if (order.hasPrescriptionRequiredItem)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8.0),
                   child: Row(
-                    children: const [
-                      Icon(Icons.warning, color: Colors.orange, size: 18),
-                      SizedBox(width: 8),
+                    children: [
+                      Icon(Icons.warning, color: Colors.orange.shade700, size: 18),
+                      const SizedBox(width: 8),
                       Text(
                         'Requires Prescription',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Colors.orange,
+                          color: Colors.orange.shade700,
                         ),
                       ),
                     ],
@@ -447,12 +471,12 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
       children: [
         Text(
           '${firstItem.medicineName} x ${firstItem.quantitySold}',
-          style: const TextStyle(fontWeight: FontWeight.w500),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
         ),
         if (itemCount > 1)
           Text(
             'and ${itemCount - 1} other item${itemCount > 2 ? 's' : ''}. Tap for details.',
-            style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic),
+            style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic, fontSize: 13),
           ),
       ],
     );
@@ -483,14 +507,14 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
               const SizedBox(width: 8),
               Text(
                 '-₱${(order.totalAmountBeforeDiscount - order.totalAmountAfterDiscount).toStringAsFixed(2)}',
-                style: const TextStyle(color: Colors.red),
+                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
               ),
             ],
           ),
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            const Text('Total Payable:',
+            const Text('Total Amount:',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(width: 8),
             Text(
@@ -512,11 +536,13 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
             // Initial call handles the 202 check or proceeds to confirmation
             onPressed: () => _processOrder(order.id, 'approved'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: Colors.green.shade600, // Darker green
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              elevation: 2,
             ),
-            child: const Text('Approve', style: TextStyle(fontSize: 16)),
+            child: const Text('Approve', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
         ),
         const SizedBox(width: 16),
@@ -525,11 +551,13 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
             // Rejection goes straight to confirmation
             onPressed: () => _processOrder(order.id, 'rejected'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: Colors.red.shade600, // Darker red
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              elevation: 2,
             ),
-            child: const Text('Reject', style: TextStyle(fontSize: 16)),
+            child: const Text('Reject', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
         ),
       ],

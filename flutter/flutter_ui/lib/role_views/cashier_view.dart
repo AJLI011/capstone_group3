@@ -21,7 +21,7 @@ import 'cashier_features/prescription/prescription_cashier.dart';
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.1.11:8000/',
+  defaultValue: 'http://192.168.1.6:8000/',
 );
 
 class CashierView extends StatefulWidget {
@@ -331,7 +331,7 @@ class _CashierViewState extends State<CashierView>
                     child: ListView(
                       padding: EdgeInsets.zero,
                       children: [
-                        _drawerItem(Icons.assignment, 'Pending Orders', scale, // PASS SCALE
+                        _drawerItem(Icons.assignment, 'Instore Sales', scale, // PASS SCALE
                             () => _open(PendingOrdersScreen(cashierId: widget.staffId))),
                         _drawerItem(Icons.store, 'Online Orders', scale, // PASS SCALE
                             () => _open(const CashierOnlineOrdersPage())),

@@ -4,12 +4,15 @@ import 'total_quantity.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+// 🎯 YOUR SPECIFIC IMPORT PATH MUST MATCH THE FILE LOCATION
+import 'package:flutter_ui/services/responsive_scale2.dart'; 
+
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.1.11:8000/',
+  defaultValue: 'http://192.168.1.6:8000/',
 );
 
-// NEW: Define a class to hold the paginated data response from the backend
+// InventoryResponse and InventoryApiService definitions (unchanged)
 class InventoryResponse {
   final List<TotalQuantity> items;
   final int totalCount;
@@ -26,23 +29,19 @@ class InventoryApiService {
   static const String inventoryPath = 'api/inventory/';
   static const String totalQuantitiesPath = 'api/inventory/total-quantities/';
 
-  // MODIFIED: Accepts search and category, and returns the new InventoryResponse.
   static Future<InventoryResponse> fetchInventoryItems({
     int limit = 10,
     int offset = 0,
-    String? searchQuery, // NEW parameter
-    String? category, // NEW parameter
+    String? searchQuery, 
+    String? category, 
   }) async {
     try {
-      // 1. Construct the base URL with pagination parameters
       String url = '$API_BASE$inventoryPath?limit=$limit&offset=$offset';
 
-      // 2. Append search query if provided (using Uri.encodeQueryComponent for safety)
       if (searchQuery != null && searchQuery.isNotEmpty) {
         url += '&q=${Uri.encodeQueryComponent(searchQuery)}';
       }
 
-      // 3. Append category filter if provided
       if (category != null && category.isNotEmpty) {
         url += '&category=$category';
       }
@@ -50,14 +49,11 @@ class InventoryApiService {
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        // MODIFIED: Decode the entire JSON response object
         final Map<String, dynamic> responseData = json.decode(response.body);
 
-        // Extract the list of items
         final List<dynamic> data = responseData['items'] ?? [];
         final List<TotalQuantity> items = data.map((json) => TotalQuantity.fromJson(json)).toList();
 
-        // Return the InventoryResponse object with the total count from the server
         return InventoryResponse(
           items: items,
           totalCount: responseData['total_count'] ?? 0,
@@ -71,7 +67,6 @@ class InventoryApiService {
     }
   }
 
-  // ✅ Total quantity sync function (no changes)
   static Future<void> syncTotalQuantities() async {
     try {
       final url = '$API_BASE$totalQuantitiesPath';
@@ -94,7 +89,8 @@ class InventoryGridScreen extends StatefulWidget {
   State<InventoryGridScreen> createState() => _InventoryGridScreenState();
 }
 
-class _InventoryGridScreenState extends State<InventoryGridScreen> {
+// 🎯 CRITICAL: This line connects the mixin to the State class.
+class _InventoryGridScreenState extends State<InventoryGridScreen> with ResponsiveScale {
   final ScrollController _scrollController = ScrollController();
   List<TotalQuantity> _items = [];
   String _selectedCategory = '';
@@ -102,12 +98,10 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
   bool _showSearch = false;
   String _searchQuery = '';
 
-  // Lazy loading state variables
   int _offset = 0;
   final int _limit = 10;
   bool _isLoading = false;
   bool _hasMoreItems = true;
-  // NEW: Total count of items that match the current search/filter (from backend)
   int _totalCount = 0;
 
   final List<Map<String, String>> _categoryChoices = [
@@ -140,9 +134,7 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
     super.dispose();
   }
 
-  // MODIFIED: Function to check if the user has reached the end of the list.
   void _onScroll() {
-    // Load a little earlier (e.g., 200 pixels from the end)
     if (_scrollController.position.pixels >= 
         _scrollController.position.maxScrollExtent - 200 &&
         !_isLoading &&
@@ -151,37 +143,31 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
     }
   }
   
-  // NEW: Handler for search query changes that triggers a full reset and API reload
   void _onSearchChanged(String value) {
-     setState(() => _searchQuery = value);
-     syncAndLoadInventory(); // Full reset and load with new query
+      setState(() => _searchQuery = value);
+      syncAndLoadInventory(); 
   }
   
-  // NEW: Handler for category changes that triggers a full reset and API reload
   void _onCategoryChanged(String value) {
-     setState(() => _selectedCategory = value);
-     syncAndLoadInventory(); // Full reset and load with new filter
+      setState(() => _selectedCategory = value);
+      syncAndLoadInventory(); 
   }
 
-  // MODIFIED: Function to reset state and load the first page (used for initial load, search, and filter)
   Future<void> syncAndLoadInventory() async {
     setState(() {
       _items = [];
       _offset = 0;
-      _totalCount = 0; // Reset total count
+      _totalCount = 0; 
       _hasMoreItems = true;
     });
     await InventoryApiService.syncTotalQuantities();
     await loadInventory();
   }
 
-  // MODIFIED: Core function to fetch data
   Future<void> loadInventory() async {
-    // Prevent multiple simultaneous API calls or loading when no more items exist.
     if (_isLoading || !_hasMoreItems) return;
     setState(() => _isLoading = true);
     try {
-      // MODIFIED: Pass all filter/search parameters
       final response = await InventoryApiService.fetchInventoryItems(
         limit: _limit,
         offset: _offset,
@@ -192,7 +178,6 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
       setState(() {
         _items.addAll(response.items);
         _offset += _limit;
-        // UPDATE state based on backend response
         _totalCount = response.totalCount;
         _hasMoreItems = response.hasMore;
         _isLoading = false;
@@ -208,53 +193,59 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> {
     await loadInventory();
   }
 
-  // MODIFIED: Renamed to _sortedItems. The backend now handles filtering/searching. 
-  // This local getter only handles sorting.
 List<TotalQuantity> get _sortedItems {
-    // 1. Create a mutable copy of ALL loaded items
     final List<TotalQuantity> items = List.from(_items); 
 
-    // 2. Define the comparison function (case-insensitive)
     int compareName(TotalQuantity a, TotalQuantity b) {
         return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     }
 
-    // 3. Apply the sort based on the toggle state
     if (_sortAZ) {
-      // Sort A-Z (Default behavior)
       items.sort(compareName);
     } else {
-      // Sort Z-A
-      items.sort((a, b) => compareName(b, a)); // Reverse comparison
+      items.sort((a, b) => compareName(b, a)); 
     }
     
-    // 4. Return the fully sorted, accumulated list.
     return items;
 }
 
   @override
   Widget build(BuildContext context) {
-    // Use the locally sorted list for display
     final displayItems = _sortedItems;
+    
+    // 💡 SCALING APPLIED: All these methods should now be available:
+    final double scaledSpacing = scaleValue(context, 12);
+    final double scaledPaddingH = scaleValue(context, 12);
+    final double scaledPaddingV = scaleValue(context, 6);
+    final double scaledSmallSizedBox = scaleValue(context, 8);
+    final double scaledCardPadding = scaleValue(context, 8);
+    final double scaledIconSize = scaleValue(context, 24);
+    final double scaledImageAreaHeight = scaleValue(context, 120);
+    final double scaledIconLarge = scaleValue(context, 80);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Inventory'),
+        title: Text('Inventory', style: TextStyle(fontSize: scaleFontSize(context, 20))),
         backgroundColor: const Color(0xFF5C7C9A),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: Icon(_sortAZ ? Icons.sort_by_alpha : Icons.sort),
+            icon: Icon(
+                _sortAZ ? Icons.sort_by_alpha : Icons.sort,
+                size: scaledIconSize,
+            ),
             onPressed: () {
               setState(() => _sortAZ = !_sortAZ);
             },
           ),
           IconButton(
-            icon: const Icon(Icons.search),
+            icon: Icon(
+                Icons.search,
+                size: scaledIconSize,
+            ),
             onPressed: () {
               setState(() {
                 _showSearch = !_showSearch;
-                // Important: When closing the search, reset the query and reload
                 if (!_showSearch) {
                    _onSearchChanged(''); 
                 }
@@ -267,21 +258,21 @@ List<TotalQuantity> get _sortedItems {
         children: [
           if (_showSearch)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: EdgeInsets.symmetric(horizontal: scaledPaddingH, vertical: scaledPaddingV),
               color: Colors.white,
               child: TextField(
-                // MODIFIED: Use the new search handler that resets pagination
                 onChanged: _onSearchChanged, 
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Search...',
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: scaledPaddingH, vertical: scaleValue(context, 10)),
+                  border: const OutlineInputBorder(),
                 ),
+                style: TextStyle(fontSize: scaleFontSize(context, 16)),
               ),
             ),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(scaledPaddingH),
             color: Colors.white,
             child: Row(
               children: [
@@ -296,10 +287,12 @@ List<TotalQuantity> get _sortedItems {
                     items: _categoryChoices.map((choice) {
                       return DropdownMenuItem<String>(
                         value: choice['value'],
-                        child: Text(choice['label']!),
+                        child: Text(
+                          choice['label']!,
+                          style: TextStyle(fontSize: scaleFontSize(context, 14)),
+                        ),
                       );
                     }).toList(),
-                    // MODIFIED: Use the new category handler that resets pagination
                     onChanged: (value) {
                       _onCategoryChanged(value ?? '');
                     },
@@ -308,24 +301,26 @@ List<TotalQuantity> get _sortedItems {
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: scaledSmallSizedBox),
           Expanded(
-            // MODIFIED: Check against total count and loading state for "No medicines" message
             child: displayItems.isEmpty && !_isLoading 
-                ? Center(child: Text(_totalCount == 0 ? 'No medicines available.' : 'Loading...'))
+                ? Center(
+                    child: Text(
+                      _totalCount == 0 ? 'No medicines available.' : 'Loading...',
+                      style: TextStyle(fontSize: scaleFontSize(context, 16)),
+                    ),
+                  )
                 : GridView.builder(
                     controller: _scrollController,
-                    padding: const EdgeInsets.all(12),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    padding: EdgeInsets.all(scaledSpacing),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 0.75,
+                      crossAxisSpacing: scaledSpacing,
+                      mainAxisSpacing: scaledSpacing,
+                      childAspectRatio: 0.70,
                     ),
-                    // MODIFIED: Use displayItems.length for the item count
                     itemCount: displayItems.length + (_isLoading && _hasMoreItems ? 1 : 0),
                     itemBuilder: (context, index) {
-                      // Check if the current index is the last item (for the loading indicator)
                       if (index == displayItems.length) {
                         return const Center(child: CircularProgressIndicator());
                       }
@@ -337,7 +332,7 @@ List<TotalQuantity> get _sortedItems {
                             color: const Color(0xFF396AAB),
                             width: 1,
                           ),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(scaleValue(context, 12)),
                           boxShadow: const [
                             BoxShadow(
                               color: Colors.black12,
@@ -347,7 +342,7 @@ List<TotalQuantity> get _sortedItems {
                           ],
                         ),
                         child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(scaleValue(context, 12)),
                           onTap: () {
                             Navigator.push(
                               context,
@@ -359,73 +354,88 @@ List<TotalQuantity> get _sortedItems {
                           },
                           child: Stack(
                             children: [
-                              Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8.0,
-                                    vertical: 16.0,
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.center,
-                                    children: [
-                                      if (item.image.isNotEmpty)
-                                        SizedBox(
-                                          height: 125,
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: scaledCardPadding,
+                                  vertical: scaleValue(context, 16.0),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    if (item.image.isNotEmpty)
+                                      SizedBox(
+                                        height: scaledImageAreaHeight,
+                                        child: Center(
                                           child: Image.network(
                                             item.image,
                                             fit: BoxFit.contain,
                                             errorBuilder: (context, error, stackTrace) =>
-                                                const Icon(Icons.image_not_supported, size: 80, color: Colors.grey),
-                                          ),
-                                        )
-                                      else
-                                        const SizedBox(
-                                          height: 120,
-                                          child: Center(
-                                            child: Icon(Icons.medication, size: 80, color: Colors.grey),
+                                                Icon(
+                                                    Icons.image_not_supported, 
+                                                    size: scaledIconLarge,
+                                                    color: Colors.grey
+                                                ),
                                           ),
                                         ),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        item.name,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 18,
+                                      )
+                                    else
+                                      SizedBox(
+                                        height: scaledImageAreaHeight,
+                                        child: Center(
+                                          child: Icon(
+                                              Icons.medication, 
+                                              size: scaledIconLarge,
+                                              color: Colors.grey
+                                          ),
                                         ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      Text(
-                                        item.genericName,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          color: Colors.grey,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
+                                    SizedBox(height: scaleValue(context, 10)),
+                                    Expanded(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            item.name,
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: scaleFontSize(context, 18),
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            item.genericName,
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: scaleFontSize(context, 14),
+                                              color: Colors.grey,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ),
                               Positioned(
-                                top: 8,
-                                right: 8,
+                                top: scaledCardPadding,
+                                right: scaledCardPadding,
                                 child: Container(
-                                  padding: const EdgeInsets.all(4),
+                                  padding: EdgeInsets.all(scaleValue(context, 4)),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFF396AAB),
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(scaleValue(context, 8)),
                                   ),
                                   child: Text(
                                     "Qty: ${item.totalQuantity}",
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 17,
+                                      fontSize: scaleFontSize(context, 17),
                                       color: Colors.white,
                                     ),
                                   ),

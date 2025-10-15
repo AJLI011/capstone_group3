@@ -4,11 +4,17 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-
-import 'barcodeScan_medicines_list.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Extension to format strings for display in dropdowns
+import 'barcodeScan_medicines_list.dart'; // Assumed this path is correct
+
+// Defined theme colors for the enhanced UI
+const Color _primaryColor = Color(0xFF5C7C9A);
+const Color _accentColor = Color(0xFF4CAF50); // Submit/Success Green
+const Color _secondaryColor = Color(0xFF007BFF); // Scan/Utility Blue
+const Color _inputFillColor = Colors.white;
+
+// Extension to format strings for display in dropdowns (UNCHANGED)
 extension StringCasingExtension on String {
   String toTitleCase() => isNotEmpty
       ? '${this[0].toUpperCase()}${substring(1).toLowerCase()}'
@@ -32,6 +38,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
 
   bool _prescriptionRequired = false;
   File? _selectedImage;
+  bool _isLoadingSuppliers = true; // New loading state
 
   // State variables for dropdowns
   String? _selectedCategory;
@@ -48,15 +55,15 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchSuppliers(); // Fetch suppliers when the screen initializes
-    _fetchCategoryAndDosageChoices(); // Populate static choices
-    _barcodeController.addListener(_onBarcodeChanged); // Add listener for live barcode check
+    _fetchSuppliers();
+    _fetchCategoryAndDosageChoices();
+    _barcodeController.addListener(_onBarcodeChanged);
   }
 
   @override
   void dispose() {
     _barcodeController.removeListener(_onBarcodeChanged);
-    _debounce?.cancel(); // Cancel the debounce timer
+    _debounce?.cancel();
     _barcodeController.dispose();
     _medicineNameController.dispose();
     _genericNameController.dispose();
@@ -65,7 +72,8 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
     super.dispose();
   }
 
-  // Live barcode existence check with a debounce timer
+  // --- LOGIC (UNCHANGED) ---
+
   void _onBarcodeChanged() {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () async {
@@ -77,7 +85,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Barcode for this medicine is already existing.'),
-                backgroundColor: Color.fromARGB(255, 83, 83, 83),
+                backgroundColor: Colors.red,
               ),
             );
           }
@@ -86,10 +94,9 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
     });
   }
 
-  // New function to check for barcode existence
   Future<bool> _checkBarcodeExistence(String barcode) async {
     // IMPORTANT: Replace with your computer's actual local IP address!
-    final url = Uri.parse('http://192.168.1.11:8000/api/medicines/check_barcode/$barcode/');
+    final url = Uri.parse('http://192.168.1.6:8000/api/medicines/check_barcode/$barcode/');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -97,18 +104,20 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
         return data['exists'] as bool;
       } else {
         print("Failed to check barcode existence: ${response.statusCode}");
-        return false; // Assume it doesn't exist to avoid blocking
+        return false;
       }
     } catch (e) {
       print("Error checking barcode existence: $e");
-      return false; // Assume it doesn't exist to avoid blocking
+      return false;
     }
   }
 
-  // Fetches suppliers from your Django API
   Future<void> _fetchSuppliers() async {
+    setState(() {
+      _isLoadingSuppliers = true;
+    });
     // IMPORTANT: Replace with your computer's actual local IP address!
-    final url = Uri.parse('http://192.168.1.11:8000/api/suppliers/');
+    final url = Uri.parse('http://192.168.1.6:8000/api/suppliers/');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -130,12 +139,14 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
           SnackBar(content: Text('Network error fetching suppliers: $e')),
         );
       }
+    } finally {
+      setState(() {
+        _isLoadingSuppliers = false;
+      });
     }
   }
 
-  // Populates static category and dosage form choices
   void _fetchCategoryAndDosageChoices() {
-    // These must exactly match the values from your Django model's choices for Category and Dosage Form
     setState(() {
       _categories = [
         'analgesics',
@@ -163,7 +174,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50); // Added imageQuality
     if (pickedFile != null) {
       setState(() {
         _selectedImage = File(pickedFile.path);
@@ -193,7 +204,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
     }
 
     // IMPORTANT: Replace with your computer's actual local IP address!
-    final url = Uri.parse('http://192.168.1.11:8000/api/medicines/');
+    final url = Uri.parse('http://192.168.1.6:8000/api/medicines/');
     final request = http.MultipartRequest('POST', url);
 
     // Add text fields
@@ -212,12 +223,12 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
     if (_selectedSupplier != null) {
       final supplier = _supplierList.firstWhere(
             (s) => s['name'] == _selectedSupplier,
-        orElse: () => null, // Returns null if no matching supplier found
+        orElse: () => null,
       );
 
       if (supplier != null) {
-        request.fields['supplier'] = supplier['id'].toString(); // Send the ID as string
-        // ✅ Add staff_id from SharedPreferences
+        request.fields['supplier'] = supplier['id'].toString();
+        
         final prefs = await SharedPreferences.getInstance();
         final staffId = prefs.getInt('staff_id');
 
@@ -238,7 +249,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
             const SnackBar(content: Text('Error: Selected supplier not found in list.')),
           );
         }
-        return; // Stop the function if supplier ID can't be determined
+        return;
       }
     } else {
       if (mounted) {
@@ -246,7 +257,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
           const SnackBar(content: Text('Please select a supplier.')),
         );
       }
-      return; // Stop the function if no supplier is selected
+      return;
     }
 
     // Add image file
@@ -261,18 +272,18 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
-      if (response.statusCode == 201) { // 201 Created is typical for successful POST
+      if (response.statusCode == 201) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Medicine added successfully!')),
+            const SnackBar(content: Text('Medicine added successfully!'), backgroundColor: _accentColor),
           );
         }
-        Navigator.of(context).pop(); // Go back to the previous screen
+        Navigator.of(context).pop();
       } else {
         print('Failed to add medicine: ${response.statusCode} - ${response.body}');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to add medicine: ${response.body}')),
+            SnackBar(content: Text('Failed to add medicine: ${response.body}'), backgroundColor: Colors.red),
           );
         }
       }
@@ -280,13 +291,12 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
       print('Error adding medicine: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error adding medicine: $e')),
+          SnackBar(content: Text('Error adding medicine: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  /// Shows a confirmation dialog when the user tries to exit the screen.
   Future<bool> _onWillPop() async {
     return (await showDialog<bool>(
       context: context,
@@ -296,17 +306,113 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
           content: const Text('Are you sure you want to exit? Your progress will be lost.'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(false), // Stay on the screen
+              onPressed: () => Navigator.of(context).pop(false),
               child: const Text('No'),
             ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true), // Exit the screen
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade400, foregroundColor: Colors.white),
               child: const Text('Yes'),
             ),
           ],
         );
       },
-    )) ?? false; // In case the user dismisses the dialog by tapping outside, return false.
+    )) ?? false;
+  }
+
+  // --- ENHANCED UI WIDGETS ---
+
+  InputDecoration _inputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, color: _primaryColor.withOpacity(0.7), size: 20),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey.shade400, width: 1.0),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: _primaryColor, width: 2.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      filled: true,
+      fillColor: _inputFillColor,
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16.0, bottom: 12.0),
+      child: Row(
+        children: [
+          Icon(icon, color: _primaryColor, size: 28),
+          const SizedBox(width: 10),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: _primaryColor,
+            ),
+          ),
+          const Expanded(child: Divider(color: _primaryColor, indent: 10, thickness: 1)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCard({required String title, required IconData icon, required List<Widget> children}) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 20),
+      elevation: 5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildSectionHeader(title, icon),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdownField({
+    required String label,
+    required IconData icon,
+    String? value,
+    required List<DropdownMenuItem<String>> items,
+    required void Function(String?) onChanged,
+    required String? Function(String?) validator,
+    bool isLoading = false,
+  }) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      decoration: _inputDecoration(label, icon).copyWith(
+        suffixIcon: isLoading ? const Padding(
+          padding: EdgeInsets.only(right: 15.0),
+          child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _primaryColor)),
+        ) : null,
+      ),
+      icon: isLoading ? null : const Icon(Icons.arrow_drop_down, color: _primaryColor),
+      isExpanded: true,
+      items: items,
+      onChanged: isLoading ? null : onChanged,
+      validator: validator,
+      // Custom styling for the dropdown button itself
+      dropdownColor: Colors.grey[50],
+      style: const TextStyle(color: Colors.black87, fontSize: 16),
+    );
   }
 
   @override
@@ -314,10 +420,13 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
+        backgroundColor: Colors.grey[50], // Light background for contrast
         appBar: AppBar(
-          title: const Text('Add Medicine'),
-          backgroundColor: const Color(0xFF5C7C9A), // Updated color
-          foregroundColor: Colors.white, // Updated color for font and icon
+          title: const Text('Add New Medicine'),
+          backgroundColor: _primaryColor,
+          foregroundColor: Colors.white,
+          elevation: 8,
+          shadowColor: Colors.black45,
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
@@ -326,247 +435,250 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Image picking section
-                Center(
-                  child: _selectedImage != null
-                      ? Image.file(_selectedImage!, height: 150)
-                      : Container(
-                    height: 150,
-                    width: double.infinity,
-                    color: Colors.grey[200],
-                    child: Icon(Icons.image, size: 50, color: Colors.grey[600]),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    _pickImage();
-                  },
-                  icon: const Icon(Icons.image),
-                  label: const Text('Select Image'),
-                ),
-                const SizedBox(height: 24),
-                // Text fields
-                TextFormField(
-                  controller: _medicineNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Medicine Name',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) =>
-                  value!.isEmpty ? 'Please enter medicine name' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _genericNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Generic Name',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Barcode text field with on-the-fly validation
-                TextFormField(
-                  controller: _barcodeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Barcode',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) => value!.isEmpty ? 'Please enter a barcode.' : null,
-                ),
-                const SizedBox(height: 16),
-                
-                // Scan Barcode Button
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    final String? scannedBarcode = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const BarcodeScannerScreen(),
+                // 1. Image and Barcode Section
+                _buildCard(
+                  title: 'Product Identification',
+                  icon: Icons.qr_code_2,
+                  children: [
+                    // Image Upload
+                    Center(
+                      child: Container(
+                        height: 120,
+                        width: 120,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: _primaryColor, width: 2),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: _selectedImage != null
+                              ? Image.file(_selectedImage!, fit: BoxFit.cover)
+                              : Icon(Icons.image_search, size: 50, color: _primaryColor.withOpacity(0.6)),
+                        ),
                       ),
-                    );
-                    if (scannedBarcode != null && scannedBarcode.isNotEmpty) {
-                      final bool barcodeExists = await _checkBarcodeExistence(scannedBarcode);
-                      if (barcodeExists) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Barcode already exists. Please scan a new one.'),
-                              backgroundColor: Color.fromARGB(255, 98, 98, 98),
-                            ),
-                          );
-                        }
-                        // DO NOT update the text field
-                      } else {
-                        setState(() {
-                          _barcodeController.text = scannedBarcode;
-                        });
-                      }
-                    }
-                  },
-                  icon: const Icon(Icons.qr_code_scanner),
-                  label: const Text('Scan Barcode'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Dropdowns with overflow fix
-                DropdownButtonFormField<String>(
-                  value: _selectedCategory,
-                  decoration: const InputDecoration(
-                    labelText: 'Category',
-                    border: OutlineInputBorder(),
-                  ),
-                  isExpanded: true,
-                  items: _categories.map((String category) {
-                    return DropdownMenuItem<String>(
-                      value: category,
-                      child: Text(
-                        category.replaceAll('_', ' ').toTitleCase(),
-                        overflow: TextOverflow.ellipsis,
+                    ElevatedButton.icon(
+                      onPressed: _pickImage,
+                      icon: const Icon(Icons.upload_file),
+                      label: const Text('Select Image'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF007BFF),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _selectedCategory = newValue;
-                    });
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select a category.';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: _selectedDosageForm,
-                  decoration: const InputDecoration(
-                    labelText: 'Dosage Form',
-                    border: OutlineInputBorder(),
-                  ),
-                  isExpanded: true,
-                  items: _dosageForms.map((String form) {
-                    return DropdownMenuItem<String>(
-                      value: form,
-                      child: Text(
-                        form.toTitleCase(),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _selectedDosageForm = newValue;
-                    });
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select a dosage form.';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: _selectedSupplier,
-                  decoration: const InputDecoration(
-                    labelText: 'Supplier Name',
-                    border: OutlineInputBorder(),
-                  ),
-                  isExpanded: true,
-                  items: _supplierList.isEmpty
-                      ? []
-                      : _supplierList.map<DropdownMenuItem<String>>((supplier) {
-                    return DropdownMenuItem<String>(
-                      value: supplier['name'],
-                      child: Text(
-                        supplier['name'],
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _selectedSupplier = newValue;
-                    });
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select a supplier.';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
+                    ),
+                    const SizedBox(height: 20),
 
-                // Numeric fields
-                TextFormField(
-                  controller: _restockQuantityController,
-                  decoration: const InputDecoration(
-                    labelText: 'Restock Quantity',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter restock quantity.';
-                    }
-                    if (int.tryParse(value) == null) {
-                      return 'Please enter a valid number.';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _productPriceController,
-                  decoration: const InputDecoration(
-                    labelText: 'Price',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter price.';
-                    }
-                    if (double.tryParse(value) == null) {
-                      return 'Please enter a valid number.';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
+                    // Barcode Input
+                    TextFormField(
+                      controller: _barcodeController,
+                      decoration: _inputDecoration('Barcode', Icons.qr_code),
+                      keyboardType: TextInputType.number,
+                      validator: (value) => value!.isEmpty ? 'Please enter a barcode.' : null,
+                    ),
+                    const SizedBox(height: 12),
 
-                // Checkbox
-                CheckboxListTile(
-                  title: const Text('Requires Prescription'),
-                  value: _prescriptionRequired,
-                  onChanged: (value) {
-                    setState(() {
-                      _prescriptionRequired = value ?? false;
-                    });
-                  },
+                    // Scan Barcode Button
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        final String? scannedBarcode = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const BarcodeScannerScreen(),
+                          ),
+                        );
+                        if (scannedBarcode != null && scannedBarcode.isNotEmpty) {
+                          final bool barcodeExists = await _checkBarcodeExistence(scannedBarcode);
+                          if (barcodeExists) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Barcode already exists. Please scan a new one.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          } else {
+                            setState(() {
+                              _barcodeController.text = scannedBarcode;
+                            });
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.qr_code_scanner),
+                      label: const Text('Scan Barcode'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF007BFF),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 24),
+
+                // 2. Main Details Section
+                _buildCard(
+                  title: 'Product Information',
+                  icon: Icons.info_outline,
+                  children: [
+                    // Name and Generic Name (Row layout)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _medicineNameController,
+                            decoration: _inputDecoration('Medicine Name', Icons.local_hospital_outlined),
+                            validator: (value) => value!.isEmpty ? 'Enter name' : null,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _genericNameController,
+                            decoration: _inputDecoration('Generic Name', Icons.science_outlined),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Category Dropdown
+                    _buildDropdownField(
+                      label: 'Category',
+                      icon: Icons.category_outlined,
+                      value: _selectedCategory,
+                      items: _categories.map((String category) {
+                        return DropdownMenuItem<String>(
+                          value: category,
+                          child: Text(category.replaceAll('_', ' ').toTitleCase(), overflow: TextOverflow.ellipsis),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedCategory = newValue;
+                        });
+                      },
+                      validator: (value) => (value == null || value.isEmpty) ? 'Select category.' : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Dosage Form Dropdown
+                    _buildDropdownField(
+                      label: 'Dosage Form',
+                      icon: Icons.medication_liquid_outlined,
+                      value: _selectedDosageForm,
+                      items: _dosageForms.map((String form) {
+                        return DropdownMenuItem<String>(
+                          value: form,
+                          child: Text(form.toTitleCase(), overflow: TextOverflow.ellipsis),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedDosageForm = newValue;
+                        });
+                      },
+                      validator: (value) => (value == null || value.isEmpty) ? 'Select dosage form.' : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Supplier Dropdown
+                    _buildDropdownField(
+                      label: 'Supplier Name',
+                      icon: Icons.business_outlined,
+                      value: _selectedSupplier,
+                      isLoading: _isLoadingSuppliers,
+                      items: _isLoadingSuppliers
+                          ? []
+                          : _supplierList.map<DropdownMenuItem<String>>((supplier) {
+                        return DropdownMenuItem<String>(
+                          value: supplier['name'],
+                          child: Text(supplier['name'], overflow: TextOverflow.ellipsis),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedSupplier = newValue;
+                        });
+                      },
+                      validator: (value) => (value == null || value.isEmpty) ? 'Select a supplier.' : null,
+                    ),
+                  ],
+                ),
+
+                // 3. Inventory and Price Section
+                _buildCard(
+                  title: 'Inventory & Pricing',
+                  icon: Icons.shopping_cart_outlined,
+                  children: [
+                    // Quantity and Price (Row layout)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _restockQuantityController,
+                            decoration: _inputDecoration('Restock Qty', Icons.low_priority),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) return 'Enter quantity.';
+                              if (int.tryParse(value) == null) return 'Valid number.';
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _productPriceController,
+                            decoration: _inputDecoration('Price (₱)', Icons.attach_money),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) return 'Enter price.';
+                              if (double.tryParse(value) == null) return 'Valid number.';
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Checkbox
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: CheckboxListTile(
+                        title: const Text(
+                          'Requires Prescription',
+                          style: TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        value: _prescriptionRequired,
+                        onChanged: (value) {
+                          setState(() {
+                            _prescriptionRequired = value ?? false;
+                          });
+                        },
+                        checkColor: Colors.white,
+                        activeColor: _primaryColor,
+                        tileColor: Colors.transparent,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
 
                 // Submit button
-                ElevatedButton(
+                ElevatedButton.icon(
                   onPressed: () async {
                     if (!_formKey.currentState!.validate()) {
                       return;
                     }
-
-                    // Show confirmation dialog
                     final confirmed = await showDialog<bool>(
                       context: context,
                       builder: (context) {
@@ -576,35 +688,36 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.of(context).pop(false),
-                              child: const Text('No'),
+                              child: const Text('Cancel'),
                             ),
-                            TextButton(
+                            ElevatedButton(
                               onPressed: () => Navigator.of(context).pop(true),
-                              child: const Text('Yes'),
+                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E88E5), foregroundColor: Colors.white),
+                              child: const Text('Add Medicine'),
                             ),
                           ],
                         );
                       },
                     );
 
-                    // If user confirmed, proceed with adding the medicine
                     if (confirmed == true) {
                       _addMedicine();
                     }
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                  icon: const Icon(Icons.save_outlined, size: 24),
+                  label: const Text(
+                    'ADD MEDICINE',
+                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
                   ),
-                  child: const Text(
-                    'Add Medicine',
-                    style: TextStyle(fontSize: 18),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E88E5),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 7,
                   ),
                 ),
+                const SizedBox(height: 10),
               ],
             ),
           ),

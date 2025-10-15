@@ -8,7 +8,7 @@ import 'package:timezone/timezone.dart' as tz;
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.1.11:8000',
+  defaultValue: 'http://192.168.1.6:8000',
 );
 
 class OnlineOrdersReportPage extends StatefulWidget {

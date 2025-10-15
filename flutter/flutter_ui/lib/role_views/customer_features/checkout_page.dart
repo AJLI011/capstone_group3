@@ -10,7 +10,7 @@ import 'dart:convert';
 // Define the constant for the base API URL
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.1.11:8000/',
+  defaultValue: 'http://192.168.1.6:8000/',
 );
 
 class CheckoutPage extends StatefulWidget {

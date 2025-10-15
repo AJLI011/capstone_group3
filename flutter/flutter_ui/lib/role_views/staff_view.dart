@@ -17,7 +17,7 @@ import 'staff_features/prescription/prescription_staff.dart';
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.1.11:8000/',
+  defaultValue: 'http://192.168.1.6:8000/',
 );
 
 class StaffView extends StatefulWidget {
@@ -333,7 +333,7 @@ class _StaffViewState extends State<StaffView>
                             () => _open(const InventoryGridScreen())),
                         _drawerItem(
                             Icons.sell,
-                            'Sale', scale, // PASS SCALE
+                            'Instore Sales', scale, // PASS SCALE
                             () => _open(SalesBarcodeScreen(
                                 staffId: widget.staffId,
                                 cartItems: const []))),
