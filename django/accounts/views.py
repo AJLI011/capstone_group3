@@ -2600,7 +2600,13 @@ def update_order_discount(request, orderId):
 
     
     
-
+    
+    
+    
+    
+    
+    
+#-----------------------
 # Cashier Remove Item
 @api_view(['DELETE'])
 def remove_online_order_item(request, orderId, itemId):
@@ -2676,6 +2682,13 @@ def remove_online_order_item(request, orderId, itemId):
             {"detail": f"An unexpected error occurred: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+#---------------------------------------------
+
+
+
+
+
+
 
 @api_view(['PUT'])
 def cancel_online_order_cashier(request, orderId):

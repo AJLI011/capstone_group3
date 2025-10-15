@@ -560,7 +560,10 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Order finalized successfully.')),
               );
-              _fetchCashierOrders(); // Refresh the list
+              // ⭐ FIX APPLIED HERE for prescription path
+              setState(() {
+                _allOrders.removeWhere((order) => order['id'] == orderId);
+              });
             } else {
               final errorBody = jsonDecode(finalResponse.body);
               final errorMessage = errorBody['detail'] ?? errorBody['error'] ?? 'Failed to finalize order.';
@@ -575,44 +578,33 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
       
       // Case B: The order does NOT require a prescription (backend returns 200).
       else if (response.statusCode == 200) {
-        // Show a simple, single confirmation dialog.
-        final bool? confirm = await showConfirmationDialog(
-          context: context,
-          title: 'Finalize Order?',
-          content: 'Are you sure the customer has picked up this order? This will deduct from the inventory.',
-          confirmText: 'Confirm Picked Up',
-        );
-
-        if (confirm == true) {
-          final response = await http.put(
-            Uri.parse(url),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'staff_id': staffId}),
+          // Show a simple, single confirmation dialog.
+          final bool? confirm = await showConfirmationDialog(
+            context: context,
+            title: 'Finalize Order?',
+            content: 'Are you sure the customer has picked up this order? This will deduct from the inventory.',
+            confirmText: 'Confirm Picked Up',
           );
-          
-          if (response.statusCode == 200) {
-              ScaffoldMessenger.of(context).showSnackBar(
+
+          if (confirm == true) {
+            ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Order finalized successfully.')),
             );
-            _fetchCashierOrders();
-          } else {
-              final errorBody = jsonDecode(response.body);
-              final errorMessage = errorBody['detail'] ?? errorBody['error'] ?? 'Failed to finalize order.';
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(errorMessage)),
-              );
+            setState(() {
+              _allOrders.removeWhere((order) => order['id'] == orderId);
+            });
           }
-        }
-        return; // Exit the function.
-      } 
+          return; // Exit the function.
+      }
       
-      // Case C: The request failed for other reasons.
+      // Case C: The request failed for other reasons (e.g., 404, 400).
       else {
         final errorBody = jsonDecode(response.body);
-        final errorMessage = errorBody['detail'] ?? 'Failed to finalize order due to an error.';
+        final errorMessage = errorBody['detail'] ?? 'Online order not found or is not ready for pickup.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage)),
         );
+
         return;
       }
     } catch (e) {
