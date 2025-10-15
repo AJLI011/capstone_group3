@@ -259,11 +259,11 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
         'sales_report_summary.pdf',
       );
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ PDF saved successfully at: $savedPath')),
-        );
-      }
+      // if (context.mounted) {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     SnackBar(content: Text('✅ PDF saved successfully at: $savedPath')),
+      //   );
+      // }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -135,11 +135,11 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
                 lowStockItems: lowStockRequests,
             );
             
-            if (mounted) {
-                 ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('✅ Purchase Request PDF saved successfully!')),
-                );
-            }
+            // if (mounted) {
+            //      ScaffoldMessenger.of(context).showSnackBar(
+            //         const SnackBar(content: Text('✅ Purchase Request PDF saved successfully!')),
+            //     );
+            // }
         } catch (e) {
             if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
