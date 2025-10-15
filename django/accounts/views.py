@@ -3057,7 +3057,7 @@ def completed_online_orders_report(request):
 
                 # Filter for orders created within this precise date range
                 completed_orders = completed_orders.filter(
-                    date_created__range=(start_of_day, end_of_day)
+                    date_fulfilled__range=(start_of_day, end_of_day)
                 )
             
             except ValueError:
@@ -3067,7 +3067,7 @@ def completed_online_orders_report(request):
                 )
         
         # Order the results by creation date
-        completed_orders = completed_orders.order_by('-date_created')
+        completed_orders = completed_orders.order_by('-date_fulfilled')
 
         orders_data = []
         for order in completed_orders:
@@ -3079,7 +3079,7 @@ def completed_online_orders_report(request):
             customer_type = 'Discounted' if order.is_pwd else 'Regular'
             
             # Get the timestamp from the 'date_created' field and format it
-            fulfilled_timestamp = order.date_created.isoformat() if order.date_created else 'N/A'
+            fulfilled_timestamp = order.date_fulfilled.isoformat() if order.date_fulfilled else 'N/A'
             
             # Calculate subtotal and discount
             subtotal_amount = order.total_amount_before_discount
