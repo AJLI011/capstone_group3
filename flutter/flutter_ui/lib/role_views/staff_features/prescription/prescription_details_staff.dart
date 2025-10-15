@@ -44,7 +44,7 @@ class _PrescriptionDetailsStaffState extends State<PrescriptionDetailsStaff> {
 
     final prescriptionId = widget.prescription['id'];
     // Use the base URL of your backend API. Make sure to update the IP address if it's different.
-    final url = Uri.parse('http://192.168.0.100:8000/api/prescriptions/$prescriptionId/upload-images/');
+    final url = Uri.parse('http://192.168.1.6:8000/api/prescriptions/$prescriptionId/upload-images/');
     var request = http.MultipartRequest('POST', url);
 
     // Add each selected image to the request
@@ -140,7 +140,7 @@ class _PrescriptionDetailsStaffState extends State<PrescriptionDetailsStaff> {
                     runSpacing: 8.0,
                     children: existingImages.map((image) {
                       // Construct the full image URL. Adjust the IP and port to your server.
-                      final imageUrl = 'http://192.168.0.100:8000${image['image']}';
+                      final imageUrl = 'http://192.168.1.6:8000${image['image']}';
                       return Container(
                         height: 100,
                         width: 100,

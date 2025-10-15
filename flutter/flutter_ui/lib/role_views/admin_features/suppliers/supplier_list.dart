@@ -17,7 +17,7 @@ class SupplierListPage extends StatefulWidget {
 class _SupplierListPageState extends State<SupplierListPage> {
   // --- Data & API Endpoints ---
   List<dynamic> suppliers = [];
-  final String _apiUrl = 'http://192.168.0.100:8000/api/suppliers/';
+  final String _apiUrl = 'http://192.168.1.6:8000/api/suppliers/';
   // NOTE: In a production app, the token should be secured, not hardcoded.
   final String _token = 'YOUR_ADMIN_TOKEN_HERE'; 
 

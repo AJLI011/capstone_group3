@@ -1,3 +1,4 @@
+// login_staff.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -10,13 +11,11 @@ import '../role_views/staff_view.dart';
 import 'forgot_password.dart';
 import 'login_customer.dart';
 
-// ✅ NEW IMPORT FOR FIREBASE MESSAGING
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-// Use dart-define to change base URL for different environments.
 const String API_BASE = String.fromEnvironment(
-  'API_BASE',
-  defaultValue: 'http://192.168.0.100:8000/',
+    'API_BASE',
+    defaultValue: 'http://192.168.1.6:8000/',
 );
 
 class LoginStaff extends StatefulWidget {
@@ -39,7 +38,6 @@ class _LoginStaffState extends State<LoginStaff> {
     super.dispose();
   }
 
-  // ✅ NEW FUNCTION TO SEND TOKEN TO BACKEND FOR STAFF
   Future<void> _sendTokenToBackend(String token, int staffId) async {
     print('Attempting to send FCM token to backend for staff...');
     try {
@@ -84,7 +82,6 @@ class _LoginStaffState extends State<LoginStaff> {
           final role = data['role'];
           final int staffId = data['id'];
 
-          // ✅ NEW CODE BLOCK: Get and save the FCM token for the staff member
           final fcmToken = await FirebaseMessaging.instance.getToken();
           if (fcmToken != null) {
             print('🔑 FCM Token obtained for staff: $fcmToken');
@@ -186,162 +183,174 @@ class _LoginStaffState extends State<LoginStaff> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SizedBox.expand(
-        child: Stack(
-          children: [
-            // Background image
-            Positioned.fill(
-              child: Image.asset(
-                'assets/bg-login.jpg',
-                fit: BoxFit.cover,
-              ),
+        child: SingleChildScrollView( // Changed from Stack to SingleChildScrollView
+          physics: const BouncingScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height,
             ),
-
-            // 🌟 NEW/MODIFIED: Staff Role Label in Top Left
-            Positioned(
-              top: 50, // Adjust for top padding, accounting for the status bar area
-              left: 20, // Adjust for left padding
-              child: const Text(
-                'Staff', // Changed text to 'Staff'
-                style: TextStyle(
-                  fontSize: 24, // Font size is 24
-                  fontWeight: FontWeight.bold,
-                  color:Color.fromARGB(255, 93, 151, 205), // Color is 0xFF5C7C9A
-                  shadows: [
-                    Shadow(
-                      blurRadius: 5.0,
-                      color: Color.fromARGB(137, 189, 189, 189),
-                      offset: Offset(2.0, 2.0),
+            child: IntrinsicHeight(
+              child: Stack( // Use a Stack to layer the background
+                children: [
+                  Positioned.fill(
+                    child: Image.asset(
+                      'assets/bg-login.jpg',
+                      fit: BoxFit.cover,
                     ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Foreground content
-            SafeArea(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: MediaQuery.of(context).size.height,
                   ),
-                  child: IntrinsicHeight(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 20.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(height: 50),
-                          // Logo
-                          Image.asset(
-                            'assets/logo.png',
-                            height: 200,
-                            width: 200,
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Email
-                          TextField(
-                            controller: emailController,
-                            decoration: InputDecoration(
-                              hintText: 'Email',
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30.0),
-                              ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 20.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 50), // Spacing from the top
+                        // Moved Header inside the Column
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFF5C7C9A),
+                                Color(0xFF86A5C7)
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Password
-                          TextField(
-                            controller: passwordController,
-                            obscureText: true,
-                            decoration: InputDecoration(
-                              hintText: 'Password',
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30.0),
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 10,
+                                offset: const Offset(0, 5),
                               ),
-                            ),
+                            ],
                           ),
-                          const SizedBox(height: 10),
-
-                          // Forgot password
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const ForgotPasswordScreen(),
-                                    ),
-                                  );
-                                },
-                                child: const Text(
-                                  'Forgot Password?',
-                                  style: TextStyle(color: Colors.black54),
+                              Icon(Icons.work_rounded, color: Colors.white, size: 24),
+                              SizedBox(width: 8),
+                              Text(
+                                'Staff Login',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 20),
+                        ),
+                        const SizedBox(height: 20),
+                        // Logo
+                        Image.asset(
+                          'assets/logo.png',
+                          height: 200,
+                          width: 200,
+                        ),
+                        const SizedBox(height: 20),
 
-                          // Login button
-                          ElevatedButton(
-                            onPressed: isLoading ? null : loginStaff,
-                            style: ElevatedButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30.0),
-                              ),
-                              minimumSize: const Size.fromHeight(50),
-                              backgroundColor: const Color.fromRGBO(71, 102, 137, 1),
+                        // Email
+                        TextField(
+                          controller: emailController,
+                          decoration: InputDecoration(
+                            hintText: 'Email',
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(30.0),
                             ),
-                            child: isLoading
-                                ? const CircularProgressIndicator(color: Colors.white)
-                                : const Text(
-                                    'Login',
-                                    style: TextStyle(fontSize: 16, color: Colors.white),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Password
+                        TextField(
+                          controller: passwordController,
+                          obscureText: true,
+                          decoration: InputDecoration(
+                            hintText: 'Password',
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(30.0),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Forgot password
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const ForgotPasswordScreen(),
                                   ),
-                          ),
-
-                          // Error message
-                          if (errorMsg.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                errorMsg,
-                                style: const TextStyle(color: Colors.red),
+                                );
+                              },
+                              child: const Text(
+                                'Forgot Password?',
+                                style: TextStyle(color: Colors.black54),
                               ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
 
-                          const SizedBox(height: 20),
-
-                          // Switch to customer login
-                          TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const LoginCustomer(),
+                        // Login button
+                        ElevatedButton(
+                          onPressed: isLoading ? null : loginStaff,
+                          style: ElevatedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30.0),
+                            ),
+                            minimumSize: const Size.fromHeight(50),
+                            backgroundColor: const Color.fromRGBO(71, 102, 137, 1),
+                          ),
+                          child: isLoading
+                              ? const CircularProgressIndicator(color: Colors.white)
+                              : const Text(
+                                  'Login',
+                                  style: TextStyle(fontSize: 16, color: Colors.white),
                                 ),
-                              );
-                            },
-                            child: const Text(
-                              'Customer? Click here',
-                              style: TextStyle(color: Colors.black54),
+                        ),
+
+                        // Error message
+                        if (errorMsg.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              errorMsg,
+                              style: const TextStyle(color: Colors.red),
                             ),
                           ),
-                        ],
-                      ),
+
+                        const SizedBox(height: 20),
+
+                        // Switch to customer login
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const LoginCustomer(),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            'Customer? Click here',
+                            style: TextStyle(color: Colors.black54),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

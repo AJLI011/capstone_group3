@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
-final String _baseUrl = 'http://192.168.0.100:8000';
+final String _baseUrl = 'http://192.168.1.6:8000';
 
 // Model for individual items within a transaction
 class TransactionItem {
