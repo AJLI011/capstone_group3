@@ -194,7 +194,7 @@ def forgot_password(request):
     token = str(uuid.uuid4())
     reset_tokens[token] = {'email': email, 'user_type': user_type}
 
-    reset_link = f'http://192.168.1.6:8000/reset-password/{token}/'
+    reset_link = f'http://10.49.14.226:8000/reset-password/{token}/'
 
     subject = 'Reset your password'
     message = f'Click the link below to reset your password:\n\n{reset_link}'
@@ -2760,7 +2760,7 @@ def finalize_online_order(request, orderId):
     """
     try:
         staff_id = request.data.get('staff_id')
-        force_approve = request.data.get('force_approve', False) # <-- Add this line
+        force_approve = request.data.get('force_approve', False) # <-- Reads the flag from request data
         if not staff_id:
             return Response({'error': 'Staff ID is required'}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -2770,10 +2770,9 @@ def finalize_online_order(request, orderId):
             order = OnlineOrder.objects.get(id=orderId, status='ready for pickup')
 
             # ======== NEW PRESCRIPTION LOGIC FOR DIALOGUE BOX (FIXED) ========
-            force_approve = request.data.get('force_approve', False)
+            # Note: force_approve is already read from request.data at the top, no need to re-read it here.
             
             # === FIX 1: Safely determine if any item requires a prescription ===
-            # We filter out items where the link is broken (item.inventory_id or .medicine is None)
             order_requires_prescription = any(
                 item.inventory_id.medicine.requires_prescription 
                 for item in order.items.all()
@@ -2801,6 +2800,18 @@ def finalize_online_order(request, orderId):
                         },
                         status=status.HTTP_202_ACCEPTED
                     )
+                
+            # ==========================================================
+            # === NEW FIX: BLOCK FINALIZATION FOR REGULAR ITEMS ON INITIAL CHECK ===
+            # The logic should ONLY return 200 OK (for dialog) if:
+            # 1. No prescription is required (not order_requires_prescription) AND
+            # 2. The client has NOT sent the confirmation flag (not force_approve).
+            # This ensures both prescription and non-prescription confirmations skip this block.
+            if not order_requires_prescription and not force_approve: # <--- KEEP THIS CONDITION EXACTLY AS IT IS!
+                return Response(
+                    {"detail": "Order is ready for finalization confirmation."}, 
+                    status=status.HTTP_200_OK
+                )
             # ==========================================================
 
             # ORIGINAL CODE CONTINUES HERE
@@ -2919,7 +2930,7 @@ def finalize_online_order(request, orderId):
             # This is the correct order of operations.
             from .serializers import OnlineOrderListSerializer
 
-            # 10-04-25  NEW LOGIC: CAPTURE APPROVING CASHIER FK AND NAME SNAPSHOT
+            # 10-04-25 Â NEW LOGIC: CAPTURE APPROVING CASHIER FK AND NAME SNAPSHOT
             order.approved_by = staff_user
             order.approved_by_name = staff_user.name
             order.approved_by_role_snapshot = staff_user.role
@@ -3078,7 +3089,7 @@ def completed_online_orders_report(request):
             # Get the customer type based on the 'is_pwd' field
             customer_type = 'Discounted' if order.is_pwd else 'Regular'
             
-            # Get the timestamp from the 'date_created' field and format it
+            ## Get the timestamp from the 'date_created' field and format it
             fulfilled_timestamp = order.date_fulfilled.isoformat() if order.date_fulfilled else 'N/A'
             
             # Calculate subtotal and discount

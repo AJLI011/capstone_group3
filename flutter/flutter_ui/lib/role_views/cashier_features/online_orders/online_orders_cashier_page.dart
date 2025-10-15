@@ -110,25 +110,24 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
 
   // A helper function to build the list of items inside the order card
   List<Widget> _buildOrderItems(List<dynamic> items) {
-    // === UPDATED LOGIC: TRUSTING THE BACKEND FILTER ===
     // The backend now filters out the "ghost" items (inventory_id__isnull=False).
-    // We can use the list directly, relying on the backend contract.
     final itemsToDisplay = items;
-    // =================================================
 
     // Safely get the order ID, using tryParse for robustness
     final orderId = int.tryParse(widget.order['id'].toString());
 
-    return itemsToDisplay.map((item) { // Use itemsToDisplay here
+    final List<Widget> itemWidgets = [];
+    
+    // Iterate and build each item row
+    for (int i = 0; i < itemsToDisplay.length; i++) {
+      final item = itemsToDisplay[i];
       // Safely get the item ID
       final itemId = int.tryParse(item['id'].toString());
       
-      // We still need this check to prevent crashes if the 'medicine' object is null,
-      // even though the backend should now guarantee non-null data for valid items.
       final medicine = item['medicine'] as Map<String, dynamic>?; 
       if (medicine == null) {
-        // Fallback for safety, though should not be hit with the backend fix
-        return const SizedBox.shrink(); 
+        // Fallback for safety
+        continue; 
       }
 
       // Safely parse the quantity and price, defaulting to 0 if null or invalid
@@ -146,75 +145,85 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
           ? '${widget.baseUrl}$imageUrl'
           : imageUrl;
 
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (fullImageUrl.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.network(
-                  fullImageUrl,
-                  width: 60,
-                  height: 60,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.medication, size: 60, color: _primaryColor),
-                ),
-              )
-            else
-              const Icon(Icons.medication, size: 60, color: _primaryColor),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    medicineName,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      itemWidgets.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (fullImageUrl.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8.0),
+                  child: Image.network(
+                    fullImageUrl,
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.medication, size: 60, color: _primaryColor),
                   ),
-                  Text(
-                    genericName,
-                    style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.grey),
-                  ),
-                  if (requiresPrescription)
-                    const Text(
-                      'Prescription Required',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.red,
-                        fontStyle: FontStyle.italic,
-                        fontWeight: FontWeight.bold,
+                )
+              else
+                const Icon(Icons.medication, size: 60, color: _primaryColor),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      medicineName,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      genericName,
+                      style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.grey),
+                    ),
+                    if (requiresPrescription)
+                      const Text(
+                        'Prescription Required',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.red,
+                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  const SizedBox(height: 4),
-                  if (freeQuantity > 0)
-                    Text(
-                      'Quantity: $quantitySold, Promo: $freeQuantity',
-                      style: const TextStyle(fontSize: 14),
-                    )
-                  else
-                    Text(
-                      'Quantity: $quantitySold',
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                ],
+                    const SizedBox(height: 4),
+                    if (freeQuantity > 0)
+                      Text(
+                        'Quantity: $quantitySold, Promo: $freeQuantity',
+                        style: const TextStyle(fontSize: 14),
+                      )
+                    else
+                      Text(
+                        'Quantity: $quantitySold',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                  ],
+                ),
               ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: (orderId != null && itemId != null)
-                  ? () => _onRemoveItem(orderId, itemId)
-                  : null, // Disable the button if IDs are null
-            ),
-            Text(
-              '₱${itemTotal.toStringAsFixed(2)}',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ],
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: (orderId != null && itemId != null)
+                    ? () => _onRemoveItem(orderId, itemId)
+                    : null, // Disable the button if IDs are null
+              ),
+              Text(
+                '₱${itemTotal.toStringAsFixed(2)}',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
         ),
       );
-    }).toList();
+
+      // --- FIX: Add a Divider after each item EXCEPT the last one. ---
+      if (i < itemsToDisplay.length - 1) {
+        itemWidgets.add(const Divider(height: 1, thickness: 1));
+      }
+      // -------------------------------------------------------------
+    }
+
+    return itemWidgets;
   }
 
   // Helper Widget for the Sale Badge - Extracted for cleaner build method
@@ -289,6 +298,7 @@ class _CashierOrderCardState extends State<CashierOrderCard> {
               children: [
                 const Text('Items:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 8),
+                // This call now includes Dividers between items
                 ..._buildOrderItems(_currentOrder['items']),
                 const SizedBox(height: 16),
                 // === PWD Checkbox Section ===
@@ -406,8 +416,6 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
       if (response.statusCode == 200) {
         setState(() {
           // Note: This filters the full list to show only 'ready for pickup' orders.
-          // If you need a separate 'pending' view, remove this filter and handle
-          // 'pending' orders in a separate tab/list.
           _allOrders = jsonDecode(response.body)
               .where((order) => order['status'] == 'ready for pickup')
               .toList();
@@ -434,7 +442,6 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
           _allOrders.removeAt(orderIndex);
         } else {
           // Update the order in the list, ensuring it maintains the 'ready for pickup' filter
-          // (i.e., we don't accidentally add a 'pending' order if the filter logic was changed)
           if (updatedOrder['status'] == 'ready for pickup') {
             _allOrders[orderIndex] = updatedOrder;
           }
@@ -497,19 +504,23 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
       return;
     }
 
-    // Step 1: Send a check request to the backend. The backend will determine if a prescription is required.
-    Future<http.Response> checkRequest() {
+    // Step 1: Send a check request to the backend. The backend will determine if a prescription is required
+    // OR if it needs a simple confirmation dialog for regular items (using 200 OK).
+    Future<http.Response> checkRequest(bool forceApprove) {
       return http.put(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'staff_id': staffId,
+          // Only send force_approve if it's the final step
+          if (forceApprove) 'force_approve': true, 
         }),
       );
     }
 
     try {
-      http.Response response = await checkRequest();
+      // 1. Initial request to trigger the backend's check
+      http.Response response = await checkRequest(false);
 
       // Case A: The order requires a prescription (backend returns 202).
       if (response.statusCode == 202) {
@@ -519,17 +530,14 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
         String dialogTitle;
         String dialogContent;
         
-        // Sub-case A1: Prescription order with an uploaded image.
         if (hasImage) {
           dialogTitle = 'Verify Prescription';
           dialogContent = 'A prescription has been uploaded. Please verify the image before finalizing this order.';
         } else {
-          // Sub-case A2: Prescription order without an uploaded image.
           dialogTitle = 'Prescription Required';
           dialogContent = 'No prescription image has been uploaded. Do you want to proceed anyway?';
         }
         
-        // Show the first dialog with the "Approve Anyway" option.
         final bool? firstConfirm = await showConfirmationDialog(
           context: context,
           title: dialogTitle,
@@ -538,7 +546,6 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
         );
 
         if (firstConfirm == true) {
-          // If the cashier approves, show the final "Are you sure?" dialog.
           final bool? finalConfirm = await showConfirmationDialog(
             context: context,
             title: 'Finalize Order',
@@ -547,20 +554,13 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
           
           if (finalConfirm == true) {
             // Send the final request with the `force_approve` flag.
-            final finalResponse = await http.put(
-              Uri.parse(url),
-              headers: {'Content-Type': 'application/json'},
-              body: jsonEncode({
-                'staff_id': staffId,
-                'force_approve': true,
-              }),
-            );
+            final finalResponse = await checkRequest(true); // Send with force_approve: true
 
             if (finalResponse.statusCode == 200) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Order finalized successfully.')),
               );
-              // ⭐ FIX APPLIED HERE for prescription path
+              // Remove order from the list instantly
               setState(() {
                 _allOrders.removeWhere((order) => order['id'] == orderId);
               });
@@ -576,28 +576,41 @@ class _CashierOnlineOrdersPageState extends State<CashierOnlineOrdersPage> {
         return; // Exit the function after the prescription workflow is handled.
       } 
       
-      // Case B: The order does NOT require a prescription (backend returns 200).
+      // Case B: The order does NOT require a prescription (backend returns 200 to show dialog).
       else if (response.statusCode == 200) {
-          // Show a simple, single confirmation dialog.
-          final bool? confirm = await showConfirmationDialog(
-            context: context,
-            title: 'Finalize Order?',
-            content: 'Are you sure the customer has picked up this order? This will deduct from the inventory.',
-            confirmText: 'Confirm Picked Up',
-          );
+        // Show a simple, single confirmation dialog.
+        final bool? confirm = await showConfirmationDialog(
+          context: context,
+          title: 'Finalize Order?',
+          content: 'Are you sure the customer has picked up this order? This will deduct from the inventory.',
+          confirmText: 'Confirm Picked Up',
+        );
 
-          if (confirm == true) {
+        if (confirm == true) {
+          // CRITICAL FIX: Send the SECOND request with force_approve: true
+          final finalResponse = await checkRequest(true); 
+
+          if (finalResponse.statusCode == 200) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Order finalized successfully.')),
             );
+            // Remove order from the list instantly
             setState(() {
               _allOrders.removeWhere((order) => order['id'] == orderId);
             });
+          } else {
+            // Handle error from the final request
+            final errorBody = jsonDecode(finalResponse.body);
+            final errorMessage = errorBody['detail'] ?? errorBody['error'] ?? 'Failed to finalize order.';
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(errorMessage)),
+            );
           }
-          return; // Exit the function.
+        }
+        return; // Exit the function.
       }
       
-      // Case C: The request failed for other reasons (e.g., 404, 400).
+      // Case C: The initial request failed for other reasons (e.g., 404, 400).
       else {
         final errorBody = jsonDecode(response.body);
         final errorMessage = errorBody['detail'] ?? 'Online order not found or is not ready for pickup.';

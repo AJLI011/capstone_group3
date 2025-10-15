@@ -247,9 +247,9 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
       builder: (BuildContext context) {
         // Correct title and content based on status
         final dialogTitle =
-            status == 'approved' ? 'Final Approve Order' : 'Reject Order';
+            status == 'approved' ? 'Finalize Order' : 'Reject Order';
         final dialogContent = isForceApproval
-            ? 'WARNING: You are about to force-approve order #$orderId, overriding the prescription requirement. Confirm this action?'
+            ? 'Are you sure you want to finalize #$orderId? This will deduct from the inventory.'
             : 'Are you sure you want to ${status == 'approved' ? 'approve' : 'reject'} order #$orderId?';
 
         final confirmText =

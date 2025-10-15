@@ -228,7 +228,7 @@ class _LoginStaffState extends State<LoginStaff> {
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.work_rounded, color: Colors.white, size: 24),
+                              Icon(Icons.person_rounded, color: Colors.white, size: 24),
                               SizedBox(width: 8),
                               Text(
                                 'Staff Login',
