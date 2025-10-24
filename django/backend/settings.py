@@ -96,7 +96,7 @@ DATABASES = {
         'NAME': 'capstone_db8',
         'USER': 'root',
         'PASSWORD': 'admin123',
-        'HOST': '127.0.0.1',
+        'HOST': '127.0.0.1', 
         'PORT': '3306',
     }
 }
