@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-5)i5x4*mpiskxl*u^xkr$6*a^du_=b5knz+gpx-u2sby9bw%aq
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['10.0.0.2', 'localhost', '*', '127.0.0.1:8000', 'bluewhiteph.pythonanywhere.com' ]
+ALLOWED_HOSTS = ['10.0.0.2', 'localhost', '*', '127.0.0.1:8000', 'bluewhiteph.pythonanywhere.com', '10.0.2.2' ]
 #'aaron.pythonanywhere.com' add the url of our account sa taas
 
 
@@ -78,26 +78,26 @@ TEMPLATES = [
 WSGI_APPLICATION = 'backend.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-#just uncomment the database for deployment
+# Database - please do not remove this
+
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'aaron$default',
-#         'USER': 'aaron',
+#         'NAME': 'bluewhiteph$default',
+#         'USER': 'bluewhiteph',
 #         'PASSWORD': 'admin123!',
-#         'HOST': 'aaron.mysql.pythonanywhere-services.com',
+#         'HOST': 'bluewhiteph.mysql.pythonanywhere-services.com',
 #     }
 # }
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'bluewhiteph$default',
-        'USER': 'bluewhiteph',
-        'PASSWORD': 'admin123!',
-        'HOST': 'bluewhiteph.mysql.pythonanywhere-services.com',
+        'NAME': 'capstone_db8',
+        'USER': 'root',
+        'PASSWORD': 'admin123',
+        'HOST': '127.0.0.1',
+        'PORT': '3306',
     }
 }
 

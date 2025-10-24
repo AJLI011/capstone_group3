@@ -17,7 +17,7 @@ import 'staff_features/prescription/prescription_staff.dart';
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://bluewhiteph.pythonanywhere.com/',
+  defaultValue: 'http://10.0.2.2:8000/',
 );
 
 class StaffView extends StatefulWidget {
@@ -38,7 +38,7 @@ class _StaffViewState extends State<StaffView>
   bool isLoading = true;
 
   int totalMedicineCount = 0;
-  double totalEarnings = 0.0;
+  // REMOVED: double totalEarnings = 0.0;
   int goodStockCount = 0;
   int expiringSoonCount = 0;
   int expiredCount = 0;
@@ -62,29 +62,40 @@ class _StaffViewState extends State<StaffView>
     staffEmail = prefs.getString('email') ?? 'staff@email.com';
 
     try {
+      // MODIFIED: total-earnings API call is REMOVED from Future.wait
       final responses = await Future.wait([
         http.get(Uri.parse('$API_BASE/api/medicines/total/')),
-        http.get(Uri.parse('$API_BASE/api/sales/total-earnings/')),
+        // http.get(Uri.parse('$API_BASE/api/sales/total-earnings/')), // <--- REMOVED
         http.get(Uri.parse('$API_BASE/api/medicines/good-stock/')),
         http.get(Uri.parse('$API_BASE/api/medicines/expiring-soon/')),
         http.get(Uri.parse('$API_BASE/api/medicines/expired/')),
       ]);
-
+      
+      // Since one API call was removed, the indices of the remaining responses shift.
+      // Response Indices:
+      // [0] -> total/
+      // [1] -> good-stock/
+      // [2] -> expiring-soon/
+      // [3] -> expired/
+      
       setState(() {
         if (responses[0].statusCode == 200) {
           totalMedicineCount = json.decode(responses[0].body)['total_count'];
         }
-        if (responses[1].statusCode == 200) {
-          totalEarnings = (json.decode(responses[1].body)['total_earnings'] as num).toDouble();
+        
+        // REMOVED: Total earnings processing
+        // if (responses[1].statusCode == 200) {
+        //   totalEarnings = (json.decode(responses[1].body)['total_earnings'] as num).toDouble();
+        // }
+        
+        if (responses[1].statusCode == 200) { // Index changed from [2] to [1]
+          goodStockCount = json.decode(responses[1].body).length;
         }
-        if (responses[2].statusCode == 200) {
-          goodStockCount = json.decode(responses[2].body).length;
+        if (responses[2].statusCode == 200) { // Index changed from [3] to [2]
+          expiringSoonCount = json.decode(responses[2].body).length;
         }
-        if (responses[3].statusCode == 200) {
-          expiringSoonCount = json.decode(responses[3].body).length;
-        }
-        if (responses[4].statusCode == 200) {
-          expiredCount = json.decode(responses[4].body).length;
+        if (responses[3].statusCode == 200) { // Index changed from [4] to [3]
+          expiredCount = json.decode(responses[3].body).length;
         }
         isLoading = false;
       });
@@ -379,7 +390,7 @@ class _StaffViewState extends State<StaffView>
     );
   }
 
-  // --- MODIFIED TO ACCEPT SCALE ---
+  // --- MODIFIED: REMOVED Total Earnings Card ---
   Widget _buildSummaryCards(double scale) {
     return Column(
       children: [
@@ -391,15 +402,16 @@ class _StaffViewState extends State<StaffView>
           textColor: Colors.white,
           scale: scale, // PASS SCALE
         ),
-        SizedBox(height: 16 * scale), // SCALED
-        _buildSummaryCard(
-          title: 'Total Earnings',
-          value: '₱${totalEarnings.toStringAsFixed(2)}',
-          icon: Icons.attach_money_outlined,
-          color: Colors.green.shade700,
-          textColor: Colors.white,
-          scale: scale, // PASS SCALE
-        ),
+        // REMOVED: The Total Earnings card is removed here
+        // SizedBox(height: 16 * scale), // SCALED
+        // _buildSummaryCard(
+        //   title: 'Total Earnings',
+        //   value: '₱${totalEarnings.toStringAsFixed(2)}',
+        //   icon: Icons.attach_money_outlined,
+        //   color: Colors.green.shade700,
+        //   textColor: Colors.white,
+        //   scale: scale, // PASS SCALE
+        // ),
       ],
     );
   }
@@ -444,6 +456,7 @@ class _StaffViewState extends State<StaffView>
                         color: textColor,
                       ),
                     ),
+                    SizedBox(height: 4 * scale), // SCALED
                   ],
                 ),
               ),

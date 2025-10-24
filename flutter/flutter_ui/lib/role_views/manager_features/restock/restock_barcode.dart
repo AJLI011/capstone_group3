@@ -6,7 +6,7 @@ import 'restock_details.dart';
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://bluewhiteph.pythonanywhere.com/',
+  defaultValue: 'http://10.0.2.2:8000/',
 );
 
 class RestockBarcodeScreen extends StatefulWidget {

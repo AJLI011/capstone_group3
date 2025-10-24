@@ -102,7 +102,7 @@ class _GoodStockStaffPageState extends State<GoodStockStaffPage> {
       _isLoading = true;
     });
 
-    final String url = 'http://bluewhiteph.pythonanywhere.com/api/medicines/good-stock/';
+    final String url = 'http://10.0.2.2:8000/api/medicines/good-stock/';
 
     try {
       final response = await http.get(Uri.parse(url));
