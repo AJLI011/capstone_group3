@@ -101,6 +101,8 @@ DATABASES = {
     }
 }
 
+# python manage.py runserver 0.0.0.0:8000
+
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 

@@ -16,23 +16,69 @@ class PurchaseRequestPage extends StatefulWidget {
     State<PurchaseRequestPage> createState() => _PurchaseRequestPageState();
 }
 
-class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
+class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTickerProviderStateMixin {
     List<Map<String, dynamic>> _editablePurchaseRequests = [];
+    List<Map<String, dynamic>> _lowStockItems = []; // NEW: List for low stock data
+    late TabController _tabController; // NEW: Tab controller
     bool _isLoading = true;
     String? _errorMessage;
 
     @override
     void initState() {
         super.initState();
-        _fetchPurchaseRequests();
+        // NEW: Initialize TabController for two tabs
+        _tabController = TabController(length: 2, vsync: this);
+        _fetchPurchaseRequests(); // This now calls _fetchLowStockItems internally
     }
 
     @override
     void dispose() {
+        // NEW: Dispose the TabController
+        _tabController.dispose();
+        // Dispose existing controllers before clearing the list
         for (var item in _editablePurchaseRequests) {
             (item['controller'] as TextEditingController).dispose();
         }
         super.dispose();
+    }
+
+    // NEW: Extracted function to fetch low stock items
+    Future<void> _fetchLowStockItems() async {
+        setState(() {
+            _lowStockItems = [];
+        });
+
+        try {
+            const String lowStockApiUrl = 'http://10.0.2.2:8000/api/medicines/low-stock/';
+            final lowStockResponse = await http.get(Uri.parse(lowStockApiUrl));
+
+            if (lowStockResponse.statusCode == 200) {
+                List<dynamic> fetchedLowStockData = json.decode(lowStockResponse.body);
+                setState(() {
+                    _lowStockItems = fetchedLowStockData.asMap().entries.map((entry) {
+                        int index = entry.key;
+                        Map<String, dynamic> item = entry.value as Map<String, dynamic>;
+
+                        return {
+                            // Using index + 1 for 'No.' in the report
+                            'no': index + 1, 
+                            'medicine_name': item['name'] ?? 'Unknown Medicine',
+                            'restock_amount': item['restock_quantity'] ?? 0,
+                            'total_quantity': item['total_quantity'] ?? 0, // Current stock
+                            'units_per_items': 1, // Placeholder, adjust if structure changes
+                            'supplier_name': item['supplier_name'] ?? 'N/A', 
+                            'contact_num': item['contact_num'] ?? 'N/A', 
+                        };
+                    }).toList();
+                });
+            } else if (lowStockResponse.statusCode == 404) {
+                 debugPrint('No low stock items found.');
+            } else {
+                debugPrint('Warning: Failed to load low stock items. Status code: ${lowStockResponse.statusCode}');
+            }
+        } catch (e) {
+            debugPrint('Error fetching low stock items: $e');
+        }
     }
 
     Future<void> _fetchPurchaseRequests() async {
@@ -45,6 +91,9 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
             }
             _editablePurchaseRequests = [];
         });
+        
+        // Fetch low stock items first/concurrently
+        await _fetchLowStockItems();
         
         const String apiUrl = 'http://10.0.2.2:8000/api/purchase-request/';
         try {
@@ -97,49 +146,25 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
         });
 
         try {
-            final lowStockResponse = await http.get(Uri.parse('http://10.0.2.2:8000/api/medicines/low-stock/'));
-            
-            List<Map<String, dynamic>> lowStockRequests = [];
-            
-            if (lowStockResponse.statusCode == 200) {
-                List<dynamic> fetchedLowStockData = json.decode(lowStockResponse.body);
-                
-                lowStockRequests = fetchedLowStockData.asMap().entries.map((entry) {
-                    int index = entry.key;
-                    Map<String, dynamic> item = entry.value as Map<String, dynamic>;
-                    
-                    return {
-                        'no': _editablePurchaseRequests.length + index + 1, 
-                        'medicine_name': item['name'] ?? 'Unknown Medicine',
-                        'restock_amount': item['restock_quantity'] ?? 0,
-                        'total_quantity': item['total_quantity'] ?? 0,
-                        'units_per_items': 1,
-                        'supplier_name': item['supplier_name'] ?? 'N/A', 
-                        'contact_num': item['contact_num'] ?? 'N/A', 
-                    };
-                }).toList();
-                
-            } else {
-                debugPrint('Warning: Failed to load low stock items. Status code: ${lowStockResponse.statusCode}');
-            }
-
+            // Note: _lowStockItems is already populated from page load! We no longer fetch it here.
             final List<Map<String, dynamic>> finalPurchaseRequests = _editablePurchaseRequests.map((item) {
                 return {
                     ...item,
-                    'restock_amount': int.tryParse((item['controller'] as TextEditingController).text) ?? 0,
+                    // Ensure the latest edited value from the controller is used
+                    'restock_amount': int.tryParse((item['controller'] as TextEditingController).text) ?? 0, 
                 };
             }).toList();
 
             await PdfPurchaseRequestService.generateAndSavePdf(
                 purchaseRequests: finalPurchaseRequests,
-                lowStockItems: lowStockRequests,
+                lowStockItems: _lowStockItems, // Use the already fetched list
             );
             
-            // if (mounted) {
-            //      ScaffoldMessenger.of(context).showSnackBar(
-            //         const SnackBar(content: Text('✅ Purchase Request PDF saved successfully!')),
-            //     );
-            // }
+            if (mounted) {
+                 ScaffoldMessenger.of(context).showSnackBar(
+                   const SnackBar(content: Text('✅ Purchase Request PDF saved successfully!')),
+                 );
+            }
         } catch (e) {
             if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -155,7 +180,8 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
         }
     }
 
-    Widget _buildHeaderWithAction(String formattedDate) {
+    Widget _buildHeaderWithAction(String title, {bool showPdfButton = true}) {
+        final formattedDate = DateFormat('MMMM d, y').format(DateTime.now());
         return Card(
             color: _accentColor.withOpacity(0.1), 
             elevation: 0,
@@ -169,9 +195,9 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
                         Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                                const Text(
-                                    'Items to Purchase',
-                                    style: TextStyle(
+                                Text(
+                                    title, // Uses the dynamic title
+                                    style: const TextStyle(
                                         fontSize: 21,
                                         fontWeight: FontWeight.bold,
                                         color: _primaryColor,
@@ -179,7 +205,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                    'Request Date: $formattedDate',
+                                    'Report Date: $formattedDate',
                                     style: const TextStyle(
                                         fontSize: 13,
                                         color: Colors.black54, 
@@ -189,10 +215,10 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
                             ],
                         ),
                         
-                        if (_editablePurchaseRequests.isNotEmpty)
+                        if (showPdfButton && _editablePurchaseRequests.isNotEmpty)
                             IconButton(
                                 icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
-                                tooltip: 'Generate PDF', 
+                                tooltip: 'Generate PDF Report', 
                                 onPressed: _isLoading ? null : _generateAndSavePdf,
                                 style: IconButton.styleFrom(
                                     backgroundColor: _primaryColor, 
@@ -208,6 +234,15 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
     }
 
     Widget _buildPurchaseTable() {
+        if (_editablePurchaseRequests.isEmpty) {
+            return const Center(
+                child: Padding(
+                    padding: EdgeInsets.only(top: 50.0),
+                    child: Text('No forecasted items available for purchase request.'),
+                ),
+            );
+        }
+
         return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
@@ -219,11 +254,10 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
                 headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white), 
                 dataRowHeight: 60.0, 
                 columnSpacing: 16.0, 
-                // --- FIX: Removed DataCheckbox in DataColumn, and related selection logic ---
                 columns: const [
-                    DataColumn(label: Text('No.')), // Now just 'No.'
+                    DataColumn(label: Text('No.')),
                     DataColumn(label: Text('Medicine')),
-                    DataColumn(label: Text('Restock Amt')), 
+                    DataColumn(label: Text('Restock Amt (Edit)')), // Title updated for clarity
                     DataColumn(label: Text('Units/Item')), 
                     DataColumn(label: Text('Supplier')),
                     DataColumn(label: Text('Contact No.')),
@@ -233,7 +267,6 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
                     final controller = item['controller'] as TextEditingController;
 
                     return DataRow(
-                        // Removed onSelectChanged as there's no checkbox for row selection
                         cells: [
                             DataCell(Text(item['no'].toString(), style: const TextStyle(fontWeight: FontWeight.bold))),
                             DataCell(Text(item['medicine_name'])),
@@ -257,6 +290,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
                                             contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12), 
                                         ),
                                         onChanged: (value) {
+                                            // Update the map item directly on change
                                             item['restock_amount'] = int.tryParse(value) ?? 0;
                                         },
                                     ),
@@ -271,11 +305,59 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
             ),
         );
     }
+    
+    // NEW WIDGET: Read-only table for Low Stock Items
+    Widget _buildLowStockTable() {
+        if (_lowStockItems.isEmpty) {
+            return const Center(
+                child: Padding(
+                    padding: EdgeInsets.only(top: 50.0),
+                    child: Text('No items currently flagged as low stock.'),
+                ),
+            );
+        }
+
+        return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+                decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300, width: 1),
+                    borderRadius: BorderRadius.circular(10),
+                ),
+                headingRowColor: MaterialStateProperty.all(_primaryColor.withOpacity(0.85)), 
+                headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white), 
+                dataRowHeight: 50.0, 
+                columnSpacing: 16.0, 
+                columns: const [
+                    DataColumn(label: Text('No.')),
+                    DataColumn(label: Text('Medicine')),
+                    DataColumn(label: Text('Current Stock')), // Actual quantity in stock
+                    DataColumn(label: Text('Suggested Amt')), // Suggested restock
+                    DataColumn(label: Text('Supplier')),
+                    DataColumn(label: Text('Contact No.')),
+                ],
+                rows: _lowStockItems.map<DataRow>((item) {
+                    final currentStock = item['total_quantity'] ?? 0;
+                    final suggestedRestock = item['restock_amount'] ?? 0;
+
+                    return DataRow(
+                        cells: [
+                            DataCell(Text(item['no'].toString(), style: const TextStyle(fontWeight: FontWeight.bold))),
+                            DataCell(Text(item['medicine_name'])),
+                            DataCell(Text(currentStock.toString())),
+                            DataCell(Text(suggestedRestock.toString(), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red))),
+                            DataCell(Text(item['supplier_name'])),
+                            DataCell(Text(item['contact_num'])),
+                        ]
+                    );
+                }).toList(),
+            ),
+        );
+    }
+
 
     @override
     Widget build(BuildContext context) {
-        final formattedDate = DateFormat('MMMM d, y').format(DateTime.now());
-
         return Scaffold(
             appBar: AppBar(
                 title: const Text('Purchase Request'),
@@ -288,24 +370,53 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> {
                         onPressed: _isLoading ? null : _fetchPurchaseRequests,
                     ),
                 ],
+                // NEW: TabBar added to the bottom of the AppBar
+                bottom: TabBar(
+                    controller: _tabController,
+                    indicatorColor: Colors.white,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.white70,
+                    tabs: const [
+                        Tab(text: 'To Purchase Items', icon: Icon(Icons.shopping_cart)),
+                        Tab(text: 'Low Stock Items', icon: Icon(Icons.warning_amber)),
+                    ],
+                ),
             ),
             body: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _errorMessage != null
                     ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
-                    : _editablePurchaseRequests.isEmpty
-                        ? const Center(child: Text('No items to purchase.', style: TextStyle(fontSize: 16)))
-                        : SingleChildScrollView(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                    _buildHeaderWithAction(formattedDate),
-                                    const SizedBox(height: 10),
-                                    _buildPurchaseTable(),
-                                ],
+                    // NEW: TabBarView to switch between the two content views
+                    : TabBarView(
+                        controller: _tabController,
+                        children: [
+                            // === TAB 1: Forecasted (Editable) Items ===
+                            SingleChildScrollView(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                        _buildHeaderWithAction('Items to Purchase', showPdfButton: true),
+                                        const SizedBox(height: 10),
+                                        _buildPurchaseTable(),
+                                    ],
+                                ),
                             ),
-                        ),
+
+                            // === TAB 2: Low Stock (Read-Only) Report ===
+                            SingleChildScrollView(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                        _buildHeaderWithAction('Low Stock Report', showPdfButton: true), // PDF button remains
+                                        const SizedBox(height: 10),
+                                        _buildLowStockTable(),
+                                    ],
+                                ),
+                            ),
+                        ],
+                    ),
         );
     }
 }
