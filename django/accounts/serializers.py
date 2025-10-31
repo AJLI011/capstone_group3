@@ -1640,7 +1640,7 @@ class CustomerFCMTokenSerializer(serializers.ModelSerializer):
 
 
 
-#====================================10/1/25 ===================================#
+#====================================10/31/25 ===================================#
 #low stocks & totalqty
 
 class LowStockSerializer(serializers.ModelSerializer):
@@ -1773,7 +1773,7 @@ class DailyReportSerializer(serializers.Serializer):
     in_store_transactions = InStoreSalesTransactionSerializer(many=True, read_only=True)
     online_transactions = OnlineOrderListSerializer(many=True, read_only=True)
     
-#----------------------
+#----------------------10/31/25
 
 class PurchaseRequestItemSerializer(serializers.ModelSerializer):
     
