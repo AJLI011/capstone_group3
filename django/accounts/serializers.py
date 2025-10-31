@@ -2,7 +2,8 @@ from rest_framework import serializers
 from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, 
     InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog, OnlineOrder, OnlineOrderItem, Prescription,
-    PrescriptionImage, CustomerFCMToken, ForecastReport, ForecastItem, StaffFCMToken
+    PrescriptionImage, CustomerFCMToken, ForecastReport, ForecastItem, StaffFCMToken,
+    PurchaseRequest, PurchaseRequestItem
 )
 from django.contrib.auth.hashers import make_password
 from decimal import Decimal
@@ -1643,14 +1644,26 @@ class CustomerFCMTokenSerializer(serializers.ModelSerializer):
 #low stocks & totalqty
 
 class LowStockSerializer(serializers.ModelSerializer):
+    # --- CRITICAL FIXES FOR SUBMISSION COMPATIBILITY ---
+    # 1. Provide the Medicine ID (PK) for the submission payload
+    # This is required by PurchaseRequestItemSerializer's 'medicine' field.
+    medicine_id = serializers.IntegerField(source='medicine.id') 
+    
+    # 2. Rename the suggested order amount to 'suggested_amount' for consistency 
+    # with the field expected by the Flutter submission payload structure.
+    suggested_amount = serializers.IntegerField(source='medicine.restock_quantity')
+    
+    # --- EXISTING FIELDS ---
+    # The existing restock_quantity field is redundant now, but we keep the logic
+    # for the serializer to access the Medicine model via the TotalQuantity FK.
+    
     # This correctly gets the medicine's name (safe, as 'medicine' must exist)
     name = serializers.CharField(source='medicine.name')
     # This correctly gets the medicine's generic name
     generic_name = serializers.CharField(source='medicine.generic_name')
     
-    # Get the restock_quantity from the related Medicine model
-    restock_quantity = serializers.IntegerField(source='medicine.restock_quantity')
-
+    # NOTE: The original 'restock_quantity' is now mapped to 'suggested_amount'
+    
     # FIX 1: Use SerializerMethodField for supplier_name to handle NoneType errors
     supplier_name = serializers.SerializerMethodField()
     
@@ -1660,10 +1673,11 @@ class LowStockSerializer(serializers.ModelSerializer):
     class Meta:
         model = TotalQuantity
         fields = [
+            'medicine_id',          # <-- NEW: Added PK
             'name',
             'generic_name',
             'total_quantity',
-            'restock_quantity',
+            'suggested_amount',     # <-- FIXED: Renamed output field
             'supplier_name',
             'contact_num'
         ]
@@ -1675,20 +1689,18 @@ class LowStockSerializer(serializers.ModelSerializer):
             return obj.medicine.supplier.name
         
         # 2. Fallback to the snapshot field if FK is NULL (supplier deleted/unlinked)
-        # The snapshot field on Medicine model is 'supplier_name'
         return obj.medicine.supplier_name or 'N/A'
 
     # Method to safely retrieve the supplier's contact number
     def get_contact_num(self, obj):
         # 1. Prioritize current Supplier's contact if FK is intact
-        # Assuming the Supplier model has a field named 'contact'
         if obj.medicine and obj.medicine.supplier:
             return obj.medicine.supplier.contact
         
         # 2. Fallback to the snapshot field if FK is NULL (supplier deleted/unlinked)
-        # ⭐ CRITICAL FIX: Use the correct snapshot field name: 'supplier_contact_num'
         return obj.medicine.supplier_contact_num or 'N/A'
-#====================================10/1/24 ===================================# 
+    
+    #====================================10/1/24 ===================================# 
 
 
 #Demand Forecasting
@@ -1733,25 +1745,6 @@ class ForecastItemSerializer(serializers.ModelSerializer):
             'reorder_level' # <--- ADD THIS NEW FIELD
         ]
 #----------9/23/25-------------------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # NEW: Main serializer for the forecast report.
 class ForecastReportSerializer(serializers.ModelSerializer):
     # The 'items' field here will return a list of all ForecastItem objects
@@ -1779,4 +1772,63 @@ class DailyReportSerializer(serializers.Serializer):
     inventory_logs = InventoryLogSerializer(many=True, read_only=True)
     in_store_transactions = InStoreSalesTransactionSerializer(many=True, read_only=True)
     online_transactions = OnlineOrderListSerializer(many=True, read_only=True)
+    
+#----------------------
+
+class PurchaseRequestItemSerializer(serializers.ModelSerializer):
+    
+    # Receives medicine ID from the front-end payload for linking.
+    medicine = serializers.PrimaryKeyRelatedField(
+        queryset=Medicine.objects.all(),
+        required=True,
+        help_text="The ID of the Medicine being ordered."
+    )
+    
+    class Meta:
+        model = PurchaseRequestItem
+        fields = [
+            'medicine',
+            'restock_amount',  
+            'suggested_amount',  
+        ]
+
+    def validate_restock_amount(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Restock amount must be non-negative.")
+        return value
+
+# --- 2. Purchase Request Serializer (Header & Nested Items) ---
+class PurchaseRequestSerializer(serializers.ModelSerializer):
+    
+    # Nested field to handle the list of PurchaseRequestItem objects (related_name='items')
+    items = PurchaseRequestItemSerializer(many=True, write_only=True)
+
+    manager_name = serializers.CharField(read_only=True)
+    request_date = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = PurchaseRequest
+        fields = ['id', 'manager_name', 'request_date', 'items']
+        
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        
+        # The 'manager' FK is removed from the model. 
+        # validated_data now contains only 'manager_name' and any other header fields.
+        purchase_request = PurchaseRequest.objects.create(**validated_data)
+        
+        for item_data in items_data:
+            PurchaseRequestItem.objects.create(
+                purchase_request=purchase_request,
+                **item_data
+            )
+            
+        return purchase_request
+
+
+
+
+
+
+
 

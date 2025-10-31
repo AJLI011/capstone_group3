@@ -34,7 +34,8 @@ from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, 
     InventoryLog, EmployeeLog, InStoreOrder, InStoreOrderItem, OrderLog, 
     OnlineOrder, OnlineOrderItem, Prescription, PrescriptionImage,
-    CustomerFCMToken, ForecastReport, ForecastItem, StaffFCMToken, ReturnedMedicine, ReturnTransaction, ReturnVerificationImage
+    CustomerFCMToken, ForecastReport, ForecastItem, StaffFCMToken, ReturnedMedicine, ReturnTransaction, ReturnVerificationImage,
+    PurchaseRequest, PurchaseRequestItem
 )
 from .serializers import (
     CustomerSerializer, StaffSerializer, SupplierSerializer, PromoSerializer,
@@ -48,7 +49,7 @@ from .serializers import (
     OnlineOrderCreateSerializer, OnlineOrderLogDetailsSerializer, InStoreSalesTransactionSerializer, 
     PrescriptionOrderSerializer, CombinedPrescriptionSerializer, PrescriptionImageSerializer,
     LowStockSerializer, ForecastItemSerializer, ForecastReportSerializer, MedicineForecastSerializer,
-    DailyReportSerializer,
+    DailyReportSerializer, PurchaseRequestSerializer, PurchaseRequestItemSerializer
 )
 
 from .serializers import OrderLogSerializer
@@ -119,6 +120,16 @@ import pytz # Import pytz for timezone support
 #---
 from django.db.models import F, ExpressionWrapper, DecimalField, Sum
 from django.db.models.functions import Coalesce
+
+#---
+from rest_framework import status
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import AllowAny 
+from django.db.models import F, Sum, OuterRef, Subquery, IntegerField
+from django.db.models.functions import Coalesce
+from .models import ForecastReport, ForecastItem, Inventory, Medicine
+from .serializers import PurchaseRequestSerializer
 
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
@@ -3976,56 +3987,126 @@ class MedicineForecastByNameView(APIView):
 
 
 # ==================== PURCHASE REQUEST LOGIC ===========================
+LOW_STOCK_THRESHOLD = 20 # <-- Set your actual low stock threshold here
 
-class PurchaseRequestListView(APIView):
+class PurchaseRequestView(APIView):
+    """
+    Handles GET to retrieve forecasted and low stock items, and POST to submit a new PurchaseRequest.
+    *** AUTHENTICATION COMPLETELY DISABLED FOR TESTING ***
+    """
+    permission_classes = [AllowAny]
+    serializer_class = PurchaseRequestSerializer
+
+    # --- GET LOGIC (Combining Forecasted and Low Stock Items) ---
     def get(self, request, *args, **kwargs):
+        
+        # Dictionary to hold the final, unique list of items to restock
+        purchase_request_map = {}
+        
+        # ----------------------------------------------
+        # 1. GET DATA FROM LATEST FORECAST REPORT
+        # ----------------------------------------------
         latest_report = ForecastReport.objects.order_by('-date_generated').first()
 
-        if not latest_report:
-            return Response({"error": "No forecast reports found."}, status=status.HTTP_404_NOT_FOUND)
+        if latest_report:
+            forecast_items = ForecastItem.objects.filter(
+                forecast_report=latest_report,
+                restock_amount__gt=0, # Only include items the forecast says to order
+                medicine__isnull=False
+            ).select_related('medicine', 'medicine__supplier')
 
-        # CRITICAL: We MUST include 'medicine__supplier' here again.
-        # This allows us to access the Supplier data directly when it exists.
-        forecast_items = ForecastItem.objects.filter(
-            forecast_report=latest_report,
-            restock_amount__gt=0,
-            medicine__isnull=False
-        ).select_related('medicine', 'medicine__supplier').order_by('rank') # Re-added 'medicine__supplier'
+            for item in forecast_items:
+                medicine = item.medicine
+                
+                # Use forecasted data as the primary source
+                purchase_request_map[medicine.id] = {
+                    'no': 0, # Rank will be set later
+                    'medicine_name': medicine.name,
+                    'restock_amount': item.restock_amount, # The amount from the forecast (Manager's initial suggested amount)
+                    'suggested_amount': item.restock_amount, # For the 'suggested' column (i.e., the system's best guess)
+                    'medicine_id': medicine.id, 
+                    'units_per_items': medicine.restock_quantity,
+                    'supplier_name': medicine.supplier.name if medicine.supplier else (medicine.supplier_name if medicine.supplier_name else '[N/A]'),
+                    'contact_num': medicine.supplier.contact if medicine.supplier else (medicine.supplier_contact_num if medicine.supplier_contact_num else 'N/A')
+                }
 
-        purchase_request_list = []
-        for item in forecast_items:
-            medicine = item.medicine
-            supplier = medicine.supplier # Will be the Supplier object (if exists) or None (if deleted)
+        # ----------------------------------------------
+        # 2. GET DATA FROM LOW STOCK INVENTORY
+        # ----------------------------------------------
+        
+        # Subquery to get the current total quantity for each medicine
+        # Assumes Inventory has a 'medicine' FK and a 'quantity' field
+        current_inventory = Inventory.objects.filter(
+            medicine=OuterRef('pk')
+        ).annotate(
+            total_stock=Sum('quantity')
+        ).values('total_stock')[:1]
 
-            # --- Conditional Logic to determine Supplier Data Source ---
-            if supplier:
-                # SCENARIO 1: Supplier EXISTS (supplier is a valid object)
-                # Use the LIVE data from the Supplier model to ensure it's up-to-date.
-                supplier_name_data = supplier.name
-                contact_num_data = supplier.contact
-            else:
-                # SCENARIO 2: Supplier is DELETED (supplier is None)
-                # Fall back to the resilient snapshot data on the Medicine model.
-                supplier_name_data = medicine.supplier_name if medicine.supplier_name else '[N/A - Snapshot Missing]'
-                contact_num_data = medicine.supplier_contact_num if medicine.supplier_contact_num else 'N/A'
-            # -----------------------------------------------------------
-
-            # Construct the item data
-            purchase_request_list.append({
-                'no': item.rank,
-                'medicine_name': medicine.name,
-                'restock_amount': item.restock_amount,
-                'units_per_items': medicine.restock_quantity,
-                'supplier_name': supplier_name_data, # Use the determined data
-                'contact_num': contact_num_data      # Use the determined data
-            })
-
-        return Response(purchase_request_list, status=status.HTTP_200_OK)
-# ==================== END PURCHASE REQUEST LOGIC ===========================
-#----------9/23/25
+        # Find medicines where total stock is less than the threshold AND they are not in the forecast list
+        low_stock_medicines = Medicine.objects.annotate(
+            current_stock=Coalesce(Subquery(current_inventory, output_field=IntegerField()), 0)
+        ).filter(
+            current_stock__lt=LOW_STOCK_THRESHOLD
+        ).exclude(
+            id__in=purchase_request_map.keys() # Exclude medicines already added from forecast
+        ).select_related('supplier').order_by('current_stock')
 
 
+        for medicine in low_stock_medicines:
+            
+            # Calculate a basic restock amount (e.g., order enough to reach 3x the low stock threshold)
+            target_stock = LOW_STOCK_THRESHOLD * 3
+            restock_needed = target_stock - medicine.current_stock
+            
+            if restock_needed > 0:
+                 purchase_request_map[medicine.id] = {
+                    'no': 0, 
+                    'medicine_name': medicine.name,
+                    'restock_amount': restock_needed, # Suggested amount needed to reach target stock
+                    'suggested_amount': restock_needed, # For the 'suggested' column
+                    'medicine_id': medicine.id, 
+                    'units_per_items': medicine.restock_quantity,
+                    'supplier_name': medicine.supplier.name if medicine.supplier else (medicine.supplier_name if medicine.supplier_name else '[N/A]'),
+                    'contact_num': medicine.supplier.contact if medicine.supplier else (medicine.supplier_contact_num if medicine.supplier_contact_num else 'N/A')
+                }
 
+        # ----------------------------------------------
+        # 3. FINAL PROCESSING AND RESPONSE
+        # ----------------------------------------------
+        final_list = list(purchase_request_map.values())
+        
+        # Sort and assign rank number
+        for i, item in enumerate(final_list, 1):
+            item['no'] = i 
+            
+        if not final_list:
+             return Response({"message": "No forecasted or low stock items require ordering."}, status=status.HTTP_200_OK)
+
+
+        return Response(final_list, status=status.HTTP_200_OK)
+
+    # --- POST LOGIC (Creation - remains the same) ---
+    def post(self, request, *args, **kwargs):
+        
+        # 1. Set Placeholder Value for the required manager_name field
+        TESTING_MANAGER_NAME = "System Test User" 
+        
+        # 2. Serialize and Validate Data
+        serializer = self.serializer_class(data=request.data)
+        
+        if serializer.is_valid():
+            # 3. Save the request, injecting the hardcoded manager_name.
+            purchase_request = serializer.save(
+                manager_name=TESTING_MANAGER_NAME
+            )
+            
+            return Response(
+                self.serializer_class(purchase_request).data, 
+                status=status.HTTP_201_CREATED
+            )
+
+        # 4. Handle Errors
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 

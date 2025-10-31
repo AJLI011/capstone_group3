@@ -6,7 +6,8 @@ from .views import (
     medicine_list, medicine_detail,InventoryCreateView,get_inventory_list,GoodStockView, ExpiringSoonView, ExpiredView,
     remove_promo, get_customer_medicines,inventory_logs, PromoMedicineView, PromoMedicineDetailView, 
     get_customer_medicine_detail,InStoreSalesReportView,OnlineSalesReportView, LatestForecastReportView, MedicineSalesHistoryView, 
-    PurchaseRequestListView,OrderLogsListView, UnaddressedExpiringStockView, MedicineForecastByNameView, # Now only imported once
+    OrderLogsListView, UnaddressedExpiringStockView, MedicineForecastByNameView, # PurchaseRequestListView REMOVED
+    PurchaseRequestView
     
 )
 from .views import get_comprehensive_transaction_report
@@ -155,8 +156,8 @@ urlpatterns = [
 
 
 
-    # New URL for Purchase Request
-    path('purchase-request/', PurchaseRequestListView.as_view(), name='purchase-request-list'),
+   # Make sure to import the new view class: from .views import PurchaseRequestView
+    path('purchase-request/', PurchaseRequestView.as_view(), name='purchase-request'),
     
     #----------EXPIRY NOTIFICATION
     # API endpoint to save staff FCM tokens

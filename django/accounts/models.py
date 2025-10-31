@@ -644,3 +644,44 @@ class ReturnVerificationImage(models.Model):
 
     def __str__(self):
         return f"Image for Txn {self.return_transaction.pk}"
+
+#------
+class PurchaseRequest(models.Model):
+
+    class Meta:
+        db_table = 'purchase_request_tbl'
+
+    # The manager FK is removed. 'manager_name' will be set manually (or hardcoded) for testing.
+    manager_name = models.CharField(max_length=100, default='System Test User') # Optional: Set a default for easy creation
+    # Submission timestamp
+    request_date = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"PR-{self.id} by {self.manager_name} on {self.request_date.strftime('%Y-%m-%d')}"
+
+
+class PurchaseRequestItem(models.Model):
+    
+    class Meta:
+        db_table = 'purchase_request_item_tbl'
+
+    # MANDATORY FKs
+    purchase_request = models.ForeignKey(PurchaseRequest, on_delete=models.CASCADE, related_name='items')
+    # Use PROTECT to prevent accidental deletion of a medicine with active PRs
+    medicine = models.ForeignKey(Medicine, on_delete=models.PROTECT, null=True, blank=True) 
+    
+    # CORE TRANSACTIONAL QUANTITIES
+    restock_amount = models.IntegerField() # Manager's final order (from Forecasted Tab)
+    suggested_amount = models.IntegerField() # System's suggestion (from Low Stock Tab)
+    
+    # CRITICAL SNAPSHOT FIELD (for auditability if medicine is deleted or renamed)
+    medicine_name_snapshot = models.CharField(max_length=100) 
+    
+    def __str__(self):
+        return f"{self.restock_amount} of {self.medicine_name_snapshot} for PR-{self.purchase_request.id}"
+
+    # Auto-sets the medicine_name_snapshot on save if the medicine link exists
+    def save(self, *args, **kwargs):
+        if self.medicine and not self.medicine_name_snapshot:
+            self.medicine_name_snapshot = self.medicine.name
+        super().save(*args, **kwargs)
