@@ -1,5 +1,6 @@
 # urls.py
 
+#--paths lang binago pero 10/31/25
 from django.urls import path
 from . import views
 from .views import (

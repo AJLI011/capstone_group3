@@ -3746,8 +3746,7 @@ def total_combined_earnings(request):
 
 
 
-#--------------------------10/14/25----------
-#------9/20/25 changes
+#--------------------------10/31/25
 # for low stocks:
 @api_view(['GET'])
 def low_stock_list(request):
@@ -3983,7 +3982,7 @@ class MedicineForecastByNameView(APIView):
 
 
 
-#----------10/1/25
+#----------10/31/25
 
 
 # ==================== PURCHASE REQUEST LOGIC ===========================

@@ -512,7 +512,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
                                     child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.stretch,
                                         children: [
-                                            _buildHeaderWithAction('Editable Purchase Items', showPdfButton: true),
+                                            _buildHeaderWithAction('Purchase Request Items', showPdfButton: true),
                                             const SizedBox(height: 10),
                                             _buildPurchaseTable(), 
                                             // Add extra space at the bottom for the floating button

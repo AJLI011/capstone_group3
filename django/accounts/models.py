@@ -645,7 +645,7 @@ class ReturnVerificationImage(models.Model):
     def __str__(self):
         return f"Image for Txn {self.return_transaction.pk}"
 
-#------
+#------10/31/25
 class PurchaseRequest(models.Model):
 
     class Meta:
