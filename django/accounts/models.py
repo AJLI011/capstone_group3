@@ -68,7 +68,7 @@ class Medicine(models.Model):
 
     name = models.CharField(max_length=100)
     generic_name = models.CharField(max_length=100, blank=True)
-    barcode = models.CharField(max_length=50, unique=True)
+    barcode = models.CharField(max_length=50, unique=True, null=True, blank=True)
     category = models.CharField(max_length=100, choices=CATEGORY_CHOICES)
     dosage_form = models.CharField(max_length=50, choices=DOSAGE_CHOICES)
     
@@ -92,7 +92,7 @@ class Medicine(models.Model):
     )
     
     restock_quantity = models.PositiveIntegerField(default=0)
-    price = models.DecimalField(max_digits=8, decimal_places=2)
+    price = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     requires_prescription = models.BooleanField(default=False)
     image = models.ImageField(upload_to='medicine_images/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -659,7 +659,7 @@ class PurchaseRequest(models.Model):
     def __str__(self):
         return f"PR-{self.id} by {self.manager_name} on {self.request_date.strftime('%Y-%m-%d')}"
 
-
+#------11/03/25
 class PurchaseRequestItem(models.Model):
     
     class Meta:
