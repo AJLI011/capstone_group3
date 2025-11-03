@@ -8,7 +8,7 @@ from .views import (
     remove_promo, get_customer_medicines,inventory_logs, PromoMedicineView, PromoMedicineDetailView, 
     get_customer_medicine_detail,InStoreSalesReportView,OnlineSalesReportView, LatestForecastReportView, MedicineSalesHistoryView, 
     OrderLogsListView, UnaddressedExpiringStockView, MedicineForecastByNameView, # PurchaseRequestListView REMOVED
-    PurchaseRequestView
+    PurchaseRequestView, MedicineListView
     
 )
 from .views import get_comprehensive_transaction_report
@@ -157,9 +157,12 @@ urlpatterns = [
 
 
 
-   # Make sure to import the new view class: from .views import PurchaseRequestView
+    # Make sure to import the new view class: from .views import PurchaseRequestView
     path('purchase-request/', PurchaseRequestView.as_view(), name='purchase-request'),
-    
+
+    # NEW PATH for the 'Add Medicine' selection modal 11/03/25
+    path('medicines/all/', MedicineListView.as_view(), name='medicine-list-for-selection'),
+
     #----------EXPIRY NOTIFICATION
     # API endpoint to save staff FCM tokens
     path('save-staff-fcm-token/', views.save_staff_fcm_token, name='save_staff_fcm_token'),

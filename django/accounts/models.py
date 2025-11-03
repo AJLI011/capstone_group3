@@ -672,10 +672,15 @@ class PurchaseRequestItem(models.Model):
     
     # CORE TRANSACTIONAL QUANTITIES
     restock_amount = models.IntegerField() # Manager's final order (from Forecasted Tab)
-    suggested_amount = models.IntegerField() # System's suggestion (from Low Stock Tab)
+    suggested_amount = models.IntegerField(null=True, blank=True) # Making suggested_amount optional for manually added items
     
     # CRITICAL SNAPSHOT FIELD (for auditability if medicine is deleted or renamed)
     medicine_name_snapshot = models.CharField(max_length=100) 
+    
+    # **NEW FIELDS FOR NEW/UNLISTED MEDICINES (Supplier Details)**
+    units_per_item = models.CharField(max_length=50, default='unit') # e.g., 'bottle', 'tablet'
+    supplier_name_snapshot = models.CharField(max_length=100, null=True, blank=True)
+    supplier_contact_num_snapshot = models.CharField(max_length=50, null=True, blank=True)
     
     def __str__(self):
         return f"{self.restock_amount} of {self.medicine_name_snapshot} for PR-{self.purchase_request.id}"

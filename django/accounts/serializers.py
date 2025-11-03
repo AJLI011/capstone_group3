@@ -3,7 +3,7 @@ from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, 
     InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog, OnlineOrder, OnlineOrderItem, Prescription,
     PrescriptionImage, CustomerFCMToken, ForecastReport, ForecastItem, StaffFCMToken,
-    PurchaseRequest, PurchaseRequestItem
+    PurchaseRequest, PurchaseRequestItem,
 )
 from django.contrib.auth.hashers import make_password
 from decimal import Decimal
@@ -1780,16 +1780,29 @@ class PurchaseRequestItemSerializer(serializers.ModelSerializer):
     # Receives medicine ID from the front-end payload for linking.
     medicine = serializers.PrimaryKeyRelatedField(
         queryset=Medicine.objects.all(),
-        required=True,
+        required=False,
+        allow_null=True,
         help_text="The ID of the Medicine being ordered."
     )
     
+    # 2. Manual/Snapshot Fields
+    medicine_name_snapshot = serializers.CharField(max_length=100)
+    # Using 'units_per_item' name in the serializer for clarity on the UI/Model, 
+    # but the value comes from Medicine.restock_quantity for existing items.
+    units_per_item = serializers.CharField(max_length=50, required=False) 
+    supplier_name_snapshot = serializers.CharField(max_length=100, required=False, allow_null=True)
+    supplier_contact_num_snapshot = serializers.CharField(max_length=50, required=False, allow_null=True)
+
     class Meta:
         model = PurchaseRequestItem
         fields = [
             'medicine',
+            'medicine_name_snapshot',
             'restock_amount',  
             'suggested_amount',  
+            'units_per_item', # <-- Snapshot of the unit/pack size
+            'supplier_name_snapshot',
+            'supplier_contact_num_snapshot',
         ]
 
     def validate_restock_amount(self, value):
@@ -1797,6 +1810,40 @@ class PurchaseRequestItemSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Restock amount must be non-negative.")
         return value
 
+# NEW VALIDATION LOGIC
+    def validate(self, data):
+        # --- Scenario: New/Unlisted Item (No Medicine ID provided) ---
+        if data.get('medicine') is None:
+            required_manual_fields = [
+                'medicine_name_snapshot', 
+                'units_per_item', 
+                'supplier_name_snapshot', 
+                'supplier_contact_num_snapshot'
+            ]
+            
+            for field in required_manual_fields:
+                if not data.get(field):
+                    raise serializers.ValidationError({
+                        field: "This field is required for manually entered (new) medicines."
+                    })
+
+            # Suggested amount is irrelevant for manual entries
+            data['suggested_amount'] = 0 
+            
+        # --- Scenario: Existing Item (Medicine ID provided) ---
+        else:
+            medicine_obj = data['medicine']
+            
+            # Auto-populate snapshot fields from the Medicine object
+            data['medicine_name_snapshot'] = medicine_obj.name
+            data['units_per_item'] = str(medicine_obj.restock_quantity) # Use restock_quantity
+            
+            # Copy Supplier info from the Medicine object for the snapshot
+            data['supplier_name_snapshot'] = medicine_obj.supplier.name if medicine_obj.supplier else 'N/A'
+            data['supplier_contact_num_snapshot'] = medicine_obj.supplier.contact if medicine_obj.supplier else 'N/A'
+
+        return data
+        
 # --- 2. Purchase Request Serializer (Header & Nested Items) ---
 class PurchaseRequestSerializer(serializers.ModelSerializer):
     
@@ -1826,6 +1873,24 @@ class PurchaseRequestSerializer(serializers.ModelSerializer):
         return purchase_request
 
 
+#----------------------11/03/25
+class MedicineSelectionSerializer(serializers.ModelSerializer):
+    """
+    Serializer to provide a simple list of all medicines 
+    with necessary details for the 'Add Medicine' dropdown/modal.
+    """
+    supplier_name = serializers.CharField(source='supplier.name', read_only=True)
+    contact_num = serializers.CharField(source='supplier.contact', read_only=True)
+    
+    class Meta:
+        model = Medicine
+        fields = [
+            'id', 
+            'name', 
+            'restock_quantity', # <-- Using the existing field
+            'supplier_name', 
+            'contact_num'
+        ]
 
 
 

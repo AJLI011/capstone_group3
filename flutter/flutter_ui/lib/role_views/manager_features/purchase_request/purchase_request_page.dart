@@ -22,6 +22,8 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
     List<Map<String, dynamic>> _editablePurchaseRequests = [];
     // Low Stock items (Read-Only tab, needs to be included in submission)
     List<Map<String, dynamic>> _lowStockItems = []; 
+    // NEW: List to hold the full medicine catalog for the selection modal
+    List<Map<String, dynamic>> _allMedicines = []; 
     
     // Tab Controller is back
     late TabController _tabController; 
@@ -34,8 +36,9 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
         super.initState();
         // Initialize TabController for two tabs
         _tabController = TabController(length: 2, vsync: this);
-        // Fetch both lists
+        // Fetch both lists and the medicine catalog
         _fetchPurchaseRequests(); 
+        _fetchAllMedicines(); // <--- NEW: Fetch all medicines
     }
 
     @override
@@ -48,7 +51,27 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
         super.dispose();
     }
 
-    // Restore the separate fetch for Low Stock items
+    // --- FETCH LOGIC ---
+    
+    // NEW: Fetch all medicines for the selection modal
+    Future<void> _fetchAllMedicines() async {
+        const String apiUrl = 'http://192.168.1.21:8000/api/medicines/all/';
+        try {
+            final response = await http.get(Uri.parse(apiUrl));
+            if (response.statusCode == 200) {
+                List<dynamic> fetchedData = json.decode(response.body);
+                setState(() {
+                    // Assuming the serializer returns fields like id, name, restock_quantity, supplier_name, contact_num
+                    _allMedicines = fetchedData.map((item) => item as Map<String, dynamic>).toList();
+                });
+            } else {
+                debugPrint('Warning: Failed to load all medicines. Status code: ${response.statusCode}');
+            }
+        } catch (e) {
+            debugPrint('Error fetching all medicines: $e');
+        }
+    }
+    
     Future<void> _fetchLowStockItems() async {
         // Clear list on fetch start
         setState(() {
@@ -56,7 +79,6 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
         });
 
         try {
-            // NOTE: Assuming your /api/medicines/low-stock/ returns the medicine ID and restock_quantity (suggested amount)
             const String lowStockApiUrl = 'http://192.168.1.21:8000/api/medicines/low-stock/';
             final lowStockResponse = await http.get(Uri.parse(lowStockApiUrl));
 
@@ -68,14 +90,12 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
                     int index = entry.key;
                     Map<String, dynamic> item = entry.value as Map<String, dynamic>;
                     
-                    // --- CRITICAL FIX: Use the new field name from the backend serializer ---
                     final int suggestedAmount = item['suggested_amount'] ?? 0;
-                    // ----------------------------------------------------------------------
                     
                     return {
                         'no': index + 1, 
                         'medicine_name': item['name'] ?? 'Unknown Medicine',
-                        'medicine_id': item['medicine_id'], // <--- CRITICAL FIX: Use 'medicine_id' from the serializer
+                        'medicine_id': item['medicine_id'], // CRITICAL FIX: Use 'medicine_id' from the serializer
                         'restock_amount': suggestedAmount, // The suggested amount from low stock (used for display and as final restock amount)
                         'suggested_amount': suggestedAmount, // Required for submission payload
                         'total_quantity': item['total_quantity'] ?? 0, 
@@ -136,6 +156,12 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
                             'controller': TextEditingController(text: restockAmount.toString()),
                         };
                     }).toList().cast<Map<String, dynamic>>();
+                    
+                    // Re-index the 'no' field for remaining items (important if new items are added to top later)
+                    for (int i = 0; i < _editablePurchaseRequests.length; i++) {
+                        _editablePurchaseRequests[i]['no'] = i + 1;
+                    }
+
                     _isLoading = false;
                 });
             } else if (response.statusCode == 404) {
@@ -156,12 +182,114 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
         }
     }
 
+    // --- ITEM MANAGEMENT LOGIC ---
+    
+    // NEW: Function to add a selected item to the editable list
+    void _addSelectedMedicine(Map<String, dynamic> medicine) {
+        // Find the next available 'no' (rank)
+        // Add one to the max 'no' value, or start at 1 if list is empty
+        int maxNo = _editablePurchaseRequests.map((item) => item['no'] as int).fold(0, (max, current) => current > max ? current : max);
+        int newNo = maxNo + 1;
+        
+        // Define a default restock amount (using the model's restock quantity as a suggestion)
+        final defaultRestockAmount = medicine['restock_quantity'] ?? 1; 
+
+        final newItem = {
+            'no': newNo,
+            'medicine_name': medicine['name'],
+            'medicine_id': medicine['id'], // Use 'id' from MedicineSelectionSerializer
+            'restock_amount': defaultRestockAmount,
+            'suggested_amount': 0, // Manually added items have no system suggestion
+            'units_per_items': medicine['restock_quantity'], // Assumed unit from medicine model
+            'supplier_name': medicine['supplier_name'] ?? 'N/A', 
+            'contact_num': medicine['contact_num'] ?? 'N/A',
+            'controller': TextEditingController(text: defaultRestockAmount.toString()),
+        };
+
+        setState(() {
+            _editablePurchaseRequests.insert(0, newItem); // Add to the top
+            // Re-index all items after insertion
+            for (int i = 0; i < _editablePurchaseRequests.length; i++) {
+                _editablePurchaseRequests[i]['no'] = i + 1;
+            }
+        });
+        
+        // Switch to the Forecasted/Editable tab if currently on Low Stock tab
+        if (_tabController.index == 1) {
+             _tabController.animateTo(0);
+        }
+        
+        // Close the dialog
+        Navigator.of(context).pop(); 
+    }
+    
+    // NEW: Function to remove an item from the editable list
+    void _removeItem(int index) {
+        // Dispose of the controller first
+        (_editablePurchaseRequests[index]['controller'] as TextEditingController).dispose();
+        
+        setState(() {
+            _editablePurchaseRequests.removeAt(index);
+            // Re-index the 'no' field for remaining items
+            for (int i = 0; i < _editablePurchaseRequests.length; i++) {
+                _editablePurchaseRequests[i]['no'] = i + 1;
+            }
+        });
+    }
+
+    // NEW: Build the selection modal/dialog
+    void _showAddMedicineDialog() {
+        showDialog(
+            context: context,
+            builder: (BuildContext context) {
+                // Filter the list to exclude medicines already in _editablePurchaseRequests
+                final Set<int> existingIds = _editablePurchaseRequests.map<int>((item) => item['medicine_id'] as int).toSet();
+                // Also exclude items present in the low stock list (to prevent duplication on submission)
+                final Set<int> lowStockIds = _lowStockItems.map<int>((item) => item['medicine_id'] as int).toSet();
+                
+                final List<Map<String, dynamic>> filteredMedicines = _allMedicines.where(
+                    (med) => !existingIds.contains(med['id']) && !lowStockIds.contains(med['id'])
+                ).toList();
+                
+                return AlertDialog(
+                    title: const Text('Add Existing Medicine'),
+                    content: SizedBox(
+                        width: double.maxFinite,
+                        child: filteredMedicines.isEmpty
+                            ? const Center(child: Text('All relevant medicines are already in a request list.'))
+                            : ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: filteredMedicines.length,
+                                itemBuilder: (context, index) {
+                                    final medicine = filteredMedicines[index];
+                                    return ListTile(
+                                        title: Text(medicine['name'] ?? 'No Name'),
+                                        subtitle: Text('Unit: ${medicine['restock_quantity'] ?? 'N/A'} | Supplier: ${medicine['supplier_name'] ?? 'N/A'}'),
+                                        trailing: const Icon(Icons.add_circle, color: _primaryColor),
+                                        onTap: () => _addSelectedMedicine(medicine),
+                                    );
+                                },
+                            ),
+                    ),
+                    actions: [
+                        TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('CANCEL'),
+                        ),
+                    ],
+                );
+            },
+        );
+    }
+
+    // --- SUBMISSION LOGIC ---
+    
     // FUNCTION MODIFIED: Combines items from BOTH lists before submission
     Future<void> _submitPurchaseRequest() async {
         // 1. Combine items from both tabs into a single list
         final List<Map<String, dynamic>> allItemsForSubmission = [];
 
-        // --- A. Add Forecasted Items (Editable List) ---
+        // --- A. Add Forecasted/Manually Added Items (Editable List) ---
         // Use the manager's edited restock amount from the TextEditingController
         for (var item in _editablePurchaseRequests) {
             final restockAmountText = (item['controller'] as TextEditingController).text;
@@ -171,14 +299,12 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
                 allItemsForSubmission.add({
                     'medicine': item['medicine_id'],// Medicine PK
                     'restock_amount': restockAmount,// Manager's edited amount
-                    'suggested_amount': item['suggested_amount'], // System's suggestion
+                    'suggested_amount': item['suggested_amount'], // System's suggestion (0 for manually added)
                 });
             }
         }
 
         // --- B. Add Low Stock Items (Read-Only List) ---
-        // Use the system's suggested amount (restock_amount) from the low stock list as the final order amount
-        // Ensure no duplicates by checking medicine ID (optional optimization)
         final Set<int> submittedMedicineIds = allItemsForSubmission.map<int>((item) => item['medicine'] as int).toSet();
         
         for (var item in _lowStockItems) {
@@ -188,7 +314,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
                 allItemsForSubmission.add({
                     'medicine': item['medicine_id'], // Medicine PK
                     'restock_amount': suggestedRestockAmount,// Use suggested amount as the final restock amount
-                    'suggested_amount': suggestedRestockAmount, // <--- CRITICAL FIX: Ensure suggested_amount is explicitly set
+                    'suggested_amount': suggestedRestockAmount, // CRITICAL FIX: Ensure suggested_amount is explicitly set
                 });
             }
         }
@@ -233,7 +359,8 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
                     if (errorData is Map && errorData.containsKey('detail')) {
                         message = 'Submission failed: ${errorData['detail']}';
                     } else if (errorData is Map && errorData.containsKey('items')) {
-                        message = 'Submission failed due to item validation error.';
+                        message = 'Submission failed due to item validation error. Check amounts.';
+                        debugPrint('Item validation error: ${errorData['items']}');
                     }
                     
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -258,14 +385,11 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
 
 
     Future<void> _generateAndSavePdf() async {
-        // Logic remains the same (uses _editablePurchaseRequests and _lowStockItems)
-        // ... (PDF Generation logic omitted for brevity) ...
-        
         // Use combined data for PDF generation if needed
         final List<Map<String, dynamic>> finalPurchaseRequests = _editablePurchaseRequests.map((item) {
              return {
-                 ...item,
-                 'restock_amount': int.tryParse((item['controller'] as TextEditingController).text) ?? 0, 
+                ...item,
+                'restock_amount': int.tryParse((item['controller'] as TextEditingController).text) ?? 0, 
              };
         }).toList();
 
@@ -294,9 +418,9 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
         }
     }
 
-    // Widget helpers remain the same
+    // --- WIDGETS ---
+    
     Widget _buildHeaderWithAction(String title, {bool showPdfButton = true}) {
-        // ... (Header logic omitted for brevity) ...
         final formattedDate = DateFormat('MMMM d, y').format(DateTime.now());
         return Card(
             color: _accentColor.withOpacity(0.1), 
@@ -355,12 +479,11 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
             return const Center(
                 child: Padding(
                     padding: EdgeInsets.only(top: 50.0),
-                    child: Text('No forecasted items available for purchase request.'),
+                    child: Text('No forecasted or manually added items available for purchase request.'),
                 ),
             );
         }
 
-        // NOTE: Submit button removed from here to place it as a floating button
         return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
@@ -375,20 +498,21 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
                 columns: const [
                     DataColumn(label: Text('No.')),
                     DataColumn(label: Text('Medicine')),
-                    // DataColumn(label: Text('Suggested Amt')), // <-- REMOVED THIS COLUMN
                     DataColumn(label: Text('Restock Amt (Edit)')),
                     DataColumn(label: Text('Units/Item')), 
                     DataColumn(label: Text('Supplier')),
                     DataColumn(label: Text('Contact No.')),
+                    DataColumn(label: Text('Action')), // <--- NEW COLUMN
                 ],
-                rows: _editablePurchaseRequests.map<DataRow>((item) {
+                rows: _editablePurchaseRequests.asMap().entries.map<DataRow>((entry) { // <--- USE ASMAP().ENTRIES
+                    final index = entry.key;
+                    final item = entry.value;
                     final controller = item['controller'] as TextEditingController;
 
                     return DataRow(
                         cells: [
                             DataCell(Text(item['no'].toString(), style: const TextStyle(fontWeight: FontWeight.bold))),
                             DataCell(Text(item['medicine_name'])),
-                            // DataCell(Text(item['suggested_amount'].toString(), style: const TextStyle(fontWeight: FontWeight.w600, color: _primaryColor))), // <-- REMOVED THIS CELL
                             DataCell(
                                 SizedBox(
                                     width: 80, 
@@ -409,6 +533,12 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
                             DataCell(Text(item['units_per_items'].toString())),
                             DataCell(Text(item['supplier_name'])),
                             DataCell(Text(item['contact_num'])),
+                            DataCell( // <--- NEW ACTION CELL
+                                IconButton(
+                                    icon: const Icon(Icons.delete_forever, color: Colors.red),
+                                    onPressed: () => _removeItem(index),
+                                ),
+                            ),
                         ]
                     );
                 }).toList(),
@@ -491,11 +621,22 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
                     labelColor: Colors.white,
                     unselectedLabelColor: Colors.white70,
                     tabs: const [
-                        Tab(text: 'Forecasted Items', icon: Icon(Icons.shopping_cart)),
+                        Tab(text: 'Forecasted/Added Items', icon: Icon(Icons.shopping_cart)), // Updated Tab Label
                         Tab(text: 'Low Stock Items', icon: Icon(Icons.warning_amber)),
                     ],
                 ),
             ),
+            
+            // NEW: Floating Action Button for adding new items
+            floatingActionButton: FloatingActionButton.extended(
+                onPressed: _isLoading ? null : _showAddMedicineDialog,
+                label: const Text('Add Existing Item'),
+                icon: const Icon(Icons.add_shopping_cart),
+                backgroundColor: _accentColor,
+                foregroundColor: Colors.white,
+                elevation: 8,
+            ),
+            
             body: Stack( // Use Stack to allow the Floating button positioning
               children: [
                 _isLoading
@@ -538,7 +679,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
                             ],
                         ),
 
-                // NEW: Floating Submit Button (Single Button)
+                // Floating Submit Button (Positioned inside Stack)
                 if (!_isLoading && _errorMessage == null)
                     Positioned(
                         bottom: 16.0,

@@ -49,7 +49,7 @@ from .serializers import (
     OnlineOrderCreateSerializer, OnlineOrderLogDetailsSerializer, InStoreSalesTransactionSerializer, 
     PrescriptionOrderSerializer, CombinedPrescriptionSerializer, PrescriptionImageSerializer,
     LowStockSerializer, ForecastItemSerializer, ForecastReportSerializer, MedicineForecastSerializer,
-    DailyReportSerializer, PurchaseRequestSerializer, PurchaseRequestItemSerializer
+    DailyReportSerializer, PurchaseRequestSerializer, PurchaseRequestItemSerializer, MedicineSelectionSerializer
 )
 
 from .serializers import OrderLogSerializer
@@ -4242,3 +4242,15 @@ class DailyReportsView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 #----------10/11/25
+
+
+
+# ------------------------------- 11/03/25
+class MedicineListView(generics.ListAPIView):
+    """
+    API endpoint to list all existing medicines for selection in the 'Add Medicine' feature.
+    """
+    # Assuming your Medicine model is correctly imported
+    queryset = Medicine.objects.select_related('supplier').all() 
+    # Assuming your MedicineSelectionSerializer is correctly imported
+    serializer_class = MedicineSelectionSerializer
