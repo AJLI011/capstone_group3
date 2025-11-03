@@ -57,7 +57,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
 
         try {
             // NOTE: Assuming your /api/medicines/low-stock/ returns the medicine ID and restock_quantity (suggested amount)
-            const String lowStockApiUrl = 'http://10.0.2.2:8000/api/medicines/low-stock/';
+            const String lowStockApiUrl = 'http://192.168.1.21:8000/api/medicines/low-stock/';
             final lowStockResponse = await http.get(Uri.parse(lowStockApiUrl));
 
             if (lowStockResponse.statusCode == 200) {
@@ -113,7 +113,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
         await _fetchLowStockItems();
         
         // Fetch Forecasted items from the dedicated endpoint
-        const String apiUrl = 'http://10.0.2.2:8000/api/purchase-request/';
+        const String apiUrl = 'http://192.168.1.21:8000/api/purchase-request/';
         try {
             final response = await http.get(Uri.parse(apiUrl)); 
 
@@ -212,7 +212,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
 
         // --- 3. Send Request (REST OF SUBMISSION LOGIC REMAINS THE SAME) ---
         try {
-            const String apiUrl = 'http://10.0.2.2:8000/api/purchase-request/';
+            const String apiUrl = 'http://192.168.1.21:8000/api/purchase-request/';
             final response = await http.post(
                 Uri.parse(apiUrl),
                 headers: <String, String>{
