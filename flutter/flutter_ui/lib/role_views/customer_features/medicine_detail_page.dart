@@ -1,5 +1,6 @@
 // medicine_detail_page.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'cart_service.dart';
@@ -16,12 +17,62 @@ class MedicineDetailPage extends StatefulWidget {
 class _MedicineDetailPageState extends State<MedicineDetailPage> {
   Map<String, dynamic>? medicineData;
   bool isLoading = true;
-  int selectedQuantity = 1;
+  // CHANGE: Set initial quantity to 0
+  int selectedQuantity = 0; 
+  
+  final TextEditingController _quantityController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    // Start controller text at '0'
+    _quantityController.text = selectedQuantity.toString();
     fetchMedicineDetail();
+  }
+
+  @override
+  void dispose() {
+    _quantityController.dispose();
+    super.dispose();
+  }
+  
+  void _updateQuantity(int newQuantity, int limit) {
+    // CHANGE: Minimum quantity is 0
+    if (newQuantity < 0) newQuantity = 0;
+    if (newQuantity > limit) newQuantity = limit;
+
+    if (mounted) {
+      setState(() {
+        selectedQuantity = newQuantity;
+      });
+      if (_quantityController.text != newQuantity.toString()) {
+        _quantityController.text = newQuantity.toString();
+        _quantityController.selection = TextSelection.fromPosition(
+            TextPosition(offset: _quantityController.text.length));
+      }
+    }
+  }
+  
+  void _handleQuantityInput(String text, int limit) {
+    int value = int.tryParse(text) ?? 0;
+
+    // CHANGE: Allow value to be 0
+    if (value < 0) { 
+      value = 0;
+    }
+    
+    if (value > limit) {
+      value = limit;
+      if (text.isNotEmpty && int.tryParse(text)! > limit) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cannot exceed the available stock of $limit.'),
+          ),
+        );
+      }
+    }
+    
+    _updateQuantity(value, limit);
   }
 
   Future<void> fetchMedicineDetail() async {
@@ -32,6 +83,10 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
         setState(() {
           medicineData = json.decode(response.body);
           isLoading = false;
+          
+          final int availableQuantity = medicineData!['quantity'] ?? 0;
+          // Ensure quantity is clamped to the new limit based on API data
+          _updateQuantity(selectedQuantity, availableQuantity); 
         });
       } else {
         throw Exception('Failed to load medicine detail');
@@ -62,11 +117,13 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
     final String priceString = '₱${double.parse(medicineData!['price'].toString()).toStringAsFixed(2)}';
     final bool prescriptionRequired = medicineData!['requires_prescription'] ?? false;
     final int availableQuantity = medicineData!['quantity'] ?? 0;
-    final String imageUrl = medicineData!['image'] ?? '';
+    
+    final int maxLimit = availableQuantity;
 
-    Widget imageOrPlaceholder = imageUrl.isNotEmpty
+
+    Widget imageOrPlaceholder = medicineData!['image'].isNotEmpty
         ? Image.network(
-            imageUrl,
+            medicineData!['image'],
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) =>
                 const Icon(Icons.medication, size: 100, color: Colors.grey),
@@ -142,18 +199,13 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: availableQuantity > 0 ? Colors.green.shade500 : Colors.red,
+                                  color: maxLimit > 0 ? Colors.green.shade500 : Colors.red,
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
-                                  availableQuantity > 0 ? "In Stock" : "Out of Stock",
+                                  maxLimit > 0 ? "In Stock ($maxLimit available)" : "Out of Stock",
                                   style: const TextStyle(color: Colors.white, fontSize: 12),
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                "Quantity: $availableQuantity",
-                                style: const TextStyle(fontSize: 12, color: Colors.grey),
                               ),
                             ],
                           ),
@@ -200,10 +252,12 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                   ),
                 ],
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column( 
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Quantity Selector
                   Container(
+                    width: double.infinity, 
                     decoration: BoxDecoration(
                       color: Colors.grey.shade200,
                       borderRadius: BorderRadius.circular(30),
@@ -212,53 +266,80 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.remove, size: 20),
-                          onPressed: selectedQuantity > 1
-                              ? () => setState(() => selectedQuantity--)
+                          // CHANGE: Check for > 0
+                          onPressed: selectedQuantity > 0
+                              ? () => _updateQuantity(selectedQuantity - 1, maxLimit)
                               : null,
                         ),
-                        Text(
-                          "$selectedQuantity",
-                          style: const TextStyle(fontSize: 18),
+                        Expanded(
+                          child: TextField(
+                            controller: _quantityController,
+                            textAlign: TextAlign.center,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                              isDense: true,
+                            ),
+                            style: const TextStyle(fontSize: 18),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            onChanged: (text) => _handleQuantityInput(text, maxLimit),
+                            onEditingComplete: () {
+                              if (_quantityController.text.isEmpty) {
+                                // Default to 0 instead of 1 if cleared
+                                _updateQuantity(0, maxLimit);
+                              }
+                              FocusScope.of(context).unfocus();
+                            },
+                          ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.add, size: 20),
-                          onPressed: selectedQuantity < availableQuantity
-                              ? () => setState(() => selectedQuantity++)
+                          onPressed: selectedQuantity < maxLimit
+                              ? () => _updateQuantity(selectedQuantity + 1, maxLimit)
                               : null,
                         ),
                       ],
                     ),
                   ),
-                  ElevatedButton.icon(
-                    onPressed: availableQuantity > 0
-                        ? () {
-                            CartService().addToCart(
-                              CartItem(
-                                id: medicineData!['id'],
-                                name: medicineData!['name'],
-                                genericName: medicineData!['generic_name'],
-                                dosageForm: medicineData!['dosage_form'] ?? "Unknown",
-                                image: medicineData!['image'],
-                                price: double.parse(medicineData!['price'].toString()),
-                                quantity: selectedQuantity,
-                                isPromo: false,
-                                availableStock: availableQuantity,
-                              ),
-                            );
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Added to cart')),
-                            );
-                          }
-                        : null,
-                    icon: const Icon(Icons.shopping_cart),
-                    label: const Text('Add to cart'),
-                    style: ElevatedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      backgroundColor: const Color(0xFF003B63),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
+                  const SizedBox(height: 12),
+                  // Add to Cart Button
+                  SizedBox( 
+                    width: double.infinity, 
+                    child: ElevatedButton.icon(
+                      // Requires quantity > 0
+                      onPressed: selectedQuantity > 0 && selectedQuantity <= maxLimit
+                          ? () {
+                              CartService().addToCart(
+                                CartItem(
+                                  id: medicineData!['id'],
+                                  name: medicineData!['name'],
+                                  genericName: medicineData!['generic_name'],
+                                  dosageForm: medicineData!['dosage_form'] ?? "Unknown",
+                                  image: medicineData!['image'],
+                                  price: double.parse(medicineData!['price'].toString()),
+                                  quantity: selectedQuantity,
+                                  isPromo: false,
+                                  availableStock: maxLimit,
+                                ),
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Added to cart')),
+                              );
+                            }
+                          : null,
+                      icon: const Icon(Icons.shopping_cart),
+                      label: const Text('Add to cart'),
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        backgroundColor: const Color(0xFF003B63),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
                   ),
                 ],

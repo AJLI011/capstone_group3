@@ -443,16 +443,16 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                     // Image Upload
                     Center(
                       child: Container(
-                        height: 120,
-                        width: 120,
+                        height: 150, // MODIFIED: Changed from 120
+                        width: 250, // MODIFIED: Changed from 120
                         margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
                           color: Colors.grey[200],
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(15), // MODIFIED: Changed from 10
                           border: Border.all(color: _primaryColor, width: 2),
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(13), // MODIFIED: Changed from 8
                           child: _selectedImage != null
                               ? Image.file(_selectedImage!, fit: BoxFit.cover)
                               : Icon(Icons.image_search, size: 50, color: _primaryColor.withOpacity(0.6)),

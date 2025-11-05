@@ -1,5 +1,6 @@
 // sales_details.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Import for FilteringTextInputFormatter
 import 'order_summary.dart';
 
 // Enhanced Design Constants
@@ -31,12 +32,14 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
   int _freeQuantity = 0;
   bool isPromo = false;
 
+  // 1. ADD TextEditingControllers for direct input
+  final TextEditingController _soldController = TextEditingController();
+  final TextEditingController _freeController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     if (widget.barcodeData.isNotEmpty) {
-      // NOTE: Using a simple .first here is safe because BatchSelectionPage
-      // passed a List containing only the single selected batch.
       inventory = widget.barcodeData.first;
       final dynamic promoFlag = inventory['is_promo'];
       isPromo = promoFlag != null &&
@@ -44,9 +47,66 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
               promoFlag.toString().toLowerCase() == 'true' ||
               promoFlag.toString() == '1');
     } else {
-      // Initialize to an empty map if no data to prevent late error
       inventory = {};
     }
+    
+    // 2. Initialize controllers with current state values
+    _soldController.text = _quantitySold.toString();
+    _freeController.text = _freeQuantity.toString();
+  }
+  
+  // 3. Dispose controllers
+  @override
+  void dispose() {
+    _soldController.dispose();
+    _freeController.dispose();
+    super.dispose();
+  }
+
+  // Helper function to update state and controller text from internal changes (like +/- buttons)
+  void _updateQuantityAndController(int newQuantity, bool isSold) {
+    setState(() {
+      if (isSold) {
+        _quantitySold = newQuantity;
+      } else {
+        _freeQuantity = newQuantity;
+      }
+    });
+    
+    // Update the correct text controller without causing an infinite loop
+    final controller = isSold ? _soldController : _freeController;
+    if (controller.text != newQuantity.toString()) {
+      controller.text = newQuantity.toString();
+      // Ensure the cursor is at the end after programmatic text change
+      controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: controller.text.length));
+    }
+  }
+  
+  // Helper function to handle text input and validation
+  void _handleTextInput(String text, int limit, bool isSold) {
+    int value = int.tryParse(text) ?? 0;
+
+    // Validation: cannot be negative
+    if (value < 0) {
+      value = 0;
+    }
+
+    // Validation: cannot exceed the limit
+    if (value > limit) {
+      value = limit;
+      // Show error message if input was trimmed
+      if (text.isNotEmpty && int.tryParse(text) != null && int.tryParse(text)! > limit) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cannot exceed the available stock of $limit.'),
+          ),
+        );
+      }
+    }
+    
+    // Update state and controller text to the validated value
+    _updateQuantityAndController(value, isSold);
   }
 
   // LOGIC (UNCHANGED)
@@ -87,10 +147,14 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
       return;
     }
 
-    final int availableQuantity = inventory['quantity'] as int? ?? 0;
-    final int totalItemsToDeduct = _quantitySold + _freeQuantity;
+    // Ensure the latest text field values are processed
+    final int soldQty = int.tryParse(_soldController.text) ?? 0;
+    final int freeQty = int.tryParse(_freeController.text) ?? 0;
 
-    if (_quantitySold <= 0 && _freeQuantity <= 0) {
+    final int availableQuantity = inventory['quantity'] as int? ?? 0;
+    final int totalItemsToDeduct = soldQty + freeQty;
+
+    if (soldQty <= 0 && freeQty <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a quantity to sell or give as promo.')),
       );
@@ -101,13 +165,13 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Total items ($_quantitySold + $_freeQuantity) exceed available stock ($availableQuantity).'),
+              'Total items ($soldQty + $freeQty) exceed available stock ($availableQuantity).'),
         ),
       );
       return;
     }
 
-    if (!isPromo && _freeQuantity > 0) {
+    if (!isPromo && freeQty > 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('This item is not under promo. Promo quantity must be 0.')),
       );
@@ -139,8 +203,8 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
       'inventory_id': inventoryId,
       'medicine_id': medicineId,
       'name': inventory['name'],
-      'quantity_sold': _quantitySold,
-      'free_quantity_given': _freeQuantity,
+      'quantity_sold': soldQty,
+      'free_quantity_given': freeQty,
       'price': inventory['price'],
       'is_promo': isPromo,
     };
@@ -148,8 +212,8 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
     if (existingItemIndex != -1) {
       // If the exact batch/inventory is already in the cart, update quantities
       final existingItem = updatedCart[existingItemIndex];
-      existingItem['quantity_sold'] = (existingItem['quantity_sold'] ?? 0) + _quantitySold;
-      existingItem['free_quantity_given'] = (existingItem['free_quantity_given'] ?? 0) + _freeQuantity;
+      existingItem['quantity_sold'] = (existingItem['quantity_sold'] ?? 0) + soldQty;
+      existingItem['free_quantity_given'] = (existingItem['free_quantity_given'] ?? 0) + freeQty;
     } else {
       // Add the new item to the cart
       updatedCart.add(cartItemPayload);
@@ -170,7 +234,7 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
 
   // --- ENHANCED UI WIDGETS ---
 
-  // Enhanced Read-Only Field Widget
+  // Enhanced Read-Only Field Widget (UNCHANGED)
   Widget _readonlyField(String label, String value, IconData icon) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -210,24 +274,26 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
     );
   }
 
-  // Enhanced Quantity Control Widget
-  Widget _buildQuantityControl(String label, int value, ValueChanged<int> onChanged,
-      {bool enabled = true, required int limit, required IconData icon}) {
+  // 4. MODIFIED Quantity Control Widget
+  Widget _buildQuantityControl(String label, int currentValue, int limit,
+      TextEditingController controller, Function(int) onQuantityChanged,
+      {bool enabled = true, required IconData icon}) {
     final Color buttonColor = enabled ? _primaryColor : Colors.grey.shade400;
     final Color textColor = enabled ? Colors.black87 : Colors.grey.shade600;
+
+    // Determine if this is the sold quantity (to set the correct handler)
+    final bool isSold = (label == 'Quantity Sold');
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // FIX: Wrapped the Row in Expanded to prevent overflow
           Row(
             children: [
               Icon(icon, color: buttonColor, size: 20),
               const SizedBox(width: 8),
-              // Use Expanded for the text block to prevent overflow
-              Expanded( 
+              Expanded(
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -236,8 +302,7 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: textColor,
-                        // CHANGE: Reduced font size for the label
-                        fontSize: 14, 
+                        fontSize: 14,
                       ),
                     ),
                   ],
@@ -267,24 +332,54 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
                 _QuantityControlButton(
                   icon: Icons.remove,
                   color: buttonColor,
-                  onPressed: enabled && value > 0 ? () => onChanged(value - 1) : null,
+                  // Use the internal update function to handle the click
+                  onPressed: enabled && currentValue > 0
+                      ? () => _updateQuantityAndController(currentValue - 1, isSold)
+                      : null,
                 ),
-                // Quantity Display
-                Container(
-                  width: 80,
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Text(
-                    value.toString(),
-                    // CHANGE: Reduced font size for the quantity value
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor), 
+                // Quantity Input Field
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: TextField(
+                      controller: controller,
+                      textAlign: TextAlign.center,
+                      keyboardType: TextInputType.number,
+                      enabled: enabled,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                        isDense: true,
+                      ),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                      // 5. Input Formatters: Allows only digits
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      // 6. On Changed: Handle text input validation and state update
+                      onChanged: (text) => _handleTextInput(text, limit, isSold),
+                      // 7. On Submitted/Focus Change: Ensure value is 0 if field is empty after editing
+                      onEditingComplete: () {
+                        if (controller.text.isEmpty) {
+                          _updateQuantityAndController(0, isSold);
+                        }
+                        FocusScope.of(context).unfocus(); // Dismiss keyboard
+                      },
+                    ),
                   ),
                 ),
                 // Increment Button
                 _QuantityControlButton(
                   icon: Icons.add,
                   color: buttonColor,
-                  onPressed: enabled && value < limit ? () => onChanged(value + 1) : null,
+                  // Use the internal update function to handle the click
+                  onPressed: enabled && currentValue < limit
+                      ? () => _updateQuantityAndController(currentValue + 1, isSold)
+                      : null,
                 ),
               ],
             ),
@@ -310,6 +405,8 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
     final String imageUrl = inventory['image']?.toString() ?? '';
     final int totalAvailableQuantity = inventory['quantity'] as int? ?? 0;
     final int remainingQuantity = totalAvailableQuantity - _quantitySold - _freeQuantity;
+
+    // The limits must be calculated based on the *other* quantity to prevent exceeding total stock
     final int soldControlLimit = totalAvailableQuantity - _freeQuantity;
     final int promoControlLimit = isPromo ? (totalAvailableQuantity - _quantitySold) : 0;
 
@@ -349,7 +446,7 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Product Header Card
+              // Product Header Card (UNCHANGED)
               Card(
                 elevation: 6,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -401,6 +498,7 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
                           _StatChip(
                             icon: Icons.inventory_2_outlined,
                             label: 'Available',
+                            // IMPORTANT: Show the remaining quantity based on current input
                             value: remainingQuantity.toString(),
                             color: Colors.orange,
                           ),
@@ -413,7 +511,7 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
 
               const SizedBox(height: 20),
 
-              // Batch Details Section
+              // Batch Details Section (UNCHANGED)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8.0),
                 child: Text(
@@ -455,20 +553,22 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
                       _buildQuantityControl(
                         'Quantity Sold',
                         _quantitySold,
+                        soldControlLimit,
+                        _soldController, // Pass controller
                             (val) {
-                          setState(() => _quantitySold = val);
+                          // Note: This unused function is kept to match the old signature but now logic is in _handleTextInput
                         },
-                        limit: soldControlLimit,
                         icon: Icons.shopping_bag_outlined,
                       ),
                       _buildQuantityControl(
                         'Promo/Free Quantity',
                         _freeQuantity,
+                        promoControlLimit,
+                        _freeController, // Pass controller
                             (val) {
-                          setState(() => _freeQuantity = val);
+                          // Note: This unused function is kept to match the old signature but now logic is in _handleTextInput
                         },
                         enabled: isPromo,
-                        limit: promoControlLimit,
                         icon: Icons.local_offer_outlined,
                       ),
                     ],
@@ -478,7 +578,7 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
 
               const SizedBox(height: 30),
 
-              // Submit button
+              // Submit button (UNCHANGED)
               ElevatedButton.icon(
                 onPressed: _proceedToCheckout,
                 icon: const Icon(Icons.add_shopping_cart, color: Colors.white, size: 24),
@@ -502,7 +602,7 @@ class _SalesDetailsPageState extends State<SalesDetailsPage> {
   }
 }
 
-// Helper widget for quantity control buttons
+// Helper widget for quantity control buttons (UNCHANGED)
 class _QuantityControlButton extends StatelessWidget {
   final IconData icon;
   final Color color;
@@ -528,7 +628,7 @@ class _QuantityControlButton extends StatelessWidget {
   }
 }
 
-// Helper widget for stat chips
+// Helper widget for stat chips (UNCHANGED)
 class _StatChip extends StatelessWidget {
   final IconData icon;
   final String label;

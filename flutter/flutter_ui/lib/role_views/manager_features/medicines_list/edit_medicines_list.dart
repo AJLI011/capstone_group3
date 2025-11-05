@@ -302,7 +302,7 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
         return 'Please enter a valid whole number for $fieldName.';
       }
     } else {
-       if (double.tryParse(value) == null) {
+        if (double.tryParse(value) == null) {
         return 'Please enter a valid price (e.g., 99.99).';
       }
     }
@@ -324,9 +324,9 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text(
+        title: const Text( // Removed TextStyle here as it's set below, but you can keep it
           'Edit Medicine',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: const Color(0xFF5C7C9A),
         foregroundColor: Colors.white,
@@ -523,18 +523,22 @@ class _EditMedicinePageState extends State<EditMedicinePage> {
     );
   }
 
+  // ⭐ MODIFIED SECTION: Changed from ClipOval to RoundedRectangleBorder/ClipRRect for a square image
   Widget _buildImageSection(String? fullImageUrl) {
     return Column(
       children: [
         Container(
           height: 150,
-          width: 150,
+          width: 250,
+          // CHANGE: Use a rounded rectangle border instead of a circular one
           decoration: BoxDecoration(
             color: cardColor,
-            borderRadius: BorderRadius.circular(75),
+            borderRadius: BorderRadius.circular(15), // Rounded corners for the square/rectangle
             border: Border.all(color: primaryColor, width: 3),
           ),
-          child: ClipOval(
+          // CHANGE: Use ClipRRect for rounded rectangular clipping
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12), // Slightly smaller radius for clipping
             child: _selectedImage != null
                 ? Image.file(_selectedImage!, fit: BoxFit.cover)
                 : fullImageUrl != null

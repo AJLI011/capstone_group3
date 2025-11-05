@@ -1,5 +1,6 @@
 // medicine_promo_detail_page.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'cart_service.dart';
@@ -22,16 +23,65 @@ class PromoMedicineDetailPage extends StatefulWidget {
 class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
   Map<String, dynamic>? medicineData;
   bool isLoading = true;
-  int selectedQuantity = 1;
+  // CHANGE: Set initial quantity (number of pairs) to 0
+  int selectedQuantity = 0; 
+  
+  final TextEditingController _quantityController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    // Start controller text at '0'
+    _quantityController.text = selectedQuantity.toString();
     fetchMedicineDetail();
   }
 
+  @override
+  void dispose() {
+    _quantityController.dispose();
+    super.dispose();
+  }
+  
+  void _updateQuantity(int newQuantity, int limit) {
+    // CHANGE: Minimum quantity is 0
+    if (newQuantity < 0) newQuantity = 0;
+    if (newQuantity > limit) newQuantity = limit;
+
+    if (mounted) {
+      setState(() {
+        selectedQuantity = newQuantity;
+      });
+      if (_quantityController.text != newQuantity.toString()) {
+        _quantityController.text = newQuantity.toString();
+        _quantityController.selection = TextSelection.fromPosition(
+            TextPosition(offset: _quantityController.text.length));
+      }
+    }
+  }
+  
+  void _handleQuantityInput(String text, int limit) {
+    int value = int.tryParse(text) ?? 0;
+
+    // CHANGE: Allow value to be 0
+    if (value < 0) {
+      value = 0;
+    }
+
+    if (value > limit) {
+      value = limit;
+      if (text.isNotEmpty && int.tryParse(text)! > limit) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cannot exceed the available maximum purchase of $limit pair(s).'),
+          ),
+        );
+      }
+    }
+    
+    _updateQuantity(value, limit);
+  }
+
   Future<void> fetchMedicineDetail() async {
-    // Use the API_BASE constant here
     final url = '${API_BASE}api/medicine/promos/${widget.medicineId}/';
     try {
       final response = await http.get(Uri.parse(url));
@@ -39,6 +89,14 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
         setState(() {
           medicineData = json.decode(response.body);
           isLoading = false;
+          
+          final int availableQuantity = medicineData!['quantity'] ?? 0;
+          
+          // BOGO LOGIC: Calculate maxPairs (total units / 2)
+          final int maxPairs = availableQuantity ~/ 2; 
+          
+          // Ensure quantity is clamped to the new limit based on API data
+          _updateQuantity(selectedQuantity, maxPairs);
         });
       } else {
         throw Exception('Failed to load promo medicine detail');
@@ -70,10 +128,17 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
     final bool prescriptionRequired = medicineData!['requires_prescription'] ?? false;
     final int availableQuantity = medicineData!['quantity'] ?? 0;
     
-    // Check for promo description and dates
+    final int maxPairs = availableQuantity ~/ 2; 
+    final int maxLimit = maxPairs; 
+    
     final String? promoDescription = medicineData!['promo_description'];
     final String? startDate = medicineData!['start_date'];
     final String? endDate = medicineData!['end_date'];
+    
+    final int paidQuantity = selectedQuantity;
+    final int promoQuantity = selectedQuantity;
+    final int totalUnits = paidQuantity + promoQuantity;
+
 
     return Scaffold(
       appBar: AppBar(
@@ -83,26 +148,23 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
       ),
       body: Stack(
         children: [
-          // Scrollable Content
           SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Image Section
                 Container(
                   color: Colors.white,
                   height: 300,
                   alignment: Alignment.center,
                   child: medicineData!['image'].isNotEmpty
                       ? Image.network(
-                          medicineData!['image'],
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(Icons.medication, size: 100, color: Colors.grey),
-                        )
+                            medicineData!['image'],
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(Icons.medication, size: 100, color: Colors.grey),
+                          )
                       : const Icon(Icons.medication, size: 100, color: Colors.grey),
                 ),
-                // Information Section
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
                   decoration: const BoxDecoration(
@@ -127,7 +189,7 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                           color: Colors.grey,
                         ),
                       ),
-                      const SizedBox(height: 4), // Add spacing for dosage form
+                      const SizedBox(height: 4), 
                       Text(
                         medicineData!['dosage_form'] ?? 'Dosage form not specified',
                         style: const TextStyle(
@@ -138,15 +200,12 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                       ),
                       const SizedBox(height: 16),
                       
-                      // START OF FIX: This structure prevents the overflow
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Price and Stock Status in one Row (to be aligned to the right)
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              // Price (Left side)
                               Text(
                                 priceString,
                                 style: const TextStyle(
@@ -155,15 +214,14 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                                   color: Color(0xFF003B63),
                                 ),
                               ),
-                              // Stock Status (Right side)
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: availableQuantity > 0 ? Colors.green.shade500 : Colors.red,
+                                  color: maxPairs > 0 ? Colors.green.shade500 : Colors.red,
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
-                                  availableQuantity > 0 ? "In Stock" : "Out of Stock",
+                                  maxPairs > 0 ? "In Stock ($maxPairs pairs available)" : "Out of Stock",
                                   style: const TextStyle(color: Colors.white, fontSize: 12),
                                 ),
                               ),
@@ -171,7 +229,6 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                           ),
                           const SizedBox(height: 4),
                           
-                          // Promo description (Below Price/Stock)
                           if (promoDescription != null)
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -189,7 +246,6 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                               ),
                             ),
                           
-                          // Promo start and end dates (Below Price/Stock)
                           if (startDate != null && endDate != null)
                             Text(
                               "Promo valid from $startDate to $endDate",
@@ -200,10 +256,8 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                             ),
                         ],
                       ),
-                      // END OF FIX
                       
                       const SizedBox(height: 16),
-                      // Prescription Required
                       if (prescriptionRequired)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -221,14 +275,13 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                             ),
                           ),
                         ),
-                      const SizedBox(height: 200), // Placeholder to prevent bottom overlap
+                      const SizedBox(height: 200),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-          // Bottom fixed bar with Quantity Selector and Add to Cart button
           Positioned(
             bottom: 0,
             left: 0,
@@ -245,69 +298,98 @@ class _PromoMedicineDetailPageState extends State<PromoMedicineDetailPage> {
                   ),
                 ],
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column( 
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   // Quantity Selector
                   Container(
+                    width: double.infinity,
                     decoration: BoxDecoration(
                       color: Colors.grey.shade200,
                       borderRadius: BorderRadius.circular(30),
                     ),
                     child: Row(
                       children: [
+                        // Minus Button
                         IconButton(
                           icon: const Icon(Icons.remove, size: 20),
-                          onPressed: selectedQuantity > 1
-                              ? () => setState(() => selectedQuantity--)
+                          // CHANGE: Check for > 0
+                          onPressed: selectedQuantity > 0 
+                              ? () => _updateQuantity(selectedQuantity - 1, maxLimit) 
                               : null,
                         ),
-                        Text(
-                          "$selectedQuantity",
-                          style: const TextStyle(fontSize: 18),
+                        // Quantity Input Field
+                        Expanded(
+                          child: TextField(
+                            controller: _quantityController,
+                            textAlign: TextAlign.center,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                              isDense: true,
+                            ),
+                            style: const TextStyle(fontSize: 18),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            onChanged: (text) => _handleQuantityInput(text, maxLimit),
+                            onEditingComplete: () {
+                              if (_quantityController.text.isEmpty) {
+                                // Default to 0 instead of 1 if cleared
+                                _updateQuantity(0, maxLimit);
+                              }
+                              FocusScope.of(context).unfocus();
+                            },
+                          ),
                         ),
+                        // Plus Button
                         IconButton(
                           icon: const Icon(Icons.add, size: 20),
-                          onPressed: (selectedQuantity * 2) < availableQuantity
-                              ? () => setState(() => selectedQuantity++)
+                          onPressed: selectedQuantity < maxLimit
+                              ? () => _updateQuantity(selectedQuantity + 1, maxLimit)
                               : null,
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(height: 12),
                   // Add to Cart Button
-                  ElevatedButton.icon(
-                    onPressed: (selectedQuantity * 2) > availableQuantity
-                        ? null // Disable the button if the total quantity exceeds stock
-                        : () {
-                            // You may want to add a final check here just in case, but the button should already be disabled.
-                            CartService().addToCart(
-                                CartItem(
-                                  id: medicineData!['id'],
-                                  name: medicineData!['name'],
-                                  genericName: medicineData!['generic_name'],
-                                  dosageForm: medicineData!['dosage_form'] ?? "Unknown",
-                                  image: medicineData!['image'],
-                                  price: double.parse(medicineData!['price'].toString()),
-                                  quantity: selectedQuantity,
-                                  isPromo: true,
-                                  promoQuantity: selectedQuantity,
-                                  availableStock: availableQuantity, // ADDED: Pass the availableQuantity
-                                ),
-                            );
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Added $selectedQuantity item(s) to cart with $selectedQuantity promo item(s)!')),
-                            );
-                          },
-                    icon: const Icon(Icons.shopping_cart),
-                    label: const Text('Add to cart'),
-                    style: ElevatedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      backgroundColor: const Color(0xFF003B63),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
+                  SizedBox(
+                    width: double.infinity, 
+                    child: ElevatedButton.icon(
+                      // Requires quantity > 0
+                      onPressed: selectedQuantity > 0 && selectedQuantity <= maxLimit
+                          ? () {
+                              CartService().addToCart(
+                                  CartItem(
+                                    id: medicineData!['id'],
+                                    name: medicineData!['name'],
+                                    genericName: medicineData!['generic_name'],
+                                    dosageForm: medicineData!['dosage_form'] ?? "Unknown",
+                                    image: medicineData!['image'],
+                                    price: double.parse(medicineData!['price'].toString()),
+                                    quantity: paidQuantity, 
+                                    isPromo: true,
+                                    promoQuantity: promoQuantity, 
+                                    availableStock: availableQuantity, 
+                                  ),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Added $paidQuantity item(s) to cart and received $promoQuantity free item(s)! (Total: $totalUnits units)')),
+                                );
+                              }
+                          : null,
+                      icon: const Icon(Icons.shopping_cart),
+                      label: Text('Add ${selectedQuantity == 1 ? '1 pair' : '$selectedQuantity pairs'} to cart'),
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        backgroundColor: const Color(0xFF003B63),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
                   ),
                 ],
