@@ -216,8 +216,8 @@ class InStoreOrder(models.Model):
     )
     staff = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True)
     cashier = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_orders')
-    date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    #date_created = models.DateTimeField()
+    #date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    date_created = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     is_pwd = models.BooleanField(default=False)
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -302,8 +302,8 @@ class OrderLog(models.Model):
     action_type = models.CharField(max_length=20, choices=ACTION_CHOICES)
     description = models.TextField(blank=True, null=True)
     
-    timestamp = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    #timestamp = models.DateTimeField()
+    #timestamp = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    timestamp = models.DateTimeField()
     class Meta:
         db_table = 'order_logs'
         ordering = ['-timestamp']
@@ -328,8 +328,8 @@ class OnlineOrder(models.Model):
         ('cancelled', 'Cancelled'),
     ]
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
-    #date_created = models.DateTimeField()
+    #date_created = models.DateTimeField(auto_now_add=True) #-------- Remove comment after dummy data is completed
+    date_created = models.DateTimeField()
     status = models.CharField(max_length=20, choices=ORDER_STATUS, default='pending')
     is_pwd = models.BooleanField(default=False)
     total_amount_before_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -646,18 +646,34 @@ class ReturnVerificationImage(models.Model):
         return f"Image for Txn {self.return_transaction.pk}"
 
 #------10/31/25
+#------11/10/25
 class PurchaseRequest(models.Model):
+
+    STATUS_CHOICES = [
+        ('DRAFT', 'Draft'),
+        ('PENDING', 'Pending Approval'), # Status used for filtering in LatestPendingPurchaseRequestView
+        ('COMPLETED', 'Completed/Approved'), # Status used for setting final status in ApproveView
+        ('CANCELLED', 'Cancelled'),
+    ]
 
     class Meta:
         db_table = 'purchase_request_tbl'
-
-    # The manager FK is removed. 'manager_name' will be set manually (or hardcoded) for testing.
-    manager_name = models.CharField(max_length=100, default='System Test User') # Optional: Set a default for easy creation
-    # Submission timestamp
+        
+    manager_name = models.CharField(max_length=100, default='System Test User') 
     request_date = models.DateTimeField(auto_now_add=True)
-
+    
+    # --- CRITICAL NEW FIELD ---
+    status = models.CharField(
+        max_length=15, 
+        choices=STATUS_CHOICES, 
+        default='PENDING' # Set a default status, usually 'PENDING' or 'DRAFT'
+    )
+    
+    # --- REQUIRED FOR APPROVAL VIEW ---
+    approval_date = models.DateTimeField(null=True, blank=True)
+    
     def __str__(self):
-        return f"PR-{self.id} by {self.manager_name} on {self.request_date.strftime('%Y-%m-%d')}"
+        return f"PR-{self.id} ({self.status}) by {self.manager_name} on {self.request_date.strftime('%Y-%m-%d')}"
 
 #------11/03/25
 class PurchaseRequestItem(models.Model):

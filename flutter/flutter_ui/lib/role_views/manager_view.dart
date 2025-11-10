@@ -22,10 +22,11 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_ui/services/responsive_scale.dart'; 
 import 'manager_features/daily_reports/daily_reports.dart';
 import 'manager_features/return_medicines/return_view.dart';
+import 'manager_features/restock/restock_menu_screen.dart';
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.1.21:8000/',
+  defaultValue: 'http://192.168.1.8:8000/',
 );
 
 class ManagerView extends StatefulWidget {
@@ -536,7 +537,7 @@ class _ManagerViewState extends State<ManagerView>
                                 _drawerItem(Icons.inventory_outlined, 'Inventory', 
                                     () => _open(const InventoryGridScreen())),
                                 _drawerItem(Icons.shelves, 'Restock', 
-                                    () => _open(const RestockBarcodeScreen())),
+                                    () => _open(const RestockMenuScreen())),
                                 _drawerItem(Icons.store, 'In Store Sales Transaction', 
                                     () => _open(const InStoreTransactionPage())),
                                 _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction', 

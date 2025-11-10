@@ -96,7 +96,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
 
   Future<bool> _checkBarcodeExistence(String barcode) async {
     // IMPORTANT: Replace with your computer's actual local IP address!
-    final url = Uri.parse('http://192.168.1.21:8000/api/medicines/check_barcode/$barcode/');
+    final url = Uri.parse('http://192.168.1.8:8000/api/medicines/check_barcode/$barcode/');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -117,7 +117,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
       _isLoadingSuppliers = true;
     });
     // IMPORTANT: Replace with your computer's actual local IP address!
-    final url = Uri.parse('http://192.168.1.21:8000/api/suppliers/');
+    final url = Uri.parse('http://192.168.1.8:8000/api/suppliers/');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -204,7 +204,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
     }
 
     // IMPORTANT: Replace with your computer's actual local IP address!
-    final url = Uri.parse('http://192.168.1.21:8000/api/medicines/');
+    final url = Uri.parse('http://192.168.1.8:8000/api/medicines/');
     final request = http.MultipartRequest('POST', url);
 
     // Add text fields

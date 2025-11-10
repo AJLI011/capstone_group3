@@ -9,7 +9,7 @@ from django.contrib.auth.hashers import make_password
 from decimal import Decimal
 from datetime import date
 from django.db import transaction
-from django.db.models import F, Sum
+from django.db.models import F, Sum, Max
 from django.utils.timezone import now
 from django.utils import timezone # add this (elton)
 from rest_framework.validators import UniqueValidator
@@ -1910,3 +1910,78 @@ class MedicineSelectionSerializer(serializers.ModelSerializer):
 
 
 
+#====================11/10/25
+
+# --- NEW: Serializer for Incoming Restock Approval Item ---
+class RestockApprovalItemSerializer(serializers.Serializer):
+    """
+    Serializer to validate and process each item sent from the Flutter Restock Approval screen.
+    """
+    medicine_id = serializers.IntegerField() # The ID of the Medicine
+    approved_quantity = serializers.IntegerField(min_value=1)
+    batch_num = serializers.CharField(max_length=100, required=True)
+    manufacture_date = serializers.DateField(required=False, allow_null=True) # Manufacture date is nice-to-have but Expiry is CRITICAL
+    expiry_date = serializers.DateField()
+
+    # Optional: You can add cross-field validation here if needed, e.g., expiry_date > today
+    def validate_expiry_date(self, value):
+        from datetime import date
+        if value <= date.today():
+            raise serializers.ValidationError("Expiry date must be in the future.")
+        return value
+    
+
+# --- NEW: Serializer for Items in the Approval Detail View ---
+class RestockItemDetailSerializer(serializers.ModelSerializer):
+    """
+    Used within RestockListSerializer to format PR Items for the Flutter Approval Screen.
+    """
+    # 1. Output Keys expected by Flutter
+    medicine_id = serializers.SerializerMethodField()
+    medicine_name = serializers.CharField(source='medicine_name_snapshot', read_only=True)
+    supplier_name = serializers.CharField(source='supplier_name_snapshot', read_only=True)
+    restock_quantity = serializers.IntegerField(source='restock_amount', read_only=True)
+    
+    # Generic Name is required by Flutter, but must be retrieved from the linked Medicine object
+    generic_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PurchaseRequestItem # Assuming your model is PurchaseRequestItem
+        fields = [
+            'medicine_id', 
+            'medicine_name', 
+            'generic_name', # New field to get from Medicine model
+            'supplier_name', 
+            'restock_quantity',
+            # You might want to include the PR Item ID if you track approval per item
+            'id', # This is the PurchaseRequestItem ID
+        ]
+
+    def get_medicine_id(self, obj):
+        # Fallback to 0 if medicine is null (for manually entered items)
+        return obj.medicine.id if obj.medicine else 0
+
+    def get_generic_name(self, obj):
+        # Retrieve the generic name from the linked medicine object
+        if obj.medicine and hasattr(obj.medicine, 'generic_name'):
+            # Assuming 'generic_name' is a CharField on the Medicine model
+            return obj.medicine.generic_name
+        
+        # Fallback for manually entered items or missing data
+        return 'N/A'
+
+# --- NEW: Main Serializer for the Approval Detail View ---
+class RestockListSerializer(serializers.ModelSerializer):
+    """
+    Main serializer for the Purchase Request detail view (RestockListView).
+    """
+    # Use the new detail serializer for the nested items
+    items = RestockItemDetailSerializer(many=True, read_only=True)
+    
+    # Manager name and date are already in the correct format
+    manager_name = serializers.CharField(read_only=True)
+    request_date = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = PurchaseRequest # Assuming your model is PurchaseRequest
+        fields = ['id', 'manager_name', 'request_date', 'items']

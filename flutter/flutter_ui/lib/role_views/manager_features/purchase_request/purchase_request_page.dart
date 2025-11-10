@@ -79,7 +79,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
     // --- FETCH LOGIC (UNCHANGED) ---
     
     Future<void> _fetchAllMedicines() async {
-        const String apiUrl = 'http://192.168.1.21:8000/api/medicines/all/';
+        const String apiUrl = 'http://192.168.1.8:8000/api/medicines/all/';
         try {
             final response = await http.get(Uri.parse(apiUrl));
             if (response.statusCode == 200) {
@@ -101,7 +101,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
         });
 
         try {
-            const String lowStockApiUrl = 'http://192.168.1.21:8000/api/medicines/low-stock/';
+            const String lowStockApiUrl = 'http://192.168.1.8:8000/api/medicines/low-stock/';
             final lowStockResponse = await http.get(Uri.parse(lowStockApiUrl));
 
             if (lowStockResponse.statusCode == 200) {
@@ -155,7 +155,7 @@ Future<void> _fetchPurchaseRequests() async {
         await _fetchAllMedicines();
     }
 
-    const String apiUrl = 'http://192.168.1.21:8000/api/purchase-request/';
+    const String apiUrl = 'http://192.168.1.8:8000/api/purchase-request/';
     try {
         final response = await http.get(Uri.parse(apiUrl)); 
 
@@ -166,7 +166,7 @@ Future<void> _fetchPurchaseRequests() async {
                     final int restockAmount = item['restock_amount'] ?? 0;
                     final int suggestedAmount = item['suggested_amount'] ?? restockAmount; 
 
-                    final dynamic medicineId = item['medicine'];
+                    final dynamic medicineId = item['medicine'] ?? item['id'] ?? item['medicine_id'];
                     final bool isNew = medicineId == null;
 
                     // FIX 1: Prioritize the 'medicine_name' field (This fixed the medicine name)
@@ -251,7 +251,7 @@ Future<void> _fetchPurchaseRequests() async {
                         ),
                         ListTile(
                             leading: const Icon(Icons.note_add, color: _primaryColor),
-                            title: const Text('Introduce New Medicine'),
+                            title: const Text('Purchase New Medicine'),
                             onTap: () {
                                 Navigator.pop(context); // Close the bottom sheet
                                 _showAddNewMedicineDialog(); // Show new medicine dialog
@@ -400,66 +400,162 @@ Future<void> _fetchPurchaseRequests() async {
         );
     }
     
-    // NEW: Build the Add New Medicine modal/dialog
+    // NEW: Build the Add New Medicine modal/dialog (MODIFIED FOR SUPPLIER DROPDOWN AND CONTACT AUTO-FILL)
     void _showAddNewMedicineDialog() {
         final _formKey = GlobalKey<FormState>();
         String _name = '';
         String _supplier = '';
         int _amount = 1;
-        String _contact = '';
+        String _contact = ''; // State variable for contact number
+        
+        // New state for dropdown
+        String? _selectedSupplier; 
+        bool _isNewSupplier = false; // Flag to show or hide the contact field/new supplier text field
+
+        // --- New Logic: Extract unique suppliers and their contacts ---
+        // Map to store {Supplier Name: Contact Number}
+        final Map<String, String> supplierContactMap = {}; 
+        for (var med in _allMedicines) {
+            final supplierName = med['supplier_name'] as String?;
+            final contactNum = med['contact_num'] as String?;
+            
+            if (supplierName != null && supplierName.trim().isNotEmpty && supplierName != 'N/A') {
+                // Store the first non-null or non-empty contact found for a unique supplier name
+                if (!supplierContactMap.containsKey(supplierName.trim())) {
+                    supplierContactMap[supplierName.trim()] = contactNum?.trim() ?? 'N/A';
+                }
+            }
+        }
+        
+        final List<String> uniqueSupplierNames = supplierContactMap.keys.toList();
+        final List<String> supplierOptions = ['Add New Supplier', ...uniqueSupplierNames];
+
 
         showDialog(
             context: context,
             builder: (BuildContext context) {
-                return AlertDialog(
-                    title: const Text('Introduce New Medicine'),
-                    content: Form(
-                        key: _formKey,
-                        child: SingleChildScrollView(
-                            child: ListBody(
-                                children: <Widget>[
-                                    TextFormField(
-                                        decoration: const InputDecoration(labelText: 'Medicine Name *'),
-                                        onChanged: (val) => _name = val,
-                                        validator: (val) => val!.trim().isEmpty ? 'Name is required' : null,
+                // We need a StateSetter to update the dialog's local state (e.g., when the dropdown changes)
+                return StatefulBuilder(
+                    builder: (BuildContext context, StateSetter setState) {
+                        return AlertDialog(
+                            title: const Text('Purchase New Medicine'),
+                            content: Form(
+                                key: _formKey,
+                                child: SingleChildScrollView(
+                                    child: ListBody(
+                                        children: <Widget>[
+                                            TextFormField(
+                                                decoration: const InputDecoration(labelText: 'Medicine Name *'),
+                                                onChanged: (val) => _name = val,
+                                                validator: (val) => val!.trim().isEmpty ? 'Name is required' : null,
+                                            ),
+                                            TextFormField(
+                                                decoration: const InputDecoration(labelText: 'Restock Amount *'),
+                                                keyboardType: TextInputType.number,
+                                                initialValue: '1',
+                                                onChanged: (val) => _amount = int.tryParse(val) ?? 1,
+                                                validator: (val) => (int.tryParse(val!) ?? 0) < 1 ? 'Must be at least 1' : null,
+                                            ),
+                                            
+                                            // --- Supplier Dropdown ---
+                                            DropdownButtonFormField<String>(
+                                                decoration: const InputDecoration(labelText: 'Supplier Name *'),
+                                                value: _selectedSupplier,
+                                                hint: const Text('Select or Add Supplier'),
+                                                items: supplierOptions.map((String value) {
+                                                    return DropdownMenuItem<String>(
+                                                        value: value,
+                                                        child: Text(value),
+                                                    );
+                                                }).toList(),
+                                                onChanged: (String? newValue) {
+                                                    setState(() {
+                                                        _selectedSupplier = newValue;
+                                                        _isNewSupplier = newValue == 'Add New Supplier';
+                                                        
+                                                        if (!_isNewSupplier && newValue != null) {
+                                                            _supplier = newValue;
+                                                            // *** CRITICAL FIX: Look up and set contact ***
+                                                            _contact = supplierContactMap[newValue] ?? 'N/A'; 
+                                                        } else {
+                                                            _supplier = ''; // Clear for new input
+                                                            _contact = ''; // Clear contact for new input (will be editable)
+                                                        }
+                                                    });
+                                                },
+                                                validator: (val) {
+                                                    if (val == null) {
+                                                        return 'Supplier is required';
+                                                    }
+                                                    if (val == 'Add New Supplier' && _supplier.trim().isEmpty) {
+                                                        return 'New Supplier Name is required';
+                                                    }
+                                                    return null;
+                                                }
+                                            ),
+
+                                            // --- Conditional Input for New Supplier Name ---
+                                            if (_isNewSupplier)
+                                                TextFormField(
+                                                    decoration: const InputDecoration(labelText: 'New Supplier Name *'),
+                                                    onChanged: (val) => _supplier = val,
+                                                ),
+
+                                            // --- Conditional Input for Contact Number (Auto-filled or Editable) ---
+                                            // Show if 'Add New Supplier' is selected OR an existing supplier is selected (to show the contact)
+                                            if (_isNewSupplier || (_selectedSupplier != null && _selectedSupplier != 'Add New Supplier'))
+                                                TextFormField(
+                                                    // Key is added to force the widget to rebuild when _contact changes
+                                                    key: ValueKey('contact_field_$_contact'), 
+                                                    decoration: InputDecoration(
+                                                        labelText: _isNewSupplier 
+                                                            ? 'Supplier Contact Number' 
+                                                            : 'Supplier Contact Number',
+                                                        enabled: _isNewSupplier, // Disabled if existing supplier is chosen
+                                                        suffixIcon: !_isNewSupplier ? const Icon(Icons.lock_outline, size: 18) : null,
+                                                    ),
+                                                    // Use the state variable _contact for the current value. If 'N/A' from lookup, display it.
+                                                    initialValue: _isNewSupplier ? _contact : (_contact.isEmpty ? 'N/A' : _contact),
+                                                    keyboardType: TextInputType.phone,
+                                                    onChanged: (val) {
+                                                        // Only allow modification if it is a new supplier
+                                                        if (_isNewSupplier) {
+                                                            _contact = val;
+                                                        }
+                                                    },
+                                                ),
+                                                
+                                            const SizedBox(height: 10),
+                                            const Text('Units/Item will be set to N/A for initial order.', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.black54)),
+                                        ],
                                     ),
-                                    TextFormField(
-                                        decoration: const InputDecoration(labelText: 'Restock Amount *'),
-                                        keyboardType: TextInputType.number,
-                                        initialValue: '1',
-                                        onChanged: (val) => _amount = int.tryParse(val) ?? 1,
-                                        validator: (val) => (int.tryParse(val!) ?? 0) < 1 ? 'Must be at least 1' : null,
-                                    ),
-                                    TextFormField(
-                                        decoration: const InputDecoration(labelText: 'Supplier Name *'),
-                                        onChanged: (val) => _supplier = val,
-                                        validator: (val) => val!.trim().isEmpty ? 'Supplier is required' : null,
-                                    ),
-                                    TextFormField(
-                                        decoration: const InputDecoration(labelText: 'Supplier Contact Number'),
-                                        keyboardType: TextInputType.phone,
-                                        onChanged: (val) => _contact = val,
-                                    ),
-                                    const SizedBox(height: 10),
-                                    const Text('Units/Item will be set to N/A for initial order.', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.black54)),
-                                ],
+                                ),
                             ),
-                        ),
-                    ),
-                    actions: <Widget>[
-                        TextButton(
-                            child: const Text('CANCEL'),
-                            onPressed: () => Navigator.of(context).pop(),
-                        ),
-                        ElevatedButton(
-                            child: const Text('ADD NEW'),
-                            onPressed: () {
-                                if (_formKey.currentState!.validate()) {
-                                    _addNewMedicine(_name.trim(), _amount, _supplier.trim(), _contact.trim());
-                                }
-                            },
-                        ),
-                    ],
+                            actions: <Widget>[
+                                TextButton(
+                                    child: const Text('CANCEL'),
+                                    onPressed: () => Navigator.of(context).pop(),
+                                ),
+                                ElevatedButton(
+                                    child: const Text('ADD NEW'),
+                                    onPressed: () {
+                                        if (_formKey.currentState!.validate()) {
+                                            // Ensure the correct supplier name is used based on selection
+                                            final finalSupplierName = _isNewSupplier ? _supplier.trim() : _selectedSupplier!.trim();
+                                            
+                                            _addNewMedicine(
+                                                _name.trim(), 
+                                                _amount, 
+                                                finalSupplierName, 
+                                                // If contact is auto-filled as 'N/A', send an empty string instead of 'N/A'
+                                                _contact.trim() == 'N/A' ? '' : _contact.trim()
+                                            );
+                                        }
+                                    },
+                                ),
+                            ],
+                        );
+                    }
                 );
             },
         );
@@ -543,7 +639,7 @@ void _submitPurchaseRequest() async {
         
         // 4. Send Request
         try {
-            const String apiUrl = 'http://192.168.1.21:8000/api/purchase-request/';
+            const String apiUrl = 'http://192.168.1.8:8000/api/purchase-request/';
             final response = await http.post(
                 Uri.parse(apiUrl),
                 headers: <String, String>{

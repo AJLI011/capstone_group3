@@ -49,7 +49,8 @@ from .serializers import (
     OnlineOrderCreateSerializer, OnlineOrderLogDetailsSerializer, InStoreSalesTransactionSerializer, 
     PrescriptionOrderSerializer, CombinedPrescriptionSerializer, PrescriptionImageSerializer,
     LowStockSerializer, ForecastItemSerializer, ForecastReportSerializer, MedicineForecastSerializer,
-    DailyReportSerializer, PurchaseRequestSerializer, PurchaseRequestItemSerializer, MedicineSelectionSerializer
+    DailyReportSerializer, PurchaseRequestSerializer, PurchaseRequestItemSerializer, MedicineSelectionSerializer,
+    RestockListSerializer, RestockApprovalItemSerializer,
 )
 
 from .serializers import OrderLogSerializer
@@ -4254,3 +4255,174 @@ class MedicineListView(generics.ListAPIView):
     queryset = Medicine.objects.select_related('supplier').all() 
     # Assuming your MedicineSelectionSerializer is correctly imported
     serializer_class = MedicineSelectionSerializer
+
+
+
+
+
+
+# ------------------------------- 11/10/25
+class RestockListView(generics.RetrieveAPIView):
+    """
+    API endpoint to retrieve the detailed list of items for a specific Purchase Request 
+    for the Restock Approval screen.
+    """
+    queryset = PurchaseRequest.objects.all() 
+    serializer_class = RestockListSerializer
+    
+    def get_queryset(self):
+        # Prefetching to optimize database queries:
+        # Pre-loads PurchaseRequestItem, Medicine, and Supplier data in one go.
+        return PurchaseRequest.objects.prefetch_related(
+            'items__medicine', 
+            'items__medicine__supplier'
+        ).all()
+    
+
+
+# --- NEW: Purchase Request Approval Logic ---
+class PurchaseRequestApproveView(APIView):
+    """
+    Approves a Purchase Request, bulk-creates Inventory batches, 
+    updates TotalQuantity counts, and marks the PR status as 'COMPLETED'.
+    Endpoint: PUT /api/restock/purchase-request/<pr_id>/approve/
+    """
+    def put(self, request, pr_id, *args, **kwargs):
+        # 1. Get the Purchase Request (CRITICAL)
+        try:
+            # Replace PurchaseRequest with your actual model name if different
+            pr = PurchaseRequest.objects.get(id=pr_id) 
+        except PurchaseRequest.DoesNotExist:
+            return Response({"detail": f"Purchase Request with ID {pr_id} not found."}, 
+                             status=status.HTTP_404_NOT_FOUND)
+
+        # 2. Get and Validate Items Payload
+        items_data = request.data.get('items', [])
+        if not items_data:
+            return Response({"detail": "No items provided for approval."}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Use the serializer to validate the bulk list
+        # Replace RestockApprovalItemSerializer with your actual serializer name
+        item_serializer = RestockApprovalItemSerializer(data=items_data, many=True)
+        if not item_serializer.is_valid():
+            return Response(item_serializer.errors, 
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        validated_items = item_serializer.validated_data
+        
+        # Determine the user performing the restock
+        staff_id = request.data.get('staff_id', 1) 
+        staff_user = None
+        if staff_id:
+            try:
+                # Replace Staff with your actual Staff/User model name
+                staff_user = Staff.objects.get(id=staff_id) 
+            except Staff.DoesNotExist:
+                pass 
+        
+        # 3. Process in a Database Transaction
+        try:
+            with transaction.atomic():
+                new_inventory_batches = []
+                total_quantity_updates = {} 
+
+                for item in validated_items:
+                    medicine_id = item['medicine_id']
+                    approved_quantity = item['approved_quantity']
+                    batch_num = item['batch_num']
+                    expiry_date = item['expiry_date']
+
+                    # A. Check for unique batch constraint before creation
+                    # Replace Inventory with your actual model name
+                    if Inventory.objects.filter(medicine_id=medicine_id, batch_num=batch_num).exists():
+                         raise serializers.ValidationError(
+                             f"Batch {batch_num} already exists for Medicine ID {medicine_id}. Must enter a unique batch number."
+                         )
+                        
+                    # B. Create the new Inventory entry
+                    # Replace Inventory with your actual model name
+                    new_batch = Inventory(
+                        medicine_id=medicine_id,
+                        batch_num=batch_num,
+                        exp_date=expiry_date,
+                        quantity=approved_quantity,
+                        # date_received auto_now_add=True
+                    )
+                    new_inventory_batches.append(new_batch)
+
+                    # C. Prepare TotalQuantity update
+                    total_quantity_updates[medicine_id] = total_quantity_updates.get(medicine_id, 0) + approved_quantity
+
+                # Bulk create all new Inventory objects
+                # Replace Inventory with your actual model name
+                Inventory.objects.bulk_create(new_inventory_batches)
+
+                # D. Update TotalQuantity
+                for med_id, qty_to_add in total_quantity_updates.items():
+                    # Replace TotalQuantity with your actual model name
+                    total_qty_entry, created = TotalQuantity.objects.get_or_create(
+                        medicine_id=med_id,
+                        defaults={'total_quantity': qty_to_add}
+                    )
+                    if not created:
+                        total_qty_entry.total_quantity += qty_to_add
+                        total_qty_entry.save(update_fields=['total_quantity'])
+                        
+                    # E. Restock logging (if staff user is found)
+                    if staff_user:
+                         # Replace Medicine and InventoryLog with your actual model names
+                         medicine_obj = Medicine.objects.get(id=med_id) 
+                         InventoryLog.objects.create(
+                             user=staff_user,
+                             medicine=medicine_obj,
+                             action_type='Restock PR Approved',
+                             description=f"Approved PR {pr_id}. Total restock: {qty_to_add} units.",
+                             medicine_name_log=medicine_obj.name, 
+                             staff_name=staff_user.name,
+                             staff_role=staff_user.role,
+                         )
+
+                # F. Update Purchase Request Status (CRITICAL FIX)
+                pr.status = 'COMPLETED' # Use the final status string defined in your model
+                pr.approval_date = timezone.now()
+                # Optional: pr.approved_by = staff_user 
+                pr.save(update_fields=['status', 'approval_date']) 
+            
+            return Response({"detail": "Purchase Request approved and inventory successfully restocked in bulk."}, 
+                             status=status.HTTP_200_OK)
+
+        except Exception as e:
+            # Catch exceptions like validation errors or database errors
+            return Response({"detail": f"Processing error: {str(e)}"}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+        
+
+# --- NEW: View to Fetch the Latest Pending PR ID ---
+class LatestPendingPurchaseRequestView(APIView):
+    """
+    API endpoint to retrieve the ID of the single latest Purchase Request 
+    that has a status of 'PENDING'.
+    Endpoint: GET /api/purchase-request/latest-pending/
+    """
+    def get(self, request, *args, **kwargs):
+        try:
+            # 1. Query the database for a PurchaseRequest with status='PENDING'.
+            # 2. Order by the creation date descending (latest first).
+            # 3. Use .first() to retrieve only the single most recent record, or None if empty.
+            
+            # NOTE: If you use a different status (e.g., 'DRAFT'), update the filter below.
+            latest_pr = PurchaseRequest.objects.filter(status='PENDING').order_by('-request_date').first()
+
+            if latest_pr:
+                # Success: Return the ID with a 200 OK status.
+                return Response({"id": latest_pr.id}, status=status.HTTP_200_OK)
+            else:
+                # No content: Return 404 Not Found, as expected by the Flutter client.
+                return Response({"detail": "No pending purchase requests found."}, 
+                                 status=status.HTTP_404_NOT_FOUND)
+                                 
+        except Exception as e:
+            # Catch unexpected server errors
+            return Response({"detail": f"Server error: {str(e)}"}, 
+                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -8,7 +8,7 @@ from .views import (
     remove_promo, get_customer_medicines,inventory_logs, PromoMedicineView, PromoMedicineDetailView, 
     get_customer_medicine_detail,InStoreSalesReportView,OnlineSalesReportView, LatestForecastReportView, MedicineSalesHistoryView, 
     OrderLogsListView, UnaddressedExpiringStockView, MedicineForecastByNameView, # PurchaseRequestListView REMOVED
-    PurchaseRequestView, MedicineListView
+    PurchaseRequestView, MedicineListView, RestockListView, PurchaseRequestApproveView, LatestPendingPurchaseRequestView,
     
 )
 from .views import get_comprehensive_transaction_report
@@ -162,6 +162,15 @@ urlpatterns = [
 
     # NEW PATH for the 'Add Medicine' selection modal 11/03/25
     path('medicines/all/', MedicineListView.as_view(), name='medicine-list-for-selection'),
+
+    # Path for fetching the single latest pending PR ID 11/10/25
+    path('purchase-request/latest-pending/', views.LatestPendingPurchaseRequestView.as_view(), name='latest-pending-pr'),
+
+    # Path for getting the detail of a specific PR 11/10/25
+    path('restock/purchase-request/<int:pk>/', RestockListView.as_view(), name='pr-detail-restock'),
+
+    # Path for approving a PR (using the updated view) 11/10/25
+    path('restock/purchase-request/<int:pr_id>/approve/',  PurchaseRequestApproveView.as_view(), name='pr-approve'),
 
     #----------EXPIRY NOTIFICATION
     # API endpoint to save staff FCM tokens

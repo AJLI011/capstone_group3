@@ -83,7 +83,7 @@ class OrderArrangementPage extends StatelessWidget {
 
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.1.21:8000/api/customer/online-orders/create/'),
+        Uri.parse('http://192.168.1.8:8000/api/customer/online-orders/create/'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
