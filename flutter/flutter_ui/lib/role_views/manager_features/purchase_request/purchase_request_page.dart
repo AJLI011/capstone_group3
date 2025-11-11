@@ -47,6 +47,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
         // Dispose existing controllers before clearing the list
         for (var item in _editablePurchaseRequests) {
             (item['controller'] as TextEditingController).dispose();
+            // Removed: supplierController and contactController disposal
         }
         super.dispose();
     }
@@ -76,7 +77,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
     }
 
 
-    // --- FETCH LOGIC (UNCHANGED) ---
+    // --- FETCH LOGIC (MODIFIED to remove unique supplier population) ---
     
     Future<void> _fetchAllMedicines() async {
         const String apiUrl = 'http://10.0.2.2:8000/api/medicines/all/';
@@ -145,6 +146,7 @@ Future<void> _fetchPurchaseRequests() async {
         _errorMessage = null;
         for (var item in _editablePurchaseRequests) {
             (item['controller'] as TextEditingController).dispose();
+            // Removed: supplierController and contactController disposal
         }
         _editablePurchaseRequests = [];
     });
@@ -166,7 +168,7 @@ Future<void> _fetchPurchaseRequests() async {
                     final int restockAmount = item['restock_amount'] ?? 0;
                     final int suggestedAmount = item['suggested_amount'] ?? restockAmount; 
 
-                    final dynamic medicineId = item['medicine'];
+                    final dynamic medicineId = item['medicine'] ?? item['id'] ?? item['medicine_id'];
                     final bool isNew = medicineId == null;
 
                     // FIX 1: Prioritize the 'medicine_name' field (This fixed the medicine name)
@@ -205,6 +207,7 @@ Future<void> _fetchPurchaseRequests() async {
                         'supplier_name': supplierName, 
                         'contact_num': contactNum, 
                         'controller': TextEditingController(text: restockAmount.toString()),
+                        // Removed: supplierController and contactController
                         'is_new': isNew,
                     };
                 }).toList().cast<Map<String, dynamic>>();
@@ -251,7 +254,7 @@ Future<void> _fetchPurchaseRequests() async {
                         ),
                         ListTile(
                             leading: const Icon(Icons.note_add, color: _primaryColor),
-                            title: const Text('Introduce New Medicine'),
+                            title: const Text('Purchase New Medicine'),
                             onTap: () {
                                 Navigator.pop(context); // Close the bottom sheet
                                 _showAddNewMedicineDialog(); // Show new medicine dialog
@@ -266,7 +269,7 @@ Future<void> _fetchPurchaseRequests() async {
         );
     }
 
-    // --- ITEM MANAGEMENT LOGIC (UNCHANGED) ---
+    // --- ITEM MANAGEMENT LOGIC (UPDATED) ---
     
     // Function to add a selected EXISTING item to the editable list
     void _addSelectedMedicine(Map<String, dynamic> medicine) {
@@ -276,6 +279,9 @@ Future<void> _fetchPurchaseRequests() async {
         // Define a default restock amount (using the model's restock quantity as a suggestion)
         final defaultRestockAmount = medicine['restock_quantity'] ?? 1; 
         final unitsPerItem = medicine['restock_quantity'] ?? 1;
+        
+        final supplierName = medicine['supplier_name'] ?? 'N/A'; // Capture supplier info
+        final contactNum = medicine['contact_num'] ?? 'N/A'; // Capture contact info
 
 
         final newItem = {
@@ -285,9 +291,10 @@ Future<void> _fetchPurchaseRequests() async {
             'restock_amount': defaultRestockAmount,
             'suggested_amount': 0, 
             'units_per_items': unitsPerItem.toString(), // Must be string for snapshot compatibility
-            'supplier_name': medicine['supplier_name'] ?? 'N/A', 
-            'contact_num': medicine['contact_num'] ?? 'N/A',
+            'supplier_name': supplierName, 
+            'contact_num': contactNum,
             'controller': TextEditingController(text: defaultRestockAmount.toString()),
+            // Removed: supplierController and contactController
             'is_new': false,
         };
 
@@ -328,6 +335,7 @@ Future<void> _fetchPurchaseRequests() async {
             'supplier_name': supplierName, 
             'contact_num': contactNum,
             'controller': TextEditingController(text: restockAmount.toString()),
+            // Removed: supplierController and contactController
             'is_new': true, // Mark it as new
         };
 
@@ -345,9 +353,10 @@ Future<void> _fetchPurchaseRequests() async {
         Navigator.of(context).pop(); 
     }
 
-    // Function to remove an item from the editable list (UNCHANGED)
+    // Function to remove an item from the editable list (UPDATED)
     void _removeItem(int index) {
         (_editablePurchaseRequests[index]['controller'] as TextEditingController).dispose();
+        // Removed: disposal of supplierController and contactController
         
         setState(() {
             _editablePurchaseRequests.removeAt(index);
@@ -400,74 +409,127 @@ Future<void> _fetchPurchaseRequests() async {
         );
     }
     
-    // NEW: Build the Add New Medicine modal/dialog
+    // MODIFIED: _showAddNewMedicineDialog (Added UnderlineInputBorder to Supplier Name)
     void _showAddNewMedicineDialog() {
         final _formKey = GlobalKey<FormState>();
         String _name = '';
-        String _supplier = '';
         int _amount = 1;
         String _contact = '';
+        
+        // CRITICAL: Controller for the supplier name must be managed
+        final TextEditingController _supplierController = TextEditingController(); 
 
+        // 1. Extract unique supplier names for the PopupMenuButton
+        final List<String> supplierOptions = _allMedicines
+            .map((med) => (med['supplier_name'] ?? '').toString().trim())
+            .where((name) => name.isNotEmpty)
+            .toSet() // Ensure uniqueness
+            .toList()..sort();
+
+        // Use .then() on showDialog to ensure disposal
         showDialog(
             context: context,
             builder: (BuildContext context) {
-                return AlertDialog(
-                    title: const Text('Introduce New Medicine'),
-                    content: Form(
-                        key: _formKey,
-                        child: SingleChildScrollView(
-                            child: ListBody(
-                                children: <Widget>[
-                                    TextFormField(
-                                        decoration: const InputDecoration(labelText: 'Medicine Name *'),
-                                        onChanged: (val) => _name = val,
-                                        validator: (val) => val!.trim().isEmpty ? 'Name is required' : null,
+                // Use StatefulBuilder to allow `setState` for controller update from the dropdown
+                return StatefulBuilder(
+                    builder: (BuildContext context, StateSetter setState) {
+                        return AlertDialog(
+                            title: const Text('Purchase New Medicine'),
+                            content: Form(
+                                key: _formKey,
+                                child: SingleChildScrollView(
+                                    child: ListBody(
+                                        children: <Widget>[
+                                            TextFormField(
+                                                decoration: const InputDecoration(labelText: 'Medicine Name *'),
+                                                onChanged: (val) => _name = val,
+                                                validator: (val) => val!.trim().isEmpty ? 'Name is required' : null,
+                                            ),
+                                            TextFormField(
+                                                decoration: const InputDecoration(labelText: 'Restock Amount *'),
+                                                keyboardType: TextInputType.number,
+                                                initialValue: '1',
+                                                onChanged: (val) => _amount = int.tryParse(val) ?? 1,
+                                                validator: (val) => (int.tryParse(val!) ?? 0) < 1 ? 'Must be at least 1' : null,
+                                            ),
+                                            
+                                            // NEW: Editable TextFormField with PopupMenuButton
+                                            TextFormField(
+                                                controller: _supplierController,
+                                                decoration: InputDecoration(
+                                                    labelText: 'Supplier Name *',
+                                                    // MODIFIED: Added UnderlineInputBorder for sectioning
+                                                    border: const UnderlineInputBorder(), 
+                                                    suffixIcon: PopupMenuButton<String>(
+                                                        icon: const Icon(Icons.arrow_drop_down, color: Colors.black54), // Dropdown icon
+                                                        onSelected: (String selectedSupplier) {
+                                                            // Use setState to update the controller's text immediately
+                                                            setState(() {
+                                                                _supplierController.text = selectedSupplier;
+                                                                // Move cursor to the end
+                                                                _supplierController.selection = TextSelection.fromPosition(TextPosition(offset: _supplierController.text.length)); 
+                                                            });
+                                                        },
+                                                        itemBuilder: (BuildContext context) {
+                                                            // Create PopupMenuItems from the supplier list
+                                                            return supplierOptions.map((String supplier) {
+                                                                return PopupMenuItem<String>(
+                                                                    value: supplier,
+                                                                    child: Text(supplier),
+                                                                );
+                                                            }).toList();
+                                                        },
+                                                    ),
+                                                ),
+                                                validator: (val) => val!.trim().isEmpty ? 'Supplier name is required' : null,
+                                            ),
+                                            const SizedBox(height: 10),
+                                            
+                                            // Contact Number 
+                                            TextFormField(
+                                                decoration: const InputDecoration(labelText: 'Supplier Contact Number'),
+                                                keyboardType: TextInputType.phone,
+                                                onChanged: (val) => _contact = val, 
+                                            ),
+                                            const SizedBox(height: 10),
+                                            const Text('Units/Item will be set to N/A for initial order.', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.black54)),
+                                        ],
                                     ),
-                                    TextFormField(
-                                        decoration: const InputDecoration(labelText: 'Restock Amount *'),
-                                        keyboardType: TextInputType.number,
-                                        initialValue: '1',
-                                        onChanged: (val) => _amount = int.tryParse(val) ?? 1,
-                                        validator: (val) => (int.tryParse(val!) ?? 0) < 1 ? 'Must be at least 1' : null,
-                                    ),
-                                    TextFormField(
-                                        decoration: const InputDecoration(labelText: 'Supplier Name *'),
-                                        onChanged: (val) => _supplier = val,
-                                        validator: (val) => val!.trim().isEmpty ? 'Supplier is required' : null,
-                                    ),
-                                    TextFormField(
-                                        decoration: const InputDecoration(labelText: 'Supplier Contact Number'),
-                                        keyboardType: TextInputType.phone,
-                                        onChanged: (val) => _contact = val,
-                                    ),
-                                    const SizedBox(height: 10),
-                                    const Text('Units/Item will be set to N/A for initial order.', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.black54)),
-                                ],
+                                ),
                             ),
-                        ),
-                    ),
-                    actions: <Widget>[
-                        TextButton(
-                            child: const Text('CANCEL'),
-                            onPressed: () => Navigator.of(context).pop(),
-                        ),
-                        ElevatedButton(
-                            child: const Text('ADD NEW'),
-                            onPressed: () {
-                                if (_formKey.currentState!.validate()) {
-                                    _addNewMedicine(_name.trim(), _amount, _supplier.trim(), _contact.trim());
-                                }
-                            },
-                        ),
-                    ],
+                            actions: <Widget>[
+                                TextButton(
+                                    child: const Text('CANCEL'),
+                                    onPressed: () {
+                                        Navigator.of(context).pop();
+                                        // Controller disposal is handled in the .then() block
+                                    },
+                                ),
+                                ElevatedButton(
+                                    child: const Text('ADD NEW'),
+                                    onPressed: () {
+                                        if (_formKey.currentState!.validate()) {
+                                            String finalSupplierName = _supplierController.text.trim();
+                                            
+                                            if (finalSupplierName.isNotEmpty) {
+                                                _addNewMedicine(_name.trim(), _amount, finalSupplierName, _contact.trim());
+                                            }
+                                        }
+                                    },
+                                ),
+                            ],
+                        );
+                    },
                 );
             },
-        );
+        ).then((_) {
+            // Dispose the controller once the dialog is closed for any reason
+            _supplierController.dispose();
+        });
     }
 
-    // --- SUBMISSION LOGIC (UNCHANGED) ---
+    // --- SUBMISSION LOGIC (MODIFIED to read directly from map) ---
     
-    // FUNCTION MODIFIED: Combines items from BOTH lists and formats the payload for NEW items
 void _submitPurchaseRequest() async {
     // ... (rest of the initial setup code)
     
@@ -484,6 +546,10 @@ void _submitPurchaseRequest() async {
         // Only include items with a restock amount > 0
         if (restockAmount > 0) {
             
+            // NEW: Read supplier and contact directly from the map, as fields are no longer editable TextFormFields
+            final String currentSupplierName = item['supplier_name'] as String;
+            final String currentContactNum = item['contact_num'] as String;
+
             // 2. Handle Medicine ID: Convert temporary negative ID (for new items) to null.
             // Temporary negative IDs (e.g., -1, -2) are used for frontend management only.
             final dynamic medicineId = item['medicine_id'] is int && item['medicine_id'] < 0
@@ -498,15 +564,14 @@ void _submitPurchaseRequest() async {
                 // 3. CORRECT SNAPSHOT MAPPING for Django Serializer
                 'medicine_name_snapshot': item['medicine_name'], 
                 'units_per_item': item['units_per_items'].toString(), // Ensures it's a string
-                'supplier_name_snapshot': item['supplier_name'], 
-                'supplier_contact_num_snapshot': item['contact_num'] ?? '', // Handles null contact gracefully
+                'supplier_name_snapshot': currentSupplierName, // USE VALUE FROM MAP
+                'supplier_contact_num_snapshot': currentContactNum, // USE VALUE FROM MAP
             });
         }
     }
 
-    // --- 2. Process Low Stock Items (The existing code in your file) ---
-    for (var item in _lowStockItems) { // This loop should follow the one above
-        // ... (Your existing logic for low stock items)
+    // --- 2. Process Low Stock Items (UNCHANGED) ---
+    for (var item in _lowStockItems) { 
         final int suggestedRestockAmount = item['restock_amount'] ?? 0;
         final dynamic lowStockMedicineKey = item['medicine_id'];
         
@@ -597,9 +662,17 @@ void _submitPurchaseRequest() async {
     Future<void> _generateAndSavePdf() async {
         // Use combined data for PDF generation if needed
         final List<Map<String, dynamic>> finalPurchaseRequests = _editablePurchaseRequests.map((item) {
+             // Retrieve the latest values from controllers for the PDF
+             final restockAmount = int.tryParse((item['controller'] as TextEditingController).text) ?? 0;
+             // Read directly from the map
+             final supplierName = item['supplier_name'] as String;
+             final contactNum = item['contact_num'] as String;
+             
              return {
                 ...item,
-                'restock_amount': int.tryParse((item['controller'] as TextEditingController).text) ?? 0, 
+                'restock_amount': restockAmount,
+                'supplier_name': supplierName,
+                'contact_num': contactNum,
              };
         }).toList();
 
@@ -683,7 +756,7 @@ void _submitPurchaseRequest() async {
         );
     }
 
-    // WIDGET: Purchase Items Table (Editable)
+    // WIDGET: Purchase Items Table (Editable) - MODIFIED FOR READ-ONLY SUPPLIER/CONTACT
     Widget _buildPurchaseTable() {
         if (_editablePurchaseRequests.isEmpty) {
             return const Center(
@@ -708,21 +781,17 @@ void _submitPurchaseRequest() async {
                 columns: const [
                     DataColumn(label: Text('No.')),
                     DataColumn(label: Text('Medicine')),
-                    DataColumn(label: Text('Restock Amt (Edit)')),
+                    DataColumn(label: Text('Restock Amount')),
                     DataColumn(label: Text('Units/Item')), 
-                    DataColumn(label: Text('Supplier')),
-                    DataColumn(label: Text('Contact No.')),
-                    DataColumn(label: Text('Action')), 
+                    DataColumn(label: Text('Supplier')), 
+                    DataColumn(label: Text('Contact No.')), 
+                    DataColumn(label: Text('Remove')), 
                 ],
                 rows: _editablePurchaseRequests.asMap().entries.map<DataRow>((entry) { 
                     final index = entry.key;
                     final item = entry.value;
                     final controller = item['controller'] as TextEditingController;
-
-                    // REMOVED: Green highlight logic to use default white/alternating background
-                    // final isNew = item['is_new'] ?? false;
-                    // final rowColor = isNew ? MaterialStateProperty.all(Colors.lightGreen.shade50) : null;
-
+                    // Removed: supplierController and contactController 
 
                     return DataRow(
                         color: null, // Always null (default white/alternating color)
@@ -747,8 +816,10 @@ void _submitPurchaseRequest() async {
                                 ),
                             ),
                             DataCell(Text(item['units_per_items'].toString())),
-                            DataCell(Text(item['supplier_name'])),
-                            DataCell(Text(item['contact_num'])),
+                            // NEW: Read-Only Supplier Name Field
+                            DataCell(Text(item['supplier_name'].toString())),
+                            // NEW: Read-Only Contact No. Field
+                            DataCell(Text(item['contact_num'].toString())),
                             DataCell( // <--- ACTION CELL
                                 IconButton(
                                     icon: const Icon(Icons.delete_forever, color: Colors.red),
@@ -762,7 +833,7 @@ void _submitPurchaseRequest() async {
         );
     }
     
-    // WIDGET: Low Stock Table (Read-Only)
+    // WIDGET: Low Stock Table (Read-Only) (UNCHANGED)
     Widget _buildLowStockTable() {
         if (_lowStockItems.isEmpty) {
             return const Center(
