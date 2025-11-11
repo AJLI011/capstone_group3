@@ -9,7 +9,7 @@ import 'package:flutter_ui/services/responsive_scale2.dart';
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.1.8:8000/',
+  defaultValue: '10.0.2.2:8000/',
 );
 
 // InventoryResponse and InventoryApiService definitions (unchanged)

@@ -100,7 +100,7 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
     setState(() {
       _isLoading = true;
     });
-    const String url = 'http://192.168.1.8:8000/api/medicines/expiring-soon/';
+    const String url = '10.0.2.2:8000/api/medicines/expiring-soon/';
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
@@ -145,7 +145,7 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
       return;
     }
 
-    final url = Uri.parse('http://192.168.1.8:8000/api/inventory/$inventoryId/set-promo/');
+    final url = Uri.parse('10.0.2.2:8000/api/inventory/$inventoryId/set-promo/');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -195,7 +195,7 @@ class _PromoMedicinePageState extends State<PromoMedicinePage> {
       return;
     }
 
-    final url = Uri.parse('http://192.168.1.8:8000/api/inventory/remove-promo/');
+    final url = Uri.parse('10.0.2.2:8000/api/inventory/remove-promo/');
     try {
       final response = await http.post(
         url,

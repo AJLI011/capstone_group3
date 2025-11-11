@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 // NEW: API base URL is now a constant defined using --dart-define.
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.1.8:8000/',
+  defaultValue: '10.0.2.2:8000/',
 );
 
 // ===================== MODEL: BatchDetail =====================
