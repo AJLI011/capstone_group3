@@ -8,7 +8,7 @@ import 'dart:convert';
 
 const String _apiUrlBase = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.1.8:8000',
+  defaultValue: 'http://192.168.1.12:8000',
 );
 const Color _primaryColor = Color.fromARGB(255, 10, 84, 182);
 

@@ -7,7 +7,7 @@ import 'medicine_detail_page.dart';
 // NEW: API base URL constant for consistent API calls.
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.1.8:8000/',
+  defaultValue: 'http://192.168.1.12:8000/',
 );
 
 class Medicine {
