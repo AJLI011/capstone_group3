@@ -9,7 +9,7 @@ import '../../manager_features/medicines_list/add_medicines_list.dart';// This f
 class NewMedicinePrItem {
   final int id;
   final String medicineNameSnapshot;
-  final int restockAmount;
+  final int restockAmount; // <-- CRITICAL PARAMETER
   final String supplierNameSnapshot;
   final bool isSupplierRegistered;
   final bool isClickable;
@@ -65,56 +65,74 @@ class _NewMedicinePrScreenState extends State<NewMedicinePrScreen> {
   }
 
   // --- API CALL TO FETCH ITEMS ---
+  // --- API CALL TO FETCH ITEMS (Updated with Null Safety) ---
   Future<List<NewMedicinePrItem>> _fetchNewMedicineItems() async {
     try {
       final response = await http.get(Uri.parse(_apiUrl));
 
       if (response.statusCode == 200) {
+        // Handle the case where the body is empty or malformed defensively
         final Map<String, dynamic> data = json.decode(response.body);
-        final List itemsJson = data['items'];
+
+        // 🎯 FIX APPLIED HERE: Safely cast data['items'] and provide [] as fallback
+        final List itemsJson = (data['items'] as List<dynamic>?) ?? [];
         
         return itemsJson.map((json) => NewMedicinePrItem.fromJson(json)).toList();
       } else if (response.statusCode == 404) {
-        // Handle no pending PR found
+        // Handle no pending PR found (although 200 with empty list is better)
         return [];
       } else {
         throw Exception('Failed to load items. Status code: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Failed to connect to API: $e');
+      // Improve error message to show the original error type
+      throw Exception('Failed to connect to API or parse data: $e');
     }
   }
 
-  // --- ITEM TAP HANDLER ---
+  // --- ITEM TAP HANDLER (MODIFIED) ---
   void _onItemTap(NewMedicinePrItem item) async {
     if (item.isClickable) {
       // Navigate to the "Add New Medicine" screen
       
       final result = await Navigator.of(context).push(
         MaterialPageRoute(
-          // FIX 1: Use the correct class name: AddMedicineScreen
           builder: (context) => AddMedicineScreen( 
             prItemId: item.id,
             initialName: item.medicineNameSnapshot,
-            // We removed initialSupplierName, so we don't pass it here.
+            restockAmount: item.restockAmount, // <--- NEW: Pass the restock amount
           ),
         ),
       );
       
-      // FIX 2: Check if the result is an integer (the new medicine ID)
-      if (result is int) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Medicine "${item.medicineNameSnapshot}" successfully onboarded and linked!')),
-          );
-        }
-        // Refresh the list to remove the processed item
+      // The AddMedicineScreen now uses pushReplacement to navigate 
+      // directly to RestockDetailsPage upon success.
+      // Therefore, the result here will be what RestockDetailsPage returns, 
+      // or null if the user simply navigated back.
+      
+      // Since the successful flow jumps past this screen, 
+      // we only need to handle the case where the user pops back (result is null or false)
+      // or where the RestockDetailsPage confirms completion.
+      
+      // If the successful flow is completed (up to RestockDetailsPage), 
+      // AddMedicineScreen will have already refreshed the list implicitly by navigating away.
+      
+      // We check if a successful refresh/change signal was passed back (e.g., a boolean true)
+      if (result == true) { 
+        // This handles a clean return from the Restock flow 
+        // (if RestockDetailsPage pops back to this screen)
         _refreshList(); 
-        
-        // Return true to the previous screen (RestockMenuScreen) so it can refresh its PR status
-        // We can pass a boolean back here as confirmation to the parent screen.
-        Navigator.of(context).pop(true); 
+        if (mounted) {
+           // Optionally, pop back to the main menu if the restock flow is complete
+           // Navigator.of(context).pop(true); // Uncomment if you want to pop to the RestockMenuScreen
+        }
+      } else if (result != null) {
+          // If the result is an unexpected value but not null, refresh anyway.
+          _refreshList();
       }
+      
+      // NOTE: The previous logic checking for 'result is int' is now handled 
+      // inside AddMedicineScreen via pushReplacement to RestockDetailsPage.
 
     } else {
       // If not clickable, show the reason (supplier not registered)
@@ -128,7 +146,7 @@ class _NewMedicinePrScreenState extends State<NewMedicinePrScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Medicine Requests'),
+        title: const Text('New Purchased Items'),
         backgroundColor: const Color(0xFF5C7C9A), // Consistent color with menu
         foregroundColor: Colors.white,
         actions: [

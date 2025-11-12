@@ -11,8 +11,9 @@ const String API_BASE = String.fromEnvironment(
   defaultValue: 'http://10.0.2.2:8000/',
 );
 
-// ===================== MODEL: BatchDetail =====================
+// ===================== MODEL: BatchDetail (UPDATED) =====================
 class BatchDetail {
+  final int id; // The Inventory Primary Key (CRITICAL for deduction API)
   final String batchNumber;
   final String expirationDate;
   final int quantity;
@@ -24,6 +25,7 @@ class BatchDetail {
   final String? promoEndDate;
 
   BatchDetail({
+    required this.id, // Must be added here
     required this.batchNumber,
     required this.expirationDate,
     required this.quantity,
@@ -37,6 +39,7 @@ class BatchDetail {
 
   factory BatchDetail.fromJson(Map<String, dynamic> json) {
     return BatchDetail(
+      id: json['id'] ?? 0, // Must be parsed from the backend response
       batchNumber: json['batch_num'] ?? '',
       expirationDate: json['exp_date'] ?? '',
       quantity: json['quantity'] ?? 0,

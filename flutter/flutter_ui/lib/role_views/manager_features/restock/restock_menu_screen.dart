@@ -3,7 +3,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'restock_barcode.dart'; 
 import 'restock_approval_detail_screen.dart'; 
-// --- NEW IMPORT ---
 import 'new_medicine_pr_screen.dart'; // Import the new screen for unlisted items
 
 
@@ -28,7 +27,7 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
     _fetchLatestPendingPrId(); 
   }
 
-  // --- NEW: Function to Fetch the Latest Pending PR ID ---
+  // --- Function to Fetch the Latest Pending PR ID ---
   Future<void> _fetchLatestPendingPrId() async {
     setState(() {
       _isLoading = true;
@@ -43,10 +42,12 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
-        final int? fetchedId = data['id'];
+        // Safely extract the ID, defaulting to null if not present or zero
+        final int? fetchedId = data['id']; 
         
         setState(() {
-          _pendingPrId = fetchedId; // Will be null if Django returns {id: null} or {}
+          // Only set the ID if it's a positive number
+          _pendingPrId = (fetchedId != null && fetchedId > 0) ? fetchedId : null; 
           _isLoading = false;
         });
       } else if (response.statusCode == 404) {
@@ -115,7 +116,6 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
                 icon: const Icon(Icons.qr_code_scanner, size: 28),
                 label: const Text(
                   'Scan Barcode',
-                  // --- MODIFIED FONT SIZE ---
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold), 
                 ),
                 style: ElevatedButton.styleFrom(
@@ -134,6 +134,8 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
                   );
                   
                   if (result == true && context.mounted) {
+                    // Assuming returning 'true' means a successful restock
+                    // and should lead back to the previous main screen.
                     Navigator.of(context).pop(true);
                   }
                 },
@@ -149,7 +151,6 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
                     : const Icon(Icons.note_alt, size: 28),
                 label: Text(
                   approvalButtonLabel, // Use dynamic label
-                  // --- MODIFIED FONT SIZE ---
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
@@ -178,7 +179,7 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
               
               const SizedBox(height: 30), // Spacing for the new button
 
-              // --- 3. NEW: New Medicine Purchase Request Button (Unlisted Items) ---
+              // --- 3. New Medicine Purchase Request Button (Unlisted Items) ---
               ElevatedButton.icon(
                 icon: const Icon(Icons.local_shipping, size: 28),
                 label: const Text(
@@ -186,14 +187,14 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor, // Use a distinct color for clarity
+                  backgroundColor: primaryColor, 
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 25),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-                // This button should be enabled if a PR is available.
+                // Enable only if a pending PR is available
                 onPressed: (isPrAvailable && !_isLoading && _errorMessage == null)
                     ? () {
                           // Navigate to the new screen to handle unlisted items
@@ -206,7 +207,7 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
                               if (result == true) {
                                 _fetchLatestPendingPrId();
                               }
-                          });
+                            });
                         }
                     : null, // Disable if no pending PR is available
               ),

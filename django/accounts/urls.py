@@ -9,7 +9,7 @@ from .views import (
     get_customer_medicine_detail,InStoreSalesReportView,OnlineSalesReportView, LatestForecastReportView, MedicineSalesHistoryView, 
     OrderLogsListView, UnaddressedExpiringStockView, MedicineForecastByNameView, # PurchaseRequestListView REMOVED
     PurchaseRequestView, MedicineListView, RestockListView, PurchaseRequestApproveView, LatestPendingPurchaseRequestView, 
-    NewMedicinePurchaseRequestView, LinkPurchaseRequestItemToMedicineView,
+    NewMedicinePurchaseRequestView, LinkPurchaseRequestItemToMedicineView, MedicineCreateView,
     
 )
 from .views import get_comprehensive_transaction_report
@@ -190,4 +190,5 @@ urlpatterns = [
    #NEW 11/12/25 New Item Purchase request
     path('restock/purchase-request/new-medicines/', NewMedicinePurchaseRequestView.as_view(), name='new-medicine-pr-list'),
     path('restock/purchase-request/link-new-medicine/<int:item_id>/', LinkPurchaseRequestItemToMedicineView.as_view(), name='link-new-medicine-to-pr-item'),
+    path('medicine/create/', MedicineCreateView.as_view(), name='medicine-create'),
 ]

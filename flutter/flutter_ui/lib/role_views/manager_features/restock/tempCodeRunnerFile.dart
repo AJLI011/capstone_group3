@@ -92,7 +92,7 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
   // 🎯 NEW: Function to fetch details via API
   Future<Map<String, dynamic>?> _fetchMedicineDetails(int id) async {
     // IMPORTANT: Ensure your backend has an endpoint for fetching a single medicine by ID
-    final url = Uri.parse('${API_BASE}api/medicines/$id/'); 
+    final url = Uri.parse('${API_BASE}api/medicine/$id/'); 
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -207,7 +207,6 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
       'exp_date': _expirationDateController.text,
       'quantity': int.parse(_quantityController.text),
       'staff_id': staffId,
-      'pr_item_id': widget.medicineId != null ? widget.medicineId : null,
     };
 
     final url = Uri.parse('${API_BASE}api/inventory/add/');
