@@ -1,16 +1,37 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-// Import BatchDetail for consistency (This is correct)
+import 'package:shared_preferences/shared_preferences.dart'; 
 import 'inventory_detail_screen.dart'; 
+// Ensure 'inventory_detail_screen.dart' defines BatchDetail
 
-// MODIFIED: API_BASE now only contains host:port without any protocol (http/https).
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
   defaultValue: '192.168.1.12:8000/', 
 );
 
-// --- NEW: REASON DEFINITION ---
+// ===================== STAFF ID RETRIEVAL (CORRECTED) =====================
+Future<int?> getManagerStaffId() async {
+  try {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    
+    // 🛑 CORRECTED: Looking for 'staff_id' (lowercase, underscore) as used in your ManagerView.
+    final int? staffId = prefs.getInt('staff_id'); 
+    
+    if (staffId == null) {
+      print('Error: Staff ID not found in Shared Preferences.');
+    }
+    return staffId;
+
+  } catch (e) {
+    print('Error accessing Shared Preferences: $e');
+    return null;
+  }
+}
+// =======================================================================================
+
+
+// --- REASON DEFINITION ---
 class DeductionReason {
   final String key;
   final String label;
@@ -19,7 +40,6 @@ class DeductionReason {
   DeductionReason(this.key, this.label, this.icon);
 }
 
-// List of common deduction reasons
 final List<DeductionReason> _commonReasons = [
   DeductionReason('missing', 'Lost/Missing Stock', Icons.search_off),
   DeductionReason('damage', 'Damaged in Transit/Storage', Icons.broken_image),
@@ -29,8 +49,7 @@ final List<DeductionReason> _commonReasons = [
 // -----------------------------
 
 
-// ===================== SERVICE: API Calls (Deduction only) =====================
-// Defining the service function required by this screen
+// ===================== SERVICE: API Calls (UPDATED) =====================
 class InventoryApiService {
   static const String deductBatchStockPath = 'api/inventory/deduct-batch-stock/';
 
@@ -38,42 +57,40 @@ class InventoryApiService {
     required String batchNumber, 
     required int quantity, 
     required String reason, 
+    required int staffId, // 1. ADDED staffId PARAMETER
   }) async {
     if (quantity <= 0) {
       throw Exception('Deduction quantity must be greater than zero.'); 
     }
     
-    // Ensure a reason is provided
     if (reason.trim().isEmpty) {
       throw Exception('A deduction reason is required.');
     }
 
     try {
-      // Correct URL construction: 'http://' + '192.168.1.12:8000/' + 'api/...'
       final url = 'http://$API_BASE$deductBatchStockPath'; 
       final response = await http.post(
         Uri.parse(url),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
-          // Authorization headers would go here in a real app
+          // No Authorization header, as per your constraint
         },
         body: jsonEncode(<String, dynamic>{
           'batch_number': batchNumber, 
           'quantity': quantity,
           'reason': reason,
+          'staff_id': staffId, // 2. SEND staff_id IN BODY
         }),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print('✅ Batch stock deduction successful for Batch $batchNumber');
+        print('Batch stock deduction successful for Batch $batchNumber');
       } else {
         final errorData = json.decode(response.body);
-        // Extract a specific error message if available, otherwise use the status code
         final errorMessage = errorData['detail'] ?? errorData['error'] ?? 'Unknown deduction error.';
         throw Exception('Failed to deduct batch stock: ${response.statusCode}. Detail: $errorMessage');
       }
     } catch (e) {
-      // Ensure the error message is clean for the user
       final cleanError = e.toString().contains(':') ? e.toString().split(':').last.trim() : e.toString();
       throw Exception('Network or processing error during batch stock deduction: $cleanError');
     }
@@ -81,9 +98,8 @@ class InventoryApiService {
 }
 
 
-// ===================== UI: Deduction Screen =====================
+// ===================== UI: Deduction Screen (UPDATED) =====================
 class DeductionScreen extends StatefulWidget {
-  // BatchDetail is available because of the import
   final BatchDetail batch; 
 
   const DeductionScreen({super.key, required this.batch});
@@ -99,7 +115,6 @@ class _DeductionScreenState extends State<DeductionScreen> {
   bool _isProcessing = false;
   late final TextEditingController _quantityController;
 
-  // NEW: State variable to hold the selected radio button reason key
   String? _selectedReason = _commonReasons.first.key; 
 
 
@@ -119,9 +134,7 @@ class _DeductionScreenState extends State<DeductionScreen> {
     super.dispose();
   }
   
-  // Logic to handle user typing in the text field
   void _onQuantityTextChange() {
-    // ... (rest of quantity logic remains the same)
     final text = _quantityController.text;
     final int? newQty = int.tryParse(text);
 
@@ -158,69 +171,52 @@ class _DeductionScreenState extends State<DeductionScreen> {
       });
     }
   }
-  
-  Future<void> _submitDeduction() async {
-    // 1. Manually trigger form validation first
-    if (!_formKey.currentState!.validate()) {
-      return; 
-    }
-    
-    // 2. Determine the reason string to send to the API
-    String finalReason = '';
-    final selectedKey = _selectedReason;
-    final otherReasonText = _reasonController.text.trim();
 
-    if (selectedKey != null) {
-      final selectedReasonObj = _commonReasons.firstWhere((r) => r.key == selectedKey);
-      
-      if (selectedKey == 'other') {
-        // Use the text from the input field if 'Other' is selected
-        finalReason = otherReasonText;
-      } else {
-        // Use the label of the selected radio button
-        finalReason = selectedReasonObj.label;
-      }
-    }
-    
-    // Safety check (should be caught by validation, but good to have)
-    if (finalReason.isEmpty) {
-       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-        content: const Text('❌ Please select a reason or specify one in the text box.'),
-        backgroundColor: Colors.red,
-          ),
-        );
-      return;
-    }
-
-
+  Future<void> _executeDeduction({
+    required int quantity,
+    required String finalReason,
+  }) async {
     if (_isProcessing) return;
     
+    // 3. FETCH STAFF ID USING SHARED PREFERENCES (Now using the correct key 'staff_id')
+    final int? staffId = await getManagerStaffId();
+    
+    if (staffId == null) {
+      // The error message you saw, but now it should only appear if the user is truly not logged in.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Deduction Failed: Staff ID not available. Please log in.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    // 3. END FETCH STAFF ID
+
     setState(() {
       _isProcessing = true;
     });
 
     try {
-      final int quantity = int.parse(_quantityController.text);
-
       await InventoryApiService.deductBatchStock(
         batchNumber: widget.batch.batchNumber,
         quantity: quantity,
-        reason: finalReason, // Use the determined reason
+        reason: finalReason, 
+        staffId: staffId, // 4. PASS STAFF ID TO SERVICE
       );
       
-      // Success: Show confirmation and return 'true' to the previous screen (InventoryDetailScreen)
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✅ Successfully deducted $quantity units (${finalReason}) from Batch ${widget.batch.batchNumber}.'),
+          content: Text('Successfully deducted $quantity units ($finalReason) from Batch ${widget.batch.batchNumber}.'),
         ),
       );
-      Navigator.pop(context, true); // Return true to trigger refresh
+      // Navigate back and pass 'true' to indicate success/refresh needed
+      Navigator.pop(context, true); 
 
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('❌ Deduction Failed: ${e.toString().split(':').last.trim()}'),
+          content: Text('Deduction Failed: ${e.toString().split(':').last.trim()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -230,11 +226,76 @@ class _DeductionScreenState extends State<DeductionScreen> {
       });
     }
   }
+  
+  Future<void> _submitDeduction() async {
+    if (!_formKey.currentState!.validate()) {
+      return; 
+    }
+    
+    String finalReason = '';
+    final selectedKey = _selectedReason;
+    final otherReasonText = _reasonController.text.trim();
+    final int quantity = int.parse(_quantityController.text);
+
+    if (selectedKey != null) {
+      final selectedReasonObj = _commonReasons.firstWhere((r) => r.key == selectedKey);
+      
+      if (selectedKey == 'other') {
+        finalReason = otherReasonText;
+      } else {
+        finalReason = selectedReasonObj.label;
+      }
+    }
+    
+    if (finalReason.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+        content: const Text('Please select a reason or specify one in the text box.'),
+        backgroundColor: Colors.red,
+          ),
+        );
+      return;
+    }
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Confirm Stock Deduction'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('You are about to deduct **$quantity** unit/s of **${widget.batch.name}**.', style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              Text('Reason: $finalReason'),
+              const SizedBox(height: 15),
+              const Text('Are you sure you want to proceed? This action cannot be undone.'),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false), 
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true), 
+              style: TextButton.styleFrom(foregroundColor: Colors.red.shade700),
+              child: const Text('Deduct Stock'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      _executeDeduction(quantity: quantity, finalReason: finalReason);
+    }
+  }
 
 
   @override
   Widget build(BuildContext context) {
-    // Determine if the 'Other Reason' text field should be visible
     final bool isOtherSelected = _selectedReason == 'other';
     
     return Scaffold(
@@ -267,8 +328,7 @@ class _DeductionScreenState extends State<DeductionScreen> {
                       _buildInfoRow('Batch Number', widget.batch.batchNumber),
                       _buildInfoRow('Expiration Date', widget.batch.expirationDate),
                       _buildInfoRow('Available Stock', widget.batch.quantity.toString(), 
-                        // This style is for the VALUE, not the title
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
                     ],
                   ),
                 ),
@@ -325,11 +385,10 @@ class _DeductionScreenState extends State<DeductionScreen> {
               
               const SizedBox(height: 30),
 
-              // --- NEW: REASON RADIO BUTTONS ---
+              // --- REASON RADIO BUTTONS ---
               const Text('Reason for Deduction', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 10),
               
-              // Map the list of reasons to custom radio list tiles
               ..._commonReasons.map((reason) {
                 return _buildReasonRadioListTile(reason, isOtherSelected);
               }).toList(),
@@ -347,7 +406,6 @@ class _DeductionScreenState extends State<DeductionScreen> {
                     border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
                   ),
                   validator: (value) {
-                    // Only validate if 'Other' is selected
                     if (isOtherSelected && (value == null || value.trim().isEmpty)) {
                       return 'Please provide a detailed reason when "Other Reason" is selected.';
                     }
@@ -383,11 +441,7 @@ class _DeductionScreenState extends State<DeductionScreen> {
     );
   }
   
-  // NEW: Helper Widget for Radio Buttons with Icons
   Widget _buildReasonRadioListTile(DeductionReason reason, bool isOtherSelected) {
-    // Disable text field for non-'other' reasons to prevent double entry
-    final bool enableTextField = reason.key == 'other'; 
-    
     return RadioListTile<String>(
       title: Row(
         children: [
@@ -401,7 +455,6 @@ class _DeductionScreenState extends State<DeductionScreen> {
       onChanged: (String? value) {
         setState(() {
           _selectedReason = value;
-          // Clear text field when selecting a pre-set reason
           if (value != 'other') {
             _reasonController.clear();
           }
@@ -413,7 +466,6 @@ class _DeductionScreenState extends State<DeductionScreen> {
     );
   }
   
-  // Helper widget for rendering info rows
   Widget _buildInfoRow(String title, String value, {TextStyle? style}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -427,7 +479,6 @@ class _DeductionScreenState extends State<DeductionScreen> {
     );
   }
   
-  // Helper widget for quantity buttons
   Widget _buildQuantityButton({
     required IconData icon, 
     required VoidCallback onPressed, 

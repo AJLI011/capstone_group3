@@ -17,7 +17,7 @@ import 'staff_features/prescription/prescription_staff.dart';
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.1.12:8000/',
+  defaultValue: 'http://10.0.2.2:8000/',
 );
 
 class StaffView extends StatefulWidget {
@@ -402,16 +402,6 @@ class _StaffViewState extends State<StaffView>
           textColor: Colors.white,
           scale: scale, // PASS SCALE
         ),
-        // REMOVED: The Total Earnings card is removed here
-        // SizedBox(height: 16 * scale), // SCALED
-        // _buildSummaryCard(
-        //   title: 'Total Earnings',
-        //   value: '₱${totalEarnings.toStringAsFixed(2)}',
-        //   icon: Icons.attach_money_outlined,
-        //   color: Colors.green.shade700,
-        //   textColor: Colors.white,
-        //   scale: scale, // PASS SCALE
-        // ),
       ],
     );
   }

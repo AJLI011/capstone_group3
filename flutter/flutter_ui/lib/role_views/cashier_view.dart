@@ -21,7 +21,7 @@ import 'cashier_features/prescription/prescription_cashier.dart';
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.1.12:8000/',
+  defaultValue: 'http://10.0.2.2:8000/',
 );
 
 class CashierView extends StatefulWidget {
@@ -384,14 +384,6 @@ class _CashierViewState extends State<CashierView>
           scale: scale, // PASS SCALE
         ),
         SizedBox(height: 16 * scale), // SCALED
-        _buildSummaryCard(
-          title: 'Total Earnings',
-          value: '₱${totalEarnings.toStringAsFixed(2)}',
-          icon: Icons.attach_money_outlined,
-          color: Colors.green.shade700,
-          textColor: Colors.white,
-          scale: scale, // PASS SCALE
-        ),
       ],
     );
   }

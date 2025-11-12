@@ -140,8 +140,16 @@ from django.db import transaction
 from django.db.models import F, Sum
 from .models import Inventory # Ensure Inventory model is imported
 
+from django.db import transaction
+from django.db.models import F
+from django.core.exceptions import ObjectDoesNotExist
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
+
 
 # ─────────── REGISTRATION ───────────
 
@@ -4438,68 +4446,100 @@ class LatestPendingPurchaseRequestView(APIView):
 @api_view(['POST'])
 def deduct_batch_stock(request):
     """
-    Handles the deduction of stock from a specific inventory batch.
-    Requires: 'batch_number' and 'quantity' in POST body.
+    Handles stock deduction and logging by explicitly accepting staff_id 
+    in the request body to identify the staff user (Manager/Staff).
     """
+    # 1. Get Data from Request (Including NEW staff_id field)
     batch_number = request.data.get('batch_number')
     quantity_str = request.data.get('quantity')
-    # Reason is currently ignored on the backend as per your simplified request.
+    reason = request.data.get('reason')
+    staff_id_str = request.data.get('staff_id') 
 
     # --- 1. Basic Validation ---
-    if not batch_number or not quantity_str:
+    if not all([batch_number, quantity_str, reason, staff_id_str]):
         return Response(
-            {'detail': 'Missing required fields: batch_number or quantity.'},
+            {"error": "Missing required fields: batch_number, quantity, reason, or staff_id."}, 
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    # Convert quantity
     try:
         quantity_to_deduct = int(quantity_str)
         if quantity_to_deduct <= 0:
-            return Response(
-                {'detail': 'Quantity must be a positive number.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-    except ValueError:
-        return Response(
-            {'detail': 'Quantity must be a valid integer.'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+            raise ValueError
+    except (ValueError, TypeError):
+        return Response({"error": "Quantity must be a positive integer."}, status=status.HTTP_400_BAD_REQUEST)
+        
+    # Convert staff_id
+    try:
+        staff_id = int(staff_id_str)
+    except (ValueError, TypeError):
+        return Response({"error": "Staff ID must be a valid integer."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # --- 2. Database Transaction and Lock ---
+    # --- 2. Start Atomic Transaction (All-or-Nothing) ---
     try:
         with transaction.atomic():
-            # Get the Inventory batch, using select_for_update() for concurrency safety.
-            inventory_batch = Inventory.objects.select_for_update().get(batch_num=batch_number)
-            
-            # --- 3. Stock Level Validation ---
-            if inventory_batch.quantity < quantity_to_deduct:
-                return Response(
-                    {'detail': f'Deduction quantity ({quantity_to_deduct}) exceeds available stock ({inventory_batch.quantity}) in Batch {batch_number}.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            # Find the Batch and lock it for safety
+            batch = Inventory.objects.select_for_update().select_related('medicine').get(batch_num=batch_number)
 
-            # --- 4. Stock Update ---
-            # Use F() expression for safe, atomic update on the database level
-            inventory_batch.quantity = F('quantity') - quantity_to_deduct
-            inventory_batch.save(update_fields=['quantity'])
-            
-            # Retrieve the newly saved object to return the updated quantity
-            inventory_batch.refresh_from_db() 
+            # Check Stock
+            if batch.quantity < quantity_to_deduct:
+                return Response({"error": f"Deduction quantity ({quantity_to_deduct}) exceeds available stock ({batch.quantity}) in Batch {batch_number}."}, status=status.HTTP_400_BAD_REQUEST)
 
-            return Response(
-                {'detail': 'Stock deduction successful.', 'new_quantity': inventory_batch.quantity},
-                status=status.HTTP_200_OK
+            # --- A. RETRIEVE STAFF USER DETAILS FOR LOGGING ---
+            staff_object = None # The Staff model instance
+            # The InventoryLog model expects a ForeignKey to the standard User model, 
+            # but since we don't have that link, we will set this to None
+            linked_user_fk = None 
+            
+            staff_name_log = f"[Staff ID: {staff_id} - Details Missing]"
+            staff_role_log = "[Role Unknown]"
+            
+            try:
+                # Retrieve the Staff object using the ID passed from the UI
+                # We use your provided model name: Staff
+                staff_object = Staff.objects.get(id=staff_id)
+                
+                # Get snapshot fields
+                staff_name_log = staff_object.name
+                staff_role_log = staff_object.role
+                
+                # NOTE: If your InventoryLog 'user' field is a ForeignKey to Django's Auth User,
+                # and your Staff model IS NOT the Auth User, this FK will be NULL.
+                # If your Staff model IS the Auth User (which seems unlikely), use staff_object for 'user'.
+
+            except ObjectDoesNotExist:
+                print(f"Warning: Staff member with ID {staff_id} not found. Proceeding with generic log details.")
+
+            # --- B. CREATE THE INVENTORY LOG ENTRY ---
+            InventoryLog.objects.create(
+                # Use the linked_user_fk (which is likely None or needs to be properly linked if possible)
+                user=linked_user_fk, 
+                
+                # Snapshot fields (set to details if found, or generic strings otherwise)
+                staff_name=staff_name_log, 
+                staff_role=staff_role_log, 
+                
+                medicine=batch.medicine,
+                medicine_name_log=batch.medicine.name,
+                action_type='Delete',
+                description=f"[Deduction: {quantity_to_deduct} units] - {reason}",
             )
 
+            # --- C. DEDUCT THE STOCK FROM THE BATCH ---
+            batch.quantity = F('quantity') - quantity_to_deduct
+            batch.save(update_fields=['quantity'])
+
+            # Retrieve the newly saved object
+            batch.refresh_from_db()
+
+            return Response({
+                "detail": "Stock deducted and logged successfully.",
+                "new_quantity": batch.quantity
+            }, status=status.HTTP_200_OK)
+
     except Inventory.DoesNotExist:
-        return Response(
-            {'detail': f'Inventory Batch with number "{batch_number}" not found.'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({"error": f"Inventory Batch with number '{batch_number}' not found."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        # Catch any other database or server errors
-        print(f"Error during stock deduction: {e}") 
-        return Response(
-            {'detail': 'An internal error occurred during deduction.'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        print(f"Server processing error: {e}") 
+        return Response({"error": f"An internal server error occurred during deduction: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

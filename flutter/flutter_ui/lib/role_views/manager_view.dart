@@ -810,13 +810,23 @@ class _ManagerViewState extends State<ManagerView>
               final location = tz.getLocation('Asia/Manila');
               final tz.TZDateTime manilaTimestamp = tz.TZDateTime.from(utcTimestamp, location);
 
+              // 🛑 FINAL FIX: Retrieve medicine name safely. 
+              // If 'medicine_name_log' is null, default to 'Unknown Medicine'.
+              // We also check for 'medicine_name' as a secondary common key.
+              final String medicineName = (log['medicine_name_log'] as String?)?.isNotEmpty == true 
+                  ? log['medicine_name_log']!.toString() 
+                  : (log['medicine_name'] as String?)?.isNotEmpty == true 
+                    ? log['medicine_name']!.toString() 
+                    : 'Unknown Medicine'; 
+              
               return Card(
                 elevation: 2,
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: const Icon(Icons.history_outlined),
                   title: Text('${log['action_type']} by ${log['user_name']}'),
-                  subtitle: Text(log['description']),
+                  // Use the retrieved medicineName here
+                  subtitle: Text('$medicineName | ${log['description']}'),
                   trailing: Text(DateFormat('hh:mm a').format(manilaTimestamp)),
                 ),
               );
