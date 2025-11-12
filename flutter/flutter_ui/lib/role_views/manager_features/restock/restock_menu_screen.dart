@@ -27,7 +27,7 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
     _fetchLatestPendingPrId(); 
   }
 
-  // --- NEW: Function to Fetch the Latest Pending PR ID ---
+  // --- Function to Fetch the Latest Pending PR ID ---
   Future<void> _fetchLatestPendingPrId() async {
     setState(() {
       _isLoading = true;
@@ -67,6 +67,17 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  // --- NEW: Function to display a Snackbar ---
+  void _showSnackbar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
 
@@ -175,6 +186,30 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
                         }
                     : null, // Disable the button otherwise
               ),
+
+              const SizedBox(height: 30), // Spacing for the new button
+
+              // --- 3. New Purchased Items Button (NEW ADDITION) ---
+              ElevatedButton.icon(
+                icon: const Icon(Icons.local_shipping, size: 28), // Appropriate icon
+                label: const Text(
+                  'New Purchased Items',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold), 
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 25),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                onPressed: () {
+                  // NEW: Show the Snackbar instead of navigating
+                  _showSnackbar('New Purchased Items functionality not yet implemented.');
+                },
+              ),
+
             ],
           ),
         ),
