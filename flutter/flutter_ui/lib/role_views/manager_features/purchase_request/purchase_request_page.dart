@@ -79,7 +79,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
     // --- FETCH LOGIC (UNCHANGED) ---
     
     Future<void> _fetchAllMedicines() async {
-        const String apiUrl = 'http://192.168.1.12:8000/api/medicines/all/';
+        const String apiUrl = 'http://10.0.2.2:8000/api/medicines/all/';
         try {
             final response = await http.get(Uri.parse(apiUrl));
             if (response.statusCode == 200) {
@@ -101,7 +101,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
         });
 
         try {
-            const String lowStockApiUrl = 'http://192.168.1.12:8000/api/medicines/low-stock/';
+            const String lowStockApiUrl = 'http://10.0.2.2:8000/api/medicines/low-stock/';
             final lowStockResponse = await http.get(Uri.parse(lowStockApiUrl));
 
             if (lowStockResponse.statusCode == 200) {
@@ -155,7 +155,7 @@ Future<void> _fetchPurchaseRequests() async {
         await _fetchAllMedicines();
     }
 
-    const String apiUrl = 'http://192.168.1.12:8000/api/purchase-request/';
+    const String apiUrl = 'http://10.0.2.2:8000/api/purchase-request/';
     try {
         final response = await http.get(Uri.parse(apiUrl)); 
 
@@ -639,7 +639,7 @@ void _submitPurchaseRequest() async {
         
         // 4. Send Request
         try {
-            const String apiUrl = 'http://192.168.1.12:8000/api/purchase-request/';
+            const String apiUrl = 'http://10.0.2.2:8000/api/purchase-request/';
             final response = await http.post(
                 Uri.parse(apiUrl),
                 headers: <String, String>{
