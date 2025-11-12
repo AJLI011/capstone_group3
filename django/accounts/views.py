@@ -214,7 +214,7 @@ def forgot_password(request):
     token = str(uuid.uuid4())
     reset_tokens[token] = {'email': email, 'user_type': user_type}
 
-    reset_link = f'http://10.0.2.2:8000/reset-password/{token}/'
+    reset_link = f'http://192.168.1.12:8000/reset-password/{token}/'
 
     subject = 'Reset your password'
     message = f'Click the link below to reset your password:\n\n{reset_link}'
@@ -4267,28 +4267,56 @@ class RestockListView(generics.RetrieveAPIView):
     def get_queryset(self):
         # Prefetching to optimize database queries:
         # Pre-loads PurchaseRequestItem, Medicine, and Supplier data in one go.
+        # *** MODIFICATION START: Filter items where medicine is NOT null ***
+        
+        # We first filter the PurchaseRequest objects to ensure we only get the one requested by the primary key (pk)
+        # and then use prefetch_related to grab only the valid items.
+        
+        # The correct way to filter the *nested* items is to define a custom Prefetch object.
+        from django.db.models import Prefetch
+        
+        # Define the custom queryset to filter PurchaseRequestItem objects
+        valid_items_queryset = PurchaseRequestItem.objects.filter(medicine__isnull=False)
+
         return PurchaseRequest.objects.prefetch_related(
+            # Apply the restriction to the nested 'items'
+            Prefetch('items', queryset=valid_items_queryset), 
+            # Still prefetch the medicine and supplier for the valid items
             'items__medicine', 
             'items__medicine__supplier'
-        ).all()
+        ).filter(pk=self.kwargs['pk']) # Ensure we only get the specific PR requested
     
 
 
 # --- NEW: Purchase Request Approval Logic ---
 class PurchaseRequestApproveView(APIView):
     """
-    Approves a Purchase Request, bulk-creates Inventory batches, 
-    updates TotalQuantity counts, and marks the PR status as 'COMPLETED'.
-    Endpoint: PUT /api/restock/purchase-request/<pr_id>/approve/
+    Approves a Purchase Request, bulk-creates Inventory batches, and logs the action.
+    FIX: Bypasses authentication and uses the staff_id sent in the payload for accurate logging.
     """
     def put(self, request, pr_id, *args, **kwargs):
-        # 1. Get the Purchase Request (CRITICAL)
+        
+        # 0. STAFF ACQUISITION (Using the working logic: fetch staff_id from payload)
+        staff_user = None
+        staff_id = request.data.get('staff_id') # EXPECTED FROM FLUTTER PAYLOAD
+        
+        if not staff_id:
+             return Response({"detail": "Missing 'staff_id' in payload. Cannot log action."}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+        
         try:
-            # Replace PurchaseRequest with your actual model name if different
+            # Get the actual Staff user based on the ID passed in the request body
+            staff_user = Staff.objects.get(id=staff_id) 
+        except Staff.DoesNotExist:
+             return Response({"detail": f"Staff ID {staff_id} not found. Cannot log action."}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+        
+        # 1. Get the Purchase Request
+        try:
             pr = PurchaseRequest.objects.get(id=pr_id) 
         except PurchaseRequest.DoesNotExist:
             return Response({"detail": f"Purchase Request with ID {pr_id} not found."}, 
-                             status=status.HTTP_404_NOT_FOUND)
+                            status=status.HTTP_404_NOT_FOUND)
 
         # 2. Get and Validate Items Payload
         items_data = request.data.get('items', [])
@@ -4296,24 +4324,12 @@ class PurchaseRequestApproveView(APIView):
             return Response({"detail": "No items provided for approval."}, 
                             status=status.HTTP_400_BAD_REQUEST)
 
-        # Use the serializer to validate the bulk list
-        # Replace RestockApprovalItemSerializer with your actual serializer name
         item_serializer = RestockApprovalItemSerializer(data=items_data, many=True)
         if not item_serializer.is_valid():
             return Response(item_serializer.errors, 
                             status=status.HTTP_400_BAD_REQUEST)
 
         validated_items = item_serializer.validated_data
-        
-        # Determine the user performing the restock
-        staff_id = request.data.get('staff_id', 1) 
-        staff_user = None
-        if staff_id:
-            try:
-                # Replace Staff with your actual Staff/User model name
-                staff_user = Staff.objects.get(id=staff_id) 
-            except Staff.DoesNotExist:
-                pass 
         
         # 3. Process in a Database Transaction
         try:
@@ -4327,21 +4343,18 @@ class PurchaseRequestApproveView(APIView):
                     batch_num = item['batch_num']
                     expiry_date = item['expiry_date']
 
-                    # A. Check for unique batch constraint before creation
-                    # Replace Inventory with your actual model name
+                    # A. Check for unique batch constraint
                     if Inventory.objects.filter(medicine_id=medicine_id, batch_num=batch_num).exists():
-                         raise serializers.ValidationError(
+                         raise Exception(
                              f"Batch {batch_num} already exists for Medicine ID {medicine_id}. Must enter a unique batch number."
                          )
                         
                     # B. Create the new Inventory entry
-                    # Replace Inventory with your actual model name
                     new_batch = Inventory(
                         medicine_id=medicine_id,
                         batch_num=batch_num,
                         exp_date=expiry_date,
                         quantity=approved_quantity,
-                        # date_received auto_now_add=True
                     )
                     new_inventory_batches.append(new_batch)
 
@@ -4349,12 +4362,11 @@ class PurchaseRequestApproveView(APIView):
                     total_quantity_updates[medicine_id] = total_quantity_updates.get(medicine_id, 0) + approved_quantity
 
                 # Bulk create all new Inventory objects
-                # Replace Inventory with your actual model name
                 Inventory.objects.bulk_create(new_inventory_batches)
 
-                # D. Update TotalQuantity
+                # D. Update TotalQuantity & E. Restock logging
                 for med_id, qty_to_add in total_quantity_updates.items():
-                    # Replace TotalQuantity with your actual model name
+                    # Update TotalQuantity
                     total_qty_entry, created = TotalQuantity.objects.get_or_create(
                         medicine_id=med_id,
                         defaults={'total_quantity': qty_to_add}
@@ -4363,31 +4375,30 @@ class PurchaseRequestApproveView(APIView):
                         total_qty_entry.total_quantity += qty_to_add
                         total_qty_entry.save(update_fields=['total_quantity'])
                         
-                    # E. Restock logging (if staff user is found)
-                    if staff_user:
-                         # Replace Medicine and InventoryLog with your actual model names
-                         medicine_obj = Medicine.objects.get(id=med_id) 
-                         InventoryLog.objects.create(
-                             user=staff_user,
-                             medicine=medicine_obj,
-                             action_type='Restock PR Approved',
-                             description=f"Approved PR {pr_id}. Total restock: {qty_to_add} units.",
-                             medicine_name_log=medicine_obj.name, 
-                             staff_name=staff_user.name,
-                             staff_role=staff_user.role,
-                         )
+                    # E. Restock logging
+                    medicine_obj = Medicine.objects.get(id=med_id) 
+                    InventoryLog.objects.create(
+                        user=staff_user, 
+                        medicine=medicine_obj,
+                        action_type='Restock PR Approved',
+                        description=f"Approved PR {pr_id}. Total restock: {qty_to_add} units.",
+                        medicine_name_log=medicine_obj.name, 
+                        # CRITICAL: Logs the manager's name and role
+                        staff_name=staff_user.name, 
+                        staff_role=staff_user.role,
+                    )
 
-                # F. Update Purchase Request Status (CRITICAL FIX)
-                pr.status = 'COMPLETED' # Use the final status string defined in your model
+                # F. Update Purchase Request Status
+                pr.status = 'COMPLETED' 
                 pr.approval_date = timezone.now()
-                # Optional: pr.approved_by = staff_user 
                 pr.save(update_fields=['status', 'approval_date']) 
             
             return Response({"detail": "Purchase Request approved and inventory successfully restocked in bulk."}, 
-                             status=status.HTTP_200_OK)
+                            status=status.HTTP_200_OK)
 
         except Exception as e:
-            # Catch exceptions like validation errors or database errors
+            # Catches the error and ensures transaction rollback
+            print(f"Transaction Rollback Error: {e}") 
             return Response({"detail": f"Processing error: {str(e)}"}, 
                             status=status.HTTP_400_BAD_REQUEST)
         

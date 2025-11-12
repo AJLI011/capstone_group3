@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart'; 
+import 'package:shared_preferences/shared_preferences.dart'; 
 
 // Define the common primary color and date formatter
 const Color _primaryColor = Color(0xFF5C7C9A); 
@@ -16,13 +17,10 @@ class RestockItem {
   final String supplierName;
   int restockQuantity; 
   
-  // *** NEW FIELDS for Batch Number ***
   String batchNumber;
   TextEditingController batchController;
-  // **********************************
 
   TextEditingController quantityController;
-  DateTime? manufactureDate; 
   DateTime? expiryDate; 
     
   RestockItem({
@@ -31,17 +29,14 @@ class RestockItem {
     required this.genericName,
     required this.supplierName,
     required this.restockQuantity,
-    this.manufactureDate,
     this.expiryDate,
-    // Initialize new fields
-    this.batchNumber = '', // Default to empty string
+    this.batchNumber = '',
   }) : quantityController = TextEditingController(text: restockQuantity.toString()),
-       batchController = TextEditingController(text: ''); // Start with empty text field
+       batchController = TextEditingController(text: '');
 
   factory RestockItem.fromJson(Map<String, dynamic> json) {
     int quantity = json['restock_quantity'] ?? 0;
     return RestockItem(
-      // Ensure the key 'medicine_id' matches the backend serializer output
       medicineId: json['medicine_id'] ?? 0, 
       medicineName: json['medicine_name'] ?? 'N/A',
       genericName: json['generic_name'] ?? 'N/A',
@@ -64,7 +59,6 @@ class _RestockApprovalDetailScreenState extends State<RestockApprovalDetailScree
   List<RestockItem> _restockItems = [];
   bool _isLoading = true;
   String? _errorMessage;
-  String _prManagerName = 'N/A';
   DateTime? _prRequestDate;
 
   @override
@@ -77,20 +71,33 @@ class _RestockApprovalDetailScreenState extends State<RestockApprovalDetailScree
   void dispose() {
     for (var item in _restockItems) {
       item.quantityController.dispose();
-      item.batchController.dispose(); // Dispose the new controller
+      item.batchController.dispose();
     }
     super.dispose();
   }
+  
+  // 🔑 FIXED: Dynamic Staff ID Retrieval using SharedPreferences
+  Future<int?> _getManagerId() async {
+      try {
+          final SharedPreferences prefs = await SharedPreferences.getInstance();
+          // *** THE CORRECT KEY IS 'staff_id' ***
+          return prefs.getInt('staff_id'); 
+      } catch (e) {
+          debugPrint("Error retrieving staff ID from SharedPreferences: $e");
+          return null;
+      }
+  }
+
 
   // --- API FETCH LOGIC ---
   Future<void> _fetchPrDetails() async {
-    final String apiUrl = 'http://10.0.2.2:8000/api/restock/purchase-request/${widget.prId}/';
+    final String apiUrl = 'http://192.168.1.12:8000/api/restock/purchase-request/${widget.prId}/';
     
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
-
+    
     try {
       final response = await http.get(Uri.parse(apiUrl));
 
@@ -99,7 +106,6 @@ class _RestockApprovalDetailScreenState extends State<RestockApprovalDetailScree
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         
-        _prManagerName = data['manager_name'] ?? 'N/A';
         _prRequestDate = DateTime.tryParse(data['request_date'] ?? '');
         
         List<dynamic> itemsData = data['items'] ?? [];
@@ -123,7 +129,7 @@ class _RestockApprovalDetailScreenState extends State<RestockApprovalDetailScree
     }
   }
 
-  // --- QUANTITY MANAGEMENT LOGIC ---
+  // --- QUANTITY MANAGEMENT LOGIC (No changes) ---
   void _updateQuantity(RestockItem item, int change) {
     setState(() {
       int newQuantity = item.restockQuantity + change;
@@ -134,17 +140,17 @@ class _RestockApprovalDetailScreenState extends State<RestockApprovalDetailScree
     });
   }
 
-  // --- DATE PICKER LOGIC ---
+  // --- DATE PICKER LOGIC (No changes) ---
   Future<void> _selectDate(BuildContext context, RestockItem item, bool isExpiry) async {
     final DateTime? picked = await showDatePicker(
         context: context,
-        initialDate: DateTime.now(),
-        firstDate: DateTime(2000),
+        initialDate: DateTime.now().add(const Duration(days: 1)),
+        firstDate: DateTime.now(),
         lastDate: DateTime(2101),
         builder: (context, child) {
           return Theme(
             data: Theme.of(context).copyWith(
-              colorScheme: ColorScheme.light(
+              colorScheme: const ColorScheme.light(
                 primary: _primaryColor, 
                 onPrimary: Colors.white, 
                 onSurface: Colors.black, 
@@ -158,28 +164,30 @@ class _RestockApprovalDetailScreenState extends State<RestockApprovalDetailScree
       setState(() {
         if (isExpiry) {
           item.expiryDate = picked;
-        } else {
-          item.manufactureDate = picked;
-        }
+        } 
       });
     }
   }
 
-  // --- SUBMIT APPROVAL (UPDATED API CALL with Batch Number) ---
+  // --- SUBMIT APPROVAL (FINAL DYNAMIC IMPLEMENTATION) ---
   void _submitApproval() async {
-    // 1. Basic Validation
+    
+    // 1. DYNAMIC MANAGER ID ACQUISITION (Now using the correct key)
+    final int? currentManagerId = await _getManagerId(); 
+    
+    if (currentManagerId == null || currentManagerId == 0) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: Manager ID is missing from local storage. Please relog.')),
+      );
+      return;
+    }
+
+    // 2. Validation
     bool validationFailed = false;
     for (var item in _restockItems) {
-      // ** NEW VALIDATION: Check Batch Number **
-      if (item.batchController.text.trim().isEmpty) { 
-          validationFailed = true;
-          break;
-      }
-      if (item.restockQuantity <= 0) {
-          validationFailed = true;
-          break;
-      }
-      if (item.manufactureDate == null || item.expiryDate == null) {
+      // Check for quantity > 0, Expiry Date selected, and Batch Number entered
+      if (item.batchController.text.trim().isEmpty || item.restockQuantity <= 0 || item.expiryDate == null) {
           validationFailed = true;
           break;
       }
@@ -188,29 +196,27 @@ class _RestockApprovalDetailScreenState extends State<RestockApprovalDetailScree
     if (validationFailed) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        // UPDATED ERROR MESSAGE
-        const SnackBar(content: Text('Please set a valid quantity (> 0), both Manufacture/Expiry Dates, AND a Batch Number for all items.')),
+        const SnackBar(content: Text('Please set a valid quantity (> 0), an Expiry Date, AND a Batch Number for all items.')),
       );
       return;
     }
 
-    // 2. Prepare Payload
+    // 3. Prepare Payload
     final List<Map<String, dynamic>> itemsPayload = _restockItems.map((item) => {
       'medicine_id': item.medicineId,
       'approved_quantity': item.restockQuantity,
-      // ** NEW FIELD IN PAYLOAD **
       'batch_num': item.batchController.text.trim(), 
-      'manufacture_date': _dateFormat.format(item.manufactureDate!),
       'expiry_date': _dateFormat.format(item.expiryDate!), 
     }).toList();
     
     final approvedPayload = {
+      // Dynamically insert the retrieved ID (which is now guaranteed to exist or the function would have returned)
+      'staff_id': currentManagerId, 
       'items': itemsPayload,
     };
     
-    // 3. API Call
-    // NOTE: We assume the backend uses the 'approve/' suffix for processing the order
-    final String apiUrl = 'http://10.0.2.2:8000/api/restock/purchase-request/${widget.prId}/approve/'; 
+    // 4. API Call
+    final String apiUrl = 'http://192.168.1.12:8000/api/restock/purchase-request/${widget.prId}/approve/'; 
     
     setState(() {
       _isLoading = true;
@@ -229,8 +235,10 @@ class _RestockApprovalDetailScreenState extends State<RestockApprovalDetailScree
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('PR Approved! New batches created in Inventory.')),
         );
-        Navigator.of(context).pop(true); // Pop with true success signal
+        // Pop the screen and indicate success
+        Navigator.of(context).pop(true);
       } else {
+        // Attempt to parse and display a specific error from the backend
         final errorData = json.decode(response.body);
         String message = errorData['detail'] ?? errorData.toString();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -251,7 +259,7 @@ class _RestockApprovalDetailScreenState extends State<RestockApprovalDetailScree
     }
   }
 
-  // --- WIDGET BUILD ---
+  // --- WIDGET BUILD (No changes) ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -271,9 +279,8 @@ class _RestockApprovalDetailScreenState extends State<RestockApprovalDetailScree
                       padding: const EdgeInsets.all(16.0),
                       color: _primaryColor.withOpacity(0.1),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.center, 
                         children: [
-                          Text('Manager: $_prManagerName', style: const TextStyle(fontWeight: FontWeight.bold)),
                           Text('Date: ${_prRequestDate != null ? _prRequestDate!.toLocal().toString().split(' ')[0] : 'N/A'}'),
                         ],
                       ),
@@ -344,7 +351,7 @@ class _RestockApprovalDetailScreenState extends State<RestockApprovalDetailScree
                                   
                                   const SizedBox(height: 10),
                                   
-                                  // ** NEW: BATCH NUMBER INPUT **
+                                  // ** BATCH NUMBER INPUT **
                                   TextFormField(
                                     controller: item.batchController, 
                                     decoration: InputDecoration(
@@ -358,28 +365,20 @@ class _RestockApprovalDetailScreenState extends State<RestockApprovalDetailScree
                                           : null,
                                     ),
                                     readOnly: _isLoading,
-                                    // The controller handles the state, no need for onChanged to update the model property explicitly
                                   ),
-                                  // **********************************
 
                                   const SizedBox(height: 10),
+                                  
                                   // --- DATE PICKER WIDGETS ---
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      // Manufacture Date Picker
-                                      _buildDateButton(
-                                        context, 
-                                        'Manuf. Date:', 
-                                        item.manufactureDate, 
-                                        () => _selectDate(context, item, false)
-                                      ),
                                       // Expiry Date Picker
                                       _buildDateButton(
                                         context, 
                                         'Expiry Date:', 
                                         item.expiryDate, 
-                                        () => _selectDate(context, item, true)
+                                        () => _selectDate(context, item, true) 
                                       ),
                                     ],
                                   ),
@@ -414,7 +413,7 @@ class _RestockApprovalDetailScreenState extends State<RestockApprovalDetailScree
   
   // Helper Widget for Date Picker Buttons
   Widget _buildDateButton(BuildContext context, String label, DateTime? date, VoidCallback onPressed) {
-    return Expanded(
+    return Expanded( 
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4.0),
         child: Column(

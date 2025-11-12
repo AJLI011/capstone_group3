@@ -1920,7 +1920,7 @@ class RestockApprovalItemSerializer(serializers.Serializer):
     medicine_id = serializers.IntegerField() # The ID of the Medicine
     approved_quantity = serializers.IntegerField(min_value=1)
     batch_num = serializers.CharField(max_length=100, required=True)
-    manufacture_date = serializers.DateField(required=False, allow_null=True) # Manufacture date is nice-to-have but Expiry is CRITICAL
+    #manufacture_date = serializers.DateField(required=False, allow_null=True) # Manufacture date is nice-to-have but Expiry is CRITICAL
     expiry_date = serializers.DateField()
 
     # Optional: You can add cross-field validation here if needed, e.g., expiry_date > today

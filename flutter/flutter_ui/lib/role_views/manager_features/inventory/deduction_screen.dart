@@ -7,7 +7,7 @@ import 'inventory_detail_screen.dart';
 // MODIFIED: API_BASE now only contains host:port without any protocol (http/https).
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: '10.0.2.2:8000/', 
+  defaultValue: '192.168.1.12:8000/', 
 );
 
 // --- NEW: REASON DEFINITION ---
@@ -49,7 +49,7 @@ class InventoryApiService {
     }
 
     try {
-      // Correct URL construction: 'http://' + '10.0.2.2:8000/' + 'api/...'
+      // Correct URL construction: 'http://' + '192.168.1.12:8000/' + 'api/...'
       final url = 'http://$API_BASE$deductBatchStockPath'; 
       final response = await http.post(
         Uri.parse(url),

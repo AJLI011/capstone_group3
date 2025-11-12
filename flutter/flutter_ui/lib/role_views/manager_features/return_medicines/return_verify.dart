@@ -13,7 +13,7 @@ import 'package:intl/intl.dart';
 // ----------------------------
 
 // NOTE: Please replace with your actual server IP
-const String _baseUrl = 'http://10.0.2.2:8000/api';
+const String _baseUrl = 'http://192.168.1.12:8000/api';
 
 // --------------------------------------------------------------------------
 // Data Model for Returned Item (Item in a Transaction)

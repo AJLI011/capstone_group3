@@ -18,7 +18,7 @@ class EmployeesManagementPage extends StatefulWidget {
 class _EmployeesManagementPageState extends State<EmployeesManagementPage> {
   // --- Data & API Endpoints ---
   List<dynamic> employees = [];
-  static const String _apiUrl = 'http://10.0.2.2:8000/api/staff/';
+  static const String _apiUrl = 'http://192.168.1.12:8000/api/staff/';
 
   // --- Lifecycle & Initialization ---
   @override
@@ -254,7 +254,7 @@ class _EmployeeFormState extends State<EmployeeForm> {
   // --- Data & State ---
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final List<String> roles = ['manager', 'cashier', 'staff'];
-  static const String _apiUrl = 'http://10.0.2.2:8000/api/staff/';
+  static const String _apiUrl = 'http://192.168.1.12:8000/api/staff/';
 
   late TextEditingController _nameController;
   late TextEditingController _emailController;

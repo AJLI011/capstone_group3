@@ -36,7 +36,7 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
 
     // NOTE: This endpoint needs to be implemented in your Django backend.
     // It should return the ID of the latest PurchaseRequest with status='PENDING'.
-    const String apiUrl = 'http://10.0.2.2:8000/api/purchase-request/latest-pending/'; 
+    const String apiUrl = 'http://192.168.1.12:8000/api/purchase-request/latest-pending/'; 
     
     try {
       final response = await http.get(Uri.parse(apiUrl));
