@@ -10,6 +10,24 @@ const String API_BASE = String.fromEnvironment(
   defaultValue: '10.0.2.2:8000/', 
 );
 
+// --- NEW: REASON DEFINITION ---
+class DeductionReason {
+  final String key;
+  final String label;
+  final IconData icon;
+
+  DeductionReason(this.key, this.label, this.icon);
+}
+
+// List of common deduction reasons
+final List<DeductionReason> _commonReasons = [
+  DeductionReason('missing', 'Lost/Missing Stock', Icons.search_off),
+  DeductionReason('damage', 'Damaged in Transit/Storage', Icons.broken_image),
+  DeductionReason('inventory_adj', 'Inventory Adjustment', Icons.inventory),
+  DeductionReason('other', 'Other Reason (Specify Below)', Icons.edit_note),
+];
+// -----------------------------
+
 
 // ===================== SERVICE: API Calls (Deduction only) =====================
 // Defining the service function required by this screen
@@ -25,6 +43,11 @@ class InventoryApiService {
       throw Exception('Deduction quantity must be greater than zero.'); 
     }
     
+    // Ensure a reason is provided
+    if (reason.trim().isEmpty) {
+      throw Exception('A deduction reason is required.');
+    }
+
     try {
       // Correct URL construction: 'http://' + '10.0.2.2:8000/' + 'api/...'
       final url = 'http://$API_BASE$deductBatchStockPath'; 
@@ -70,25 +93,21 @@ class DeductionScreen extends StatefulWidget {
 }
 
 class _DeductionScreenState extends State<DeductionScreen> {
-  // Quantity starts at 1, max is the available quantity in the batch.
   late int _deductQuantity;
   final TextEditingController _reasonController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _isProcessing = false;
-
-  // Controller for the typable quantity field
   late final TextEditingController _quantityController;
+
+  // NEW: State variable to hold the selected radio button reason key
+  String? _selectedReason = _commonReasons.first.key; 
+
 
   @override
   void initState() {
     super.initState();
-    // Initialize quantity to 1
     _deductQuantity = 1; 
-    
-    // Initialize controller and sync it with the initial state
     _quantityController = TextEditingController(text: _deductQuantity.toString());
-
-    // Listen for manual text changes to update the internal state
     _quantityController.addListener(_onQuantityTextChange);
   }
 
@@ -102,17 +121,16 @@ class _DeductionScreenState extends State<DeductionScreen> {
   
   // Logic to handle user typing in the text field
   void _onQuantityTextChange() {
+    // ... (rest of quantity logic remains the same)
     final text = _quantityController.text;
     final int? newQty = int.tryParse(text);
 
     if (newQty != null) {
       if (newQty < 1) {
-        // Correct the quantity if user types a value less than 1
         _deductQuantity = 1;
         _quantityController.text = '1';
         _quantityController.selection = TextSelection.fromPosition(TextPosition(offset: _quantityController.text.length));
       } else if (newQty > widget.batch.quantity) {
-        // Correct the quantity if user types a value greater than available stock
         _deductQuantity = widget.batch.quantity;
         _quantityController.text = _deductQuantity.toString();
         _quantityController.selection = TextSelection.fromPosition(TextPosition(offset: _quantityController.text.length));
@@ -142,49 +160,83 @@ class _DeductionScreenState extends State<DeductionScreen> {
   }
   
   Future<void> _submitDeduction() async {
-    if (_formKey.currentState!.validate()) {
-      if (_isProcessing) return;
+    // 1. Manually trigger form validation first
+    if (!_formKey.currentState!.validate()) {
+      return; 
+    }
+    
+    // 2. Determine the reason string to send to the API
+    String finalReason = '';
+    final selectedKey = _selectedReason;
+    final otherReasonText = _reasonController.text.trim();
+
+    if (selectedKey != null) {
+      final selectedReasonObj = _commonReasons.firstWhere((r) => r.key == selectedKey);
       
-      setState(() {
-        _isProcessing = true;
-      });
-
-      try {
-        final int quantity = int.parse(_quantityController.text);
-        final String reason = _reasonController.text.trim();
-
-        await InventoryApiService.deductBatchStock(
-          batchNumber: widget.batch.batchNumber,
-          quantity: quantity,
-          reason: reason,
-        );
-        
-        // Success: Show confirmation and return 'true' to the previous screen (InventoryDetailScreen)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Successfully deducted $quantity units from Batch ${widget.batch.batchNumber}.'),
-          ),
-        );
-        Navigator.pop(context, true); // Return true to trigger refresh
-
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Deduction Failed: ${e.toString().split(':').last.trim()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      } finally {
-        setState(() {
-          _isProcessing = false;
-        });
+      if (selectedKey == 'other') {
+        // Use the text from the input field if 'Other' is selected
+        finalReason = otherReasonText;
+      } else {
+        // Use the label of the selected radio button
+        finalReason = selectedReasonObj.label;
       }
+    }
+    
+    // Safety check (should be caught by validation, but good to have)
+    if (finalReason.isEmpty) {
+       ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+        content: const Text('❌ Please select a reason or specify one in the text box.'),
+        backgroundColor: Colors.red,
+          ),
+        );
+      return;
+    }
+
+
+    if (_isProcessing) return;
+    
+    setState(() {
+      _isProcessing = true;
+    });
+
+    try {
+      final int quantity = int.parse(_quantityController.text);
+
+      await InventoryApiService.deductBatchStock(
+        batchNumber: widget.batch.batchNumber,
+        quantity: quantity,
+        reason: finalReason, // Use the determined reason
+      );
+      
+      // Success: Show confirmation and return 'true' to the previous screen (InventoryDetailScreen)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Successfully deducted $quantity units (${finalReason}) from Batch ${widget.batch.batchNumber}.'),
+        ),
+      );
+      Navigator.pop(context, true); // Return true to trigger refresh
+
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Deduction Failed: ${e.toString().split(':').last.trim()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isProcessing = false;
+      });
     }
   }
 
 
   @override
   Widget build(BuildContext context) {
+    // Determine if the 'Other Reason' text field should be visible
+    final bool isOtherSelected = _selectedReason == 'other';
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Deduct Stock'),
@@ -212,10 +264,10 @@ class _DeductionScreenState extends State<DeductionScreen> {
                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                       const Divider(height: 20),
-                      _buildInfoRow('Generic Name', widget.batch.genericName),
                       _buildInfoRow('Batch Number', widget.batch.batchNumber),
                       _buildInfoRow('Expiration Date', widget.batch.expirationDate),
                       _buildInfoRow('Available Stock', widget.batch.quantity.toString(), 
+                        // This style is for the VALUE, not the title
                         style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
                     ],
                   ),
@@ -273,23 +325,36 @@ class _DeductionScreenState extends State<DeductionScreen> {
               
               const SizedBox(height: 30),
 
-              // Reason Input
-              TextFormField(
-                controller: _reasonController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Reason for Deduction (Required)',
-                  hintText: 'e.g. Expired, Damaged in Transit, Inventory Adjustment',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please provide a detailed reason.';
-                  }
-                  return null;
-                },
-              ),
+              // --- NEW: REASON RADIO BUTTONS ---
+              const Text('Reason for Deduction', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 10),
+              
+              // Map the list of reasons to custom radio list tiles
+              ..._commonReasons.map((reason) {
+                return _buildReasonRadioListTile(reason, isOtherSelected);
+              }).toList(),
+              
+              const SizedBox(height: 10),
 
+              // Reason Input Text Field (Conditionally visible/validated)
+              if (isOtherSelected) 
+                TextFormField(
+                  controller: _reasonController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Specify Other Reason (Required)',
+                    hintText: 'e.g. Returned to Supplier, Loss during handling, etc.',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
+                  ),
+                  validator: (value) {
+                    // Only validate if 'Other' is selected
+                    if (isOtherSelected && (value == null || value.trim().isEmpty)) {
+                      return 'Please provide a detailed reason when "Other Reason" is selected.';
+                    }
+                    return null;
+                  },
+                ),
+                
               const SizedBox(height: 40),
 
               // Submit Button
@@ -318,6 +383,36 @@ class _DeductionScreenState extends State<DeductionScreen> {
     );
   }
   
+  // NEW: Helper Widget for Radio Buttons with Icons
+  Widget _buildReasonRadioListTile(DeductionReason reason, bool isOtherSelected) {
+    // Disable text field for non-'other' reasons to prevent double entry
+    final bool enableTextField = reason.key == 'other'; 
+    
+    return RadioListTile<String>(
+      title: Row(
+        children: [
+          Icon(reason.icon, size: 20, color: _selectedReason == reason.key ? const Color(0xFF5C7C9A) : Colors.black54),
+          const SizedBox(width: 8),
+          Text(reason.label, style: const TextStyle(fontSize: 16)),
+        ],
+      ),
+      value: reason.key,
+      groupValue: _selectedReason,
+      onChanged: (String? value) {
+        setState(() {
+          _selectedReason = value;
+          // Clear text field when selecting a pre-set reason
+          if (value != 'other') {
+            _reasonController.clear();
+          }
+        });
+      },
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      activeColor: const Color(0xFF5C7C9A),
+    );
+  }
+  
   // Helper widget for rendering info rows
   Widget _buildInfoRow(String title, String value, {TextStyle? style}) {
     return Padding(
@@ -325,7 +420,7 @@ class _DeductionScreenState extends State<DeductionScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('$title:', style: const TextStyle(color: Colors.grey, fontSize: 14)),
+          Text('$title:', style: const TextStyle(color: Colors.black87, fontSize: 14)), 
           Text(value, style: style ?? const TextStyle(fontSize: 16)),
         ],
       ),
