@@ -4435,19 +4435,20 @@ class LatestPendingPurchaseRequestView(APIView):
 @api_view(['POST'])
 def deduct_batch_stock(request):
     """
-    Handles stock deduction and logging by explicitly accepting staff_id 
-    in the request body to identify the staff user (Manager/Staff).
+    Handles stock deduction and logging by using the unique Inventory ID (Primary Key).
     """
-    # 1. Get Data from Request (Including NEW staff_id field)
-    batch_number = request.data.get('batch_number')
+    # 1. Get Data from Request
+    # MODIFIED: Use inventory_id_str instead of batch_number
+    inventory_id_str = request.data.get('inventory_id')
     quantity_str = request.data.get('quantity')
     reason = request.data.get('reason')
     staff_id_str = request.data.get('staff_id') 
 
     # --- 1. Basic Validation ---
-    if not all([batch_number, quantity_str, reason, staff_id_str]):
+    # MODIFIED: Check for inventory_id_str instead of batch_number
+    if not all([inventory_id_str, quantity_str, reason, staff_id_str]):
         return Response(
-            {"error": "Missing required fields: batch_number, quantity, reason, or staff_id."}, 
+            {"error": "Missing required fields: inventory_id, quantity, reason, or staff_id."}, 
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -4465,20 +4466,27 @@ def deduct_batch_stock(request):
     except (ValueError, TypeError):
         return Response({"error": "Staff ID must be a valid integer."}, status=status.HTTP_400_BAD_REQUEST)
 
+    # NEW: Convert inventory_id
+    try:
+        inventory_id = int(inventory_id_str)
+    except (ValueError, TypeError):
+        return Response({"error": "Inventory ID must be a valid integer."}, status=status.HTTP_400_BAD_REQUEST)
+
+
     # --- 2. Start Atomic Transaction (All-or-Nothing) ---
     try:
         with transaction.atomic():
-            # Find the Batch and lock it for safety
-            batch = Inventory.objects.select_for_update().select_related('medicine').get(batch_num=batch_number)
+            # Find the Batch and lock it for safety (CRITICAL FIX: Use 'id')
+            # This prevents the MultipleObjectsReturned error
+            batch = Inventory.objects.select_for_update().select_related('medicine').get(id=inventory_id)
 
             # Check Stock
             if batch.quantity < quantity_to_deduct:
-                return Response({"error": f"Deduction quantity ({quantity_to_deduct}) exceeds available stock ({batch.quantity}) in Batch {batch_number}."}, status=status.HTTP_400_BAD_REQUEST)
+                # Reference batch.id (which is inventory_id) in the error
+                return Response({"error": f"Deduction quantity ({quantity_to_deduct}) exceeds available stock ({batch.quantity}) in Batch ID {batch.id}."}, status=status.HTTP_400_BAD_REQUEST)
 
             # --- A. RETRIEVE STAFF USER DETAILS FOR LOGGING ---
-            staff_object = None # The Staff model instance
-            # The InventoryLog model expects a ForeignKey to the standard User model, 
-            # but since we don't have that link, we will set this to None
+            staff_object = None 
             linked_user_fk = None 
             
             staff_name_log = f"[Staff ID: {staff_id} - Details Missing]"
@@ -4486,29 +4494,20 @@ def deduct_batch_stock(request):
             
             try:
                 # Retrieve the Staff object using the ID passed from the UI
-                # We use your provided model name: Staff
                 staff_object = Staff.objects.get(id=staff_id)
                 
                 # Get snapshot fields
                 staff_name_log = staff_object.name
                 staff_role_log = staff_object.role
                 
-                # NOTE: If your InventoryLog 'user' field is a ForeignKey to Django's Auth User,
-                # and your Staff model IS NOT the Auth User, this FK will be NULL.
-                # If your Staff model IS the Auth User (which seems unlikely), use staff_object for 'user'.
-
             except ObjectDoesNotExist:
                 print(f"Warning: Staff member with ID {staff_id} not found. Proceeding with generic log details.")
 
             # --- B. CREATE THE INVENTORY LOG ENTRY ---
             InventoryLog.objects.create(
-                # Use the linked_user_fk (which is likely None or needs to be properly linked if possible)
                 user=linked_user_fk, 
-                
-                # Snapshot fields (set to details if found, or generic strings otherwise)
                 staff_name=staff_name_log, 
                 staff_role=staff_role_log, 
-                
                 medicine=batch.medicine,
                 medicine_name_log=batch.medicine.name,
                 action_type='Delete',
@@ -4527,8 +4526,9 @@ def deduct_batch_stock(request):
                 "new_quantity": batch.quantity
             }, status=status.HTTP_200_OK)
 
+    # MODIFIED: Catch DoesNotExist and reference ID
     except Inventory.DoesNotExist:
-        return Response({"error": f"Inventory Batch with number '{batch_number}' not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": f"Inventory Batch with ID '{inventory_id}' not found."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         print(f"Server processing error: {e}") 
         return Response({"error": f"An internal server error occurred during deduction: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -14,8 +14,6 @@ const String API_BASE = String.fromEnvironment(
 Future<int?> getManagerStaffId() async {
   try {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    
-    // 🛑 CORRECTED: Looking for 'staff_id' (lowercase, underscore) as used in your ManagerView.
     final int? staffId = prefs.getInt('staff_id'); 
     
     if (staffId == null) {
@@ -49,15 +47,16 @@ final List<DeductionReason> _commonReasons = [
 // -----------------------------
 
 
-// ===================== SERVICE: API Calls (UPDATED) =====================
+// ===================== SERVICE: API Calls (MODIFIED) =====================
 class InventoryApiService {
   static const String deductBatchStockPath = 'api/inventory/deduct-batch-stock/';
 
+  // MODIFIED: Changed batchNumber to inventoryId (type int)
   static Future<void> deductBatchStock({
-    required String batchNumber, 
+    required int inventoryId, // <--- 1. MODIFIED PARAMETER NAME/TYPE
     required int quantity, 
     required String reason, 
-    required int staffId, // 1. ADDED staffId PARAMETER
+    required int staffId, 
   }) async {
     if (quantity <= 0) {
       throw Exception('Deduction quantity must be greater than zero.'); 
@@ -73,18 +72,18 @@ class InventoryApiService {
         Uri.parse(url),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
-          // No Authorization header, as per your constraint
         },
         body: jsonEncode(<String, dynamic>{
-          'batch_number': batchNumber, 
+          // MODIFIED: Send inventory_id instead of batch_number
+          'inventory_id': inventoryId, // <--- 2. MODIFIED JSON PAYLOAD KEY/VALUE
           'quantity': quantity,
           'reason': reason,
-          'staff_id': staffId, // 2. SEND staff_id IN BODY
+          'staff_id': staffId, 
         }),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print('Batch stock deduction successful for Batch $batchNumber');
+        print('Batch stock deduction successful for Inventory ID $inventoryId');
       } else {
         final errorData = json.decode(response.body);
         final errorMessage = errorData['detail'] ?? errorData['error'] ?? 'Unknown deduction error.';
@@ -178,11 +177,10 @@ class _DeductionScreenState extends State<DeductionScreen> {
   }) async {
     if (_isProcessing) return;
     
-    // 3. FETCH STAFF ID USING SHARED PREFERENCES (Now using the correct key 'staff_id')
+    // 3. FETCH STAFF ID USING SHARED PREFERENCES
     final int? staffId = await getManagerStaffId();
     
     if (staffId == null) {
-      // The error message you saw, but now it should only appear if the user is truly not logged in.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Deduction Failed: Staff ID not available. Please log in.'),
@@ -198,11 +196,12 @@ class _DeductionScreenState extends State<DeductionScreen> {
     });
 
     try {
+      // MODIFIED: Pass inventoryId (widget.batch.id) instead of batchNumber
       await InventoryApiService.deductBatchStock(
-        batchNumber: widget.batch.batchNumber,
+        inventoryId: widget.batch.id, // <--- 3. PASS UNIQUE ID
         quantity: quantity,
         reason: finalReason, 
-        staffId: staffId, // 4. PASS STAFF ID TO SERVICE
+        staffId: staffId, 
       );
       
       ScaffoldMessenger.of(context).showSnackBar(
