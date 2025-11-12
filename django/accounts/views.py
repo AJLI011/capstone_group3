@@ -132,6 +132,14 @@ from django.db.models.functions import Coalesce
 from .models import ForecastReport, ForecastItem, Inventory, Medicine
 from .serializers import PurchaseRequestSerializer
 
+#---
+from rest_framework import status
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from django.db import transaction
+from django.db.models import F, Sum
+from .models import Inventory # Ensure Inventory model is imported
+
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
 
@@ -206,7 +214,7 @@ def forgot_password(request):
     token = str(uuid.uuid4())
     reset_tokens[token] = {'email': email, 'user_type': user_type}
 
-    reset_link = f'http://192.168.1.21:8000/reset-password/{token}/'
+    reset_link = f'http://10.0.2.2:8000/reset-password/{token}/'
 
     subject = 'Reset your password'
     message = f'Click the link below to reset your password:\n\n{reset_link}'
@@ -816,20 +824,6 @@ def get_medicine_by_barcode(request, barcode):
     serializer = MedicineSerializer(medicine)
     return Response(serializer.data)
 
-####### FOR INVENTORY 
-# main inventory screen - with total qty
-
-
-# 2. batch level details for a selected medicine
-#--------OLD OUTDATED VERSION
-#@api_view(['GET'])
-#def get_batch_details(request, medicine_id):
-    batches = Inventory.objects.filter(medicine__id=medicine_id)
-    if not batches.exists():
-        return Response({'message': 'No batches found.'}, status=status.HTTP_404_NOT_FOUND)
-
-    serializer = InventoryBatchDetailSerializer(batches, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
 
 #======= 9/29/25 LAZY LOADING CHANGE ===============
 @api_view(['GET'])
@@ -4426,3 +4420,75 @@ class LatestPendingPurchaseRequestView(APIView):
             # Catch unexpected server errors
             return Response({"detail": f"Server error: {str(e)}"}, 
                              status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+#---11/12/25
+# Location: views.py (add this function)
+
+@api_view(['POST'])
+def deduct_batch_stock(request):
+    """
+    Handles the deduction of stock from a specific inventory batch.
+    Requires: 'batch_number' and 'quantity' in POST body.
+    """
+    batch_number = request.data.get('batch_number')
+    quantity_str = request.data.get('quantity')
+    # Reason is currently ignored on the backend as per your simplified request.
+
+    # --- 1. Basic Validation ---
+    if not batch_number or not quantity_str:
+        return Response(
+            {'detail': 'Missing required fields: batch_number or quantity.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        quantity_to_deduct = int(quantity_str)
+        if quantity_to_deduct <= 0:
+            return Response(
+                {'detail': 'Quantity must be a positive number.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    except ValueError:
+        return Response(
+            {'detail': 'Quantity must be a valid integer.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # --- 2. Database Transaction and Lock ---
+    try:
+        with transaction.atomic():
+            # Get the Inventory batch, using select_for_update() for concurrency safety.
+            inventory_batch = Inventory.objects.select_for_update().get(batch_num=batch_number)
+            
+            # --- 3. Stock Level Validation ---
+            if inventory_batch.quantity < quantity_to_deduct:
+                return Response(
+                    {'detail': f'Deduction quantity ({quantity_to_deduct}) exceeds available stock ({inventory_batch.quantity}) in Batch {batch_number}.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # --- 4. Stock Update ---
+            # Use F() expression for safe, atomic update on the database level
+            inventory_batch.quantity = F('quantity') - quantity_to_deduct
+            inventory_batch.save(update_fields=['quantity'])
+            
+            # Retrieve the newly saved object to return the updated quantity
+            inventory_batch.refresh_from_db() 
+
+            return Response(
+                {'detail': 'Stock deduction successful.', 'new_quantity': inventory_batch.quantity},
+                status=status.HTTP_200_OK
+            )
+
+    except Inventory.DoesNotExist:
+        return Response(
+            {'detail': f'Inventory Batch with number "{batch_number}" not found.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        # Catch any other database or server errors
+        print(f"Error during stock deduction: {e}") 
+        return Response(
+            {'detail': 'An internal error occurred during deduction.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

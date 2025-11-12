@@ -182,4 +182,7 @@ urlpatterns = [
     
     #daily reports
     path('daily-reports/', views.DailyReportsView.as_view(), name='daily_reports'),
+    
+    #--11/12/25 for deduction
+    path('inventory/deduct-batch-stock/', views.deduct_batch_stock, name='deduct-batch-stock'),
 ]

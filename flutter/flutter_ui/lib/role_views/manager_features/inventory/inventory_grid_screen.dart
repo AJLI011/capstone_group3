@@ -1,6 +1,8 @@
+// Location: flutter\flutter_ui\lib\role_views\manager_features\inventory\inventory_grid_screen.dart
+
 import 'package:flutter/material.dart';
 import 'inventory_detail_screen.dart';
-import 'total_quantity.dart';
+import 'total_quantity.dart'; // Assuming this defines the TotalQuantity class
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -9,10 +11,10 @@ import 'package:flutter_ui/services/responsive_scale2.dart';
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: '10.0.2.2:8000/',
+  defaultValue: 'http://10.0.2.2:8000/',
 );
 
-// InventoryResponse and InventoryApiService definitions (unchanged)
+// InventoryResponse and InventoryApiService definitions
 class InventoryResponse {
   final List<TotalQuantity> items;
   final int totalCount;
@@ -28,6 +30,9 @@ class InventoryResponse {
 class InventoryApiService {
   static const String inventoryPath = 'api/inventory/';
   static const String totalQuantitiesPath = 'api/inventory/total-quantities/';
+  
+  // 🚀 NEW PATH FOR DEDUCTION
+  static const String deductBatchStockPath = 'api/inventory/deduct-batch-stock/';
 
   static Future<InventoryResponse> fetchInventoryItems({
     int limit = 10,
@@ -78,6 +83,43 @@ class InventoryApiService {
       }
     } catch (e) {
       print('❌ Error syncing total quantity: $e');
+    }
+  }
+  
+  // 🚀 NEW METHOD: Deduction API Call
+  static Future<void> deductBatchStock({
+    required String batchNumber, 
+    required int quantity, 
+    required String reason, 
+  }) async {
+    if (quantity <= 0) {
+      throw Exception('Deduction quantity must be greater than zero.'); 
+    }
+    
+    try {
+      final url = 'http://$API_BASE$deductBatchStockPath'; // Use http:// if API_BASE includes port
+      final response = await http.post(
+        Uri.parse(url),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          // Ensure any necessary authorization headers are added here
+        },
+        body: jsonEncode(<String, dynamic>{
+          'batch_number': batchNumber, 
+          'quantity': quantity,
+          'reason': reason,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('✅ Batch stock deduction successful for Batch $batchNumber');
+      } else {
+        final errorData = json.decode(response.body);
+        final errorMessage = errorData['detail'] ?? 'Unknown deduction error.';
+        throw Exception('Failed to deduct batch stock: ${response.statusCode}. Detail: $errorMessage');
+      }
+    } catch (e) {
+      throw Exception('Network or processing error during batch stock deduction: $e');
     }
   }
 }
@@ -160,7 +202,9 @@ class _InventoryGridScreenState extends State<InventoryGridScreen> with Responsi
       _totalCount = 0; 
       _hasMoreItems = true;
     });
-    await InventoryApiService.syncTotalQuantities();
+    // This sync is generally unnecessary if the totals are fetched via the inventory endpoint, 
+    // but we'll keep it as you had it.
+    await InventoryApiService.syncTotalQuantities(); 
     await loadInventory();
   }
 
@@ -197,7 +241,7 @@ List<TotalQuantity> get _sortedItems {
     final List<TotalQuantity> items = List.from(_items); 
 
     int compareName(TotalQuantity a, TotalQuantity b) {
-        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     }
 
     if (_sortAZ) {
@@ -343,14 +387,17 @@ List<TotalQuantity> get _sortedItems {
                         ),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(scaleValue(context, 12)),
-                          onTap: () {
-                            Navigator.push(
+                          // 👇 MODIFIED: Await navigation and refresh the grid on return
+                          onTap: () async {
+                            await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) =>
                                     InventoryDetailScreen(item: item),
                               ),
                             );
+                            // Once back, force a reload of the inventory totals to reflect any deductions
+                            syncAndLoadInventory(); 
                           },
                           child: Stack(
                             children: [

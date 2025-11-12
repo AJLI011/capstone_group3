@@ -26,7 +26,7 @@ import 'manager_features/restock/restock_menu_screen.dart';
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: '10.0.2.2:8000/',
+  defaultValue: 'http://10.0.2.2:8000/',
 );
 
 class ManagerView extends StatefulWidget {
