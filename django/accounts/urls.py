@@ -8,7 +8,8 @@ from .views import (
     remove_promo, get_customer_medicines,inventory_logs, PromoMedicineView, PromoMedicineDetailView, 
     get_customer_medicine_detail,InStoreSalesReportView,OnlineSalesReportView, LatestForecastReportView, MedicineSalesHistoryView, 
     OrderLogsListView, UnaddressedExpiringStockView, MedicineForecastByNameView, # PurchaseRequestListView REMOVED
-    PurchaseRequestView, MedicineListView, RestockListView, PurchaseRequestApproveView, LatestPendingPurchaseRequestView,
+    PurchaseRequestView, MedicineListView, RestockListView, PurchaseRequestApproveView, LatestPendingPurchaseRequestView, 
+    NewMedicinePurchaseRequestView, LinkPurchaseRequestItemToMedicineView,
     
 )
 from .views import get_comprehensive_transaction_report
@@ -185,4 +186,8 @@ urlpatterns = [
     
     #--11/12/25 for deduction
     path('inventory/deduct-batch-stock/', views.deduct_batch_stock, name='deduct-batch-stock'),
+
+   #NEW 11/12/25 New Item Purchase request
+    path('restock/purchase-request/new-medicines/', NewMedicinePurchaseRequestView.as_view(), name='new-medicine-pr-list'),
+    path('restock/purchase-request/link-new-medicine/<int:item_id>/', LinkPurchaseRequestItemToMedicineView.as_view(), name='link-new-medicine-to-pr-item'),
 ]

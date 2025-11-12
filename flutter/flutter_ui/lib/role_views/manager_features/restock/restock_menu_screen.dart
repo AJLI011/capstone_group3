@@ -1,10 +1,11 @@
-// lib/restock_menu_screen.dart
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http; // New import for HTTP
-import 'dart:convert'; // New import for JSON decoding
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'restock_barcode.dart'; 
 import 'restock_approval_detail_screen.dart'; 
+// --- NEW IMPORT ---
+import 'new_medicine_pr_screen.dart'; // Import the new screen for unlisted items
+
 
 // IMPORTANT: Convert StatelessWidget to StatefulWidget
 class RestockMenuScreen extends StatefulWidget {
@@ -34,8 +35,7 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
       _errorMessage = null;
     });
 
-    // NOTE: This endpoint needs to be implemented in your Django backend.
-    // It should return the ID of the latest PurchaseRequest with status='PENDING'.
+    // NOTE: This endpoint should return the ID of the latest PurchaseRequest with status='PENDING'.
     const String apiUrl = 'http://10.0.2.2:8000/api/purchase-request/latest-pending/'; 
     
     try {
@@ -141,7 +141,7 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
               
               const SizedBox(height: 30), 
 
-              // --- 2. Purchase Request Approval Button (FIXED DYNAMIC ID) ---
+              // --- 2. Purchase Request Approval Button (Existing Medicines) ---
               ElevatedButton.icon(
                 // Show a loading indicator in the icon slot if loading
                 icon: _isLoading 
@@ -171,9 +171,44 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
                           ).then((_) {
                               // Re-fetch the ID after returning from the approval screen
                               _fetchLatestPendingPrId();
-                          });
+                            });
                         }
                     : null, // Disable the button otherwise
+              ),
+              
+              const SizedBox(height: 30), // Spacing for the new button
+
+              // --- 3. NEW: New Medicine Purchase Request Button (Unlisted Items) ---
+              ElevatedButton.icon(
+                icon: const Icon(Icons.local_shipping, size: 28),
+                label: const Text(
+                  'New Purchased Items', // Clearer label for the user action
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor, // Use a distinct color for clarity
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 25),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                // This button should be enabled if a PR is available.
+                onPressed: (isPrAvailable && !_isLoading && _errorMessage == null)
+                    ? () {
+                          // Navigate to the new screen to handle unlisted items
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const NewMedicinePrScreen(),
+                            ),
+                          ).then((result) {
+                              // If an item was successfully processed and linked, refresh the PR status
+                              if (result == true) {
+                                _fetchLatestPendingPrId();
+                              }
+                          });
+                        }
+                    : null, // Disable if no pending PR is available
               ),
             ],
           ),

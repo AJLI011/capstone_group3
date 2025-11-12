@@ -1985,3 +1985,51 @@ class RestockListSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseRequest # Assuming your model is PurchaseRequest
         fields = ['id', 'manager_name', 'request_date', 'items']
+
+# 11/12/25 new item purchase request
+class NewPurchaseRequestItemSerializer(serializers.ModelSerializer):
+    """
+    Serializer used specifically for displaying NEW/UNLISTED items in the Purchase Request flow.
+    It includes calculated fields to determine the item's approval status logic.
+    """
+    # Custom fields for the front-end logic
+    is_supplier_registered = serializers.BooleanField(read_only=True)
+    is_clickable = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = PurchaseRequestItem
+        fields = [
+            'id',
+            'purchase_request',
+            'medicine_name_snapshot',
+            'restock_amount',
+            'units_per_item',
+            'supplier_name_snapshot',
+            'supplier_contact_num_snapshot',
+            'is_supplier_registered', # New calculated field
+            'is_clickable', # New calculated field
+        ]
+
+    def to_representation(self, instance):
+        """
+        Overrides to_representation to add the calculated fields based on your business logic.
+        """
+        data = super().to_representation(instance)
+        
+        # 1. Check if the Supplier name exists in the Supplier table
+        supplier_name = instance.supplier_name_snapshot
+        
+        # We assume a case-insensitive check is best practice for supplier names
+        is_registered = Supplier.objects.filter(name__iexact=supplier_name).exists()
+        
+        data['is_supplier_registered'] = is_registered
+        
+        # 2. Determine if the item is clickable (ready for 'Add Medicine' redirect)
+        # Condition for Clickable:
+        # a) It must be a new medicine (medicine FK is null) AND
+        # b) Its supplier must be registered in the system (is_registered = True)
+        is_new_medicine = instance.medicine is None
+        
+        data['is_clickable'] = is_new_medicine and is_registered
+        
+        return data

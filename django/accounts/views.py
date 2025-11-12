@@ -50,7 +50,7 @@ from .serializers import (
     PrescriptionOrderSerializer, CombinedPrescriptionSerializer, PrescriptionImageSerializer,
     LowStockSerializer, ForecastItemSerializer, ForecastReportSerializer, MedicineForecastSerializer,
     DailyReportSerializer, PurchaseRequestSerializer, PurchaseRequestItemSerializer, MedicineSelectionSerializer,
-    RestockListSerializer, RestockApprovalItemSerializer,
+    RestockListSerializer, RestockApprovalItemSerializer, NewPurchaseRequestItemSerializer,
 )
 
 from .serializers import OrderLogSerializer
@@ -4543,3 +4543,104 @@ def deduct_batch_stock(request):
     except Exception as e:
         print(f"Server processing error: {e}") 
         return Response({"error": f"An internal server error occurred during deduction: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+# --- NEW VIEW: Fetches New Medicines from the Latest Pending PR ---
+class NewMedicinePurchaseRequestView(APIView):
+    """
+    Retrieves the list of 'New Medicines' (items without a medicine FK) 
+    from the single latest PENDING Purchase Request.
+    The serializer determines if the item is clickable based on supplier registration status.
+    """
+    permission_classes = [AllowAny] # Use your actual permission class here
+
+    def get(self, request, *args, **kwargs):
+        # 1. Find the latest PENDING Purchase Request
+        latest_pr = PurchaseRequest.objects.filter(status='PENDING').order_by('-request_date').first()
+        
+        if not latest_pr:
+            return Response(
+                {"detail": "No pending Purchase Requests found."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # 2. Filter for PurchaseRequestItems that are 'New Medicines' (medicine is null)
+        new_medicine_items = PurchaseRequestItem.objects.filter(
+            purchase_request=latest_pr,
+            medicine__isnull=True # CRITICAL filter for unlisted items
+        ).select_related('purchase_request') # Optimize query
+
+        if not new_medicine_items.exists():
+            return Response(
+                {"detail": "The latest pending Purchase Request contains no new medicine items."},
+                status=status.HTTP_200_OK
+            )
+
+        # 3. Serialize the data using the new serializer, which applies the logic
+        serializer = NewPurchaseRequestItemSerializer(new_medicine_items, many=True)
+        
+        # 4. Prepare response: Add the PR ID for context in the Flutter app
+        response_data = {
+            "purchase_request_id": latest_pr.id,
+            "manager_name": latest_pr.manager_name,
+            "items": serializer.data
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+    
+# --- NEW VIEW: Links an unlisted Purchase Request Item to a new Medicine record ---
+class LinkPurchaseRequestItemToMedicineView(APIView):
+    """
+    Handles PUT request to link a specific PurchaseRequestItem (that has medicine=null)
+    to a newly created Medicine object. This completes the onboarding of the new item.
+    """
+    permission_classes = [AllowAny] # Use your actual permission class here
+
+    def put(self, request, item_id, *args, **kwargs):
+        # 1. Get the specific PurchaseRequestItem using item_id from the URL
+        pr_item = get_object_or_404(PurchaseRequestItem, id=item_id)
+        
+        # 2. Get the new medicine ID from the request body
+        new_medicine_id = request.data.get('medicine_id')
+
+        if not new_medicine_id:
+            return Response(
+                {"detail": "Missing 'medicine_id' in the request body."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 3. Get the new Medicine object
+        try:
+            new_medicine = Medicine.objects.get(id=new_medicine_id)
+        except Medicine.DoesNotExist:
+            return Response(
+                {"detail": f"Medicine with ID {new_medicine_id} not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # 4. Perform the linkage (CRITICAL STEP)
+        try:
+            # Update the PurchaseRequestItem's foreign key
+            pr_item.medicine = new_medicine
+            
+            # Update the snapshot fields to reflect the final Medicine data for consistency
+            pr_item.medicine_name_snapshot = new_medicine.name
+            
+            # The suggested_amount should remain 0 for manual entries, or be set based on new logic
+            # For simplicity, we just save the FK and Name, preserving the original restock amount.
+            
+            pr_item.save(update_fields=['medicine', 'medicine_name_snapshot']) 
+
+            return Response(
+                {
+                    "detail": f"Purchase Request Item {item_id} successfully linked to new Medicine {new_medicine_id}.",
+                    "pr_item_id": pr_item.id,
+                    "new_medicine_name": new_medicine.name
+                },
+                status=status.HTTP_200_OK
+            )
+
+        except Exception as e:
+            return Response(
+                {"detail": f"An unexpected error occurred during linkage: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
