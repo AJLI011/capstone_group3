@@ -16,36 +16,51 @@ class RestockMenuScreen extends StatefulWidget {
 class _RestockMenuScreenState extends State<RestockMenuScreen> {
   // State variables for dynamic PR ID and new item count fetching
   int? _pendingPrId; // Holds the ID of the latest pending PR
-  int _unregisteredItemsCount = 0; // 🔑 NEW: Count of items missing a medicine_id
+  int _unregisteredItemsCount = 0; // Count of items missing a medicine_id
   bool _isLoading = true;
   String? _errorMessage;
+  // FLAG: Track if the data has been initialized
+  bool _isInitialized = false; 
 
   @override
   void initState() {
     super.initState();
-    // Start fetching the ID and count when the screen loads
-    _fetchLatestPendingPrId(); 
+    // Removed _fetchLatestPendingPrId() from initState.
   }
+
+  // CRITICAL ADDITION: Re-fetch data whenever the route comes back into view
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Only call on initial load
+    if (!_isInitialized) {
+      _fetchLatestPendingPrId();
+      _isInitialized = true;
+    }
+  }
+
 
   // --- Function to Fetch the Latest Pending PR ID and Unregistered Count ---
   Future<void> _fetchLatestPendingPrId() async {
+    // Safety check to prevent calling setState on a disposed widget
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
       _unregisteredItemsCount = 0; // Reset count
     });
 
-    // NOTE: This endpoint must now return the ID and the count of unregistered items.
     const String apiUrl = 'http://10.0.2.2:8000/api/purchase-request/latest-pending/'; 
     
     try {
       final response = await http.get(Uri.parse(apiUrl));
 
+      if (!mounted) return;
+
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
-        // Safely extract the ID
         final int? fetchedId = data['id']; 
-        // 🔑 CRITICAL: Safely extract the new count, default to 0
         final int fetchedCount = data['unregistered_new_items_count'] ?? 0;
         
         setState(() {
@@ -67,6 +82,7 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Network error: $e';
         _isLoading = false;
@@ -79,9 +95,7 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
   Widget build(BuildContext context) {
     const Color primaryColor = Color(0xFF5C7C9A); 
     
-    // Check if a pending PR ID was successfully fetched
     final bool isPrAvailable = _pendingPrId != null && _pendingPrId! > 0;
-    // 🔑 NEW RESTRICTION: Check if all new items have been registered
     final bool allNewItemsRegistered = _unregisteredItemsCount == 0;
     
     // The Approval button is ONLY ENABLED if a PR is available AND all new items are registered.
@@ -140,12 +154,19 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
                   ),
                 ),
                 onPressed: () async {
+                  // Wait for navigation result
                   final result = await Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (context) => const RestockBarcodeScreen(),
                     ),
                   );
                   
+                  // Re-fetch the status if a change might have occurred
+                  if (result == true || result == null) {
+                    _fetchLatestPendingPrId();
+                  }
+
+                  // Original logic for popping this screen if result is true
                   if (result == true && context.mounted) {
                     Navigator.of(context).pop(true);
                   }
@@ -175,7 +196,7 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-                // 🔑 CRITICAL LOGIC: Only enable button if the comprehensive check passes
+                // CRITICAL LOGIC: Only enable button if the comprehensive check passes
                 onPressed: isApprovalEnabled
                     ? () {
                           // Use the dynamically fetched ID
@@ -183,8 +204,9 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
                             MaterialPageRoute(
                               builder: (context) => RestockApprovalDetailScreen(prId: _pendingPrId!),
                             ),
-                          ).then((_) {
-                              // Re-fetch the ID and count after returning from the approval screen
+                          )
+                          // GUARANTEED REFRESH: Re-fetch after returning from the approval screen
+                          .then((_) { 
                               _fetchLatestPendingPrId();
                             });
                         }
@@ -221,11 +243,11 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
                               // Pass the pending PR ID to the new screen for context
                               builder: (context) => NewMedicinePrScreen(prId: _pendingPrId!), 
                             ),
-                          ).then((result) {
-                              // Refresh the PR status after returning (especially if items were registered)
-                              if (result == true) {
-                                _fetchLatestPendingPrId();
-                              }
+                          )
+                          // GUARANTEED REFRESH: Refresh the PR status after returning
+                          .then((result) { 
+                              // Re-fetch regardless of explicit true/null result, as long as we popped back.
+                              _fetchLatestPendingPrId();
                             });
                         }
                     : null, // Disable if no pending PR is available
