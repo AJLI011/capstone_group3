@@ -4326,32 +4326,46 @@ class PurchaseRequestApproveView(APIView):
         
         if not staff_id:
              return Response({"detail": "Missing 'staff_id' in payload. Cannot log action."}, 
-                            status=status.HTTP_400_BAD_REQUEST)
+                             status=status.HTTP_400_BAD_REQUEST)
         
         try:
             # Get the actual Staff user based on the ID passed in the request body
             staff_user = Staff.objects.get(id=staff_id) 
         except Staff.DoesNotExist:
              return Response({"detail": f"Staff ID {staff_id} not found. Cannot log action."}, 
-                            status=status.HTTP_400_BAD_REQUEST)
+                             status=status.HTTP_400_BAD_REQUEST)
         
         # 1. Get the Purchase Request
         try:
             pr = PurchaseRequest.objects.get(id=pr_id) 
         except PurchaseRequest.DoesNotExist:
             return Response({"detail": f"Purchase Request with ID {pr_id} not found."}, 
-                            status=status.HTTP_404_NOT_FOUND)
+                             status=status.HTTP_404_NOT_FOUND)
+
+        # 🛑 CRITICAL RESTRICTION CHECK 🛑
+        # Check if the PR contains any items that still need medicine registration (medicine FK is NULL)
+        unregistered_items_count = PurchaseRequestItem.objects.filter(
+            purchase_request=pr,
+            medicine__isnull=True
+        ).count()
+        
+        if unregistered_items_count > 0:
+            return Response(
+                {"detail": f"Cannot approve PR {pr_id}. {unregistered_items_count} item(s) must be registered first."}, 
+                status=status.HTTP_403_FORBIDDEN # 403 Forbidden for business logic block
+            )
+        # 🛑 END RESTRICTION CHECK 🛑
 
         # 2. Get and Validate Items Payload
         items_data = request.data.get('items', [])
         if not items_data:
             return Response({"detail": "No items provided for approval."}, 
-                            status=status.HTTP_400_BAD_REQUEST)
+                             status=status.HTTP_400_BAD_REQUEST)
 
         item_serializer = RestockApprovalItemSerializer(data=items_data, many=True)
         if not item_serializer.is_valid():
             return Response(item_serializer.errors, 
-                            status=status.HTTP_400_BAD_REQUEST)
+                             status=status.HTTP_400_BAD_REQUEST)
 
         validated_items = item_serializer.validated_data
         
@@ -4418,43 +4432,48 @@ class PurchaseRequestApproveView(APIView):
                 pr.save(update_fields=['status', 'approval_date']) 
             
             return Response({"detail": "Purchase Request approved and inventory successfully restocked in bulk."}, 
-                            status=status.HTTP_200_OK)
+                             status=status.HTTP_200_OK)
 
         except Exception as e:
             # Catches the error and ensures transaction rollback
             print(f"Transaction Rollback Error: {e}") 
             return Response({"detail": f"Processing error: {str(e)}"}, 
-                            status=status.HTTP_400_BAD_REQUEST)
+                             status=status.HTTP_400_BAD_REQUEST)
         
 
 # --- NEW: View to Fetch the Latest Pending PR ID ---
 class LatestPendingPurchaseRequestView(APIView):
     """
     API endpoint to retrieve the ID of the single latest Purchase Request 
-    that has a status of 'PENDING'.
+    that has a status of 'PENDING', and the count of items in it 
+    that still require medicine registration (medicine__isnull=True).
     Endpoint: GET /api/purchase-request/latest-pending/
     """
     def get(self, request, *args, **kwargs):
         try:
-            # 1. Query the database for a PurchaseRequest with status='PENDING'.
-            # 2. Order by the creation date descending (latest first).
-            # 3. Use .first() to retrieve only the single most recent record, or None if empty.
-            
-            # NOTE: If you use a different status (e.g., 'DRAFT'), update the filter below.
             latest_pr = PurchaseRequest.objects.filter(status='PENDING').order_by('-request_date').first()
 
             if latest_pr:
-                # Success: Return the ID with a 200 OK status.
-                return Response({"id": latest_pr.id}, status=status.HTTP_200_OK)
+                # 💡 NEW STEP: Count items in this PR where medicine is NULL
+                unregistered_count = PurchaseRequestItem.objects.filter(
+                    purchase_request=latest_pr,
+                    medicine__isnull=True
+                ).count()
+                
+                # Success: Return the ID and the count
+                return Response({
+                    "id": latest_pr.id,
+                    "unregistered_new_items_count": unregistered_count # CRITICAL NEW FIELD
+                }, status=status.HTTP_200_OK)
             else:
                 # No content: Return 404 Not Found, as expected by the Flutter client.
                 return Response({"detail": "No pending purchase requests found."}, 
-                                 status=status.HTTP_404_NOT_FOUND)
-                                 
+                                status=status.HTTP_404_NOT_FOUND)
+                                
         except Exception as e:
             # Catch unexpected server errors
             return Response({"detail": f"Server error: {str(e)}"}, 
-                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
 #---11/12/25
 # Location: views.py (add this function)
