@@ -3,10 +3,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'restock_barcode.dart'; 
 import 'restock_approval_detail_screen.dart'; 
-import 'new_medicine_pr_screen.dart'; // Import the new screen for unlisted items
+import 'new_medicine_pr_screen.dart'; // Screen for handling unlisted items
 
 
-// IMPORTANT: Convert StatelessWidget to StatefulWidget
 class RestockMenuScreen extends StatefulWidget {
   const RestockMenuScreen({super.key});
 
@@ -15,26 +14,28 @@ class RestockMenuScreen extends StatefulWidget {
 }
 
 class _RestockMenuScreenState extends State<RestockMenuScreen> {
-  // State variables for dynamic PR ID fetching
+  // State variables for dynamic PR ID and new item count fetching
   int? _pendingPrId; // Holds the ID of the latest pending PR
+  int _unregisteredItemsCount = 0; // 🔑 NEW: Count of items missing a medicine_id
   bool _isLoading = true;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    // Start fetching the ID of the pending PR when the screen loads
+    // Start fetching the ID and count when the screen loads
     _fetchLatestPendingPrId(); 
   }
 
-  // --- Function to Fetch the Latest Pending PR ID ---
+  // --- Function to Fetch the Latest Pending PR ID and Unregistered Count ---
   Future<void> _fetchLatestPendingPrId() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _unregisteredItemsCount = 0; // Reset count
     });
 
-    // NOTE: This endpoint should return the ID of the latest PurchaseRequest with status='PENDING'.
+    // NOTE: This endpoint must now return the ID and the count of unregistered items.
     const String apiUrl = 'http://10.0.2.2:8000/api/purchase-request/latest-pending/'; 
     
     try {
@@ -42,18 +43,21 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
-        // Safely extract the ID, defaulting to null if not present or zero
+        // Safely extract the ID
         final int? fetchedId = data['id']; 
+        // 🔑 CRITICAL: Safely extract the new count, default to 0
+        final int fetchedCount = data['unregistered_new_items_count'] ?? 0;
         
         setState(() {
-          // Only set the ID if it's a positive number
           _pendingPrId = (fetchedId != null && fetchedId > 0) ? fetchedId : null; 
+          _unregisteredItemsCount = fetchedCount; // Store the count
           _isLoading = false;
         });
       } else if (response.statusCode == 404) {
         // Backend returns 404 if no pending PR is found
         setState(() {
           _pendingPrId = null; 
+          _unregisteredItemsCount = 0;
           _isLoading = false;
         });
       } else {
@@ -77,6 +81,11 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
     
     // Check if a pending PR ID was successfully fetched
     final bool isPrAvailable = _pendingPrId != null && _pendingPrId! > 0;
+    // 🔑 NEW RESTRICTION: Check if all new items have been registered
+    final bool allNewItemsRegistered = _unregisteredItemsCount == 0;
+    
+    // The Approval button is ONLY ENABLED if a PR is available AND all new items are registered.
+    final bool isApprovalEnabled = isPrAvailable && !_isLoading && _errorMessage == null && allNewItemsRegistered;
     
     // Determine the button label based on the state
     String approvalButtonLabel;
@@ -84,10 +93,13 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
       approvalButtonLabel = 'Loading Pending PR...';
     } else if (_errorMessage != null) {
       approvalButtonLabel = 'Error Loading PR Status';
-    } else if (isPrAvailable) {
-      approvalButtonLabel = 'Purchase Request Approval (PR-${_pendingPrId!})';
-    } else {
+    } else if (!isPrAvailable) {
       approvalButtonLabel = 'Purchase Request Approval (No Pending PR)';
+    } else if (!allNewItemsRegistered) {
+      // New label when the button is disabled due to pending items
+      approvalButtonLabel = 'Register New Items First (PR-${_pendingPrId!})'; 
+    } else {
+      approvalButtonLabel = 'Purchase Request Approval (PR-${_pendingPrId!})';
     }
 
     return Scaffold(
@@ -111,6 +123,7 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
+              
               // --- 1. Scan Barcode Button ---
               ElevatedButton.icon(
                 icon: const Icon(Icons.qr_code_scanner, size: 28),
@@ -134,8 +147,6 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
                   );
                   
                   if (result == true && context.mounted) {
-                    // Assuming returning 'true' means a successful restock
-                    // and should lead back to the previous main screen.
                     Navigator.of(context).pop(true);
                   }
                 },
@@ -145,12 +156,52 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
 
               // --- 2. Purchase Request Approval Button (Existing Medicines) ---
               ElevatedButton.icon(
-                // Show a loading indicator in the icon slot if loading
+                // Show different icons based on status for better UX
                 icon: _isLoading 
                     ? const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.note_alt, size: 28),
+                    : allNewItemsRegistered
+                        ? const Icon(Icons.note_alt, size: 28) // Ready to approve
+                        : const Icon(Icons.lock_outline, size: 28), // Locked icon
                 label: Text(
                   approvalButtonLabel, // Use dynamic label
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  // Change color if disabled due to pending new items
+                  backgroundColor: isApprovalEnabled ? primaryColor : Colors.grey, 
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 25),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                // 🔑 CRITICAL LOGIC: Only enable button if the comprehensive check passes
+                onPressed: isApprovalEnabled
+                    ? () {
+                          // Use the dynamically fetched ID
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => RestockApprovalDetailScreen(prId: _pendingPrId!),
+                            ),
+                          ).then((_) {
+                              // Re-fetch the ID and count after returning from the approval screen
+                              _fetchLatestPendingPrId();
+                            });
+                        }
+                    : null, // Disable the button otherwise
+              ),
+              
+              const SizedBox(height: 30), // Spacing for the new button
+
+              // --- 3. New Purchased Items Button (Unlisted Items Registration) ---
+              ElevatedButton.icon(
+                // Show warning icon if items are pending registration
+                icon: _unregisteredItemsCount > 0 
+                    ? const Icon(Icons.warning_amber, color: Colors.yellow, size: 28) 
+                    : const Icon(Icons.local_shipping, size: 28),
+                label: Text(
+                  // Show the actual number of items pending registration
+                  'New Purchased Items ($_unregisteredItemsCount Pending)', 
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
@@ -161,49 +212,17 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-                // Only enable button if not loading AND a PR is available
-                onPressed: (isPrAvailable && !_isLoading && _errorMessage == null)
-                    ? () {
-                          // Use the dynamically fetched ID
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => RestockApprovalDetailScreen(prId: _pendingPrId!),
-                            ),
-                          ).then((_) {
-                              // Re-fetch the ID after returning from the approval screen
-                              _fetchLatestPendingPrId();
-                            });
-                        }
-                    : null, // Disable the button otherwise
-              ),
-              
-              const SizedBox(height: 30), // Spacing for the new button
-
-              // --- 3. New Medicine Purchase Request Button (Unlisted Items) ---
-              ElevatedButton.icon(
-                icon: const Icon(Icons.local_shipping, size: 28),
-                label: const Text(
-                  'New Purchased Items', // Clearer label for the user action
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor, 
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 25),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                ),
-                // Enable only if a pending PR is available
+                // This button is enabled if there is a pending PR
                 onPressed: (isPrAvailable && !_isLoading && _errorMessage == null)
                     ? () {
                           // Navigate to the new screen to handle unlisted items
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (context) => const NewMedicinePrScreen(),
+                              // Pass the pending PR ID to the new screen for context
+                              builder: (context) => NewMedicinePrScreen(prId: _pendingPrId!), 
                             ),
                           ).then((result) {
-                              // If an item was successfully processed and linked, refresh the PR status
+                              // Refresh the PR status after returning (especially if items were registered)
                               if (result == true) {
                                 _fetchLatestPendingPrId();
                               }
@@ -211,6 +230,17 @@ class _RestockMenuScreenState extends State<RestockMenuScreen> {
                         }
                     : null, // Disable if no pending PR is available
               ),
+              
+              // ⚠️ Conditional Warning Message
+              if (!allNewItemsRegistered && isPrAvailable)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10.0),
+                  child: Text(
+                    '⚠️ You must register the $_unregisteredItemsCount new item(s) before approving PR-${_pendingPrId!}.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold),
+                  ),
+                ),
             ],
           ),
         ),

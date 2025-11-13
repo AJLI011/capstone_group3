@@ -93,9 +93,9 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'capstone_db7',
+        'NAME': 'capstone_db',
         'USER': 'root',
-        'PASSWORD': '1234',
+        'PASSWORD': 'Fixthebreak_99',
         'HOST': '127.0.0.1', 
         'PORT': '3306',
     }
