@@ -675,9 +675,14 @@ class PurchaseRequest(models.Model):
     def __str__(self):
         return f"PR-{self.id} ({self.status}) by {self.manager_name} on {self.request_date.strftime('%Y-%m-%d')}"
 
-#------11/03/25
+#------11/03/25 #11/15/25 update
 class PurchaseRequestItem(models.Model):
     
+    ITEM_SOURCE_CHOICES = [
+        ('FORECAST', 'Demand Forecasted'),
+        ('MANUAL', 'Manually Added (New Item)'),
+    ]
+
     class Meta:
         db_table = 'purchase_request_item_tbl'
 
@@ -690,6 +695,13 @@ class PurchaseRequestItem(models.Model):
     restock_amount = models.IntegerField() # Manager's final order (from Forecasted Tab)
     suggested_amount = models.IntegerField(null=True, blank=True) # Making suggested_amount optional for manually added items
     
+    # CRITICAL NEW FIELD TO TRACK ITEM SOURCE
+    source = models.CharField(
+        max_length=10, 
+        choices=ITEM_SOURCE_CHOICES, 
+        default='MANUAL' # Default to MANUAL for safety, though it should be explicitly set on creation
+    )
+    
     # CRITICAL SNAPSHOT FIELD (for auditability if medicine is deleted or renamed)
     medicine_name_snapshot = models.CharField(max_length=100) 
     
@@ -697,6 +709,12 @@ class PurchaseRequestItem(models.Model):
     units_per_item = models.CharField(max_length=50, default='unit') # e.g., 'bottle', 'tablet'
     supplier_name_snapshot = models.CharField(max_length=100, null=True, blank=True)
     supplier_contact_num_snapshot = models.CharField(max_length=50, null=True, blank=True)
+
+    # New field to permanently flag items that were manually added and have now been registered
+    is_registered_manual_item = models.BooleanField(
+        default=False, 
+        help_text="Flag for manually added items that have completed registration."
+    )
     
     def __str__(self):
         return f"{self.restock_amount} of {self.medicine_name_snapshot} for PR-{self.purchase_request.id}"

@@ -4018,6 +4018,15 @@ class PurchaseRequestView(APIView):
     # --- GET LOGIC (Combining Forecasted and Low Stock Items) ---
     def get(self, request, *args, **kwargs):
         
+        # 🔑 FIX: Collect medicine IDs that are permanently excluded (manually registered items).
+        excluded_medicine_ids = list(
+            PurchaseRequestItem.objects.filter(
+                is_registered_manual_item=True, # Filter by the new permanent flag
+                medicine__isnull=False          # Only look at registered items
+            ).values_list('medicine_id', flat=True)
+        )
+        # ----------------------------------------------
+        
         # Dictionary to hold the final, unique list of items to restock
         purchase_request_map = {}
         
@@ -4031,6 +4040,8 @@ class PurchaseRequestView(APIView):
                 forecast_report=latest_report,
                 restock_amount__gt=0, # Only include items the forecast says to order
                 medicine__isnull=False
+            ).exclude(
+                medicine_id__in=excluded_medicine_ids # <--- APPLY EXCLUSION
             ).select_related('medicine', 'medicine__supplier')
 
             for item in forecast_items:
@@ -4053,7 +4064,6 @@ class PurchaseRequestView(APIView):
         # ----------------------------------------------
         
         # Subquery to get the current total quantity for each medicine
-        # Assumes Inventory has a 'medicine' FK and a 'quantity' field
         current_inventory = Inventory.objects.filter(
             medicine=OuterRef('pk')
         ).annotate(
@@ -4067,6 +4077,8 @@ class PurchaseRequestView(APIView):
             current_stock__lt=LOW_STOCK_THRESHOLD
         ).exclude(
             id__in=purchase_request_map.keys() # Exclude medicines already added from forecast
+        ).exclude(
+            id__in=excluded_medicine_ids # <--- APPLY EXCLUSION
         ).select_related('supplier').order_by('current_stock')
 
 
@@ -4077,7 +4089,7 @@ class PurchaseRequestView(APIView):
             restock_needed = target_stock - medicine.current_stock
             
             if restock_needed > 0:
-                 purchase_request_map[medicine.id] = {
+                purchase_request_map[medicine.id] = {
                     'no': 0, 
                     'medicine_name': medicine.name,
                     'restock_amount': restock_needed, # Suggested amount needed to reach target stock
@@ -4097,10 +4109,8 @@ class PurchaseRequestView(APIView):
         for i, item in enumerate(final_list, 1):
             item['no'] = i 
             
-        if not final_list:
-             return Response({"message": "No forecasted or low stock items require ordering."}, status=status.HTTP_200_OK)
-
-
+        # 🔑 FIX: Removed the 'if not final_list' block. Always return the list object, 
+        # even if empty, to prevent Flutter type mismatch error.
         return Response(final_list, status=status.HTTP_200_OK)
 
     # --- POST LOGIC (Creation - remains the same) ---
@@ -4288,27 +4298,24 @@ class RestockListView(generics.RetrieveAPIView):
     queryset = PurchaseRequest.objects.all() 
     serializer_class = RestockListSerializer
     
-    def get_queryset(self):
-        # Prefetching to optimize database queries:
-        # Pre-loads PurchaseRequestItem, Medicine, and Supplier data in one go.
-        # *** MODIFICATION START: Filter items where medicine is NOT null ***
+def get_queryset(self):
         
-        # We first filter the PurchaseRequest objects to ensure we only get the one requested by the primary key (pk)
-        # and then use prefetch_related to grab only the valid items.
+        from django.db.models import Prefetch, Q
         
-        # The correct way to filter the *nested* items is to define a custom Prefetch object.
-        from django.db.models import Prefetch
-        
-        # Define the custom queryset to filter PurchaseRequestItem objects
-        valid_items_queryset = PurchaseRequestItem.objects.filter(medicine__isnull=False)
+        # 🔑 FINAL FIX: Use Q objects to include items that are EITHER:
+        # 1. Standard Demand Forecasts (source='FORECAST')
+        # 2. Manual items that have been registered (source='MANUAL' AND medicine__isnull=False)
+        valid_items_queryset = PurchaseRequestItem.objects.filter(
+            Q(source='FORECAST') | (Q(source='MANUAL') & Q(medicine__isnull=False))
+        )
+        # Note: The is_registered_manual_item flag is not needed here, as medicine__isnull=False 
+        # already covers the fact that registration is complete.
 
         return PurchaseRequest.objects.prefetch_related(
-            # Apply the restriction to the nested 'items'
             Prefetch('items', queryset=valid_items_queryset), 
-            # Still prefetch the medicine and supplier for the valid items
             'items__medicine', 
             'items__medicine__supplier'
-        ).filter(pk=self.kwargs['pk']) # Ensure we only get the specific PR requested
+        ).filter(pk=self.kwargs['pk'])
     
 
 
@@ -4584,7 +4591,6 @@ class NewMedicinePurchaseRequestView(APIView):
     """
     Retrieves the list of 'New Medicines' (items without a medicine FK) 
     from the single latest PENDING Purchase Request.
-    The serializer determines if the item is clickable based on supplier registration status.
     """
     permission_classes = [AllowAny] # Use your actual permission class here
 
@@ -4598,10 +4604,12 @@ class NewMedicinePurchaseRequestView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # 2. Filter for PurchaseRequestItems that are 'New Medicines' (medicine is null)
+        # 2. Filter for PurchaseRequestItems that are 'New Medicines' (medicine is null) 
+        #    AND whose source is explicitly MANUAL.
         new_medicine_items = PurchaseRequestItem.objects.filter(
             purchase_request=latest_pr,
-            medicine__isnull=True # CRITICAL filter for unlisted items
+            medicine__isnull=True, # CRITICAL filter for unlisted items
+            source='MANUAL'       # <--- NEW FILTER APPLIED HERE
         ).select_related('purchase_request') # Optimize query
 
         if not new_medicine_items.exists():
@@ -4625,10 +4633,11 @@ class NewMedicinePurchaseRequestView(APIView):
 # --- NEW VIEW: Links an unlisted Purchase Request Item to a new Medicine record ---
 class LinkPurchaseRequestItemToMedicineView(APIView):
     """
-    Handles PUT request to link a specific PurchaseRequestItem (that has medicine=null)
-    to a newly created Medicine object. This completes the onboarding of the new item.
+    Handles POST request to link a specific PurchaseRequestItem (that has medicine=null)
+    to a newly created Medicine object. This completes the onboarding of the new item
+    and sets the permanent exclusion flag.
     """
-    permission_classes = [AllowAny] # Use your actual permission class here
+    permission_classes = [AllowAny] 
 
     def post(self, request, item_id, *args, **kwargs):
         # 1. Get the specific PurchaseRequestItem using item_id from the URL
@@ -4652,17 +4661,19 @@ class LinkPurchaseRequestItemToMedicineView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # 4. Perform the linkage (CRITICAL STEP)
+        # 4. Perform the linkage and set the permanent flag (CRITICAL STEP)
         try:
             # Update the PurchaseRequestItem's foreign key
             pr_item.medicine = new_medicine
             pr_item.medicine_name_snapshot = new_medicine.name
-            pr_item.save(update_fields=['medicine', 'medicine_name_snapshot'])
             
-            # The suggested_amount should remain 0 for manual entries, or be set based on new logic
-            # For simplicity, we just save the FK and Name, preserving the original restock amount.
+            # --- CRITICAL PERMANENT FIX ---
+            # 🔑 FORCING source to 'MANUAL' and setting the exclusion flag
+            pr_item.source = 'MANUAL' 
+            pr_item.is_registered_manual_item = True 
             
-            pr_item.save(update_fields=['medicine', 'medicine_name_snapshot']) 
+            # Save all updated fields
+            pr_item.save(update_fields=['medicine', 'medicine_name_snapshot', 'source', 'is_registered_manual_item']) 
 
             return Response(
                 {
@@ -4674,6 +4685,7 @@ class LinkPurchaseRequestItemToMedicineView(APIView):
             )
 
         except Exception as e:
+            # Ensure Django model errors are caught
             return Response(
                 {"detail": f"An unexpected error occurred during linkage: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
