@@ -4712,15 +4712,51 @@ class MedicineCreateView(generics.CreateAPIView):
         # Get the new medicine object instance
         new_medicine = serializer.instance
         
+        # ------------------------------------------------------------------
+        # START: LOGIC TO ADD FOR INVENTORY LOGGING (The Fix)
+        # ------------------------------------------------------------------
+        staff_id = request.data.get('staff_id')
+        initial_quantity_str = request.data.get('restock_quantity') # Sent from Flutter
+        
+        if staff_id and initial_quantity_str:
+            try:
+                staff_user = Staff.objects.get(pk=staff_id)
+                quantity = int(initial_quantity_str)
+                
+                # 1. Create the Inventory Log entry
+                InventoryLog.objects.create(
+                    user=staff_user, # Link to the Staff instance
+                    medicine=new_medicine,
+                    action_type='Add', # Use 'Add' as the action type for creation
+                    #quantity=quantity, # Log the quantity added 
+                    description=f"Initial stock of {quantity} units added when medicine was registered.",
+                    staff_name=staff_user.name,
+                    staff_role=staff_user.role,
+                    medicine_name_log=new_medicine.name,
+                    timestamp=timezone.now(),
+                )
+                
+                # 2. Update the medicine's current stock (this might be handled in the serializer's create or signals, but we ensure the field is logged)
+                # NOTE: We assume the serializer already set the initial stock based on 'restock_quantity'.
+                
+            except Staff.DoesNotExist:
+                print(f"Warning: Staff ID {staff_id} not found when logging new medicine creation.")
+            except ValueError:
+                print(f"Warning: Invalid quantity '{initial_quantity_str}' for inventory log during creation.")
+                
+        # ------------------------------------------------------------------
+        # END: LOGIC TO ADD FOR INVENTORY LOGGING (The Fix)
+        # ------------------------------------------------------------------
+        
         # We need the 'restock_amount' that was suggested in the Purchase Request item.
-        # The Flutter app must include this value in the POST request.
+        # This part seems related to the linking feature of your Flutter app.
         pr_restock_amount = request.data.get('restock_amount_from_pr', 0) 
         
         custom_response_data = {
             "detail": "New Medicine registered successfully.",
-            "medicine_id": new_medicine.id, # CRITICAL: New ID for linking PR Item
+            "medicine_id": new_medicine.id,
             "medicine_name": new_medicine.name,
-            "pr_restock_amount": pr_restock_amount, # CRITICAL: Amount needed for Restock Detail screen
+            "pr_restock_amount": pr_restock_amount,
         }
         
         return Response(custom_response_data, status=status.HTTP_201_CREATED)
