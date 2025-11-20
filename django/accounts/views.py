@@ -4727,7 +4727,7 @@ class MedicineCreateView(generics.CreateAPIView):
                 InventoryLog.objects.create(
                     user=staff_user, # Link to the Staff instance
                     medicine=new_medicine,
-                    action_type='Add', # Use 'Add' as the action type for creation
+                    action_type='Added', # Use 'Add' as the action type for creation
                     #quantity=quantity, # Log the quantity added 
                     description=f"Initial stock of {quantity} units added when medicine was registered.",
                     staff_name=staff_user.name,
