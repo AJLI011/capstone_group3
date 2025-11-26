@@ -15,7 +15,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 
 const String API_BASE = String.fromEnvironment(
     'API_BASE',
-    defaultValue: 'http://192.168.1.20:8000/',
+    defaultValue: 'http://192.168.1.6:8000/',
 );
 
 class LoginStaff extends StatefulWidget {

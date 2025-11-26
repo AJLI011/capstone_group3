@@ -133,7 +133,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       };
 
       final response = await http.post(
-        Uri.parse('http://192.168.1.20:8000/api/sales/process/'),
+        Uri.parse('http://192.168.1.6:8000/api/sales/process/'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(payload),
       );

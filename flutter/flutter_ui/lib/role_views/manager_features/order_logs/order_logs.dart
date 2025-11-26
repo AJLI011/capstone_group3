@@ -7,7 +7,7 @@ import 'dart:developer';
 import 'package:timezone/data/latest.dart' as tz; // NEW: Timezone data import
 import 'package:timezone/timezone.dart' as tz; // NEW: Timezone functionality import
 
-const String _baseUrl = 'http://192.168.1.20:8000';
+const String _baseUrl = 'http://192.168.1.6:8000';
 
 // The helper function _parseMedicineName is removed as it was only used by the removed item models.
 
