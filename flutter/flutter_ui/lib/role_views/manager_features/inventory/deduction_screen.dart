@@ -7,7 +7,7 @@ import 'inventory_detail_screen.dart';
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: '192.168.1.6:8000/', 
+  defaultValue: '192.168.1.4:8000/', 
 );
 
 // ===================== STAFF ID RETRIEVAL (CORRECTED) =====================

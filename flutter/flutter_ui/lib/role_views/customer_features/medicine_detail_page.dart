@@ -76,7 +76,7 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
   }
 
   Future<void> fetchMedicineDetail() async {
-    final url = 'http://192.168.1.6:8000/api/customer/medicines/${widget.medicineId}/';
+    final url = 'http://192.168.1.4:8000/api/customer/medicines/${widget.medicineId}/';
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {

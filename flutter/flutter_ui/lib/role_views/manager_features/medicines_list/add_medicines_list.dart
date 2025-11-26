@@ -63,8 +63,8 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
   late bool _isLinkingMode;
 
   // --- API URLS ---
-  final String _medicineCreateUrl = 'http://192.168.1.6:8000/api/medicine/create/';
-  final String _linkPrItemBaseUrl = 'http://192.168.1.6:8000/api/restock/purchase-request/link-new-medicine/';
+  final String _medicineCreateUrl = 'http://192.168.1.4:8000/api/medicine/create/';
+  final String _linkPrItemBaseUrl = 'http://192.168.1.4:8000/api/restock/purchase-request/link-new-medicine/';
 
   @override
   void initState() {
@@ -120,7 +120,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
 
   Future<bool> _checkBarcodeExistence(String barcode) async {
     // IMPORTANT: Replace with your computer's actual local IP address!
-    final url = Uri.parse('http://192.168.1.6:8000/api/medicines/check_barcode/$barcode/');
+    final url = Uri.parse('http://192.168.1.4:8000/api/medicines/check_barcode/$barcode/');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -141,7 +141,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
       _isLoadingSuppliers = true;
     });
     // IMPORTANT: Replace with your computer's actual local IP address!
-    final url = Uri.parse('http://192.168.1.6:8000/api/suppliers/');
+    final url = Uri.parse('http://192.168.1.4:8000/api/suppliers/');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {

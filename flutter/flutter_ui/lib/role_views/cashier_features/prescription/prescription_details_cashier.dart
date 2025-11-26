@@ -66,7 +66,7 @@ class PrescriptionDetailsCashier extends StatelessWidget {
                     runSpacing: 8.0,
                     children: existingImages.map((image) {
                       // Construct the full image URL.
-                      final imageUrl = 'http://192.168.1.6:8000${image['image']}';
+                      final imageUrl = 'http://192.168.1.4:8000${image['image']}';
                       return GestureDetector(
                         onTap: () {
                           // Navigate to the full-screen image view on tap

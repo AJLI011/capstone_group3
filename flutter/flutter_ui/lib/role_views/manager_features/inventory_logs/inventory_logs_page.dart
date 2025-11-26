@@ -24,7 +24,7 @@ class _InventoryLogsPageState extends State<InventoryLogsPage> {
   }
 
   Future<void> fetchInventoryLogs() async {
-    String? nextUrl = 'http://192.168.1.6:8000/api/inventory-logs/';
+    String? nextUrl = 'http://192.168.1.4:8000/api/inventory-logs/';
     List<dynamic> allLogs = [];
 
     try {

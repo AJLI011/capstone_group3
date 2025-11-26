@@ -14,7 +14,7 @@ class PendingOrdersScreen extends StatefulWidget {
 
 // This is the state class that manages the logic and UI for the PendingOrdersScreen.
 class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
-  static const String _baseUrl = "http://192.168.1.6:8000";
+  static const String _baseUrl = "http://192.168.1.4:8000";
   // **UI CONSTANTS**
   static const Color _primaryColor = Color(0xFF5C7C9A); // Corporate Blue
   static const Color _secondaryColor = Color(0xFFC4D5E0); // Light Blue/Grey
