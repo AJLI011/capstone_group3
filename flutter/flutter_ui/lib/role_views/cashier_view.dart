@@ -21,7 +21,7 @@ import 'cashier_features/prescription/prescription_cashier.dart';
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://10.0.2.2:8000/',
+  defaultValue: 'http://192.168.1.20:8000/',
 );
 
 class CashierView extends StatefulWidget {

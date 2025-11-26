@@ -36,7 +36,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
   }
 
   Future<List<dynamic>> _fetchCustomerOrders() async {
-    final url = 'http://10.0.2.2:8000/api/customer/${widget.customerId}/online-orders/';
+    final url = 'http://192.168.1.20:8000/api/customer/${widget.customerId}/online-orders/';
     final response = await http.get(Uri.parse(url));
 
     if (response.statusCode == 200) {
@@ -49,7 +49,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> with SingleTickerProviderSt
   }
 
   Future<void> _cancelOrder(int orderId) async {
-    final url = 'http://10.0.2.2:8000/api/customer/cancel-online-order/$orderId/';
+    final url = 'http://192.168.1.20:8000/api/customer/cancel-online-order/$orderId/';
     final response = await http.put(Uri.parse(url));
 
     if (response.statusCode == 200) {
