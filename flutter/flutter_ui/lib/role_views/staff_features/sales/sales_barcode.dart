@@ -90,7 +90,7 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
       } else {
         // API call failed, inform user and restart scanner
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to fetch item data: ${response.statusCode}')),
+          SnackBar(content: Text('Barcode Not Found')),
         );
       }
     } catch (e) {

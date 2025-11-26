@@ -45,6 +45,7 @@ class InStoreTransaction {
   final double totalAmount;
   final List<TransactionItem> items;
   final double discountAmount;
+  final bool isPwd; // <--- ADD THIS FIELD
 
   InStoreTransaction({
     required this.id,
@@ -56,6 +57,7 @@ class InStoreTransaction {
     required this.totalAmount,
     required this.items,
     required this.discountAmount,
+    required this.isPwd, // <--- ADD TO CONSTRUCTOR
   });
 
   factory InStoreTransaction.fromJson(Map<String, dynamic> json) {
@@ -66,8 +68,10 @@ class InStoreTransaction {
 
     // The backend now sends staff and cashier names as direct strings (or null/empty)
     final staffName = json['staff'] as String? ?? 'N/A';
+    // --- START CLEANUP CHANGE ---
     // Use String? cast to correctly handle null from the backend
     final cashierName = json['cashier'] as String?;
+    // --- END CLEANUP CHANGE ---
 
     // Parse the new fields from the backend
     double subtotal = double.tryParse(json['subtotal'].toString()) ?? 0.0;
@@ -76,6 +80,7 @@ class InStoreTransaction {
     
     // Safely parse the 'id' as an integer
     final int id = int.tryParse(json['id'].toString()) ?? 0;
+    final bool isPwd = json['is_pwd'] ?? false; // <--- ADD THIS PARSING
 
     return InStoreTransaction(
       id: id,
@@ -87,6 +92,7 @@ class InStoreTransaction {
       totalAmount: totalAmount,
       items: parsedItems,
       discountAmount: discountAmount,
+      isPwd: isPwd, // <--- ADD TO RETURN
     );
   }
 }
@@ -120,7 +126,6 @@ class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
     String fullUrl = '$_baseUrl/api/in-store-transactions/';
     if (date != null) {
       String formattedDate = DateFormat('yyyy-MM-dd').format(date);
-      // NOTE: Backend handles the status filtering, so we only pass the date parameter.
       fullUrl += '?date=$formattedDate';
     }
 
@@ -193,7 +198,7 @@ class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
             padding: const EdgeInsets.all(8.0),
             child: _selectedDate != null
             ? Text(
-                'Completed Transactions on: ${DateFormat('MMMM d, y').format(_selectedDate!)}',
+                'Transactions on: ${DateFormat('MMMM d, y').format(_selectedDate!)}',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               )
             : const Text(
@@ -220,17 +225,12 @@ class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
                     return const Center(child: CircularProgressIndicator());
                   } else if (snapshot.hasError) {
                     return Center(child: Text('Error: ${snapshot.error}'));
-                  } 
-                  
-                  // --- MODIFICATION: Updated Logic to rely on Backend Filtering ---
-                  // No need for client-side filtering anymore.
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return const Center(
-                        child: Text('No completed transactions found for this date.'));
+                        child: Text('No transactions found for this date.'));
                   }
 
-                  final transactions = snapshot.data!; // The list is already filtered by the backend!
-                  // --- END MODIFICATION ---
+                  final transactions = snapshot.data!;
 
                   return ListView.separated(
                     itemCount: transactions.length,
@@ -278,6 +278,8 @@ class InStoreTransactionCard extends StatelessWidget {
       decimalDigits: 2,
     ).format(transaction.discountAmount);
 
+    final customerType = transaction.isPwd ? 'Discounted' : 'Regular'; // <--- NEW
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 4,
@@ -311,14 +313,9 @@ class InStoreTransactionCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text('Status: ${transaction.status.toUpperCase()}', 
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: transaction.status.toLowerCase() == 'approved' ? Colors.green : Colors.red,
-                )
-            ), // Added status for visibility
-            Text('Staff: ${transaction.staffName}'),
-            Text('Cashier: ${transaction.cashierName ?? 'N/A'}'),
+            Text('Customer Type: $customerType'),
+            Text('Initiated by: ${transaction.staffName}'),
+            Text('Approved by: ${transaction.cashierName ?? 'N/A'}'),
             const Divider(height: 20),
             ...transaction.items.map((item) {
               return Padding(
@@ -384,7 +381,6 @@ class InStoreTransactionCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            if (transaction.discountAmount > 0)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [

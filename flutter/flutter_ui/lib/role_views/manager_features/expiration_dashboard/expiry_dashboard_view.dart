@@ -18,7 +18,7 @@ class _ExpiryDashboardViewState extends State<ExpiryDashboardView> {
   int expiringSoonCount = 0;
   int expiredCount = 0;
 
-  final String baseUrl = 'http://192.168.1.20:8000/api/medicines';
+  final String baseUrl = 'http://192.168.1.4:8000/api/medicines';
 
   @override
   void initState() {
@@ -77,8 +77,8 @@ class _ExpiryDashboardViewState extends State<ExpiryDashboardView> {
                 context,
                 label: 'GOOD STOCKS',
                 count: goodStockCount,
-                color: Colors.greenAccent,
-                icon: Icons.check_box,
+                color: Colors.green.shade200, // Adjusted color to match the image better
+                icon: Icons.check_circle_outline_outlined,
                 onTap: () {
                   Navigator.push(context,
                       MaterialPageRoute(builder: (context) => const GoodStockPage()));
@@ -91,8 +91,8 @@ class _ExpiryDashboardViewState extends State<ExpiryDashboardView> {
                 context,
                 label: 'EXPIRING SOON',
                 count: expiringSoonCount,
-                color: Colors.yellowAccent,
-                icon: Icons.warning_amber_rounded,
+                color: Colors.yellow.shade200, // Adjusted color to match the image better
+                icon: Icons.warning_amber,
                 onTap: () {
                   Navigator.push(context,
                       MaterialPageRoute(builder: (context) => const ExpiringSoonPage()));
@@ -105,8 +105,8 @@ class _ExpiryDashboardViewState extends State<ExpiryDashboardView> {
                 context,
                 label: 'EXPIRED STOCKS',
                 count: expiredCount,
-                color: Colors.redAccent,
-                icon: Icons.cancel,
+                color: Colors.red.shade200, // Adjusted color to match the image better
+                icon: Icons.close,
                 onTap: () {
                   Navigator.push(context,
                       MaterialPageRoute(builder: (context) => const ExpiredStockPage()));
@@ -119,6 +119,7 @@ class _ExpiryDashboardViewState extends State<ExpiryDashboardView> {
     );
   }
 
+  // *** MODIFIED METHOD: To match the card design from the image ***
   Widget _buildStatusButton(
       BuildContext context, {
         required String label,
@@ -127,32 +128,75 @@ class _ExpiryDashboardViewState extends State<ExpiryDashboardView> {
         required IconData icon,
         required VoidCallback onTap,
       }) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        // Remove fixed vertical padding here if it causes overflow, or reduce it.
-        // It's better to let Expanded handle the vertical sizing.
-        padding: const EdgeInsets.symmetric(vertical: 0), // Adjust or remove this if needed
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center, // Center content vertically within the expanded area
-          children: [
-            Icon(icon, size: 50),
-            const SizedBox(height: 10),
-            Text(
-              count.toString(),
-              style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-            ),
-          ],
+    // Determine a darker color for the count text
+    final countColor = color.computeLuminance() > 0.5 ? const Color.fromARGB(255, 0, 0, 0) : const Color.fromARGB(255, 0, 0, 0);
+
+    return Card(
+      elevation: 5, // Give it a slight shadow
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      margin: EdgeInsets.zero, // Use margin from the parent SizedBox
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(15),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Stack( // Use Stack to position the count in the corner
+            children: [
+              // Main content centered
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.max,
+                  children: [
+                    Container(
+                      // Icon container to give it a white box look
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.white, width: 10),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      padding: const EdgeInsets.all(10),
+                      child: Icon(
+                        icon,
+                        size: 80,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Label at the bottom
+                    Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 25,
+                        fontWeight: FontWeight.bold,
+                        color: Color.fromARGB(255, 0, 0, 0), // Use black for contrast against bright card colors
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Count positioned in the top-right corner
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Text(
+                  count.toString(),
+                  style: TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.w900,
+                    color: countColor, // Use computed color or a fixed black/white
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

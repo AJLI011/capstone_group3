@@ -18,7 +18,7 @@ class _ExpiryDashboardStaffViewState extends State<ExpiryDashboardStaffView> {
   int expiringSoonCount = 0;
   int expiredCount = 0;
 
-  final String baseUrl = 'http://192.168.1.20:8000/api/medicines';
+  final String baseUrl = 'http://192.168.1.4:8000/api/medicines';
 
   @override
   void initState() {
@@ -32,7 +32,7 @@ class _ExpiryDashboardStaffViewState extends State<ExpiryDashboardStaffView> {
       fetchCount('$baseUrl/expiring-soon/', (count) => expiringSoonCount = count),
       fetchCount('$baseUrl/expired/', (count) => expiredCount = count),
     ]);
-    setState(() {});
+    setState(() {}); // Refresh UI after all fetches complete
   }
 
   Future<void> fetchCount(String url, Function(int) setCount) async {
@@ -44,11 +44,15 @@ class _ExpiryDashboardStaffViewState extends State<ExpiryDashboardStaffView> {
           setCount(data.length);
         });
       } else {
-        setCount(0);
+        setState(() {
+          setCount(0);
+        });
       }
     } catch (e) {
       print("Error fetching from $url: $e");
-      setCount(0);
+      setState(() {
+        setCount(0);
+      });
     }
   }
 
@@ -64,90 +68,135 @@ class _ExpiryDashboardStaffViewState extends State<ExpiryDashboardStaffView> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              Flexible(
-                flex: 1,
-                child: _buildStatusButton(
-                  label: 'GOOD STOCKS',
-                  count: goodStockCount,
-                  color: Colors.greenAccent,
-                  icon: Icons.check_box,
-                  onTap: () {
-                    Navigator.push(context,
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            Expanded( // <--- Wrap each status button with Expanded
+              child: _buildStatusButton(
+                context,
+                label: 'GOOD STOCKS',
+                count: goodStockCount,
+                color: Colors.green.shade200, // Adjusted color to match the image better
+                icon: Icons.check_circle_outline_outlined,
+                onTap: () {
+                  Navigator.push(context,
                       MaterialPageRoute(builder: (context) => const GoodStockStaffPage()));
-                  },
-                ),
+                },
               ),
-              const SizedBox(height: 12),
-              Flexible(
-                flex: 1,
-                child: _buildStatusButton(
-                  label: 'EXPIRING SOON',
-                  count: expiringSoonCount,
-                  color: Colors.yellowAccent,
-                  icon: Icons.warning_amber_rounded,
-                  onTap: () {
-                    Navigator.push(context,
+            ),
+            const SizedBox(height: 20),
+            Expanded( // <--- Wrap each status button with Expanded
+              child: _buildStatusButton(
+                context,
+                label: 'EXPIRING SOON',
+                count: expiringSoonCount,
+                color: Colors.yellow.shade200, // Adjusted color to match the image better
+                icon: Icons.warning_amber,
+                onTap: () {
+                  Navigator.push(context,
                       MaterialPageRoute(builder: (context) => const ExpiringSoonStaffPage()));
-                  },
-                ),
+                },
               ),
-              const SizedBox(height: 12),
-              Flexible(
-                flex: 1,
-                child: _buildStatusButton(
-                  label: 'EXPIRED STOCKS',
-                  count: expiredCount,
-                  color: Colors.redAccent,
-                  icon: Icons.cancel,
-                  onTap: () {
-                    Navigator.push(context,
+            ),
+            const SizedBox(height: 20),
+            Expanded( // <--- Wrap each status button with Expanded
+              child: _buildStatusButton(
+                context,
+                label: 'EXPIRED STOCKS',
+                count: expiredCount,
+                color: Colors.red.shade200, // Adjusted color to match the image better
+                icon: Icons.close,
+                onTap: () {
+                  Navigator.push(context,
                       MaterialPageRoute(builder: (context) => const ExpiredStockStaffPage()));
-                  },
-                ),
+                },
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildStatusButton({
-    required String label,
-    required int count,
-    required Color color,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 40),
-            const SizedBox(height: 8),
-            Text(
-              count.toString(),
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-            ),
-          ],
+  // *** MODIFIED METHOD: To match the card design from the image ***
+  Widget _buildStatusButton(
+      BuildContext context, {
+        required String label,
+        required int count,
+        required Color color,
+        required IconData icon,
+        required VoidCallback onTap,
+      }) {
+    // Determine a darker color for the count text
+    final countColor = color.computeLuminance() > 0.5 ? const Color.fromARGB(255, 0, 0, 0) : const Color.fromARGB(255, 0, 0, 0);
+
+    return Card(
+      elevation: 5, // Give it a slight shadow
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      margin: EdgeInsets.zero, // Use margin from the parent SizedBox
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(15),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Stack( // Use Stack to position the count in the corner
+            children: [
+              // Main content centered
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.max,
+                  children: [
+                    Container(
+                      // Icon container to give it a white box look
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.white, width: 10),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      padding: const EdgeInsets.all(10),
+                      child: Icon(
+                        icon,
+                        size: 80,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Label at the bottom
+                    Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 25,
+                        fontWeight: FontWeight.bold,
+                        color: Color.fromARGB(255, 0, 0, 0), // Use black for contrast against bright card colors
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Count positioned in the top-right corner
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Text(
+                  count.toString(),
+                  style: TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.w900,
+                    color: countColor, // Use computed color or a fixed black/white
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

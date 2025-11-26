@@ -79,7 +79,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
     // --- FETCH LOGIC (UNCHANGED) ---
     
     Future<void> _fetchAllMedicines() async {
-        const String apiUrl = 'http://192.168.1.20:8000/api/medicines/all/';
+        const String apiUrl = 'http://192.168.1.4:8000/api/medicines/all/';
         try {
             final response = await http.get(Uri.parse(apiUrl));
             if (response.statusCode == 200) {
@@ -101,7 +101,7 @@ class _PurchaseRequestPageState extends State<PurchaseRequestPage> with SingleTi
         });
 
         try {
-            const String lowStockApiUrl = 'http://192.168.1.20:8000/api/medicines/low-stock/';
+            const String lowStockApiUrl = 'http://192.168.1.4:8000/api/medicines/low-stock/';
             final lowStockResponse = await http.get(Uri.parse(lowStockApiUrl));
 
             if (lowStockResponse.statusCode == 200) {
@@ -155,7 +155,7 @@ Future<void> _fetchPurchaseRequests() async {
         await _fetchAllMedicines();
     }
 
-    const String apiUrl = 'http://192.168.1.20:8000/api/purchase-request/';
+    const String apiUrl = 'http://192.168.1.4:8000/api/purchase-request/';
     try {
         final response = await http.get(Uri.parse(apiUrl)); 
 
@@ -234,33 +234,34 @@ Future<void> _fetchPurchaseRequests() async {
 }
 
     // --- NEW HELPER: Shows the Add Medicine Menu (Moved from old FAB) ---
-    void _showAddMedicineMenu() {
+void _showAddMedicineMenu() {
         showModalBottomSheet(
             context: context,
             builder: (BuildContext context) {
-                return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                        ListTile(
-                            leading: const Icon(Icons.add_shopping_cart, color: _primaryColor),
-                            title: const Text('Add Existing Item'),
-                            onTap: () {
-                                Navigator.pop(context); // Close the bottom sheet
-                                _showAddMedicineDialog(); // Show existing medicine dialog
-                            },
-                        ),
-                        ListTile(
-                            leading: const Icon(Icons.note_add, color: _primaryColor),
-                            title: const Text('Purchase New Medicine'),
-                            onTap: () {
-                                Navigator.pop(context); // Close the bottom sheet
-                                _showAddNewMedicineDialog(); // Show new medicine dialog
-                            },
-                        ),
-                        const Padding(
-                            padding: EdgeInsets.only(bottom: 10),
-                        ),
-                    ],
+                // 👇 WRAP THE COLUMN IN A SAFEAREAD widget
+                return SafeArea( 
+                    child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                            ListTile(
+                                leading: const Icon(Icons.add_shopping_cart, color: _primaryColor),
+                                title: const Text('Add Existing Item'),
+                                onTap: () {
+                                    Navigator.pop(context); // Close the bottom sheet
+                                    _showAddMedicineDialog(); // Show existing medicine dialog
+                                },
+                            ),
+                            ListTile(
+                                leading: const Icon(Icons.note_add, color: _primaryColor),
+                                title: const Text('Purchase New Medicine'),
+                                onTap: () {
+                                    Navigator.pop(context); // Close the bottom sheet
+                                    _showAddNewMedicineDialog(); // Show new medicine dialog
+                                },
+                            ),
+                            // Removed the extra Padding since SafeArea handles the bottom gap
+                        ],
+                    ),
                 );
             },
         );
@@ -639,7 +640,7 @@ void _submitPurchaseRequest() async {
         
         // 4. Send Request
         try {
-            const String apiUrl = 'http://192.168.1.20:8000/api/purchase-request/';
+            const String apiUrl = 'http://192.168.1.4:8000/api/purchase-request/';
             final response = await http.post(
                 Uri.parse(apiUrl),
                 headers: <String, String>{

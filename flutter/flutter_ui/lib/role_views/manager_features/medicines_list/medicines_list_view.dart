@@ -89,10 +89,7 @@ class _MedicineListViewState extends State<MedicineListView> {
   List<Medicine> _medicines = [];
   // State for lazy loading
   bool _isLoading = false;
-  bool _hasMore = true;
-  int _page = 1;
-  final int _pageSize = 10; // Number of items to fetch per page
-  final ScrollController _scrollController = ScrollController();
+  // REMOVED: _hasMore, _page, _pageSize, _scrollController
   
   // *** START OF ADDED CODE FOR SEARCH ***
   List<Medicine> _filteredMedicines = [];
@@ -105,28 +102,20 @@ class _MedicineListViewState extends State<MedicineListView> {
     super.initState();
     // Initial fetch
     _fetchMedicines();
-    // Add listener for infinite scrolling
-    _scrollController.addListener(_onScroll);
+    // REMOVED: Scroll listener
     // *** ADDED LISTENER FOR SEARCH ***
     _searchController.addListener(_filterMedicines);
   }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
+    // REMOVED: Scroll controller dispose logic
     // *** DISPOSE OF SEARCH CONTROLLER ***
     _searchController.dispose();
     super.dispose();
   }
 
-  void _onScroll() {
-    // Check if the user has scrolled to the end of the list
-    if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
-      // Trigger fetch for the next page
-      _fetchMedicines();
-    }
-  }
+  // REMOVED: _onScroll() method
 
   // *** ADDED METHOD TO FILTER MEDICINES ***
   void _filterMedicines() {
@@ -147,41 +136,40 @@ class _MedicineListViewState extends State<MedicineListView> {
   // *** END OF ADDED METHOD ***
 
   Future<void> _fetchMedicines() async {
-    if (_isLoading || !_hasMore) {
+    // MODIFIED: Check only _isLoading
+    if (_isLoading) {
       return;
     }
     
     setState(() {
+      _medicines = []; // Clear list before full fetch
       _isLoading = true;
     });
     
-    // Construct the API URL with pagination parameters
-    final uri = Uri.parse('http://192.168.1.20:8000/api/medicines/?page=$_page&page_size=$_pageSize');
+    // MODIFIED: Construct the API URL without pagination parameters
+    final uri = Uri.parse('http://192.168.1.4:8000/api/medicines/'); // Fetches ALL
     
     final response = await http.get(uri);
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
-      final newMedicines = data.map((json) => Medicine.fromJson(json)).toList();
+      final fetchedMedicines = data.map((json) => Medicine.fromJson(json)).toList();
       
       setState(() {
-        // Append new data to the existing list
-        _medicines.addAll(newMedicines);
+        // MODIFIED: Replace list with all fetched data
+        _medicines = fetchedMedicines;
         _isLoading = false;
-        _page++; // Increment page for the next fetch
-        // Check if we've received fewer items than the page size, meaning no more data
-        if (newMedicines.length < _pageSize) {
-          _hasMore = false;
-        }
+        // REMOVED: _page++ and _hasMore logic
+        
         // *** ADDED: FILTER MEDICINES AFTER FETCHING ***
         _filterMedicines(); 
       });
     } else {
       setState(() {
         _isLoading = false;
-        // Stop trying to fetch if there's an error
-        _hasMore = false;
+        // REMOVED: _hasMore = false
       });
+      // Consider showing an error to the user here
       throw Exception('Failed to load medicines');
     }
   }
@@ -258,8 +246,8 @@ class _MedicineListViewState extends State<MedicineListView> {
     setState(() {
       _medicines = [];
       _filteredMedicines = [];
-      _page = 1;
-      _hasMore = true;
+      // REMOVED: _page = 1;
+      // REMOVED: _hasMore = true;
       _searchController.clear();
       _isSearching = false;
     });
@@ -312,17 +300,16 @@ class _MedicineListViewState extends State<MedicineListView> {
                 ? const Center(child: Text('No medicines found.'))
                 // *** MODIFIED: USE _filteredMedicines LIST FOR THE VIEWS ***
                 : ListView.builder(
-                    controller: _scrollController,
-                    itemCount: _filteredMedicines.length + (_hasMore && !_isSearching ? 1 : 0),
+                    // REMOVED: controller: _scrollController,
+                    // MODIFIED: Only display the length of the list
+                    itemCount: _filteredMedicines.length,
                     itemBuilder: (context, index) {
-                      // Check if this is the last item and we have more to load
-                      if (index == _filteredMedicines.length) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
                       
+                      // REMOVED: Loading indicator check logic
+
                       final med = _filteredMedicines[index];
                       
-                      // ✅ START OF NEW UI LOGIC based on ID Prioritization
+                      // ✅ START OF NEW UI LOGIC based on ID Prioritization (Fixed styles for consistency)
                       const deletedPlaceholder = '[Supplier Deleted]';
                       
                       // 1. Check the status
@@ -330,27 +317,32 @@ class _MedicineListViewState extends State<MedicineListView> {
                       final isSupplierIdPresent = med.supplier != null && med.supplier!.isNotEmpty;
                       
                       String supplierDisplayString;
-                      TextStyle supplierTextStyle;
+                      // Initialize with a default style for non-error cases
+                      TextStyle supplierTextStyle = TextStyle(
+                          fontWeight: FontWeight.normal,
+                          color: Colors.grey[700],
+                      );
                       
                       if (isSupplierDeletedPlaceholder) {
                         if (isSupplierIdPresent) {
                           // Case A: Name is placeholder, but ID is linked. Alert state.
                           supplierDisplayString = 'ID: ${med.supplier!} (Name Missing)';
                           supplierTextStyle = const TextStyle(
+                            fontWeight: FontWeight.bold, // Highlighting the alert state
+                            color: Colors.orange,        // Warning color
                           );
                         } else {
                           // Case B: Name is placeholder, and ID is NOT linked. Confirmed deleted.
                           supplierDisplayString = deletedPlaceholder;
                           supplierTextStyle = const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red, // Error color
                           );
                         }
                       } else {
                         // Case C: Name is resolved/present (or null, which is handled by ?? "-")
                         supplierDisplayString = med.supplierName ?? '-';
-                        supplierTextStyle = TextStyle(
-                          fontWeight: FontWeight.normal,
-                          color: Colors.grey[700],
-                        );
+                        // Style is handled by the default initialization above
                       }
                       // ❌ END OF NEW UI LOGIC ❌
 
