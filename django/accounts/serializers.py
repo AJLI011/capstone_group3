@@ -881,7 +881,7 @@ class InStoreOrderSerializer(serializers.ModelSerializer):
 #----------9/23/25-----------------------------------------------------------------------------------            
 # ORDER LOGS SERIALIZERS
 
-class InStoreOrderItemSerializer(serializers.ModelSerializer):
+class InStoreOrderItemLogSerializer(serializers.ModelSerializer):
     # This correctly uses a SerializerMethodField to prevent crashes
     medicine_name = serializers.SerializerMethodField()
 
@@ -898,7 +898,7 @@ class InStoreOrderItemSerializer(serializers.ModelSerializer):
     
     
 class InStoreOrderDetailsSerializer(serializers.ModelSerializer):
-    items = InStoreOrderItemSerializer(many=True, read_only=True)
+    items = InStoreOrderItemLogSerializer(many=True, read_only=True)
     staff_name = serializers.CharField(source='staff.name', read_only=True)
 
     class Meta:
