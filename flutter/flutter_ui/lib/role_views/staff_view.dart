@@ -344,7 +344,7 @@ class _StaffViewState extends State<StaffView>
                             () => _open(const InventoryGridScreen())),
                         _drawerItem(
                             Icons.sell,
-                            'Instore Sales', scale, // PASS SCALE
+                            'In-store Orders', scale, // PASS SCALE
                             () => _open(SalesBarcodeScreen(
                                 staffId: widget.staffId,
                                 cartItems: const []))),

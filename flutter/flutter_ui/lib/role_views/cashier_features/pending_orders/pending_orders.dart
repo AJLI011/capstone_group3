@@ -303,7 +303,7 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
                   const Text('PWD Discount Applied',
                       style: TextStyle(color: Colors.blue)),
                 const Divider(),
-                const Text('Items (Valid for fulfillment):',
+                const Text('Items:',
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 // Show list of items (NO DELETE BUTTON)
                 ...order.items.map((item) => _buildItemDetailRow(item)),
@@ -361,7 +361,7 @@ class _PendingOrdersScreenState extends State<PendingOrdersScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Pending Orders',
+          'In-store Orders',
           style: TextStyle(
             fontWeight: FontWeight.bold,
           ),

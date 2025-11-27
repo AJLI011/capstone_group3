@@ -331,7 +331,7 @@ class _CashierViewState extends State<CashierView>
                     child: ListView(
                       padding: EdgeInsets.zero,
                       children: [
-                        _drawerItem(Icons.assignment, 'Instore Sales', scale, // PASS SCALE
+                        _drawerItem(Icons.assignment, 'In-store Orders', scale, // PASS SCALE
                             () => _open(PendingOrdersScreen(cashierId: widget.staffId))),
                         _drawerItem(Icons.store, 'Online Orders', scale, // PASS SCALE
                             () => _open(const CashierOnlineOrdersPage())),

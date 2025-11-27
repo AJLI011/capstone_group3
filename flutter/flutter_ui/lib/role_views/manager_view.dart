@@ -538,7 +538,7 @@ class _ManagerViewState extends State<ManagerView>
                                     () => _open(const InventoryGridScreen())),
                                 _drawerItem(Icons.shelves, 'Restock', 
                                     () => _open(const RestockMenuScreen())),
-                                _drawerItem(Icons.store, 'In Store Sales Transaction', 
+                                _drawerItem(Icons.store, 'In-store Sales Transaction', 
                                     () => _open(const InStoreTransactionPage())),
                                 _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction', 
                                     () => _open(const OnlineOrdersReportPage())),
