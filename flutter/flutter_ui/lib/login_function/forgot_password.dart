@@ -74,7 +74,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
 
     // final url = Uri.parse('https://aaron.pythonanywhere.com/api/forgot-password/');
-    final url = Uri.parse('http://192.168.1.5:8000/api/forgot-password/');
+    final url = Uri.parse('http://bluewhiteph.pythonanywhere.com/api/forgot-password/');
     final response = await http.post(url, body: {'email': email});
 
     setState(() => isLoading = false);

@@ -11,7 +11,7 @@ import 'package:timezone/timezone.dart' as tz; // NEW: Timezone functionality im
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.1.5:8000',
+  defaultValue: 'http://bluewhiteph.pythonanywhere.com',
 );
 
 // Define the primary color for consistency

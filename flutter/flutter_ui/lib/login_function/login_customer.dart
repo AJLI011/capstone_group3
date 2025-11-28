@@ -13,7 +13,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 
 const String API_BASE = String.fromEnvironment(
     'API_BASE',
-    defaultValue: 'http://192.168.1.5:8000/',
+    defaultValue: 'http://bluewhiteph.pythonanywhere.com/',
 );
 
 class LoginCustomer extends StatefulWidget {

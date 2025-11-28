@@ -80,26 +80,26 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 # Database - please do not remove this
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'bluewhiteph$default',
-#         'USER': 'bluewhiteph',
-#         'PASSWORD': 'admin123!',
-#         'HOST': 'bluewhiteph.mysql.pythonanywhere-services.com',
-#     }
-# }
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'capstone_db',
-        'USER': 'root',
-        'PASSWORD': 'Fixthebreak_99',
-        'HOST': '127.0.0.1', 
-        'PORT': '3306',
+        'NAME': 'bluewhiteph$default',
+        'USER': 'bluewhiteph',
+        'PASSWORD': 'admin123!',
+        'HOST': 'bluewhiteph.mysql.pythonanywhere-services.com',
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'capstone11',
+#         'USER': 'root',
+#         'PASSWORD': 'admin123',
+#         'HOST': '127.0.0.1', 
+#         'PORT': '3306',
+#     }
+# }
 
 # python manage.py runserver 0.0.0.0:8000
 

@@ -222,7 +222,7 @@ def forgot_password(request):
     token = str(uuid.uuid4())
     reset_tokens[token] = {'email': email, 'user_type': user_type}
 
-    reset_link = f'http://192.168.1.5:8000/reset-password/{token}/'
+    reset_link = f'http://bluewhiteph.pythonanywhere.com/reset-password/{token}/'
 
     subject = 'Reset your password'
     message = f'Click the link below to reset your password:\n\n{reset_link}'

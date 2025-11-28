@@ -17,7 +17,7 @@ class _PrescriptionsStaffState extends State<PrescriptionsStaff> {
   late Future<List<dynamic>> _pendingPrescriptions;
   
   // This should be your base API URL
-  final String apiUrl = "http://192.168.1.5:8000/api/prescriptions/pending/";
+  final String apiUrl = "http://bluewhiteph.pythonanywhere.com/api/prescriptions/pending/";
 
   @override
   void initState() {

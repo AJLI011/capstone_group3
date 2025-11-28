@@ -7,7 +7,7 @@ import 'inventory_detail_screen.dart';
 
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: '192.168.1.5:8000/', 
+  defaultValue: 'bluewhiteph.pythonanywhere.com/', 
 );
 
 // ===================== STAFF ID RETRIEVAL (CORRECTED) =====================

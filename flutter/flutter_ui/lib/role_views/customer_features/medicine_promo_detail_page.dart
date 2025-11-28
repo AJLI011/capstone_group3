@@ -8,7 +8,7 @@ import 'cart_service.dart';
 // Define the API_BASE constant here
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.1.5:8000/',
+  defaultValue: 'http://bluewhiteph.pythonanywhere.com/',
 );
 
 class PromoMedicineDetailPage extends StatefulWidget {

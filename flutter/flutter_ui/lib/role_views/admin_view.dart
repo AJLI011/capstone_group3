@@ -15,7 +15,7 @@ import 'admin_features/employee_logs/employee_logs.dart';
 // Use dart-define to override in different environments
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.1.5:8000/',
+  defaultValue: 'http://bluewhiteph.pythonanywhere.com/',
 );
 
 class AdminView extends StatefulWidget {

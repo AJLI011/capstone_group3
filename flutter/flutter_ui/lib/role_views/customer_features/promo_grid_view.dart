@@ -6,7 +6,7 @@ import 'medicine_promo_detail_page.dart';
 // Define the API_BASE constant here
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://192.168.1.5:8000/',
+  defaultValue: 'http://bluewhiteph.pythonanywhere.com/',
 );
 
 // ===================== MODEL: PromoMedicine =====================
