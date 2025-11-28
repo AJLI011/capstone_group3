@@ -222,7 +222,7 @@ def forgot_password(request):
     token = str(uuid.uuid4())
     reset_tokens[token] = {'email': email, 'user_type': user_type}
 
-    reset_link = f'http://192.168.1.4:8000/reset-password/{token}/'
+    reset_link = f'http://192.168.1.5:8000/reset-password/{token}/'
 
     subject = 'Reset your password'
     message = f'Click the link below to reset your password:\n\n{reset_link}'
@@ -1967,7 +1967,22 @@ class InStoreOrderProcessingView(APIView):
                              
                         batch.quantity = F('quantity') - total_to_deduct
                         batch.save(update_fields=['quantity'])
+
                         # (Existing InventoryLog creation is fine)
+
+                        InventoryLog.objects.create(
+                            user=cashier_user,
+                            medicine=batch.medicine,
+                            action_type='Sold',
+                            staff_name=cashier_user.name,
+                            staff_role=cashier_user.role,
+                            # 🌟 NEW, DETAILED DESCRIPTION HERE 🌟
+                            description=f"Approved in-store sale (Order #{order.id}). "
+                                        f"Total deducted: {total_to_deduct} units. "
+                                        f"(Sold: {item.quantity_sold}, Free: {item.free_quantity_given}) "
+                                        f"of {batch.medicine.name} (Batch: {batch.batch_num}).",
+                            medicine_name_log=batch.medicine.name 
+                        )
                         
                     # 4. Finalize Order Approval and Save Recalculated Totals
                     order.cashier = cashier_user

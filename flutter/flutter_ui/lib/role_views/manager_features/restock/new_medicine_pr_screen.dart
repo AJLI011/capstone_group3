@@ -54,7 +54,7 @@ class _NewMedicinePrScreenState extends State<NewMedicinePrScreen> {
   // from the latest pending PR.
   // We use a getter or function to ensure we can access widget.prId if needed,
   // but for the current view logic, the static endpoint should work.
-  String get _apiUrl => 'http://192.168.1.4:8000/api/restock/purchase-request/new-medicines/';
+  String get _apiUrl => 'http://192.168.1.5:8000/api/restock/purchase-request/new-medicines/';
 
 
   @override

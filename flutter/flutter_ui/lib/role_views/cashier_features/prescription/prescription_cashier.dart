@@ -15,7 +15,7 @@ class _PrescriptionsCashierState extends State<PrescriptionsCashier> {
   late Future<List<dynamic>> _prescriptionsWithImages;
   
   // This should be your base API URL for the cashier view
-  final String apiUrl = "http://192.168.1.4:8000/api/prescriptions/cashier/";
+  final String apiUrl = "http://192.168.1.5:8000/api/prescriptions/cashier/";
 
   @override
   void initState() {

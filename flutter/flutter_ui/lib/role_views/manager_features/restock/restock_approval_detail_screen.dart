@@ -91,7 +91,7 @@ class _RestockApprovalDetailScreenState extends State<RestockApprovalDetailScree
 
   // --- API FETCH LOGIC ---
   Future<void> _fetchPrDetails() async {
-    final String apiUrl = 'http://192.168.1.4:8000/api/restock/purchase-request/${widget.prId}/';
+    final String apiUrl = 'http://192.168.1.5:8000/api/restock/purchase-request/${widget.prId}/';
     
     setState(() {
       _isLoading = true;
@@ -216,7 +216,7 @@ class _RestockApprovalDetailScreenState extends State<RestockApprovalDetailScree
     };
     
     // 4. API Call
-    final String apiUrl = 'http://192.168.1.4:8000/api/restock/purchase-request/${widget.prId}/approve/'; 
+    final String apiUrl = 'http://192.168.1.5:8000/api/restock/purchase-request/${widget.prId}/approve/'; 
     
     setState(() {
       _isLoading = true;

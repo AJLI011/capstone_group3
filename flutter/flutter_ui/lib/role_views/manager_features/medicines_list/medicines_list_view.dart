@@ -147,7 +147,7 @@ class _MedicineListViewState extends State<MedicineListView> {
     });
     
     // MODIFIED: Construct the API URL without pagination parameters
-    final uri = Uri.parse('http://192.168.1.4:8000/api/medicines/'); // Fetches ALL
+    final uri = Uri.parse('http://192.168.1.5:8000/api/medicines/'); // Fetches ALL
     
     final response = await http.get(uri);
 

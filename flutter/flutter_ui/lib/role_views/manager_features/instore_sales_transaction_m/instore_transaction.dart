@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
-final String _baseUrl = 'http://192.168.1.4:8000';
+final String _baseUrl = 'http://192.168.1.5:8000';
 
 // Model for individual items within a transaction
 class TransactionItem {
@@ -166,7 +166,7 @@ class _InStoreTransactionPageState extends State<InStoreTransactionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('In-store Order Transactions'),
+        title: const Text('In-store Sale Transactions'),
         centerTitle: false,
         backgroundColor: const Color(0xFF5C7C9A),
         foregroundColor: Colors.white,
@@ -332,21 +332,14 @@ class InStoreTransactionCard extends StatelessWidget {
                             item.medicineName,
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          if (item.isPromo)
-                            const Text(
-                              'Promo',
-                              style: TextStyle(color: Colors.grey, fontSize: 12),
-                            )
-                          else
-                            const Text(
-                              'Regular Sale',
-                              style: TextStyle(color: Colors.grey, fontSize: 12),
-                            ),
-                          if (item.freeQuantityGiven > 0)
-                            Text(
-                              'Free: ${item.freeQuantityGiven}',
-                              style: const TextStyle(color: Colors.green, fontSize: 12),
-                            ),
+// START OF MODIFIED SECTION
+                          Text(
+                            item.isPromo && item.freeQuantityGiven > 0
+                              ? 'Promo (Qty: ${item.freeQuantityGiven} Free)' // Changed this line slightly for clarity
+                              : 'Regular Sale',
+                            style: const TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+// END OF MODIFIED SECTION
                         ],
                       ),
                     ),
