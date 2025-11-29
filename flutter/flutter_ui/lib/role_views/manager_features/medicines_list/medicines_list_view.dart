@@ -213,7 +213,7 @@ class _MedicineListViewState extends State<MedicineListView> {
     final staffId = prefs.getInt('staff_id'); // assumes it's saved during login
 
     // Attach staff_id as query parameter
-    final uri = Uri.parse('http://192.168.1.20:8000/api/medicines/$id/?staff_id=$staffId');
+    final uri = Uri.parse('http://bluewhiteph.pythonanywhere.com/api/medicines/$id/?staff_id=$staffId');
 
     final response = await http.delete(uri);
 
