@@ -594,77 +594,102 @@ class _ManagerViewState extends State<ManagerView>
     );
   }
 
-  Widget _buildSummaryCards() {
-    return Column(
-      children: [
-        _buildSummaryCard(
-          title: 'Total Medicines',
-          value: totalMedicineCount.toString(),
-          icon: Icons.medication_liquid_outlined,
-          color: const Color(0xFF5C7C9A),
-          textColor: Colors.white,
+Widget _buildSummaryCards() {
+  return Column(
+    children: [
+      _buildSummaryCard(
+        title: 'Total Medicines',
+        value: totalMedicineCount.toString(),
+        // Pass a standard Icon widget
+        iconWidget: Icon(
+          Icons.medication_liquid_outlined, 
+          size: 50, 
+          color: Colors.white,
         ),
-        const SizedBox(height: 16),
-        _buildSummaryCard(
-          title: 'Total Earnings',
-          value: '₱${totalEarned.toStringAsFixed(2)}',
-          icon: Icons.attach_money_outlined,
-          color: Colors.green.shade700,
-          textColor: Colors.white,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSummaryCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-    Color textColor = Colors.black,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      child: Card(
-        color: color,
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      value,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(icon, size: 50, color: textColor),
-            ],
+        color: const Color(0xFF5C7C9A),
+        textColor: Colors.white,
+      ),
+      
+      const SizedBox(height: 16),
+      
+      _buildSummaryCard(
+        title: 'Total Earnings',
+        // The value already contains the Peso symbol (₱)
+        value: '₱${totalEarned.toStringAsFixed(2)}',
+        
+        // Pass the custom Peso sign Text Widget wrapped in a Container
+        iconWidget: Container( 
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            color: Colors.white, 
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            '₱', // The Philippine Peso Symbol
+            style: TextStyle(
+              fontSize: 24, 
+              fontWeight: FontWeight.bold,
+              color: Colors.green.shade700, 
+            ),
           ),
         ),
+        color: Colors.green.shade700,
+        textColor: Colors.white,
       ),
-    );
-  }
+    ],
+  );
+}
 
+Widget _buildSummaryCard({
+  required String title,
+  required String value,
+  required Color color,
+  Color textColor = Colors.black,
+  // This now accepts any Widget, like an Icon or a Text widget
+  required Widget iconWidget, 
+}) {
+  return SizedBox(
+    width: double.infinity,
+    child: Card(
+      color: color,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Use the flexible widget here
+            iconWidget, 
+          ],
+        ),
+      ),
+    ),
+  );
+}
   // Uses totalExpiringSoonCount for the dashboard card
   Widget _buildExpirationIndicators() {
     return Row(

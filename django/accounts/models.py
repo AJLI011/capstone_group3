@@ -689,7 +689,7 @@ class PurchaseRequestItem(models.Model):
     # MANDATORY FKs
     purchase_request = models.ForeignKey(PurchaseRequest, on_delete=models.CASCADE, related_name='items')
     # Use PROTECT to prevent accidental deletion of a medicine with active PRs
-    medicine = models.ForeignKey(Medicine, on_delete=models.PROTECT, null=True, blank=True) 
+    medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE, null=True, blank=True) 
     
     # CORE TRANSACTIONAL QUANTITIES
     restock_amount = models.IntegerField() # Manager's final order (from Forecasted Tab)
