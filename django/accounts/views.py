@@ -222,7 +222,7 @@ def forgot_password(request):
     token = str(uuid.uuid4())
     reset_tokens[token] = {'email': email, 'user_type': user_type}
 
-    reset_link = f'http://192.168.1.5:8000/reset-password/{token}/'
+    reset_link = f'http://10.0.2.2:8000/reset-password/{token}/'
 
     subject = 'Reset your password'
     message = f'Click the link below to reset your password:\n\n{reset_link}'
@@ -288,6 +288,27 @@ def customer_detail(request, customer_id):
 
     customer.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['PUT'])
+def change_customer_password(request, customer_id):
+    try:
+        customer = Customer.objects.get(id=customer_id)
+    except Customer.DoesNotExist:
+        return Response({'error': 'Customer not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    current_password = request.data.get('current_password')
+    new_password = request.data.get('new_password')
+
+    if not current_password or not new_password:
+        return Response({'error': 'Both current and new password are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not check_password(current_password, customer.password):
+        return Response({'error': 'Current password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    customer.password = make_password(new_password)
+    customer.save()
+    
+    return Response({'message': 'Password changed successfully'}, status=status.HTTP_200_OK)
 
 # ─────────── SUPPLIER MANAGEMENT ───────────
 

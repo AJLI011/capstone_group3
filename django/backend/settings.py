@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-5)i5x4*mpiskxl*u^xkr$6*a^du_=b5knz+gpx-u2sby9bw%aq
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['10.0.0.2', 'localhost', '*', '127.0.0.1:8000', 'bluewhiteph.pythonanywhere.com', '192.168.1.5' ]
+ALLOWED_HOSTS = ['10.0.0.2', 'localhost', '*', '127.0.0.1:8000', 'bluewhiteph.pythonanywhere.com', '10.0.2.2' ]
 #'aaron.pythonanywhere.com' add the url of our account sa taas
 
 
