@@ -4,10 +4,10 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'medicine_detail_page.dart';
 
-// NEW: API base URL constant for consistent API calls.
+// API base URL constant for consistent API calls.
 const String API_BASE = String.fromEnvironment(
   'API_BASE',
-  defaultValue: 'http://bluewhiteph.pythonanywhere.com/',
+  defaultValue: 'http://bluewhiteph.pythonanywhere.com:8000/',
 );
 
 class Medicine {
@@ -56,10 +56,9 @@ class MedicineView extends StatefulWidget {
 }
 
 class _MedicineViewState extends State<MedicineView> {
-  // NEW: A ScrollController to listen for scrolling events.
   final ScrollController _scrollController = ScrollController();
   List<Medicine> _medicines = [];
-  // MODIFIED: State variables to manage the lazy loading process.
+  // State variables to manage the lazy loading process.
   bool _isLoading = false;
   bool _hasMoreItems = true;
   int _offset = 0;
@@ -68,7 +67,7 @@ class _MedicineViewState extends State<MedicineView> {
   @override
   void initState() {
     super.initState();
-    // NEW: Add a listener to the ScrollController.
+    // Add a listener to the ScrollController.
     _scrollController.addListener(_onScroll);
     _resetAndFetchMedicines();
   }
@@ -76,21 +75,32 @@ class _MedicineViewState extends State<MedicineView> {
   @override
   void didUpdateWidget(covariant MedicineView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // MODIFIED: Reset and fetch data only if category or search query changes.
+    
+    // 🔥 CRITICAL FIX: Reset and fetch data if category or search query changes.
     if (widget.selectedCategory != oldWidget.selectedCategory ||
         widget.searchQuery != oldWidget.searchQuery) {
-      _resetAndFetchMedicines();
+      
+      // Synchronously clear the list and reset offset/flags
+      // This ensures the view is cleared BEFORE the new API response arrives.
+      setState(() {
+        _medicines = []; 
+        _offset = 0;
+        _hasMoreItems = true;
+        _isLoading = false;
+      });
+      // Start the fresh fetch for the new criteria
+      _fetchMedicines();
     }
   }
 
   @override
   void dispose() {
-    // NEW: Dispose the ScrollController to prevent memory leaks.
+    // Dispose the ScrollController to prevent memory leaks.
     _scrollController.dispose();
     super.dispose();
   }
 
-  // NEW: Function to check if the user has reached the end of the list.
+  // Function to check if the user has reached the end of the list.
   void _onScroll() {
     if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent &&
         !_isLoading &&
@@ -99,25 +109,22 @@ class _MedicineViewState extends State<MedicineView> {
     }
   }
 
-  // NEW: Reset state variables and start a fresh fetch.
+  // Used only for the initial load in initState.
   Future<void> _resetAndFetchMedicines() async {
-    setState(() {
-      _medicines = [];
-      _offset = 0;
-      _hasMoreItems = true;
-      _isLoading = false;
-    });
+    // Note: We don't need to clear _medicines here as it's empty in initState.
+    // The main reset logic is in didUpdateWidget.
     await _fetchMedicines();
   }
 
   Future<void> _fetchMedicines() async {
+    // Prevents starting a new request if one is already running or if no more items exist.
     if (_isLoading || !_hasMoreItems) return;
 
     setState(() {
       _isLoading = true;
     });
 
-    // MODIFIED: Construct the URL with all query parameters.
+    // Construct the URL with all query parameters.
     String url = '${API_BASE}api/customer/medicines/?';
     url += 'limit=$_limit&offset=$_offset';
 
@@ -133,8 +140,10 @@ class _MedicineViewState extends State<MedicineView> {
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
+          // Add new results to the now-cleared list
           _medicines.addAll(data.map((json) => Medicine.fromJson(json)).toList());
           _offset += _limit;
+          // Check if the received items are less than the limit, indicating end of list.
           _hasMoreItems = data.length == _limit;
           _isLoading = false;
         });
@@ -182,13 +191,10 @@ class _MedicineViewState extends State<MedicineView> {
             Expanded(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                // CHANGED: Replaced the Image.asset with a conditional widget `Icons.medication`.
                 child: med.imageUrl.isNotEmpty
                     ? Image.network(
                         med.imageUrl,
                         fit: BoxFit.cover,
-                        // CHANGED: The `errorBuilder` now also shows `Icons.medication`.
-                        // This ensures a fallback icon if the network image fails to load.
                         errorBuilder: (context, error, stackTrace) =>
                             const Center(
                                 child: Icon(Icons.medication, size: 48, color: Colors.grey)),
@@ -237,7 +243,6 @@ class _MedicineViewState extends State<MedicineView> {
 
   @override
   Widget build(BuildContext context) {
-    // MODIFIED: Client-side category is now handled sa backend
     return Scaffold(
       body: _medicines.isEmpty && _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -252,9 +257,9 @@ class _MedicineViewState extends State<MedicineView> {
               : Padding(
                   padding: const EdgeInsets.all(12),
                   child: GridView.builder(
-                    // NEW: Assign the ScrollController to the GridView.
+                    // Assign the ScrollController to the GridView.
                     controller: _scrollController,
-                    // MODIFIED: Add an item for the loading indicator.
+                    // Add an item for the loading indicator.
                     itemCount: _medicines.length + (_isLoading && _hasMoreItems ? 1 : 0),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
@@ -263,7 +268,7 @@ class _MedicineViewState extends State<MedicineView> {
                       childAspectRatio: 0.7,
                     ),
                     itemBuilder: (context, index) {
-                      // NEW: Check if the current index is the last item for the loading indicator.
+                      // Check if the current index is the last item for the loading indicator.
                       if (index == _medicines.length) {
                         return const Center(child: CircularProgressIndicator());
                       }
