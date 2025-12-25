@@ -14,6 +14,10 @@ class Staff(models.Model):
     name = models.CharField(max_length=100, default='Unknown')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     contact_num = models.CharField(max_length=20, blank=True, null=True)
+    
+    # 12/25/2025
+    otp_code = models.CharField(max_length=6, blank=True, null=True)
+    otp_created_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.role} - {self.email}"
@@ -25,6 +29,10 @@ class Customer(models.Model):
     email = models.EmailField(unique=True)
     contact_num = models.CharField(max_length=20, blank=True, null=True)
     password = models.CharField(max_length=128)
+    
+    # 12/25/2025
+    otp_code = models.CharField(max_length=6, blank=True, null=True)
+    otp_created_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return self.email

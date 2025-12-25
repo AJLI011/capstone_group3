@@ -147,6 +147,15 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
+#--12/25/2025
+import random
+from django.utils import timezone
+from datetime import timedelta
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from django.contrib.auth.hashers import make_password
+from django.core.mail import send_mail
+
 # TEMPORARY in-memory dictionary to store reset tokens (DO NOT use in production)
 reset_tokens = {}
 
@@ -203,63 +212,74 @@ def login_user(request):
 # ─────────── PASSWORD RESET ───────────
 
 @api_view(['POST'])
-def forgot_password(request):
+def send_reset_otp(request):
     email = request.data.get('email')
+    if not email:
+        return Response({'error': 'Email is required'}, status=400)
 
-    user = None
-    user_type = ''
+    # 1. Look for user in both tables
+    user = Customer.objects.filter(email=email).first()
+    if not user:
+        user = Staff.objects.filter(email=email).first()
 
+    if not user:
+        return Response({'error': 'User with this email not found'}, status=404)
+
+    # 2. Generate 6-digit OTP
+    otp = f"{random.randint(100000, 999999)}"
+    
+    # 3. Save to user model
+    user.otp_code = otp
+    user.otp_created_at = timezone.now()
+    user.save()
+
+    # 4. Send the Email
     try:
-        user = Customer.objects.get(email=email)
-        user_type = 'customer'
-    except Customer.DoesNotExist:
-        try:
-            user = Staff.objects.get(email=email)
-            user_type = 'staff'
-        except Staff.DoesNotExist:
-            return Response({'error': 'No account found with that email'}, status=status.HTTP_404_NOT_FOUND)
+        send_mail(
+            'Password Reset OTP',
+            f'Your OTP code is {otp}. It will expire in 10 minutes.',
+            'group3pharmapup@gmail.com',
+            [email],
+            fail_silently=False,
+        )
+        return Response({'message': 'OTP sent to your email'})
+    except Exception as e:
+        return Response({'error': f'Failed to send email: {str(e)}'}, status=500)
 
-    token = str(uuid.uuid4())
-    reset_tokens[token] = {'email': email, 'user_type': user_type}
 
-    reset_link = f'http://10.0.2.2:8000/reset-password/{token}/'
+@api_view(['POST'])
+def verify_and_reset_password(request):
+    email = request.data.get('email')
+    otp_input = request.data.get('otp_code')
+    new_password = request.data.get('password')
 
-    subject = 'Reset your password'
-    message = f'Click the link below to reset your password:\n\n{reset_link}'
-    send_mail(subject, message, settings.EMAIL_HOST_USER, [email])
+    if not all([email, otp_input, new_password]):
+        return Response({'error': 'All fields are required'}, status=400)
 
-    return Response({'message': 'Reset link sent to email'}, status=status.HTTP_200_OK)
+    # 1. Find the user
+    user = Customer.objects.filter(email=email).first()
+    if not user:
+        user = Staff.objects.filter(email=email).first()
 
-@api_view(['GET', 'POST'])
-def reset_password(request, token):
-    print('Received token:', token)
-    print('Stored tokens:', reset_tokens)
-    data = reset_tokens.get(token)
-    if not data:
-        return render(request, 'reset_credentials/reset_password.html', {'error': 'Invalid or expired token'})
+    if not user:
+        return Response({'error': 'User not found'}, status=404)
 
-    if request.method == 'POST':
-        pw1 = request.POST.get('password1')
-        pw2 = request.POST.get('password2')
+    # 2. Check if OTP matches
+    if user.otp_code != otp_input:
+        return Response({'error': 'Invalid OTP code'}, status=400)
 
-        if pw1 != pw2:
-            return render(request, 'reset_credentials/reset_password.html', {'error': 'Passwords do not match'})
+    # 3. Check if OTP is expired (10 minutes)
+    expiry_time = user.otp_created_at + timedelta(minutes=10)
+    if timezone.now() > expiry_time:
+        return Response({'error': 'OTP has expired'}, status=400)
 
-        email = data['email']
-        if data['user_type'] == 'customer':
-            user = Customer.objects.get(email=email)
-        else:
-            user = Staff.objects.get(email=email)
+    # 4. Success: Update password and clear OTP fields
+    user.password = make_password(new_password)
+    user.otp_code = None
+    user.otp_created_at = None
+    user.save()
 
-        user.password = make_password(pw1)
-        user.save()
-
-        reset_tokens.pop(token, None)
-
-        return render(request, 'reset_credentials/reset_password.html', {'success': 'Password reset successful'})
-
-    return render(request, 'reset_credentials/reset_password.html')
-
+    return Response({'message': 'Password reset successfully!'})
 # ─────────── CUSTOMER MANAGEMENT ───────────
 
 @api_view(['GET'])

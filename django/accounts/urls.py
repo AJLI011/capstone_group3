@@ -18,8 +18,8 @@ urlpatterns = [
     # Authentication
     path('register/', views.register_customer),
     path('login/', views.login_user),
-    path('forgot-password/', views.forgot_password),
-    path('reset-password/<str:token>/', views.reset_password, name='reset-password'),
+    path('send-otp/', views.send_reset_otp, name='send-otp'),
+    path('reset-password/', views.verify_and_reset_password, name='reset-password'),
 
     #-------------admin features--------------
     # Customers
