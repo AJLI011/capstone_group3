@@ -207,7 +207,7 @@ class _RestockDetailsPageState extends State<RestockDetailsPage> {
       'exp_date': _expirationDateController.text,
       'quantity': int.parse(_quantityController.text),
       'staff_id': staffId,
-      'pr_item_id': widget.medicineId != null ? widget.medicineId : null,
+      'pr_item_id': widget.medicineId,
     };
 
     final url = Uri.parse('${API_BASE}api/inventory/add/');

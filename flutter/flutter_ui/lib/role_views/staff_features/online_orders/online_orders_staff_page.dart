@@ -305,7 +305,7 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
    final secondaryCardColor = isPwd ? const Color(0xFFD9E3EF) : Colors.grey.shade200;
 
    // Helper function for the Sale Badge (moved outside the main build method for cleanliness)
-   Widget _buildSaleBadge() {
+   Widget buildSaleBadge() {
      return Container(
        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
        decoration: BoxDecoration(
@@ -355,7 +355,7 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
          children: [
            const SizedBox(height: 4), 
            // NEW: The Sale Badge is placed here, right below the title
-           _buildSaleBadge(),
+           buildSaleBadge(),
 
            const SizedBox(height: 8), 
            _buildInfoRow( // Icon parameter removed

@@ -313,7 +313,7 @@ class _OrderLogsScreenState extends State<OrderLogsScreen> {
               size: 30,
             ),
             title: Text(
-              '${log.actionType.replaceAll('_', ' ')}',
+              log.actionType.replaceAll('_', ' '),
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: iconColor,

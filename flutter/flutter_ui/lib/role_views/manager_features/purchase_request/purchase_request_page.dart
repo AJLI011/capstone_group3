@@ -403,15 +403,15 @@ void _showAddMedicineMenu() {
     
     // NEW: Build the Add New Medicine modal/dialog (MODIFIED FOR SUPPLIER DROPDOWN AND CONTACT AUTO-FILL)
     void _showAddNewMedicineDialog() {
-        final _formKey = GlobalKey<FormState>();
-        String _name = '';
-        String _supplier = '';
-        int _amount = 1;
-        String _contact = ''; // State variable for contact number
+        final formKey = GlobalKey<FormState>();
+        String name = '';
+        String supplier = '';
+        int amount = 1;
+        String contact = ''; // State variable for contact number
         
         // New state for dropdown
-        String? _selectedSupplier; 
-        bool _isNewSupplier = false; // Flag to show or hide the contact field/new supplier text field
+        String? selectedSupplier; 
+        bool isNewSupplier = false; // Flag to show or hide the contact field/new supplier text field
 
         // --- New Logic: Extract unique suppliers and their contacts ---
         // Map to store {Supplier Name: Contact Number}
@@ -441,27 +441,27 @@ void _showAddMedicineMenu() {
                         return AlertDialog(
                             title: const Text('Purchase New Medicine'),
                             content: Form(
-                                key: _formKey,
+                                key: formKey,
                                 child: SingleChildScrollView(
                                     child: ListBody(
                                         children: <Widget>[
                                             TextFormField(
                                                 decoration: const InputDecoration(labelText: 'Medicine Name *'),
-                                                onChanged: (val) => _name = val,
+                                                onChanged: (val) => name = val,
                                                 validator: (val) => val!.trim().isEmpty ? 'Name is required' : null,
                                             ),
                                             TextFormField(
                                                 decoration: const InputDecoration(labelText: 'Restock Amount *'),
                                                 keyboardType: TextInputType.number,
                                                 initialValue: '1',
-                                                onChanged: (val) => _amount = int.tryParse(val) ?? 1,
+                                                onChanged: (val) => amount = int.tryParse(val) ?? 1,
                                                 validator: (val) => (int.tryParse(val!) ?? 0) < 1 ? 'Must be at least 1' : null,
                                             ),
                                             
                                             // --- Supplier Dropdown ---
                                             DropdownButtonFormField<String>(
                                                 decoration: const InputDecoration(labelText: 'Supplier Name *'),
-                                                value: _selectedSupplier,
+                                                value: selectedSupplier,
                                                 hint: const Text('Select or Add Supplier'),
                                                 items: supplierOptions.map((String value) {
                                                     return DropdownMenuItem<String>(
@@ -471,16 +471,16 @@ void _showAddMedicineMenu() {
                                                 }).toList(),
                                                 onChanged: (String? newValue) {
                                                     setState(() {
-                                                        _selectedSupplier = newValue;
-                                                        _isNewSupplier = newValue == 'Add New Supplier';
+                                                        selectedSupplier = newValue;
+                                                        isNewSupplier = newValue == 'Add New Supplier';
                                                         
-                                                        if (!_isNewSupplier && newValue != null) {
-                                                            _supplier = newValue;
+                                                        if (!isNewSupplier && newValue != null) {
+                                                            supplier = newValue;
                                                             // *** CRITICAL FIX: Look up and set contact ***
-                                                            _contact = supplierContactMap[newValue] ?? 'N/A'; 
+                                                            contact = supplierContactMap[newValue] ?? 'N/A'; 
                                                         } else {
-                                                            _supplier = ''; // Clear for new input
-                                                            _contact = ''; // Clear contact for new input (will be editable)
+                                                            supplier = ''; // Clear for new input
+                                                            contact = ''; // Clear contact for new input (will be editable)
                                                         }
                                                     });
                                                 },
@@ -488,7 +488,7 @@ void _showAddMedicineMenu() {
                                                     if (val == null) {
                                                         return 'Supplier is required';
                                                     }
-                                                    if (val == 'Add New Supplier' && _supplier.trim().isEmpty) {
+                                                    if (val == 'Add New Supplier' && supplier.trim().isEmpty) {
                                                         return 'New Supplier Name is required';
                                                     }
                                                     return null;
@@ -496,32 +496,32 @@ void _showAddMedicineMenu() {
                                             ),
 
                                             // --- Conditional Input for New Supplier Name ---
-                                            if (_isNewSupplier)
+                                            if (isNewSupplier)
                                                 TextFormField(
                                                     decoration: const InputDecoration(labelText: 'New Supplier Name *'),
-                                                    onChanged: (val) => _supplier = val,
+                                                    onChanged: (val) => supplier = val,
                                                 ),
 
                                             // --- Conditional Input for Contact Number (Auto-filled or Editable) ---
                                             // Show if 'Add New Supplier' is selected OR an existing supplier is selected (to show the contact)
-                                            if (_isNewSupplier || (_selectedSupplier != null && _selectedSupplier != 'Add New Supplier'))
+                                            if (isNewSupplier || (selectedSupplier != null && selectedSupplier != 'Add New Supplier'))
                                                 TextFormField(
                                                     // Key is added to force the widget to rebuild when _contact changes
-                                                    key: ValueKey('contact_field_$_contact'), 
+                                                    key: ValueKey('contact_field_$contact'), 
                                                     decoration: InputDecoration(
-                                                        labelText: _isNewSupplier 
+                                                        labelText: isNewSupplier 
                                                             ? 'Supplier Contact Number' 
                                                             : 'Supplier Contact Number',
-                                                        enabled: _isNewSupplier, // Disabled if existing supplier is chosen
-                                                        suffixIcon: !_isNewSupplier ? const Icon(Icons.lock_outline, size: 18) : null,
+                                                        enabled: isNewSupplier, // Disabled if existing supplier is chosen
+                                                        suffixIcon: !isNewSupplier ? const Icon(Icons.lock_outline, size: 18) : null,
                                                     ),
                                                     // Use the state variable _contact for the current value. If 'N/A' from lookup, display it.
-                                                    initialValue: _isNewSupplier ? _contact : (_contact.isEmpty ? 'N/A' : _contact),
+                                                    initialValue: isNewSupplier ? contact : (contact.isEmpty ? 'N/A' : contact),
                                                     keyboardType: TextInputType.phone,
                                                     onChanged: (val) {
                                                         // Only allow modification if it is a new supplier
-                                                        if (_isNewSupplier) {
-                                                            _contact = val;
+                                                        if (isNewSupplier) {
+                                                            contact = val;
                                                         }
                                                     },
                                                 ),
@@ -540,16 +540,16 @@ void _showAddMedicineMenu() {
                                 ElevatedButton(
                                     child: const Text('ADD NEW'),
                                     onPressed: () {
-                                        if (_formKey.currentState!.validate()) {
+                                        if (formKey.currentState!.validate()) {
                                             // Ensure the correct supplier name is used based on selection
-                                            final finalSupplierName = _isNewSupplier ? _supplier.trim() : _selectedSupplier!.trim();
+                                            final finalSupplierName = isNewSupplier ? supplier.trim() : selectedSupplier!.trim();
                                             
                                             _addNewMedicine(
-                                                _name.trim(), 
-                                                _amount, 
+                                                name.trim(), 
+                                                amount, 
                                                 finalSupplierName, 
                                                 // If contact is auto-filled as 'N/A', send an empty string instead of 'N/A'
-                                                _contact.trim() == 'N/A' ? '' : _contact.trim()
+                                                contact.trim() == 'N/A' ? '' : contact.trim()
                                             );
                                         }
                                     },
@@ -798,7 +798,7 @@ void _submitPurchaseRequest() async {
                     border: Border.all(color: Colors.grey.shade300, width: 1),
                     borderRadius: BorderRadius.circular(10),
                 ),
-                headingRowColor: MaterialStateProperty.all(_primaryColor.withOpacity(0.85)), 
+                headingRowColor: WidgetStateProperty.all(_primaryColor.withOpacity(0.85)), 
                 headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white), 
                 dataRowHeight: 60.0, 
                 columnSpacing: 16.0, 
@@ -877,7 +877,7 @@ void _submitPurchaseRequest() async {
                     border: Border.all(color: Colors.grey.shade300, width: 1),
                     borderRadius: BorderRadius.circular(10),
                 ),
-                headingRowColor: MaterialStateProperty.all(_primaryColor.withOpacity(0.85)), 
+                headingRowColor: WidgetStateProperty.all(_primaryColor.withOpacity(0.85)), 
                 headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white), 
                 dataRowHeight: 50.0, 
                 columnSpacing: 16.0, 

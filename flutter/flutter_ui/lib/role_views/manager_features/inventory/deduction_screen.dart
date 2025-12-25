@@ -390,7 +390,7 @@ class _DeductionScreenState extends State<DeductionScreen> {
               
               ..._commonReasons.map((reason) {
                 return _buildReasonRadioListTile(reason, isOtherSelected);
-              }).toList(),
+              }),
               
               const SizedBox(height: 10),
 

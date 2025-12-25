@@ -248,8 +248,8 @@ class PdfDailyReportService {
                     globalRowIndex.toString(),
                     // 🟢 FIX 3: Add 'ON-' prefix to Order ID
                     isFirstItem ? '${tx.orderId}' : '', // Added 'ON-' prefix
-                    isFirstItem ? '${tx.initiatedByName}' : '',
-                    isFirstItem ? '${tx.approvedByName}' : '',
+                    isFirstItem ? tx.initiatedByName : '',
+                    isFirstItem ? tx.approvedByName : '',
 
                     medicineName, // Uses fixed variable
                     quantitySold, // Uses fixed variable

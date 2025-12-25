@@ -157,7 +157,7 @@ class MyApp extends StatelessWidget {
       // 1. Get the current system's media settings
       data: MediaQuery.of(context).copyWith(
         // 2. Set textScaleFactor to 1.0 to disable system font scaling
-        textScaleFactor: 1.0,
+        textScaler: TextScaler.linear(1.0),
       ),
       // 3. Apply the modified settings to the MaterialApp and the whole app
       child: MaterialApp(

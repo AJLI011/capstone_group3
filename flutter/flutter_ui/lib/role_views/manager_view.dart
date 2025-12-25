@@ -3,7 +3,6 @@ import 'package:flutter_ui/role_views/manager_features/expiration_dashboard/expi
 import 'package:shared_preferences/shared_preferences.dart';
 import '../login_function/login_customer.dart';
 import 'manager_features/medicines_list/medicines_list_view.dart';
-import 'manager_features/restock/restock_barcode.dart';
 import 'manager_features/change_password/change_manager_password.dart';
 import 'manager_features/edit_profile/edit_manager_profile.dart';
 import 'manager_features/inventory/inventory_grid_screen.dart';
@@ -19,9 +18,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'package:flutter_ui/services/responsive_scale.dart'; 
 import 'manager_features/daily_reports/daily_reports.dart';
-import 'manager_features/return_medicines/return_view.dart';
 import 'manager_features/restock/restock_menu_screen.dart';
 
 const String API_BASE = String.fromEnvironment(

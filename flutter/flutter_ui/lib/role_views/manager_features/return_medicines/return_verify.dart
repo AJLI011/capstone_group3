@@ -511,7 +511,7 @@ class _ReturnVerificationPageState extends State<ReturnVerificationPage> {
                     ),
                   ],
                 );
-              }).toList(),
+              }),
             ],
           ),
           

@@ -350,7 +350,7 @@ class _ReturnViewTabState extends State<ReturnViewTab> {
               ],
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }

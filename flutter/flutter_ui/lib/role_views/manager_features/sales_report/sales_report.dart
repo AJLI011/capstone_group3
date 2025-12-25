@@ -107,7 +107,7 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
       });
     } catch (e) {
       setState(() {
-        _errorMessage = (_errorMessage ?? '') + 'Failed to fetch In-Store report: ${e.toString()}\n';
+        _errorMessage = '${_errorMessage ?? ''}Failed to fetch In-Store report: ${e.toString()}\n';
       });
     }
 
@@ -119,7 +119,7 @@ class _CombinedSalesReportPageState extends State<CombinedSalesReportPage> with 
       });
     } catch (e) {
       setState(() {
-        _errorMessage = (_errorMessage ?? '') + 'Failed to fetch Online report: ${e.toString()}';
+        _errorMessage = '${_errorMessage ?? ''}Failed to fetch Online report: ${e.toString()}';
       });
     }
 

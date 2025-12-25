@@ -208,7 +208,7 @@ class ExpiredMedicineListTab extends StatefulWidget {
 class _ExpiredMedicineListTabState extends State<ExpiredMedicineListTab> {
   List<dynamic> expiredMedicines = [];
   bool _isLoading = false;
-  Set<int> _selectedIds = {};
+  final Set<int> _selectedIds = {};
 
   @override
   void initState() {
@@ -367,10 +367,8 @@ class _ExpiredMedicineListTabState extends State<ExpiredMedicineListTab> {
 
         // 3. Switch to the Verification Tab (Index 1)
         final tabController = DefaultTabController.of(context);
-        if (tabController != null) {
-          tabController.animateTo(1);
-        }
-
+        tabController.animateTo(1);
+      
       } else {
           throw Exception('Return successful, but transaction ID was not received from the server.');
       }
