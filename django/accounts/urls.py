@@ -16,6 +16,7 @@ from .views import get_comprehensive_transaction_report
 
 urlpatterns = [
     # Authentication
+    #12/25/2025
     path('register/', views.register_customer),
     path('login/', views.login_user),
     path('send-otp/', views.send_reset_otp, name='send-otp'),
