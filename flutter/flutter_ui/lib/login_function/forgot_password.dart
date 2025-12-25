@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'otp_input.dart'; // Ensure this file exists in your project
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -13,10 +15,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   String message = '';
   bool isLoading = false;
 
-  // Primary color for consistency with RegisterCustomer screen
   static const Color primaryBlue = Color(0xFF0050C8);
 
-  // Helper function for elegant TextFormField design
   Widget _buildTextFormField({
     required TextEditingController controller,
     required String labelText,
@@ -38,7 +38,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           fillColor: Colors.grey.shade50,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none, // Hide default border
+            borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -53,8 +53,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 
-  // LOGIC (UNCHANGED)
-  Future<void> sendResetLink() async {
+  // UPDATED LOGIC
+  Future<void> sendOtpCode() async {
     final email = emailController.text.trim();
 
     if (email.isEmpty) {
@@ -62,7 +62,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       return;
     }
 
-    // Basic email format validation
     if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
       setState(() => message = 'Please enter a valid email address');
       return;
@@ -73,19 +72,36 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       message = '';
     });
 
-    // final url = Uri.parse('https://aaron.pythonanywhere.com/api/forgot-password/');
-    final url = Uri.parse('http://10.0.2.2:8000/api/forgot-password/');
-    final response = await http.post(url, body: {'email': email});
+    try {
+      // Changed to the new send-otp endpoint
+      final url = Uri.parse('http://10.0.2.2:8000/api/send-otp/');
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({'email': email}),
+      );
 
-    setState(() => isLoading = false);
+      setState(() => isLoading = false);
 
-    if (response.statusCode == 200) {
+      if (response.statusCode == 200) {
+        // Navigate to OTP Screen and pass the email
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OtpInputScreen(email: email),
+          ),
+        );
+      } else {
+        final errorData = jsonDecode(response.body);
+        setState(() {
+          message = errorData['error'] ?? 'No account found with that email';
+        });
+      }
+    } catch (e) {
       setState(() {
-        message = 'Reset link sent to your email. Check your inbox.';
-      });
-    } else {
-      setState(() {
-        message = 'No account found with that email';
+        isLoading = false;
+        message = 'Connection error. Check your server.';
       });
     }
   }
@@ -98,7 +114,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header Section
             Padding(
               padding: const EdgeInsets.fromLTRB(8.0, 12.0, 16.0, 12.0),
               child: Row(
@@ -118,11 +133,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ],
               ),
             ),
-            
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24.0),
               child: Text(
-                "Enter your email address to reset your password.",
+                "Enter your email address to receive a 6-digit verification code.",
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey,
@@ -130,10 +144,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
               ),
             ),
-            
             const SizedBox(height: 32),
-            
-            // Email Input + Button
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -146,14 +157,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       icon: Icons.email_outlined,
                       keyboardType: TextInputType.emailAddress,
                     ),
-                    
                     const SizedBox(height: 16),
-
-                    // Reset Button
                     SizedBox(
                       height: 54,
                       child: ElevatedButton(
-                        onPressed: isLoading ? null : sendResetLink,
+                        onPressed: isLoading ? null : sendOtpCode, // Changed function name
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryBlue,
                           foregroundColor: Colors.white,
@@ -163,52 +171,37 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           elevation: 5,
                         ),
                         child: isLoading
-                            ? const Center(child: SizedBox(
+                            ? const Center(
+                                child: SizedBox(
                                 width: 24,
                                 height: 24,
                                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
                               ))
                             : const Text(
-                                'SEND RESET LINK',
+                                'SEND OTP CODE', // Updated text
                                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                               ),
                       ),
                     ),
-
                     if (message.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 32),
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: message.contains('sent')
-                                ? Colors.green.shade50
-                                : Colors.red.shade50,
+                            color: Colors.red.shade50,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: message.contains('sent')
-                                  ? Colors.green.shade400
-                                  : Colors.red.shade400,
-                            ),
+                            border: Border.all(color: Colors.red.shade400),
                           ),
                           child: Row(
                             children: [
-                              Icon(
-                                message.contains('sent')
-                                    ? Icons.check_circle_outline
-                                    : Icons.error_outline,
-                                color: message.contains('sent')
-                                    ? Colors.green.shade700
-                                    : Colors.red.shade700,
-                              ),
+                              Icon(Icons.error_outline, color: Colors.red.shade700),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
                                   message,
                                   style: TextStyle(
-                                    color: message.contains('sent')
-                                        ? Colors.green.shade700
-                                        : Colors.red.shade700,
+                                    color: Colors.red.shade700,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
