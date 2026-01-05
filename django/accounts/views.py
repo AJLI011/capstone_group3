@@ -146,6 +146,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from .serializers import validate_password_complexity
 
 #--12/25/2025
 import random
@@ -322,14 +323,22 @@ def change_customer_password(request, customer_id):
     if not current_password or not new_password:
         return Response({'error': 'Both current and new password are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
+    # Verify identity with the old password
     if not check_password(current_password, customer.password):
         return Response({'error': 'Current password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # --- NEW: Apply the same Complexity Validation as Staff ---
+    try:
+        validate_password_complexity(new_password)
+    except serializers.ValidationError as e:
+        # Returns the specific requirement that was missed
+        return Response({'error': e.detail[0]}, status=status.HTTP_400_BAD_REQUEST)
+    # ---------------------------------------------------------
 
     customer.password = make_password(new_password)
     customer.save()
     
     return Response({'message': 'Password changed successfully'}, status=status.HTTP_200_OK)
-
 # ─────────── SUPPLIER MANAGEMENT ───────────
 
 @api_view(['GET', 'POST'])
@@ -469,7 +478,15 @@ def change_staff_password(request, staff_id):
         return Response({'error': 'Both current and new password are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
     if not check_password(current_password, staff.password):
-        return Response({'error': 'Current password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST) # Fixed typo: BAD_BAD_REQUEST to BAD_REQUEST
+        return Response({'error': 'Current password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # --- NEW: Complexity Validation ---
+    try:
+        validate_password_complexity(new_password)
+    except serializers.ValidationError as e:
+        # Return the specific error message (e.g., "Must contain a number")
+        return Response({'error': e.detail[0]}, status=status.HTTP_400_BAD_REQUEST)
+    # ----------------------------------
 
     staff.password = make_password(new_password)
     staff.save()

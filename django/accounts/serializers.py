@@ -3,7 +3,7 @@ from .models import (
     Customer, Staff, Supplier, Medicine, Inventory, TotalQuantity, Promo, InventoryLog, 
     InStoreOrder, InStoreOrderItem, EmployeeLog, OrderLog, OnlineOrder, OnlineOrderItem, Prescription,
     PrescriptionImage, CustomerFCMToken, ForecastReport, ForecastItem, StaffFCMToken,
-    PurchaseRequest, PurchaseRequestItem,
+    PurchaseRequest, PurchaseRequestItem, 
 )
 from django.contrib.auth.hashers import make_password
 from decimal import Decimal
@@ -14,7 +14,10 @@ from django.utils.timezone import now
 from django.utils import timezone # add this (elton)
 from rest_framework.validators import UniqueValidator
 from rest_framework import serializers
-from rest_framework.validators import UniqueValidator 
+from rest_framework.validators import UniqueValidator
+from django.core.exceptions import ValidationError
+import re 
+import django.contrib.auth.password_validation as validators
 # Assuming Medicine is imported
 
 
@@ -25,17 +28,56 @@ class CustomerSerializer(serializers.ModelSerializer):
         fields = ['id', 'email', 'password', 'name', 'contact_num']
         extra_kwargs = {'password': {'write_only': True}}
 
+    def validate_password(self, value):
+        # 1. Check Length
+        if len(value) < 12:
+            raise serializers.ValidationError("Password must be at least 12 characters long.")
+        
+        # 2. Check Uppercase
+        if not re.search(r'[A-Z]', value):
+            raise serializers.ValidationError("Password must contain at least one uppercase letter.")
+        
+        # 3. Check Lowercase
+        if not re.search(r'[a-z]', value):
+            raise serializers.ValidationError("Password must contain at least one lowercase letter.")
+        
+        # 4. Check Number
+        if not re.search(r'\d', value):
+            raise serializers.ValidationError("Password must contain at least one number.")
+        
+        # 5. Check Special Character
+        if not re.search(r'[@$!%*?&]', value):
+            raise serializers.ValidationError("Password must contain at least one special character (@$!%*?&).")
+            
+        return value
+
     def create(self, validated_data):
+        # The validate_password method runs before this
         validated_data['password'] = make_password(validated_data['password'])
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
         if 'password' in validated_data and validated_data['password']:
+            # Ensure update also validates the password
+            self.validate_password(validated_data['password'])
             validated_data['password'] = make_password(validated_data['password'])
         else:
             validated_data.pop('password', None)
         return super().update(instance, validated_data)
 
+
+def validate_password_complexity(value):
+    if len(value) < 12:
+        raise serializers.ValidationError("Password must be at least 12 characters long.")
+    if not re.search(r'[A-Z]', value):
+        raise serializers.ValidationError("Password must contain at least one uppercase letter.")
+    if not re.search(r'[a-z]', value):
+        raise serializers.ValidationError("Password must contain at least one lowercase letter.")
+    if not re.search(r'\d', value):
+        raise serializers.ValidationError("Password must contain at least one number.")
+    if not re.search(r'[@$!%*?&]', value):
+        raise serializers.ValidationError("Password must contain at least one special character (@$!%*?&).")
+    return value
 
 class StaffSerializer(serializers.ModelSerializer):
     class Meta:
@@ -43,12 +85,18 @@ class StaffSerializer(serializers.ModelSerializer):
         fields = ['id', 'email', 'password', 'name', 'role', 'contact_num']
         extra_kwargs = {'password': {'write_only': True}}
 
+    def validate_password(self, value):
+        # Use the helper to enforce the 12-char complexity
+        return validate_password_complexity(value)
+
     def create(self, validated_data):
         validated_data['password'] = make_password(validated_data['password'])
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
         if 'password' in validated_data and validated_data['password']:
+            # Manually trigger validation for updates
+            self.validate_password(validated_data['password'])
             validated_data['password'] = make_password(validated_data['password'])
         else:
             validated_data.pop('password', None)

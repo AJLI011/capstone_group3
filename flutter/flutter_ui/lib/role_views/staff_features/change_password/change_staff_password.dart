@@ -35,6 +35,7 @@ class _ChangeStaffPasswordPageState extends State<ChangeStaffPasswordPage> {
 
   bool _isSaving = false;
   String? _errorMessage;
+  bool _obscureText = true; // Added for visibility toggle
 
   // --- Lifecycle ---
   @override
@@ -47,13 +48,12 @@ class _ChangeStaffPasswordPageState extends State<ChangeStaffPasswordPage> {
 
   // --- API Method ---
 
-  /// Submits the password change request to the API.
   Future<void> _changePassword() async {
     if (!mounted) return;
-    setState(() => _isSaving = true);
-    
-    // Clear any previous error message
-    setState(() => _errorMessage = null);
+    setState(() {
+      _isSaving = true;
+      _errorMessage = null;
+    });
 
     final url = Uri.parse('$_apiUrlBase/api/staff/${widget.staffId}/change-password/');
     final body = json.encode({
@@ -72,7 +72,6 @@ class _ChangeStaffPasswordPageState extends State<ChangeStaffPasswordPage> {
       setState(() => _isSaving = false);
 
       if (response.statusCode == 200) {
-        // Success
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Password changed successfully!'),
@@ -81,14 +80,12 @@ class _ChangeStaffPasswordPageState extends State<ChangeStaffPasswordPage> {
         );
         Navigator.pop(context);
       } else {
-        // Handle API errors
         final data = json.decode(response.body);
         setState(() {
           _errorMessage = data['error'] ?? 'Failed to change password.';
         });
       }
     } catch (e) {
-      // Handle network or other exceptions
       if (!mounted) return;
       setState(() {
         _isSaving = false;
@@ -99,7 +96,6 @@ class _ChangeStaffPasswordPageState extends State<ChangeStaffPasswordPage> {
 
   // --- UI Handler ---
 
-  /// Displays a confirmation dialog before proceeding with password change.
   Future<void> _confirmPasswordChange() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -130,130 +126,141 @@ class _ChangeStaffPasswordPageState extends State<ChangeStaffPasswordPage> {
     }
   }
 
-  // --- Main Build Method ---
+  // Helper for Input Decoration
+  InputDecoration _buildDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      border: const OutlineInputBorder(),
+      prefixIcon: Icon(icon, color: _primaryColor),
+      suffixIcon: IconButton(
+        icon: Icon(_obscureText ? Icons.visibility_off : Icons.visibility),
+        onPressed: () => setState(() => _obscureText = !_obscureText),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Change Password',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
+        title: const Text('Change Password', style: TextStyle(fontWeight: FontWeight.w600)),
         backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
-        elevation: 4, // Added elevation
+        elevation: 4,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (_errorMessage != null)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 24),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.red.shade300),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline_rounded, color: Colors.red),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.w500),
-                        ),
+      body: _isSaving
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: _primaryColor),
+                  SizedBox(height: 16),
+                  Text('Changing password...', style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_errorMessage != null) _buildErrorBox(),
+                    
+                    const Text(
+                      "Requirements: At least 12 characters, including Uppercase, Lowercase, Numbers, and Symbols.",
+                      style: TextStyle(color: _primaryColor, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    const SizedBox(height: 24),
+
+                    TextFormField(
+                      controller: _currentPasswordController,
+                      decoration: _buildDecoration('Current Password', Icons.lock_rounded),
+                      obscureText: _obscureText,
+                      validator: (value) => value!.isEmpty ? 'Enter current password' : null,
+                    ),
+                    const SizedBox(height: 24),
+
+                    TextFormField(
+                      controller: _newPasswordController,
+                      decoration: _buildDecoration('New Password', Icons.lock_open_rounded),
+                      obscureText: _obscureText,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Enter a new password';
+                        if (value.length < 12) return 'Minimum 12 characters required';
+                        
+                        // Complexity Regex
+                        bool hasUpper = value.contains(RegExp(r'[A-Z]'));
+                        bool hasLower = value.contains(RegExp(r'[a-z]'));
+                        bool hasDigit = value.contains(RegExp(r'[0-9]'));
+                        bool hasSpecial = value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+                        
+                        if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+                          return 'Use Upper, Lower, Number, & Symbol';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 24),
+
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      decoration: _buildDecoration('Confirm New Password', Icons.lock_reset_rounded),
+                      obscureText: _obscureText,
+                      validator: (value) {
+                        if (value != _newPasswordController.text) return 'Passwords do not match';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 40),
+
+                    ElevatedButton.icon(
+                      onPressed: _isSaving ? null : _confirmPasswordChange,
+                      icon: const Icon(Icons.key_rounded),
+                      label: const Text(
+                        'CHANGE PASSWORD',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
-                    ],
-                  ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primaryColor,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(55),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        elevation: 5,
+                      ),
+                    ),
+                  ],
                 ),
-                
-              TextFormField(
-                controller: _currentPasswordController,
-                decoration: const InputDecoration(
-                  labelText: 'Current Password',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock_rounded),
-                ),
-                obscureText: true,
-                validator: (value) => value!.isEmpty ? 'Please enter your current password' : null,
               ),
-              const SizedBox(height: 24),
+            ),
+    );
+  }
 
-              TextFormField(
-                controller: _newPasswordController,
-                decoration: const InputDecoration(
-                  labelText: 'New Password',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock_open_rounded),
-                ),
-                obscureText: true,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a new password';
-                  }
-                  if (value.length < 5) {
-                    return 'Password must be at least 5 characters long';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-
-              TextFormField(
-                controller: _confirmPasswordController,
-                decoration: const InputDecoration(
-                  labelText: 'Confirm New Password',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock_reset_rounded),
-                ),
-                obscureText: true,
-                validator: (value) {
-                  if (value != _newPasswordController.text) {
-                    return 'Passwords do not match';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 40),
-
-              ElevatedButton.icon(
-                onPressed: _isSaving ? null : _confirmPasswordChange,
-                icon: _isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2),
-                      )
-                    : const Icon(Icons.key_rounded),
-                label: Text(
-                  _isSaving ? 'CHANGING...' : 'CHANGE PASSWORD',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryColor,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(55),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  elevation: 5,
-                ),
-              ),
-            ],
+  Widget _buildErrorBox() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.red.shade300),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline_rounded, color: Colors.red),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _errorMessage!,
+              style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.w500),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

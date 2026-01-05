@@ -29,14 +29,26 @@ class _PasswordInputScreenState extends State<PasswordInputScreen> {
     final password = _passController.text.trim();
     final confirmPassword = _confirmPassController.text.trim();
 
-    // 1. Validation
+    // 1. Validation Logic (Synchronized with Backend)
     if (password.isEmpty || confirmPassword.isEmpty) {
       setState(() => _message = 'Please fill in all fields');
       return;
     }
 
-    if (password.length < 8) {
-      setState(() => _message = 'Password must be at least 8 characters');
+    // Length check: updated from 8 to 12
+    if (password.length < 12) {
+      setState(() => _message = 'Password must be at least 12 characters');
+      return;
+    }
+
+    // Complexity check: Upper, Lower, Digit, Special
+    final hasUpper = password.contains(RegExp(r'[A-Z]'));
+    final hasLower = password.contains(RegExp(r'[a-z]'));
+    final hasDigit = password.contains(RegExp(r'[0-9]'));
+    final hasSpecial = password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+
+    if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+      setState(() => _message = 'Include Uppercase, Lowercase, Number, and Symbol');
       return;
     }
 
@@ -68,6 +80,7 @@ class _PasswordInputScreenState extends State<PasswordInputScreen> {
       if (response.statusCode == 200) {
         _showSuccessDialog();
       } else {
+        // If the backend has specific reasons for rejection (e.g., password too common)
         setState(() => _message = data['error'] ?? 'Failed to reset password');
       }
     } catch (e) {
@@ -116,6 +129,16 @@ class _PasswordInputScreenState extends State<PasswordInputScreen> {
               "Set your new password below.",
               style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
+            const SizedBox(height: 8),
+            // UI Hint for the user
+            const Text(
+              "Requirement: 12+ characters, including [A-Z], [a-z], [0-9], and a symbol.",
+              style: TextStyle(
+                fontSize: 13, 
+                color: primaryBlue, 
+                fontWeight: FontWeight.w600
+              ),
+            ),
             const SizedBox(height: 32),
             
             // Password Field
@@ -150,7 +173,18 @@ class _PasswordInputScreenState extends State<PasswordInputScreen> {
             if (_message.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
-                child: Text(_message, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Text(
+                    _message, 
+                    style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)
+                  ),
+                ),
               ),
 
             SizedBox(
@@ -163,7 +197,10 @@ class _PasswordInputScreenState extends State<PasswordInputScreen> {
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("RESET PASSWORD", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    : const Text(
+                        "RESET PASSWORD", 
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
+                      ),
               ),
             ),
           ],
