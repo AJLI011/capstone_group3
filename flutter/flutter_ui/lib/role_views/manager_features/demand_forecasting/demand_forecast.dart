@@ -109,7 +109,7 @@ class HistoricalSalesData {
 }
 
 // ====================================================================
-// Step 2: API SERVICE
+// Step 2: API SERVICE (Left exactly as requested)
 // ====================================================================
 
 class ApiService {
@@ -154,7 +154,6 @@ class ApiService {
     final response = await http.get(Uri.parse('$_baseUrl/forecast/medicine/?name=$encodedName'));
 
     if (response.statusCode == 200) {
-      // Assuming the backend returns the single ForecastItem object directly
       return ForecastItem.fromJson(jsonDecode(response.body));
     } else if (response.statusCode == 404) {
       return null;
@@ -165,7 +164,7 @@ class ApiService {
 }
 
 // ====================================================================
-// Step 3: UI VIEW (Screen) (Updated with Responsive Scaling)
+// Step 3: UI VIEW (Screen)
 // ====================================================================
 
 class DemandForecastScreen extends StatefulWidget {
@@ -175,35 +174,14 @@ class DemandForecastScreen extends StatefulWidget {
   State<DemandForecastScreen> createState() => _DemandForecastScreenState();
 }
 
-// 1. MIX IN THE RESPONSIVE SCALE UTILITY
 class _DemandForecastScreenState extends State<DemandForecastScreen> with ResponsiveScale {
   Future<ForecastReport?>? futureForecast;
-  bool isGenerating = false;
 
   @override
   void initState() {
     super.initState();
+    // Automatic fetch upon entry
     futureForecast = ApiService().fetchLatestForecast(); 
-  }
-
-  void _fetchData() {
-    setState(() {
-      isGenerating = true;
-      futureForecast = null;
-    });
-
-    futureForecast = ApiService().generateForecast().then((_) {
-      return ApiService().fetchLatestForecast();
-    }).whenComplete(() {
-      if (mounted) {
-        setState(() {
-          isGenerating = false;
-        });
-      }
-    }).catchError((error) {
-      // Optionally display a snackbar error here
-      throw error;
-    });
   }
 
   void _showForecastPlot(ForecastItem item) {
@@ -211,7 +189,6 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> with Respon
       context: context,
       isScrollControlled: true,
       builder: (context) {
-        // Pass the item and the responsive scale mixin instance
         return PlottingWidget(item: item, responsiveScale: this); 
       },
     );
@@ -222,7 +199,6 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> with Respon
       context: context,
       isScrollControlled: true,
       builder: (context) {
-        // Pass the plotting function and the responsive scale mixin instance
         return SingleMedicineSearch(onShowPlot: _showForecastPlot, responsiveScale: this); 
       },
     );
@@ -244,46 +220,24 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> with Respon
         ],
       ),
       body: Padding(
-        // Use scaleValue for padding
         padding: EdgeInsets.all(scaleValue(context, 16.0)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Generate a report of the top forecasted medicines.',
+              'Weekly Forecast Report',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: const Color(0xFF5C7C9A),
                   fontWeight: FontWeight.bold,
-                  // Use scaleFontSize for text
                   fontSize: scaleFontSize(context, Theme.of(context).textTheme.titleLarge!.fontSize!),
                 ),
-            ),
-            SizedBox(height: scaleValue(context, 16)),
-            Center(
-              child: ElevatedButton.icon(
-                onPressed: isGenerating ? null : _fetchData,
-                icon: isGenerating
-                    ? SizedBox(
-                        width: scaleValue(context, 20),
-                        height: scaleValue(context, 20),
-                        child: const CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Icon(Icons.show_chart, size: scaleValue(context, 24)),
-                label: Text(
-                  isGenerating ? 'Generating...' : 'Generate Forecast',
-                  style: TextStyle(fontSize: scaleFontSize(context, 14)),
-                ),
-              ),
             ),
             SizedBox(height: scaleValue(context, 16)),
             Expanded(
               child: FutureBuilder<ForecastReport?>(
                 future: futureForecast,
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting && futureForecast != null) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   } else if (snapshot.hasError) {
                     return Center(child: Text('Error: ${snapshot.error}'));
@@ -300,9 +254,7 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> with Respon
                     final DateTime weekStartDateTime = DateTime.parse(forecastReport.weekStartDate);
                     final String formattedWeekStart = DateFormat('MMM d, y').format(weekStartDateTime);
                     
-                    // --- LIMIT ITEMS TO TOP 10 ---
                     final List<ForecastItem> top10Items = forecastReport.items.take(10).toList();
-
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,7 +292,7 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> with Respon
                       ],
                     );
                   } else {
-                    return const Center(child: Text("Press 'Generate Forecast' to view the report."));
+                    return const Center(child: Text("No forecast data found."));
                   }
                 },
               ),
@@ -351,18 +303,14 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> with Respon
     );
   }
 
-  // REVISED HEADER WIDGET
   Widget _buildTableHeader(BuildContext context) {
     const double baseFontSize = 10.5; 
-    const double baseVerticalPadding = 8.0;
-    const double baseHorizontalPadding = 8.0;
-
     TextStyle headerStyle = TextStyle(fontWeight: FontWeight.bold, fontSize: scaleFontSize(context, baseFontSize));
 
     return Container(
       padding: EdgeInsets.symmetric(
-        vertical: scaleValue(context, baseVerticalPadding), 
-        horizontal: scaleValue(context, baseHorizontalPadding)
+        vertical: scaleValue(context, 8.0), 
+        horizontal: scaleValue(context, 8.0)
       ),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.secondaryContainer,
@@ -371,7 +319,6 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> with Respon
       child: Row(
         children: [
           Expanded(flex: 1, child: Center(child: Text('No.', style: headerStyle))),
-          // CHANGE 1: Remove Center around Medicine header. The header text is still center-aligned via the headerStyle's TextAlign.
           Expanded(flex: 3, child: Center(child: Text('Medicine', style: headerStyle))),
           Expanded(flex: 3, child: Center(child: Text('Forecast', style: headerStyle))),
           Expanded(flex: 3, child: Center(child: Text('Current Stock', style: headerStyle))),
@@ -382,7 +329,6 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> with Respon
     );
   }
 
-  // REVISED TABLE ROW WIDGET
   Widget _buildTableRow({
     required BuildContext context, 
     required int rank,
@@ -395,43 +341,27 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> with Respon
     const double baseRowFontSize = 10.0; 
 
     return Card(
-      // Scale the vertical margin
       margin: EdgeInsets.symmetric(vertical: scaleValue(context, 4.0)),
       child: Padding(
-        // Scale the padding
         padding: EdgeInsets.symmetric(vertical: scaleValue(context, 11.0), horizontal: scaleValue(context, 7.0)),
         child: Row(
           children: [
-            Expanded(
-              flex: 1, 
-              child: Text('$rank', 
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: scaleFontSize(context, baseRowFontSize))
-              )
-            ),
+            Expanded(flex: 1, child: Text('$rank', textAlign: TextAlign.center, style: TextStyle(fontSize: scaleFontSize(context, baseRowFontSize)))),
             Expanded(
               flex: 3,
               child: Text(
                 medicineName,
-                // CHANGE 2: Set text alignment to center to align the medicine name under the header.
                 textAlign: TextAlign.center,
                 style: medicineName == 'Medicine Deleted' 
                   ? TextStyle(fontStyle: FontStyle.italic, color: Colors.grey, fontSize: scaleFontSize(context, baseRowFontSize + 1)) 
                   : TextStyle(fontSize: scaleFontSize(context, baseRowFontSize + 1)),
               )
             ),
-            Expanded(
-              flex: 3, 
-              child: Text('$forecastedQuantity', 
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: scaleFontSize(context, baseRowFontSize))
-              )
-            ),
+            Expanded(flex: 3, child: Text('$forecastedQuantity', textAlign: TextAlign.center, style: TextStyle(fontSize: scaleFontSize(context, baseRowFontSize)))),
             Expanded(
               flex: 3, 
               child: Text(
                 '$currentStock', 
-                // CHANGE 3: Set text alignment to center to match the header.
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: scaleFontSize(context, baseRowFontSize),
@@ -440,13 +370,7 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> with Respon
                 )
               )
             ),
-            Expanded(
-              flex: 2, 
-              child: Text('$reorderLevel', 
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: scaleFontSize(context, baseRowFontSize), color: const Color(0xFF5C7C9A), fontWeight: FontWeight.bold)
-              )
-            ), 
+            Expanded(flex: 2, child: Text('$reorderLevel', textAlign: TextAlign.center, style: TextStyle(fontSize: scaleFontSize(context, baseRowFontSize), color: const Color(0xFF5C7C9A), fontWeight: FontWeight.bold))), 
             Expanded(
               flex: 2,
               child: Text(
@@ -467,12 +391,11 @@ class _DemandForecastScreenState extends State<DemandForecastScreen> with Respon
 }
 
 // ====================================================================
-// Step 4: NEW WIDGET FOR SINGLE MEDICINE SEARCH (Scaled)
+// Step 4: NEW WIDGET FOR SINGLE MEDICINE SEARCH
 // ====================================================================
 
 class SingleMedicineSearch extends StatefulWidget {
   final Function(ForecastItem item) onShowPlot;
-  // Propagate the scale mixin for nested widgets
   final ResponsiveScale responsiveScale;
   
   const SingleMedicineSearch({super.key, required this.onShowPlot, required this.responsiveScale});
@@ -508,7 +431,7 @@ class _SingleMedicineSearchState extends State<SingleMedicineSearch> {
       setState(() {
         _searchResult = result;
         if (result == null) {
-          _errorMessage = 'No forecast found for "$name". Check the name or try generating a new report.';
+          _errorMessage = 'No forecast found for "$name".';
         }
       });
     } catch (e) {
@@ -565,8 +488,6 @@ class _SingleMedicineSearchState extends State<SingleMedicineSearch> {
             onSubmitted: (_) => _searchMedicine(),
           ),
           SizedBox(height: rs.scaleValue(context, 20)),
-          
-          // --- Display Area ---
           if (_isLoading)
             const Center(child: Text('Searching...'))
           else if (_errorMessage != null)
@@ -590,14 +511,8 @@ class _SingleMedicineSearchState extends State<SingleMedicineSearch> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              item.medicine.name,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: rs.scaleFontSize(context, 24)),
-            ),
-            Text(
-              item.medicine.genericName,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic, color: Colors.grey[700], fontSize: rs.scaleFontSize(context, 14)),
-            ),
+            Text(item.medicine.name, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: rs.scaleFontSize(context, 24))),
+            Text(item.medicine.genericName, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic, color: Colors.grey[700], fontSize: rs.scaleFontSize(context, 14))),
             Divider(height: rs.scaleValue(context, 20)),
             _buildInfoRow('Forecasted Demand:', item.forecastedQuantity.toString(), Colors.blue, rs),
             _buildInfoRow('Reorder Level (ROL):', item.reorderLevel.toString(), const Color(0xFF5C7C9A), rs),
@@ -606,10 +521,7 @@ class _SingleMedicineSearchState extends State<SingleMedicineSearch> {
             SizedBox(height: rs.scaleValue(context, 10)),
             Center(
               child: ElevatedButton.icon(
-                onPressed: () {
-                  // Pass the scaled item to the plot function
-                  widget.onShowPlot(item); 
-                },
+                onPressed: () => widget.onShowPlot(item),
                 icon: Icon(Icons.bar_chart, size: rs.scaleValue(context, 20)),
                 label: Text('View Historical Chart', style: TextStyle(fontSize: rs.scaleFontSize(context, 14))),
               ),
@@ -627,14 +539,7 @@ class _SingleMedicineSearchState extends State<SingleMedicineSearch> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: TextStyle(fontWeight: FontWeight.w600, fontSize: rs.scaleFontSize(context, 14))),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: valueColor,
-              fontSize: rs.scaleFontSize(context, 16),
-            ),
-          ),
+          Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: valueColor, fontSize: rs.scaleFontSize(context, 16))),
         ],
       ),
     );
@@ -642,12 +547,11 @@ class _SingleMedicineSearchState extends State<SingleMedicineSearch> {
 }
 
 // ====================================================================
-// Step 5: DEDICATED PLOTTING WIDGET (Scaled and 'Forecast' label removed)
+// Step 5: DEDICATED PLOTTING WIDGET
 // ====================================================================
 
 class PlottingWidget extends StatelessWidget {
   final ForecastItem item;
-  // Propagate the scale mixin for nested widgets
   final ResponsiveScale responsiveScale;
   
   const PlottingWidget({super.key, required this.item, required this.responsiveScale});
@@ -679,14 +583,12 @@ class PlottingWidget extends StatelessWidget {
                   return const Center(child: CircularProgressIndicator());
                 } 
                 
-                bool isDataMissing = snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty;
-                
-                if (isDataMissing) {
+                if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
                   return Center(
                     child: Text(
                       item.medicine.id == 0 
-                      ? 'Historical data is not available as the medicine has been deleted.'
-                      : 'No historical data available. Error: ${snapshot.error}',
+                      ? 'Historical data is not available for deleted medicines.'
+                      : 'No historical data available.',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey, fontSize: rs.scaleFontSize(context, 14)),
                     )
@@ -697,14 +599,13 @@ class PlottingWidget extends StatelessWidget {
                 for (int i = 0; i < historicalData.length; i++) {
                   spots.add(FlSpot(i.toDouble(), historicalData[i].sales.toDouble()));
                 }
-                // Add the forecast point
                 spots.add(FlSpot(spots.length.toDouble(), item.forecastedQuantity.toDouble()));
               
                 double maxY = (spots.map((e) => e.y).reduce((a, b) => a > b ? a : b) * 1.2).ceilToDouble();
                 
                 return LineChart(
                   LineChartData(
-                    gridData: FlGridData(show: false),
+                    gridData: const FlGridData(show: false),
                     titlesData: FlTitlesData(
                       show: true,
                       bottomTitles: AxisTitles(
@@ -713,7 +614,6 @@ class PlottingWidget extends StatelessWidget {
                           reservedSize: rs.scaleValue(context, 30),
                           getTitlesWidget: (value, meta) {
                             final index = value.toInt();
-                            // Only show historical dates and skip the final 'Forecast' point
                             if (index < historicalData.length && index % 4 == 0) {
                               return SideTitleWidget(
                                 axisSide: meta.axisSide,
@@ -722,7 +622,6 @@ class PlottingWidget extends StatelessWidget {
                                     style: TextStyle(fontSize: rs.scaleFontSize(context, 10))),
                               );
                             }
-                            // Removed the specific logic for the 'Forecast' label here
                             return const SizedBox.shrink();
                           },
                         ),
@@ -736,8 +635,8 @@ class PlottingWidget extends StatelessWidget {
                           },
                         ),
                       ),
-                      topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     ),
                     borderData: FlBorderData(
                       show: true,
@@ -756,9 +655,8 @@ class PlottingWidget extends StatelessWidget {
                         dotData: FlDotData(
                           show: true,
                           getDotPainter: (spot, percent, barData, index) {
-                            // Highlight the final point (the forecast) in red
                             if (index == spots.length - 1) {
-                              return FlDotCirclePainter(color: Colors.red, radius: rs.scaleValue(context, 4), strokeColor: Colors.transparent,);
+                              return FlDotCirclePainter(color: Colors.red, radius: rs.scaleValue(context, 4), strokeColor: Colors.transparent);
                             }
                             return FlDotCirclePainter(color: Colors.blue, radius: rs.scaleValue(context, 2));
                           },
