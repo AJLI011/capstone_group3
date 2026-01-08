@@ -64,7 +64,7 @@ class _PasswordInputScreenState extends State<PasswordInputScreen> {
 
     try {
       // 2. Final API Call to your Django backend
-      final url = Uri.parse('http://10.0.2.2:8000/api/reset-password/');
+      final url = Uri.parse('http://bluewhiteph.pythonanywhere.com/api/reset-password/');
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},

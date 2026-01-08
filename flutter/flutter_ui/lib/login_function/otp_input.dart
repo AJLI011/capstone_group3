@@ -28,7 +28,7 @@ class _OtpInputScreenState extends State<OtpInputScreen> {
     try {
       // Note: Using a logic-only verify check or just passing data to the next screen.
       // For best UX, we verify the OTP here before moving to the password screen.
-      final url = Uri.parse('http://10.0.2.2:8000/api/reset-password/'); // We reuse the endpoint or create a verify-only one
+      final url = Uri.parse('http://bluewhiteph.pythonanywhere.com/api/reset-password/'); // We reuse the endpoint or create a verify-only one
       
       // We will actually just pass the OTP to the next screen to perform the reset in one final call, 
       // but let's do a "soft" check here or just navigate.

@@ -74,7 +74,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     try {
       // Changed to the new send-otp endpoint
-      final url = Uri.parse('http://10.0.2.2:8000/api/send-otp/');
+      final url = Uri.parse('http://bluewhiteph.pythonanywhere.com/api/send-otp/');
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},

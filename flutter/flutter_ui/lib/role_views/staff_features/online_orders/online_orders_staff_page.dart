@@ -22,7 +22,7 @@ class _StaffOrdersPageState extends State<StaffOrdersPage> with SingleTickerProv
 
   late Future<List<dynamic>> _ordersFuture;
   late TabController _tabController;
-  final String _baseUrl = 'http://10.0.2.2:8000';
+  final String _baseUrl = 'http://bluewhiteph.pythonanywhere.com';
   DateTime? _selectedDate;
 
   @override

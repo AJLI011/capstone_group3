@@ -474,7 +474,7 @@ class _DailyReportsPageState extends State<DailyReportsPage> {
 
     final formattedDate = DateFormat('yyyy-MM-dd').format(date);
     // NOTE: This URL is based on the terminal output and previous assumptions
-    final url = 'http://10.0.2.2:8000/api/daily-reports/?date=$formattedDate';
+    final url = 'http://bluewhiteph.pythonanywhere.com/api/daily-reports/?date=$formattedDate';
 
     try {
       final response = await http.get(Uri.parse(url));

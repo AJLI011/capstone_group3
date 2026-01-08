@@ -147,7 +147,7 @@ class _MedicineListViewState extends State<MedicineListView> {
     });
     
     // MODIFIED: Construct the API URL without pagination parameters
-    final uri = Uri.parse('http://10.0.2.2:8000/api/medicines/'); // Fetches ALL
+    final uri = Uri.parse('http://bluewhiteph.pythonanywhere.com/api/medicines/'); // Fetches ALL
     
     final response = await http.get(uri);
 
@@ -213,7 +213,7 @@ class _MedicineListViewState extends State<MedicineListView> {
     final staffId = prefs.getInt('staff_id'); // assumes it's saved during login
 
     // Attach staff_id as query parameter
-    final uri = Uri.parse('http://10.0.2.2:8000/api/medicines/$id/?staff_id=$staffId');
+    final uri = Uri.parse('http://bluewhiteph.pythonanywhere.com/api/medicines/$id/?staff_id=$staffId');
 
     final response = await http.delete(uri);
 
