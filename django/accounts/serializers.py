@@ -30,8 +30,8 @@ class CustomerSerializer(serializers.ModelSerializer):
 
     def validate_password(self, value):
         # 1. Check Length
-        if len(value) < 12:
-            raise serializers.ValidationError("Password must be at least 12 characters long.")
+        if len(value) < 8:
+            raise serializers.ValidationError("Password must be at least 8 characters long.")
         
         # 2. Check Uppercase
         if not re.search(r'[A-Z]', value):
@@ -67,8 +67,8 @@ class CustomerSerializer(serializers.ModelSerializer):
 
 
 def validate_password_complexity(value):
-    if len(value) < 12:
-        raise serializers.ValidationError("Password must be at least 12 characters long.")
+    if len(value) < 8:
+        raise serializers.ValidationError("Password must be at least 8 characters long.")
     if not re.search(r'[A-Z]', value):
         raise serializers.ValidationError("Password must contain at least one uppercase letter.")
     if not re.search(r'[a-z]', value):
@@ -86,7 +86,7 @@ class StaffSerializer(serializers.ModelSerializer):
         extra_kwargs = {'password': {'write_only': True}}
 
     def validate_password(self, value):
-        # Use the helper to enforce the 12-char complexity
+        # Use the helper to enforce the 8-char complexity
         return validate_password_complexity(value)
 
     def create(self, validated_data):

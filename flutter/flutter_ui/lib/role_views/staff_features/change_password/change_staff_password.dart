@@ -173,7 +173,7 @@ class _ChangeStaffPasswordPageState extends State<ChangeStaffPasswordPage> {
                     if (_errorMessage != null) _buildErrorBox(),
                     
                     const Text(
-                      "Requirements: At least 12 characters, including Uppercase, Lowercase, Numbers, and Symbols.",
+                      "Requirements: At least 8 characters, including Uppercase, Lowercase, Numbers, and Symbols.",
                       style: TextStyle(color: _primaryColor, fontWeight: FontWeight.bold, fontSize: 13),
                     ),
                     const SizedBox(height: 24),
@@ -192,7 +192,7 @@ class _ChangeStaffPasswordPageState extends State<ChangeStaffPasswordPage> {
                       obscureText: _obscureText,
                       validator: (value) {
                         if (value == null || value.isEmpty) return 'Enter a new password';
-                        if (value.length < 12) return 'Minimum 12 characters required';
+                        if (value.length < 8) return 'Minimum 8 characters required';
                         
                         // Complexity Regex
                         bool hasUpper = value.contains(RegExp(r'[A-Z]'));

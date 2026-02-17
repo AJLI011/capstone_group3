@@ -36,7 +36,7 @@ class _PasswordInputScreenState extends State<PasswordInputScreen> {
     }
 
     // Length check: updated from 8 to 12
-    if (password.length < 12) {
+    if (password.length < 8) {
       setState(() => _message = 'Password must be at least 12 characters');
       return;
     }
@@ -132,7 +132,7 @@ class _PasswordInputScreenState extends State<PasswordInputScreen> {
             const SizedBox(height: 8),
             // UI Hint for the user
             const Text(
-              "Requirement: 12+ characters, including [A-Z], [a-z], [0-9], and a symbol.",
+              "Requirement: 8+ characters, including [A-Z], [a-z], [0-9], and a symbol.",
               style: TextStyle(
                 fontSize: 13, 
                 color: primaryBlue, 

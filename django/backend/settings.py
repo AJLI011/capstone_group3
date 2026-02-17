@@ -93,9 +93,9 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'capstone11',
+        'NAME': 'capstone_db',
         'USER': 'root',
-        'PASSWORD': 'admin123',
+        'PASSWORD': 'Fixthebreak_99',
         'HOST': '127.0.0.1', 
         'PORT': '3306',
     }
@@ -113,7 +113,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
         'OPTIONS': {
-            'min_length': 12, # Changed from default to 12
+            'min_length': 8, # Changed from default to 8
         }
     },
     {
@@ -126,7 +126,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.RegexPasswordValidator',
         'OPTIONS': {
-            'min_length': 12,
+            'min_length': 8,
             'pattern': r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&].*$',
             'error_message': "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character."
         }

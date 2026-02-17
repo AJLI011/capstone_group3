@@ -253,7 +253,7 @@ class _RegisterCustomerState extends State<RegisterCustomer> {
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) return 'Please enter a password';
-                          if (value.length < 12) return 'Password must be at least 12 characters';
+                          if (value.length < 8) return 'Password must be at least 8 characters';
                           if (!RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])').hasMatch(value)) {
                             return 'Requirements: 1 Upper, 1 Lower, 1 Number, 1 Symbol';
                           }

@@ -176,7 +176,7 @@ class _ChangeCashierPasswordPageState extends State<ChangeCashierPasswordPage> {
                       _buildErrorBox(),
                     
                     const Text(
-                      "Note: New password must be at least 12 characters and include upper, lower, numbers, and symbols.",
+                      "Note: New password must be at least 8 characters and include upper, lower, numbers, and symbols.",
                       style: TextStyle(color: _primaryColor, fontSize: 13, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 20),
@@ -195,7 +195,7 @@ class _ChangeCashierPasswordPageState extends State<ChangeCashierPasswordPage> {
                       obscureText: _obscureText,
                       validator: (value) {
                         if (value == null || value.isEmpty) return 'Please enter a new password';
-                        if (value.length < 12) return 'Password must be at least 12 characters long';
+                        if (value.length < 8) return 'Password must be at least 8 characters long';
                         
                         // Complexity Check
                         bool hasUpper = value.contains(RegExp(r'[A-Z]'));

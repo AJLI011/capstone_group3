@@ -123,7 +123,7 @@ class _ChangeCustomerPasswordPageState extends State<ChangeCustomerPasswordPage>
                       _buildErrorBox(),
 
                     const Text(
-                      "New password must be at least 12 characters and include uppercase, lowercase, numbers, and symbols.",
+                      "New password must be at least 8 characters and include uppercase, lowercase, numbers, and symbols.",
                       style: TextStyle(color: _primaryColor, fontSize: 13, fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 20),
@@ -144,7 +144,7 @@ class _ChangeCustomerPasswordPageState extends State<ChangeCustomerPasswordPage>
                       decoration: _buildInputDecoration('New Password', Icons.lock_open_rounded),
                       validator: (value) {
                         if (value == null || value.isEmpty) return 'Enter a new password';
-                        if (value.length < 12) return 'Must be at least 12 characters';
+                        if (value.length < 8) return 'Must be at least 8 characters';
                         
                         // Complexity Check
                         bool hasUpper = value.contains(RegExp(r'[A-Z]'));
