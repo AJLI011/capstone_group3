@@ -231,7 +231,7 @@ class _RegisterCustomerState extends State<RegisterCustomer> {
                       const Padding(
                         padding: EdgeInsets.only(left: 4, bottom: 8),
                         child: Text(
-                          "Password must be 12+ chars with Upper, Lower, Number & Symbol",
+                          "Password length must be 8 characters long with Upper, Lower, Number & Symbol",
                           style: TextStyle(fontSize: 11, color: Colors.blueGrey, fontWeight: FontWeight.bold),
                         ),
                       ),
