@@ -8,9 +8,7 @@ import 'manager_features/edit_profile/edit_manager_profile.dart';
 import 'manager_features/inventory/inventory_grid_screen.dart';
 import 'manager_features/return_medicines/return_page.dart';
 import 'manager_features/promo_medicines/promo_page.dart';
-import 'manager_features/online_sales_transaction/online_transaction.dart';
 import 'manager_features/instore_sales_transaction_m/instore_transaction.dart';
-import 'manager_features/demand_forecasting/demand_forecast.dart';
 import 'manager_features/purchase_request/purchase_request_page.dart';
 import 'manager_features/sales_report/sales_report.dart'; 
 import 'package:http/http.dart' as http;
@@ -18,7 +16,6 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'manager_features/daily_reports/daily_reports.dart';
 import 'manager_features/restock/restock_menu_screen.dart';
 
 const String API_BASE = String.fromEnvironment(
@@ -537,8 +534,6 @@ class _ManagerViewState extends State<ManagerView>
                                     () => _open(const RestockMenuScreen())),
                                 _drawerItem(Icons.store, 'In-store Sales Transaction', 
                                     () => _open(const InStoreTransactionPage())),
-                                _drawerItem(Icons.phone_android_outlined, 'Online Sales Transaction', 
-                                    () => _open(const OnlineOrdersReportPage())),
                                 _drawerItem(Icons.priority_high, 'Expiry', 
                                     () => _open(const ExpiryDashboardView())),
                                 _drawerItem(Icons.assignment_return, 'Return Medicines',
@@ -547,14 +542,11 @@ class _ManagerViewState extends State<ManagerView>
                                     () => _open(const PromoMedicinePage())),
                                 _drawerItem(Icons.analytics, 'Sales Report', // Using a new, general icon
                                     () => _open(const CombinedSalesReportPage())), 
-                                _drawerItem(Icons.insights, 'Demand Forecast', 
-                                    () => _open(const DemandForecastScreen())),
                                 _drawerItem(Icons.shopping_cart, 'Purchase Request', 
                                     () => _open(const PurchaseRequestPage())),
                                 _drawerItem(Icons.list_alt, 'Medicine List', 
                                     () => _open(const MedicineListView())),
-                                _drawerItem(Icons.receipt_long, 'Daily Reports', 
-                                    () => _open(DailyReportsPage())),
+
                                 _drawerItem(Icons.person_outline, 'Edit Profile', 
                                     () => _open(EditManagerProfilePage(staffId: widget.staffId))),
                                 _drawerItem(Icons.vpn_key, 'Change Password',
