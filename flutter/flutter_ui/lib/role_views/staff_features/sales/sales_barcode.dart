@@ -46,60 +46,57 @@ class _SalesBarcodeScreenState extends State<SalesBarcodeScreen> {
 
   // 3. Central logic for barcode detection and navigation
   Future<void> _onBarcodeDetected(String barcode) async {
-    // Prevent multiple calls while processing
     if (_isScanning) return;
     _isScanning = true;
 
-    // Stop the camera feed immediately upon detection 
     cameraController.stop(); 
 
     try {
       final response = await http.get(Uri.parse('http://10.0.2.2:8000/api/sales/barcode/$barcode/'));
 
       if (response.statusCode == 200) {
-        final List<dynamic> itemData = json.decode(response.body);
+        final dynamic decodedData = json.decode(response.body);
         if (!mounted) return;
 
-        if (itemData.isNotEmpty) {
-          // Navigate to BatchSelectionPage
+        List<dynamic> batchesList = [];
+        if (decodedData is List) {
+          batchesList = decodedData;
+        } else if (decodedData is Map) {
+          batchesList = [decodedData];
+        }
+
+        if (batchesList.isNotEmpty) {
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => BatchSelectionPage(
-                batches: itemData,
+                batches: batchesList,
                 staffId: widget.staffId,
-                // --- CRITICAL LINE FOR MULTI-ORDER SUPPORT ---
-                // Pass the current cart items to the next step
                 existingCartItems: widget.cartItems, 
               ),
             ),
           ).then((result) {
-            // This runs when BatchSelectionPage (or a subsequent page) is popped.
+            // This turns the camera back on SAFELY only when returning to this page
             if (mounted) {
-              // Explicitly restart the camera
               cameraController.start(); 
-              _isScanning = false; // Reset the flag
+              _isScanning = false;
             }
           });
-          return; // Exit here as navigation is handled
+          return; // Exits cleanly. Code below will NOT run.
         } else {
-          // No item found, inform user and restart scanner
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No inventory/batches found for this barcode')),
+            const SnackBar(content: Text('No active inventory batches found for this barcode')),
           );
         }
       } else {
-        // API call failed, inform user and restart scanner
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Barcode Not Found')),
+          const SnackBar(content: Text('Barcode Not Found')),
         );
       }
     } catch (e) {
-      // General error (e.g., network issue), inform user and restart scanner
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Network Error: $e')));
     } 
     
-    // If we reach this point, it means no navigation occurred (API fail, no data)
-    // so we restart the camera and reset the scanning flag to allow a new scan attempt.
+    // --- FIX: Put this inside a check to ensure it only restarts if navigation was skipped ---
     if (mounted) {
       cameraController.start();
       _isScanning = false;
