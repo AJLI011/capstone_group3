@@ -8,7 +8,6 @@ import '../login_function/login_staff.dart';
 import 'cashier_features/edit_profile/edit_cashier_profile.dart';
 import 'cashier_features/change_password/change_cashier_password.dart';
 import 'cashier_features/pending_orders/pending_orders.dart';
-import 'cashier_features/online_orders/online_orders_cashier_page.dart';
 import 'cashier_features/prescription/prescription_cashier.dart';
 
 // Use dart-define to override in different environments
