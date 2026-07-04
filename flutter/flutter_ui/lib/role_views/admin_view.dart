@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import '../login_function/login_staff.dart';
-import 'admin_features/customer/customer_management.dart';
 import 'admin_features/suppliers/supplier_list.dart';
 import 'admin_features/employees/employees_management.dart';
 import 'admin_features/edit_profile/edit_admin_profile.dart';
@@ -272,8 +271,6 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
                                     children: [
                                       _drawerItem(Icons.group_outlined, 'Employees',
                                           () => _open(const EmployeesManagementPage())),
-                                      _drawerItem(Icons.person_outline, 'Customers',
-                                          () => _open(const CustomerManagementScreen())),
                                       _drawerItem(Icons.local_shipping_outlined, 'Suppliers',
                                           () => _open(const SupplierListPage())),
                                       _drawerItem(Icons.playlist_add_check, 'Employees Logs',
