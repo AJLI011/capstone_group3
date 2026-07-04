@@ -4,18 +4,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_ui/services/responsive_scale.dart'; // <--- 1. IMPORT SCALING UTILITY
-
 import '../login_function/login_staff.dart';
 import 'cashier_features/edit_profile/edit_cashier_profile.dart';
 import 'cashier_features/change_password/change_cashier_password.dart';
 import 'cashier_features/pending_orders/pending_orders.dart';
 import 'cashier_features/online_orders/online_orders_cashier_page.dart';
-
-
-//import 'cashier_features/instore_sales_transaction-c/instore_transaction.dart';
-import 'manager_features/instore_sales_transaction_m/instore_transaction.dart';
-
-import 'cashier_features/online_sales_transaction/cashier_online_transaction.dart';
 import 'cashier_features/prescription/prescription_cashier.dart';
 
 // Use dart-define to override in different environments
@@ -333,12 +326,6 @@ class _CashierViewState extends State<CashierView>
                       children: [
                         _drawerItem(Icons.assignment, 'In-store Orders', scale, // PASS SCALE
                             () => _open(PendingOrdersScreen(cashierId: widget.staffId))),
-                        _drawerItem(Icons.store, 'Online Orders', scale, // PASS SCALE
-                            () => _open(const CashierOnlineOrdersPage())),
-                        _drawerItem(Icons.shopping_bag, 'In-store Sales Transaction', scale, // PASS SCALE
-                            () => _open(const InStoreTransactionPage())),
-                        _drawerItem(Icons.smartphone, 'Online Sales Transaction', scale, // PASS SCALE
-                            () => _open(const OnlineOrdersReportPage())),
                         _drawerItem(Icons.receipt_long, 'Prescriptions', scale, // PASS SCALE
                             () => _open(const PrescriptionsCashier())),
                         _drawerItem(Icons.edit, 'Edit Profile', scale, // PASS SCALE
@@ -522,12 +509,6 @@ class _CashierViewState extends State<CashierView>
               icon: Icons.pending_actions,
               label: 'Pending Orders',
               onTap: () => _open(PendingOrdersScreen(cashierId: widget.staffId)),
-              scale: scale, // PASS SCALE
-            ),
-            _buildActionButton(
-              icon: Icons.store,
-              label: 'Online Orders',
-              onTap: () => _open(const CashierOnlineOrdersPage()),
               scale: scale, // PASS SCALE
             ),
           ],
