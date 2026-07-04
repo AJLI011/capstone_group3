@@ -9,7 +9,7 @@ import '../role_views/manager_view.dart';
 import '../role_views/cashier_view.dart';
 import '../role_views/staff_view.dart';
 import 'forgot_password.dart';
-import 'login_customer.dart';
+// import 'login_customer.dart';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 
@@ -328,22 +328,6 @@ class _LoginStaffState extends State<LoginStaff> {
                           ),
 
                         const SizedBox(height: 20),
-
-                        // Switch to customer login
-                        TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const LoginCustomer(),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            'Customer? Click here',
-                            style: TextStyle(color: Colors.black54),
-                          ),
-                        ),
                       ],
                     ),
                   ),

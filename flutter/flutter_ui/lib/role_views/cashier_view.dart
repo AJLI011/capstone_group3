@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_ui/services/responsive_scale.dart'; // <--- 1. IMPORT SCALING UTILITY
 
-import '../login_function/login_customer.dart';
+import '../login_function/login_staff.dart';
 import 'cashier_features/edit_profile/edit_cashier_profile.dart';
 import 'cashier_features/change_password/change_cashier_password.dart';
 import 'cashier_features/pending_orders/pending_orders.dart';
@@ -159,7 +159,7 @@ class _CashierViewState extends State<CashierView>
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const LoginCustomer()),
+        MaterialPageRoute(builder: (_) => const LoginStaff()),
         (_) => false,
       );
     } catch (e) {
@@ -169,7 +169,7 @@ class _CashierViewState extends State<CashierView>
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const LoginCustomer()),
+        MaterialPageRoute(builder: (_) => const LoginStaff()),
         (_) => false,
       );
     }

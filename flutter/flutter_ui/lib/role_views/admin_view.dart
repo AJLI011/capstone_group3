@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-import '../login_function/login_customer.dart';
+import '../login_function/login_staff.dart';
 import 'admin_features/customer/customer_management.dart';
 import 'admin_features/suppliers/supplier_list.dart';
 import 'admin_features/employees/employees_management.dart';
@@ -104,10 +104,10 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
       await prefs.clear();
 
       if (!mounted) return;
-      // Navigate to LoginCustomer()
+      // ✅ CHANGED: Navigate directly to LoginStaff()
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const LoginCustomer()),
+        MaterialPageRoute(builder: (_) => const LoginStaff()),
         (_) => false,
       );
     } catch (e) {
@@ -115,10 +115,10 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
       if (!mounted) return;
-      // Navigate to LoginCustomer() in the catch block
+      // ✅ CHANGED: Navigate directly to LoginStaff() in the catch block
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const LoginCustomer()),
+        MaterialPageRoute(builder: (_) => const LoginStaff()),
         (_) => false,
       );
     }
@@ -238,7 +238,7 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
                               children: [
                                 // Profile Section
                                 Container(
-                                  color: const Color(0xFF5C7C9A), // Background color from the image
+                                  color: const Color(0xFF5C7C9A), 
                                   padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
                                   child: Column(
                                     children: [
@@ -329,7 +329,7 @@ class _AdminViewState extends State<AdminView> with SingleTickerProviderStateMix
           onTap: onTap,
           contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
         ),
-        const Divider(height: 1, color: Colors.black12), // Separator line
+        const Divider(height: 1, color: Colors.black12), 
       ],
     );
   }

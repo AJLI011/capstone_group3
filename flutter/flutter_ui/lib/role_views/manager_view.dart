@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_ui/role_views/manager_features/expiration_dashboard/expiry_dashboard_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../login_function/login_customer.dart';
+import '../login_function/login_staff.dart';
 import 'manager_features/medicines_list/medicines_list_view.dart';
 import 'manager_features/change_password/change_manager_password.dart';
 import 'manager_features/edit_profile/edit_manager_profile.dart';
@@ -206,7 +206,7 @@ class _ManagerViewState extends State<ManagerView>
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const LoginCustomer()),
+        MaterialPageRoute(builder: (_) => const LoginStaff()),
         (_) => false,
       );
     } catch (e) {
@@ -216,7 +216,7 @@ class _ManagerViewState extends State<ManagerView>
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const LoginCustomer()),
+        MaterialPageRoute(builder: (_) => const LoginStaff()),
         (_) => false,
       );
     }

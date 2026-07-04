@@ -2,22 +2,23 @@
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:provider/provider.dart';
 
-import 'dart:io'; // <-- ADDED THIS IMPORT
+import 'dart:io'; 
 
 // ✅ Firebase imports
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-import 'login_function/login_customer.dart';
+// 🔄 CHANGE THIS: Replace with your actual staff login file path
+import 'login_function/login_staff.dart'; 
+
 import 'role_views/admin_view.dart';
 import 'role_views/manager_view.dart';
 import 'role_views/cashier_view.dart';
 import 'role_views/staff_view.dart';
-import 'role_views/customer_view.dart';
-import 'role_views/customer_features/cart_service.dart';
+
+// 🛑 REMOVED: customer_view.dart, login_customer.dart, and cart_service.dart imports
 
 // ✅ Custom class to handle SSL certificate validation on Android
 class MyHttpOverrides extends HttpOverrides {
@@ -28,13 +29,12 @@ class MyHttpOverrides extends HttpOverrides {
           host == 'aaron.pythonanywhere.com';
   }
 }
-// <-- END OF ADDED CODE
 
 // ✅ Define a channel for Android notifications
 const AndroidNotificationChannel channel = AndroidNotificationChannel(
-  'high_importance_channel', // id
-  'High Importance Notifications', // title
-  description: 'This channel is used for important notifications.', // description
+  'high_importance_channel', 
+  'High Importance Notifications', 
+  description: 'This channel is used for important notifications.', 
   importance: Importance.high,
 );
 
@@ -47,9 +47,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print("Handling a background message: ${message.messageId}");
 }
 
-// ✅ New function to handle permissions and foreground notifications
+// ✅ Handle permissions and foreground notifications
 void setupFirebaseMessaging() async {
-  // 1. Request notification permissions
   NotificationSettings settings = await FirebaseMessaging.instance.requestPermission(
     alert: true,
     badge: true,
@@ -57,13 +56,11 @@ void setupFirebaseMessaging() async {
   );
   print('User granted permission: ${settings.authorizationStatus}');
 
-  // 2. Create the Android notification channel
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(channel);
 
-  // 3. Handle foreground notifications
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     print('Got a message whilst in the foreground!');
     print('Message data: ${message.data}');
@@ -88,29 +85,21 @@ void setupFirebaseMessaging() async {
     }
   });
 }
-// END OF NEW CODE -->
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  HttpOverrides.global = MyHttpOverrides(); // <-- ADDED THIS LINE
+  HttpOverrides.global = MyHttpOverrides(); 
 
-  // ✅ Initialize Firebase before running app
   await Firebase.initializeApp();
-
-  // ✅ Set up FCM background handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  // ✅ Call the new setup function
   setupFirebaseMessaging(); 
 
   final startScreen = await _getStartScreen();
 
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => CartService(),
-      child: MyApp(startScreen),
-    ),
+    // 🛑 REMOVED: ChangeNotifierProvider since CartService is no longer needed
+    MyApp(startScreen),
   );
 }
 
@@ -119,9 +108,9 @@ Future<Widget> _getStartScreen() async {
   final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
   final role = prefs.getString('role');
   final staffId = prefs.getInt('staff_id');
-  final customerId = prefs.getInt('customerId');
 
-  print('SharedPref: is_logged_in=$isLoggedIn, role=$role, staff_id=$staffId, customerId=$customerId');
+  // 🛑 REMOVED: customerId tracking from logs and preferences
+  print('SharedPref: is_logged_in=$isLoggedIn, role=$role, staff_id=$staffId');
 
   if (isLoggedIn && role != null) {
     switch (role) {
@@ -137,13 +126,13 @@ Future<Widget> _getStartScreen() async {
       case 'staff':
         if (staffId != null) return StaffView(staffId: staffId);
         break;
-      case 'customer':
-        return const CustomerView();
+      // 🛑 REMOVED: case 'customer' block entirely
     }
   }
 
-  // If not logged in, or if session data is incomplete, default to the customer login screen.
-  return const LoginCustomer();
+  // 🛑 CHANGED: Default fallback screen. 
+  // It now routes directly to your Staff Login view if not logged in.
+  return const LoginStaff(); 
 }
 
 class MyApp extends StatelessWidget {
@@ -152,14 +141,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ⬇️ START OF THE FIX ⬇️
     return MediaQuery(
-      // 1. Get the current system's media settings
       data: MediaQuery.of(context).copyWith(
-        // 2. Set textScaleFactor to 1.0 to disable system font scaling
-        textScaler: TextScaler.linear(1.0),
+        textScaler: const TextScaler.linear(1.0),
       ),
-      // 3. Apply the modified settings to the MaterialApp and the whole app
       child: MaterialApp(
         title: 'Capstone App',
         debugShowCheckedModeBanner: false,
@@ -167,6 +152,5 @@ class MyApp extends StatelessWidget {
         home: startScreen,
       ),
     );
-    // ⬆️ END OF THE FIX ⬆️
   }
 }
