@@ -11,7 +11,6 @@ import 'staff_features/change_password/change_staff_password.dart';
 import 'manager_features/inventory/inventory_grid_screen.dart';
 import 'staff_features/expiration_dashboard/expiry_dashboard_staff_view.dart';
 import 'staff_features/sales/sales_barcode.dart';
-import 'staff_features/online_orders/online_orders_staff_page.dart';
 import 'staff_features/prescription/prescription_staff.dart';
 
 // Use dart-define to override in different environments
@@ -71,22 +70,12 @@ class _StaffViewState extends State<StaffView>
         http.get(Uri.parse('$API_BASE/api/medicines/expired/')),
       ]);
       
-      // Since one API call was removed, the indices of the remaining responses shift.
-      // Response Indices:
-      // [0] -> total/
-      // [1] -> good-stock/
-      // [2] -> expiring-soon/
-      // [3] -> expired/
       
       setState(() {
         if (responses[0].statusCode == 200) {
           totalMedicineCount = json.decode(responses[0].body)['total_count'];
         }
         
-        // REMOVED: Total earnings processing
-        // if (responses[1].statusCode == 200) {
-        //   totalEarnings = (json.decode(responses[1].body)['total_earnings'] as num).toDouble();
-        // }
         
         if (responses[1].statusCode == 200) { // Index changed from [2] to [1]
           goodStockCount = json.decode(responses[1].body).length;
@@ -348,10 +337,7 @@ class _StaffViewState extends State<StaffView>
                             () => _open(SalesBarcodeScreen(
                                 staffId: widget.staffId,
                                 cartItems: const []))),
-                        _drawerItem(
-                            Icons.mobile_friendly,
-                            'Online Orders', scale, // PASS SCALE
-                            () => _open(const StaffOrdersPage())),
+                        
                         _drawerItem(
                             Icons.priority_high,
                             'Expiry', scale, // PASS SCALE
